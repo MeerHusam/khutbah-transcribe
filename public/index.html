@@ -437,6 +437,29 @@
     .about-credit a { color: var(--green); text-decoration: none; font-weight: 500; }
     .about-credit a:hover { text-decoration: underline; }
 
+    .footer-feedback {
+      background: none; border: none; color: var(--green);
+      font-family: inherit; font-size: 13px; font-weight: 500;
+      cursor: pointer; text-decoration: none; margin-top: 12px; padding: 0;
+    }
+    .footer-feedback:hover { text-decoration: underline; }
+
+    /* Feedback form fields */
+    .fb-intro { font-size: 13px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.5; }
+    .fb-field {
+      width: 100%; font-family: inherit; font-size: 14px; color: var(--text);
+      border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px;
+    }
+    .fb-field:focus { outline: none; border-color: var(--green); }
+    textarea.fb-field { resize: vertical; min-height: 96px; }
+    .fb-send {
+      background: var(--green); color: #fff; border: none; border-radius: 8px;
+      padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    .fb-send:hover { background: var(--green-mid); }
+    .fb-send:disabled { opacity: 0.6; cursor: not-allowed; }
+    .fb-status { font-size: 13px; margin-top: 10px; min-height: 18px; }
+
     /* ── Mobile ───────────────────────────────────────────────────── */
     @media (max-width: 860px) {
       .layout { grid-template-columns: 1fr; gap: 16px; padding: 18px 14px 90px; }
@@ -504,7 +527,25 @@
   <a href="https://www.linkedin.com/in/meerhusam" target="_blank" rel="noopener">LinkedIn</a>
   <a href="https://github.com/MeerHusam" target="_blank" rel="noopener">GitHub</a>
   <div class="footer-sub">Khutbah transcribed &amp; translated with AI</div>
+  <div><button class="footer-feedback" onclick="openFeedback()">💬 Send feedback</button></div>
 </footer>
+
+<!-- Feedback modal -->
+<div class="popup-overlay" id="feedbackOverlay">
+  <div class="popup" style="max-width:460px;">
+    <div class="popup-header">
+      <h3>Send feedback</h3>
+      <button class="popup-close" onclick="closeFeedback()">✕</button>
+    </div>
+    <div class="popup-body">
+      <p class="fb-intro">Spotted an error in a translation or reference, or have a suggestion? Let me know.</p>
+      <textarea class="fb-field" id="fbMessage" rows="5" placeholder="Your feedback…"></textarea>
+      <input class="fb-field" id="fbContact" type="text" placeholder="Email or name (optional)">
+      <button class="fb-send" id="fbSend" onclick="submitFeedback()">Send</button>
+      <div class="fb-status" id="fbStatus"></div>
+    </div>
+  </div>
+</div>
 
 <!-- Tafsir popup -->
 <div class="popup-overlay" id="popupOverlay">
@@ -811,6 +852,45 @@
   document.getElementById('popupOverlay').addEventListener('click', e => {
     if (e.target === document.getElementById('popupOverlay')) closePopup();
   });
+
+  // ── Feedback ──
+  function openFeedback() {
+    document.getElementById('fbStatus').textContent = '';
+    document.getElementById('feedbackOverlay').classList.add('show');
+    document.getElementById('fbMessage').focus();
+  }
+  function closeFeedback() { document.getElementById('feedbackOverlay').classList.remove('show'); }
+  document.getElementById('feedbackOverlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('feedbackOverlay')) closeFeedback();
+  });
+
+  async function submitFeedback() {
+    const message = document.getElementById('fbMessage').value.trim();
+    const contact = document.getElementById('fbContact').value.trim();
+    const status = document.getElementById('fbStatus');
+    if (!message) { status.style.color = '#991b1b'; status.textContent = 'Please enter a message.'; return; }
+    const btn = document.getElementById('fbSend');
+    btn.disabled = true;
+    try {
+      const folder = new URLSearchParams(location.search).get('folder') || result?.title || '';
+      const res = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, contact, folder })
+      });
+      if (!res.ok) throw new Error();
+      status.style.color = 'var(--green)';
+      status.textContent = '✓ Thank you! Your feedback was received.';
+      document.getElementById('fbMessage').value = '';
+      document.getElementById('fbContact').value = '';
+      setTimeout(closeFeedback, 1500);
+    } catch {
+      status.style.color = '#991b1b';
+      status.textContent = 'Could not send. Please try again.';
+    } finally {
+      btn.disabled = false;
+    }
+  }
 
   function copyShare() {
     const text = result?.share_summary || result?.summary || '';

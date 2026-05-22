@@ -1,7 +1,7 @@
 import express from 'express';
 import { WebSocketServer } from 'ws';
 import { createServer } from 'http';
-import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -13,8 +13,12 @@ const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
+app.use(express.json({ limit: '16kb' }));
 app.use(express.static(join(__dirname, 'public')));
 app.use('/audio_files', express.static(join(__dirname, 'audio_files')));
+
+// Secret for viewing submitted feedback at /admin/feedback?key=… (set in env on deploy)
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Curated public khutbah list. This is a READ-ONLY listening site, so instead of
@@ -45,6 +49,7 @@ const ALLOWED_FOLDERS = new Set(PUBLIC_KHUTBAHS.map(k => k.folder));
 // ────────────────────────────────────────────────────────────────────────────
 const DATA_DIR = join(__dirname, 'data');
 const VIEWS_FILE = join(DATA_DIR, 'views.json');
+const FEEDBACK_FILE = join(DATA_DIR, 'feedback.jsonl');
 mkdirSync(DATA_DIR, { recursive: true });
 
 let totalViews = 0;
@@ -250,6 +255,55 @@ app.get('/api/quran/:surah/:ayah', (req, res) => {
   const verse = surah.verses.find(v => v.id === a);
   if (!verse) return res.status(404).json({ error: 'Not found' });
   res.json({ surah: s, ayah: a, surah_name: surah.name, text: verse.text });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// Feedback: visitors submit via the box on the page; entries are appended as
+// one JSON object per line to data/feedback.jsonl. Read them at
+// /admin/feedback?key=<ADMIN_TOKEN>. (data/ is ephemeral on Render's free plan —
+// use the persistent disk in render.yaml to keep submissions across redeploys.)
+// ────────────────────────────────────────────────────────────────────────────
+app.post('/api/feedback', (req, res) => {
+  const message = (req.body?.message || '').toString().trim().slice(0, 2000);
+  const contact = (req.body?.contact || '').toString().trim().slice(0, 200);
+  if (!message) return res.status(400).json({ error: 'Message is required' });
+  const entry = {
+    ts: new Date().toISOString(),
+    message,
+    contact: contact || null,
+    khutbah: (req.body?.folder || '').toString().slice(0, 120) || null,
+    ua: (req.headers['user-agent'] || '').toString().slice(0, 200),
+    ip: (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim(),
+  };
+  try {
+    appendFileSync(FEEDBACK_FILE, JSON.stringify(entry) + '\n');
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: 'Could not save feedback' });
+  }
+});
+
+app.get('/admin/feedback', (req, res) => {
+  if (!ADMIN_TOKEN) return res.status(503).send('Set the ADMIN_TOKEN env var to view feedback.');
+  if (req.query.key !== ADMIN_TOKEN) return res.status(401).send('Unauthorized');
+  let entries = [];
+  try {
+    entries = readFileSync(FEEDBACK_FILE, 'utf8').split('\n').filter(Boolean)
+      .map(l => { try { return JSON.parse(l); } catch { return null; } })
+      .filter(Boolean).reverse();
+  } catch {}
+  const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const cards = entries.length
+    ? entries.map(e => `<div class="f"><div class="msg">${esc(e.message)}</div>
+        <div class="meta">${esc(e.ts)}${e.contact ? ' · ' + esc(e.contact) : ''}${e.khutbah ? ' · ' + esc(e.khutbah) : ''}</div></div>`).join('')
+    : '<p>No feedback yet.</p>';
+  res.send(`<!doctype html><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Feedback (${entries.length})</title>
+    <style>body{font-family:system-ui,-apple-system,sans-serif;max-width:760px;margin:24px auto;padding:0 16px;color:#1a1a1a}
+    h1{font-size:18px;margin-bottom:16px}.f{border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:12px}
+    .msg{white-space:pre-wrap;line-height:1.55}.meta{font-size:12px;color:#6b7280;margin-top:8px}</style>
+    <h1>Feedback (${entries.length})</h1>${cards}`);
 });
 
 const PORT = process.env.PORT || 3000;

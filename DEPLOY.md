@@ -37,8 +37,20 @@ a `Dockerfile` is included for those.
 3. Wait for the build, then open the `*.onrender.com` URL. The featured masjid
    khutbah loads by default; the dropdown switches khutbahs.
 
-No environment variables are required for the listening site. (`ANTHROPIC_API_KEY`
-etc. are only for the offline pipeline, which doesn't run here.)
+Set one environment variable in Render (Dashboard → your service → Environment):
+
+- **`ADMIN_TOKEN`** — a secret you choose. Read submitted feedback at
+  `https://<your-app>.onrender.com/admin/feedback?key=<ADMIN_TOKEN>`. Without it set,
+  the admin page returns 503 (feedback is still collected, just not viewable).
+
+(`ANTHROPIC_API_KEY` etc. are only for the offline pipeline, which doesn't run here.)
+
+## Feedback
+
+Visitors submit via the "Send feedback" box; each entry is appended to
+`data/feedback.jsonl`. Like the total-views counter, this lives on the ephemeral
+free-tier disk, so it **resets on redeploy** unless you enable the persistent `disk:`
+in `render.yaml` (paid plan). Read submissions at `/admin/feedback?key=<ADMIN_TOKEN>`.
 
 ## What ships with the deploy
 

@@ -17,6 +17,10 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "20"
+      # Secret for reading submitted feedback at /admin/feedback?key=<value>.
+      # sync:false → Render prompts you to set it in the dashboard (not stored in git).
+      - key: ADMIN_TOKEN
+        sync: false
     # The total-views counter is written to data/views.json. On the free plan the
     # filesystem is ephemeral, so the TOTAL resets on each deploy/restart (live count
     # is always accurate). To persist the total, switch plan to "starter" and uncomment:
