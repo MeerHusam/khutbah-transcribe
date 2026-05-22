@@ -24,7 +24,7 @@ services:
     # The total-views counter is written to data/views.json. On the free plan the
     # filesystem is ephemeral, so the TOTAL resets on each deploy/restart (live count
     # is always accurate). To persist the total, switch plan to "starter" and uncomment:
-    # disk:
-    #   name: khutbah-data
-    #   mountPath: /opt/render/project/src/data
-    #   sizeGB: 1
+    disk:
+      name: khutbah-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
