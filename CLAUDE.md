@@ -4,6 +4,15 @@ This file is auto-loaded by Claude Code at session start. It captures the full i
 
 ---
 
+## Deployment
+
+- **GitHub:** https://github.com/MeerHusam/khutbah-live (branch: `main`)
+- **Render:** https://khutbah-live.onrender.com (Blueprint, free plan, auto-deploys on push to `main`)
+- **Admin feedback:** `https://khutbah-live.onrender.com/admin/feedback?key=<ADMIN_TOKEN>` (set in Render Environment tab)
+- **Public name:** KhutbahLive
+
+---
+
 ## What This Project Does
 
 Takes an Arabic Friday Khutbah (sermon) audio file and produces:
