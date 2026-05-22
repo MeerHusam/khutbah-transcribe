@@ -270,8 +270,8 @@
     /* Share card */
     .share-card {
       background:
-        linear-gradient(150deg, rgba(56,178,122,0.10), rgba(10,22,17,0)) ,
-        linear-gradient(135deg, #123626 0%, #0b1d15 100%);
+        linear-gradient(150deg, rgba(56,178,122,0.10) 0%, transparent 55%),
+        #112519;
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 28px;
@@ -589,7 +589,10 @@
 
   <div class="audio-player" id="audioPlayer">
     <button class="skip-btn" onclick="skip(-10)" title="Back 10 seconds" aria-label="Back 10 seconds">↺<small>10</small></button>
-    <button class="play-btn" id="playBtn" onclick="togglePlay()">▶</button>
+    <button class="play-btn" id="playBtn" onclick="togglePlay()">
+      <svg id="playIcon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg>
+      <svg id="pauseIcon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="display:none"><rect x="5" y="4" width="4" height="16"/><rect x="15" y="4" width="4" height="16"/></svg>
+    </button>
     <button class="skip-btn" onclick="skip(10)" title="Forward 10 seconds" aria-label="Forward 10 seconds">↻<small>10</small></button>
     <input class="audio-scrubber" id="scrubber" type="range" min="0" max="100" value="0" step="0.1">
     <span class="audio-time" id="audioTime">0:00 / 0:00</span>
@@ -742,9 +745,9 @@
           <p class="share-text">${escHtml(r.summary || 'No summary available.')}</p>
         </div>
 
-        <div class="section">
-          <div class="section-header"><h2>Full Translation</h2></div>
-          <div class="section-body">${renderTranslation(r)}</div>
+        <div class="share-card" style="padding-bottom: 8px;">
+          <div class="share-label">Full Translation</div>
+          ${renderTranslation(r)}
         </div>
 
         <div class="section">
@@ -1039,14 +1042,14 @@
       }
     });
 
-    audio.addEventListener('ended', () => { document.getElementById('playBtn').textContent = '▶'; });
+    audio.addEventListener('ended', () => { setPlayIcon(true); });
 
     document.querySelectorAll('.reader-chunk[data-start]').forEach(el => {
       el.addEventListener('click', e => {
         if (e.target.closest('a')) return;
         audio.currentTime = parseFloat(el.dataset.start);
         audio.play();
-        document.getElementById('playBtn').textContent = '⏸';
+        setPlayIcon(false);
       });
     });
 
@@ -1055,10 +1058,15 @@
     });
   }
 
+  function setPlayIcon(paused) {
+    document.getElementById('playIcon').style.display  = paused ? '' : 'none';
+    document.getElementById('pauseIcon').style.display = paused ? 'none' : '';
+  }
+
   function togglePlay() {
     if (!audio) return;
-    if (audio.paused) { audio.play(); document.getElementById('playBtn').textContent = '⏸'; }
-    else { audio.pause(); document.getElementById('playBtn').textContent = '▶'; }
+    if (audio.paused) { audio.play(); setPlayIcon(false); }
+    else { audio.pause(); setPlayIcon(true); }
   }
 
   function fmt(s) {
