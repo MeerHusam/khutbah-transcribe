@@ -18,6 +18,8 @@ import {
   buildReaderView,
   buildReadableOutput,
   buildProseChunks,
+  locateSecondKhutbah,
+  splitChunkAtKhutbahBoundary,
   prescanForQuranZones,
   buildZoneRefs,
   scanTranscriptForQuran,
@@ -145,12 +147,19 @@ async function main() {
   console.log(` ${allHadithRefs.filter(r => r.verification === 'sunnah_search').length}/${allHadithRefs.length} verified`);
 
   const matchedCount = allQuranRefs.filter(r => r.matched).length;
+  const secondKhutbah = locateSecondKhutbah(analysis.second_khutbah_start, transcript, existingSegments, existingWords);
+  if (secondKhutbah) {
+    console.log(`✓ Second khutbah split at word ${secondKhutbah.word_index} (${secondKhutbah.via}${secondKhutbah.validated ? ', gap-validated' : ''})`);
+    const didSplit = await splitChunkAtKhutbahBoundary(proseChunks, analysis.chunk_translations, secondKhutbah.word_index, transcriptWords, anthropic, 'claude-sonnet-4-6');
+    if (didSplit) console.log('  ↳ split the straddling chunk into two (Khutbah 1 | Khutbah 2)');
+  }
 
   const result = {
     share_summary: analysis.share_summary ?? '',
     summary: analysis.summary ?? '',
     chunk_translations: Array.isArray(analysis.chunk_translations) ? analysis.chunk_translations : null,
     prose_chunk_map: proseChunks.map(({ wordStart, wordEnd, proseIdx }) => ({ wordStart, wordEnd, proseIdx })),
+    second_khutbah: secondKhutbah,
     quran_references: allQuranRefs,
     hadith_references: allHadithRefs,
     transcript_segments: existingSegments,

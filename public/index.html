@@ -4,37 +4,72 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>KhutbahTranscribe</title>
+  <meta name="theme-color" content="#0a1611">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Naskh+Arabic:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Amiri:ital,wght@0,400;0,700;1,400&family=Reem+Kufi:wght@400;500;600;700&family=Noto+Naskh+Arabic:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --green: #1c6b45;
-      --green-light: #e8f5ee;
-      --green-mid: #2d8a5b;
-      --gold: #c9a84c;
-      --gold-light: #fdf6e3;
-      --text: #1a1a1a;
-      --text-muted: #6b7280;
-      --border: #e5e7eb;
-      --bg: #f9fafb;
-      --white: #ffffff;
-      --radius: 14px;
+      /* Mosque-at-night palette */
+      --bg: #0a1611;
+      --bg-soft: #0e1d16;
+      --surface: #112519;
+      --surface-2: #16331f;
+      --surface-3: #1b3d27;
+      --border: rgba(217,184,106,0.16);
+      --border-soft: rgba(236,227,207,0.09);
+      --gold: #d9b86a;
+      --gold-bright: #ecd497;
+      --gold-deep: #b8923f;
+      --green: #38b27a;
+      --green-soft: #2a8a5f;
+      --green-glow: rgba(56,178,122,0.22);
+      --cream: #ece3cf;
+      --text: #ece3cf;
+      --text-muted: #9aa99c;
+      --text-dim: #74857a;
+      --bg-elev: #0d1d15;
+      --white: #112519;            /* legacy alias → surface, so old refs stay dark */
+      --green-light: rgba(56,178,122,0.12);
+      --gold-light: rgba(217,184,106,0.12);
+      --radius: 16px;
+      --font-ui: 'Inter', -apple-system, sans-serif;
+      --font-serif: 'Lora', Georgia, serif;
+      --font-ar: 'Amiri', 'Noto Naskh Arabic', serif;
+      --font-kufi: 'Reem Kufi', 'Noto Naskh Arabic', sans-serif;
+      /* Faint Rub-el-Hizb (8-point star) lattice */
+      --pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Cg fill='none' stroke='%23d9b86a' stroke-width='1'%3E%3Cpath d='M32 4 L60 32 L32 60 L4 32 Z'/%3E%3Cpath d='M14 14 H50 V50 H14 Z'/%3E%3C/g%3E%3C/svg%3E");
     }
 
     html { -webkit-text-size-adjust: 100%; }
 
     body {
-      font-family: 'Inter', sans-serif;
+      font-family: var(--font-ui);
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
       overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
     }
+    /* Subtle geometric lattice across the whole page */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image: var(--pattern);
+      background-size: 64px 64px;
+      opacity: 0.035;
+      pointer-events: none;
+    }
+    body > * { position: relative; z-index: 1; }
+
+    ::selection { background: rgba(217,184,106,0.28); }
 
     header {
-      background: var(--white);
+      background: rgba(10,22,17,0.82);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
       border-bottom: 1px solid var(--border);
       padding: 12px 24px;
       padding-top: max(12px, env(safe-area-inset-top));
@@ -50,27 +85,34 @@
     .header-left { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
 
     .logo-mark {
-      width: 32px;
-      height: 32px;
-      background: var(--green);
-      border-radius: 8px;
+      width: 34px;
+      height: 34px;
+      background: linear-gradient(145deg, var(--gold-bright), var(--gold-deep));
+      border-radius: 9px;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: white;
-      font-size: 16px;
+      color: #0a1611;
+      font-family: var(--font-kufi);
+      font-size: 18px;
+      font-weight: 700;
       flex-shrink: 0;
+      box-shadow: 0 0 18px rgba(217,184,106,0.25);
     }
 
-    header h1 { font-size: 16px; font-weight: 600; white-space: nowrap; }
+    header h1 {
+      font-family: var(--font-serif);
+      font-size: 17px; font-weight: 600; white-space: nowrap;
+      color: var(--cream); letter-spacing: 0.2px;
+    }
 
     /* Audio player: grows to fill, wraps to its own row on narrow screens */
     .audio-player {
       display: none;
       align-items: center;
       gap: 10px;
-      background: var(--green-light);
-      border: 1px solid #b7dfc8;
+      background: var(--surface);
+      border: 1px solid var(--border);
       border-radius: 99px;
       padding: 6px 16px 6px 8px;
       flex: 1 1 260px;
@@ -79,22 +121,22 @@
     }
 
     .play-btn {
-      width: 32px;
-      height: 32px;
+      width: 34px;
+      height: 34px;
       border-radius: 50%;
-      background: var(--green);
+      background: linear-gradient(145deg, var(--green), var(--green-soft));
       border: none;
-      color: white;
+      color: #06120c;
       font-size: 13px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      transition: background 0.2s;
+      transition: box-shadow 0.2s, transform 0.1s;
+      box-shadow: 0 0 14px var(--green-glow);
     }
-
-    .play-btn:hover { background: var(--green-mid); }
+    .play-btn:hover { box-shadow: 0 0 20px var(--green-glow); transform: scale(1.05); }
 
     /* Skip back/forward 10s */
     .skip-btn {
@@ -104,7 +146,7 @@
       gap: 1px;
       background: transparent;
       border: none;
-      color: var(--green);
+      color: var(--gold);
       font-size: 16px;
       font-weight: 600;
       cursor: pointer;
@@ -113,13 +155,13 @@
       line-height: 1;
     }
     .skip-btn small { font-size: 9px; font-weight: 700; }
-    .skip-btn:hover { color: var(--green-mid); }
+    .skip-btn:hover { color: var(--gold-bright); }
 
     /* Playback speed toggle */
     .speed-btn {
-      background: var(--white);
-      border: 1px solid #b7dfc8;
-      color: var(--green);
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--gold);
       border-radius: 99px;
       font-size: 11px;
       font-weight: 600;
@@ -129,20 +171,21 @@
       min-width: 36px;
       text-align: center;
     }
-    .speed-btn:hover { background: var(--green-light); }
+    .speed-btn:hover { background: var(--gold-light); }
 
     .audio-time {
       font-size: 12px;
-      color: var(--green);
+      color: var(--text-muted);
       font-weight: 500;
       white-space: nowrap;
+      font-variant-numeric: tabular-nums;
     }
 
     .audio-scrubber {
       flex: 1;
       min-width: 60px;
       height: 4px;
-      accent-color: var(--green);
+      accent-color: var(--gold);
       cursor: pointer;
     }
 
@@ -167,248 +210,292 @@
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: #d1d5db;
+      background: var(--text-dim);
       display: inline-block;
       flex-shrink: 0;
     }
     .viewers.online .live-dot {
-      background: #22c55e;
-      box-shadow: 0 0 0 0 rgba(34,197,94,0.5);
+      background: var(--green);
+      box-shadow: 0 0 0 0 rgba(56,178,122,0.6);
       animation: pulse 2s infinite;
     }
     @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.5); }
-      70% { box-shadow: 0 0 0 6px rgba(34,197,94,0); }
-      100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+      0% { box-shadow: 0 0 0 0 rgba(56,178,122,0.5); }
+      70% { box-shadow: 0 0 0 6px rgba(56,178,122,0); }
+      100% { box-shadow: 0 0 0 0 rgba(56,178,122,0); }
     }
-    .viewers b { color: var(--text); font-weight: 600; }
+    .viewers b { color: var(--cream); font-weight: 600; }
 
     /* Khutbah switcher */
     .khutbah-select {
       font-family: inherit;
       font-size: 13px;
       font-weight: 500;
-      color: var(--text);
-      background: var(--white);
+      color: var(--cream);
+      background-color: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: 9px;
       padding: 7px 30px 7px 12px;
       cursor: pointer;
       max-width: 60vw;
       appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23d9b86a' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
       background-position: right 10px center;
     }
-    .khutbah-select:hover { border-color: var(--green); }
+    .khutbah-select:hover { border-color: var(--gold); }
+    .khutbah-select option { background: var(--bg-soft); color: var(--cream); }
 
     /* Layout */
     .layout {
       max-width: 1100px;
       margin: 0 auto;
-      padding: 28px 24px 80px;
+      padding: 32px 24px 80px;
       display: grid;
       grid-template-columns: 1fr 320px;
       gap: 24px;
       align-items: start;
     }
 
-    .khutbah-heading { margin-bottom: 20px; }
-    .khutbah-heading h2 { font-size: 22px; font-weight: 700; line-height: 1.3; }
-    .khutbah-heading .speaker { font-size: 13.5px; color: var(--text-muted); margin-top: 4px; }
+    .khutbah-heading { margin-bottom: 22px; }
+    .khutbah-heading h2 {
+      font-family: var(--font-serif);
+      font-size: 26px; font-weight: 600; line-height: 1.3; color: var(--cream);
+    }
+    .khutbah-heading .speaker {
+      font-size: 13.5px; color: var(--gold); margin-top: 6px;
+      letter-spacing: 0.3px; font-weight: 500;
+    }
 
     /* Share card */
     .share-card {
-      background: linear-gradient(135deg, var(--green) 0%, #145233 100%);
+      background:
+        linear-gradient(150deg, rgba(56,178,122,0.10), rgba(10,22,17,0)) ,
+        linear-gradient(135deg, #123626 0%, #0b1d15 100%);
+      border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 28px;
-      color: white;
+      color: var(--cream);
       margin-bottom: 24px;
       position: relative;
       overflow: hidden;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.35);
     }
     .share-card::before {
       content: '';
-      position: absolute; top: -40px; right: -40px;
-      width: 160px; height: 160px; border-radius: 50%;
-      background: rgba(255,255,255,0.05);
-    }
-    .share-card::after {
-      content: '';
-      position: absolute; bottom: -60px; right: 40px;
-      width: 200px; height: 200px; border-radius: 50%;
-      background: rgba(255,255,255,0.03);
+      position: absolute; inset: 0;
+      background-image: var(--pattern);
+      background-size: 70px 70px;
+      opacity: 0.07;
+      pointer-events: none;
     }
     .share-label {
-      font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
-      opacity: 0.7; margin-bottom: 10px;
+      font-family: var(--font-kufi);
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.18em;
+      color: var(--gold); margin-bottom: 12px; position: relative; z-index: 1;
     }
     .share-text {
-      font-size: 15px; line-height: 1.7; opacity: 0.95;
-      margin-bottom: 20px; position: relative; z-index: 1;
+      font-family: var(--font-serif);
+      font-size: 16px; line-height: 1.75;
+      margin-bottom: 22px; position: relative; z-index: 1; color: #e6dcc6;
     }
     .copy-btn {
       display: inline-flex; align-items: center; gap: 6px;
-      background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
-      color: white; padding: 8px 16px; border-radius: 8px;
-      font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.2s;
+      background: rgba(217,184,106,0.12); border: 1px solid var(--border);
+      color: var(--gold-bright); padding: 9px 18px; border-radius: 9px;
+      font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s;
+      position: relative; z-index: 1;
     }
-    .copy-btn:hover { background: rgba(255,255,255,0.25); }
+    .copy-btn:hover { background: rgba(217,184,106,0.2); }
 
     /* Section */
     .section {
-      background: var(--white); border: 1px solid var(--border);
+      background: var(--surface); border: 1px solid var(--border);
       border-radius: var(--radius); overflow: hidden; margin-bottom: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
     }
     .section-header {
-      padding: 18px 22px; border-bottom: 1px solid var(--border);
+      padding: 18px 22px; border-bottom: 1px solid var(--border-soft);
       display: flex; align-items: center; justify-content: space-between;
     }
     .section-header h2 {
-      font-size: 15px; font-weight: 600;
-      display: flex; align-items: center; gap: 8px;
+      font-family: var(--font-serif);
+      font-size: 17px; font-weight: 600; color: var(--cream);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .section-header h2::before {
+      content: '۞'; color: var(--gold); font-size: 15px; opacity: 0.85;
     }
     .count-badge {
-      background: var(--green-light); color: var(--green);
-      font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 20px;
+      background: var(--gold-light); color: var(--gold-bright);
+      font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 20px;
+      border: 1px solid var(--border);
     }
     .section-body { padding: 22px; }
 
-    .summary-text { font-size: 14px; line-height: 1.8; color: #374151; }
+    .summary-text { font-size: 14.5px; line-height: 1.85; color: #cfc7b3; }
 
     /* Translation reader chunks */
     .reader-chunk {
-      margin-bottom: 24px; padding: 16px; border-bottom: 1px solid var(--border);
-      border-radius: 8px; transition: background 0.3s, box-shadow 0.3s;
+      margin-bottom: 28px; padding: 16px 18px 28px;
+      border-bottom: 2px solid transparent;
+      border-image: linear-gradient(to right, transparent 4%, rgba(217,184,106,0.6) 50%, transparent 96%) 1;
+      border-radius: 10px; transition: background 0.3s, box-shadow 0.3s;
     }
-    .reader-chunk:last-child { border-bottom: none; margin-bottom: 0; }
+    .reader-chunk:last-child { border-image: none; border-bottom: none; margin-bottom: 0; padding-bottom: 16px; }
     .reader-chunk[data-start] { cursor: pointer; }
-    .reader-chunk[data-start]:hover { background: #f7fdf9; }
-    .reader-chunk.chunk-active { background: #f0faf4; box-shadow: inset 3px 0 0 var(--green); }
+    .reader-chunk[data-start]:hover { background: var(--surface-2); }
+    .reader-chunk.chunk-active {
+      background: var(--surface-3);
+      box-shadow: inset 3px 0 0 var(--green), 0 0 24px rgba(56,178,122,0.12);
+    }
+
+    .khutbah-divider {
+      display: flex; align-items: center; text-align: center;
+      gap: 16px; margin: 34px 4px 26px; color: var(--gold);
+    }
+    .khutbah-divider::before, .khutbah-divider::after {
+      content: ''; flex: 1; height: 1px;
+      background: linear-gradient(to right, transparent, var(--gold-deep), transparent);
+    }
+    .khutbah-divider span {
+      font-family: var(--font-kufi); font-size: 15px; font-weight: 600;
+      white-space: nowrap; letter-spacing: .4px; color: var(--gold-bright);
+    }
 
     .chunk-arabic {
-      font-family: 'Noto Naskh Arabic', serif; font-size: 19px;
-      direction: rtl; text-align: right; line-height: 2; color: var(--text); margin-bottom: 10px;
+      font-family: var(--font-ar); font-size: 23px;
+      direction: rtl; text-align: right; line-height: 2.15; color: var(--cream); margin-bottom: 12px;
     }
-    .chunk-english { font-size: 14px; line-height: 1.8; color: #374151; }
+    .chunk-english { font-size: 14.5px; line-height: 1.85; color: #c3bca8; }
 
     .chunk-arabic-quran {
-      font-size: 22px; color: #3d2a00; background: #fffdf5;
-      border-right: 3px solid var(--gold); padding: 8px 14px 8px 0; letter-spacing: 0.02em;
+      font-size: 25px; color: var(--gold-bright); background: rgba(217,184,106,0.06);
+      border-right: 3px solid var(--gold); padding: 10px 16px 10px 0; letter-spacing: 0.01em;
+      border-radius: 4px;
     }
     .chunk-quran-translation {
-      font-size: 13px; line-height: 1.7; color: #78580a;
-      font-style: italic; margin-top: 6px; padding-right: 4px;
+      font-size: 13.5px; line-height: 1.75; color: #b89a5a;
+      font-style: italic; margin-top: 8px; padding-right: 4px;
     }
     .chunk-quran-cite {
-      display: inline-flex; align-items: center; gap: 7px; margin-top: 6px;
-      padding: 5px 12px 5px 10px; background: #fef9ec; border: 1px solid #e9c76b;
+      display: inline-flex; align-items: center; gap: 7px; margin-top: 8px;
+      padding: 5px 12px 5px 10px; background: rgba(217,184,106,0.08); border: 1px solid var(--border);
       border-left: 3px solid var(--gold); border-radius: 6px;
-      font-size: 13px; font-weight: 500; color: #7a5c00; text-decoration: none; transition: background 0.15s;
+      font-size: 13px; font-weight: 500; color: var(--gold-bright); text-decoration: none; transition: background 0.15s;
     }
-    .chunk-quran-cite:hover { background: #fef0c0; }
+    .chunk-quran-cite:hover { background: rgba(217,184,106,0.16); }
     .chunk-hadith-cite {
-      display: inline-block; margin-top: 6px; padding: 4px 12px;
-      background: #f0f4ff; border: 1px solid #c7d2fe; border-left: 3px solid #6366f1;
-      border-radius: 6px; font-size: 12px; color: #3730a3;
+      display: inline-block; margin-top: 8px; padding: 4px 12px;
+      background: rgba(56,178,122,0.08); border: 1px solid rgba(56,178,122,0.28); border-left: 3px solid var(--green);
+      border-radius: 6px; font-size: 12.5px; color: #8fe0b6;
     }
 
     /* Quran refs */
     .ref-card {
-      border: 1px solid #e9c76b; border-left: 4px solid var(--gold);
-      background: #fffdf5; border-radius: 10px; padding: 16px 18px; margin-bottom: 12px;
+      border: 1px solid var(--border); border-left: 4px solid var(--gold);
+      background: var(--surface-2); border-radius: 10px; padding: 16px 18px; margin-bottom: 12px;
       cursor: pointer; transition: all 0.2s; position: relative;
     }
     .ref-card:last-child { margin-bottom: 0; }
-    .ref-card:hover { background: #fef6d6; box-shadow: 0 0 0 3px #fef3c7; }
+    .ref-card:hover { background: var(--surface-3); box-shadow: 0 0 0 3px rgba(217,184,106,0.12); }
     .ref-card-header {
       display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px;
     }
-    .ref-surah { font-size: 14px; font-weight: 600; color: var(--green); }
+    .ref-surah { font-family: var(--font-serif); font-size: 15px; font-weight: 600; color: var(--gold-bright); }
     .ref-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     .verify-badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 500; }
-    .verify-agree { background: #dcfce7; color: #166534; }
-    .verify-claude { background: #fef9c3; color: #854d0e; }
-    .verify-algo { background: #e0e7ff; color: #3730a3; }
-    .verify-disagree { background: #fee2e2; color: #991b1b; }
+    .verify-agree { background: rgba(56,178,122,0.16); color: #6ee7a8; }
+    .verify-claude { background: rgba(217,184,106,0.16); color: var(--gold-bright); }
+    .verify-algo { background: rgba(129,140,248,0.16); color: #a5b4fc; }
+    .verify-disagree { background: rgba(248,113,113,0.16); color: #fca5a5; }
     .ref-arabic {
-      font-family: 'Noto Naskh Arabic', serif; font-size: 18px;
-      direction: rtl; text-align: right; line-height: 2; color: var(--text); margin-bottom: 8px;
+      font-family: var(--font-ar); font-size: 20px;
+      direction: rtl; text-align: right; line-height: 2.1; color: var(--cream); margin-bottom: 8px;
     }
-    .ref-arabic-full { font-size: 20px; color: #3d2a00; letter-spacing: 0.02em; }
+    .ref-arabic-full { font-size: 23px; color: var(--gold-bright); letter-spacing: 0.01em; }
     .ref-link {
       display: inline-flex; align-items: center; gap: 5px; margin-top: 8px;
-      padding: 4px 11px; background: white; border: 1px solid #e9c76b; border-radius: 6px;
-      font-size: 12px; font-weight: 500; color: #7a5c00; text-decoration: none; transition: background 0.15s;
+      padding: 5px 12px; background: transparent; border: 1px solid var(--border); border-radius: 6px;
+      font-size: 12px; font-weight: 500; color: var(--gold); text-decoration: none; transition: background 0.15s;
     }
-    .ref-link:hover { background: #fef0c0; }
-    .tafsir-hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+    .ref-link:hover { background: var(--gold-light); }
+    .tafsir-hint { font-size: 12px; color: var(--text-dim); margin-top: 8px; }
 
     /* Hadith refs */
-    .hadith-card { border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin-bottom: 12px; }
+    .hadith-card { border: 1px solid var(--border-soft); background: var(--surface-2); border-radius: 10px; padding: 16px 18px; margin-bottom: 12px; }
     .hadith-card:last-child { margin-bottom: 0; }
     .hadith-header {
       display: flex; align-items: center; justify-content: space-between;
       margin-bottom: 10px; gap: 8px; flex-wrap: wrap;
     }
-    .hadith-source { font-size: 13px; font-weight: 600; }
+    .hadith-source { font-family: var(--font-serif); font-size: 14px; font-weight: 600; color: var(--cream); }
     .collection-badge {
-      font-size: 11px; padding: 2px 8px; border-radius: 20px;
-      background: var(--gold-light); color: #78350f; font-weight: 500;
+      font-size: 11px; padding: 2px 9px; border-radius: 20px;
+      background: var(--gold-light); color: var(--gold-bright); font-weight: 500; border: 1px solid var(--border);
     }
     .hadith-arabic {
-      font-family: 'Noto Naskh Arabic', serif; font-size: 17px;
-      direction: rtl; text-align: right; line-height: 1.9; color: var(--text); margin-bottom: 8px;
+      font-family: var(--font-ar); font-size: 19px;
+      direction: rtl; text-align: right; line-height: 2.05; color: var(--cream); margin-bottom: 8px;
     }
-    .hadith-note { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; }
+    .hadith-note { font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 4px; }
 
     /* Sidebar */
     .sidebar-card {
-      background: var(--white); border: 1px solid var(--border);
+      background: var(--surface); border: 1px solid var(--border);
       border-radius: var(--radius); overflow: hidden; margin-bottom: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
     }
-    .sidebar-header { padding: 14px 18px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 600; }
+    .sidebar-header {
+      padding: 14px 18px; border-bottom: 1px solid var(--border-soft);
+      font-family: var(--font-serif); font-size: 14px; font-weight: 600; color: var(--cream);
+    }
     .sidebar-body { padding: 16px 18px; }
     .stat-row {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+      padding: 9px 0; border-bottom: 1px solid var(--border-soft); font-size: 13px;
     }
     .stat-row:last-child { border-bottom: none; padding-bottom: 0; }
     .stat-label { color: var(--text-muted); }
-    .stat-value { font-weight: 600; }
+    .stat-value { font-weight: 600; color: var(--cream); }
     .stat-green { color: var(--green); }
 
     /* Tafsir popup */
     .popup-overlay {
-      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+      display: none; position: fixed; inset: 0; background: rgba(3,8,6,0.7);
+      backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
       z-index: 200; align-items: center; justify-content: center; padding: 24px;
     }
     .popup-overlay.show { display: flex; }
     .popup {
-      background: white; border-radius: var(--radius); max-width: 600px; width: 100%;
-      max-height: 80vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+      background: var(--bg-soft); border: 1px solid var(--border);
+      border-radius: var(--radius); max-width: 600px; width: 100%;
+      max-height: 80vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.6);
     }
     .popup-header {
-      padding: 20px 24px; border-bottom: 1px solid var(--border);
+      padding: 20px 24px; border-bottom: 1px solid var(--border-soft);
       display: flex; align-items: center; justify-content: space-between;
-      position: sticky; top: 0; background: white;
+      position: sticky; top: 0; background: var(--bg-soft);
     }
-    .popup-header h3 { font-size: 16px; font-weight: 600; }
+    .popup-header h3 { font-family: var(--font-serif); font-size: 17px; font-weight: 600; color: var(--cream); }
     .popup-close {
-      width: 30px; height: 30px; border-radius: 50%; background: var(--bg);
-      border: none; cursor: pointer; font-size: 16px;
+      width: 30px; height: 30px; border-radius: 50%; background: var(--surface-2);
+      border: 1px solid var(--border); cursor: pointer; font-size: 15px; color: var(--text-muted);
       display: flex; align-items: center; justify-content: center;
     }
+    .popup-close:hover { color: var(--cream); }
     .popup-body { padding: 24px; }
     .popup-arabic {
-      font-family: 'Noto Naskh Arabic', serif; font-size: 22px; direction: rtl; text-align: right;
-      line-height: 2; background: var(--green-light); border-radius: 10px; padding: 20px; margin-bottom: 20px; color: var(--text);
+      font-family: var(--font-ar); font-size: 24px; direction: rtl; text-align: right;
+      line-height: 2.1; background: rgba(217,184,106,0.06); border: 1px solid var(--border);
+      border-radius: 10px; padding: 20px; margin-bottom: 20px; color: var(--gold-bright);
     }
     .popup-tafsir-title {
-      font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
-      color: var(--text-muted); margin-bottom: 8px;
+      font-family: var(--font-kufi);
+      font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--gold); margin-bottom: 8px;
     }
-    .popup-tafsir-text { font-size: 14px; line-height: 1.8; color: #374151; margin-bottom: 16px; }
+    .popup-tafsir-text { font-size: 14px; line-height: 1.8; color: #c3bca8; margin-bottom: 16px; }
     .popup-qurancom {
       display: inline-flex; align-items: center; gap: 6px; color: var(--green);
       font-size: 13px; font-weight: 500; text-decoration: none;
@@ -417,28 +504,29 @@
 
     /* Loading / empty */
     .state-msg { text-align: center; padding: 80px 24px; color: var(--text-muted); }
-    .state-msg h2 { font-size: 18px; color: var(--text); margin-bottom: 8px; }
+    .state-msg h2 { font-family: var(--font-serif); font-size: 19px; color: var(--cream); margin-bottom: 8px; }
 
     /* Footer credit */
     .site-footer {
       text-align: center;
-      padding: 28px 24px calc(32px + env(safe-area-inset-bottom));
+      padding: 30px 24px calc(34px + env(safe-area-inset-bottom));
       border-top: 1px solid var(--border);
       color: var(--text-muted);
       font-size: 13px;
+      position: relative; z-index: 1;
     }
-    .site-footer strong { color: var(--text); font-weight: 600; }
-    .site-footer a { color: var(--green); text-decoration: none; font-weight: 500; margin: 0 6px; }
+    .site-footer strong { color: var(--cream); font-weight: 600; }
+    .site-footer a { color: var(--gold); text-decoration: none; font-weight: 500; margin: 0 6px; }
     .site-footer a:hover { text-decoration: underline; }
-    .footer-sep { opacity: 0.45; }
+    .footer-sep { opacity: 0.4; }
     .footer-sub { font-size: 12px; margin-top: 6px; opacity: 0.85; }
 
     .about-credit { margin-top: 10px; }
-    .about-credit a { color: var(--green); text-decoration: none; font-weight: 500; }
+    .about-credit a { color: var(--gold); text-decoration: none; font-weight: 500; }
     .about-credit a:hover { text-decoration: underline; }
 
     .footer-feedback {
-      background: none; border: none; color: var(--green);
+      background: none; border: none; color: var(--gold);
       font-family: inherit; font-size: 13px; font-weight: 500;
       cursor: pointer; text-decoration: none; margin-top: 12px; padding: 0;
     }
@@ -447,22 +535,23 @@
     /* Feedback form fields */
     .fb-intro { font-size: 13px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.5; }
     .fb-field {
-      width: 100%; font-family: inherit; font-size: 14px; color: var(--text);
-      border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px;
+      width: 100%; font-family: inherit; font-size: 14px; color: var(--cream);
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px;
     }
-    .fb-field:focus { outline: none; border-color: var(--green); }
+    .fb-field::placeholder { color: var(--text-dim); }
+    .fb-field:focus { outline: none; border-color: var(--gold); }
     textarea.fb-field { resize: vertical; min-height: 96px; }
     .fb-send {
-      background: var(--green); color: #fff; border: none; border-radius: 8px;
+      background: linear-gradient(145deg, var(--green), var(--green-soft)); color: #06120c; border: none; border-radius: 8px;
       padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer;
     }
-    .fb-send:hover { background: var(--green-mid); }
+    .fb-send:hover { box-shadow: 0 0 16px var(--green-glow); }
     .fb-send:disabled { opacity: 0.6; cursor: not-allowed; }
     .fb-status { font-size: 13px; margin-top: 10px; min-height: 18px; }
 
     /* ── Mobile ───────────────────────────────────────────────────── */
     @media (max-width: 860px) {
-      .layout { grid-template-columns: 1fr; gap: 16px; padding: 18px 14px 90px; }
+      .layout { grid-template-columns: 1fr; gap: 16px; padding: 20px 14px 90px; }
       .sidebar { order: 2; }   /* stats below the reader on phones */
     }
     @media (max-width: 600px) {
@@ -476,14 +565,14 @@
       .header-right { order: 2; flex: 1 1 100%; justify-content: space-between; margin-left: 0; gap: 10px; }
       .khutbah-select { font-size: 12.5px; max-width: 62%; padding: 6px 28px 6px 10px; }
       .viewers { font-size: 12px; }
-      .khutbah-heading h2 { font-size: 19px; }
+      .khutbah-heading h2 { font-size: 21px; }
       .share-card { padding: 22px 18px; }
       .section-body { padding: 16px; }
-      .reader-chunk { padding: 12px; margin-bottom: 16px; }
-      .chunk-arabic { font-size: 18px; }
-      .chunk-arabic-quran { font-size: 20px; }
+      .reader-chunk { padding: 12px 14px 22px; margin-bottom: 22px; }
+      .chunk-arabic { font-size: 21px; }
+      .chunk-arabic-quran { font-size: 23px; }
       .popup-overlay { padding: 12px; }
-      .popup-arabic { font-size: 19px; padding: 16px; }
+      .popup-arabic { font-size: 21px; padding: 16px; }
     }
     @media (max-width: 380px) {
       .viewers .total-views { display: none; }  /* keep header tidy on tiny screens */
@@ -527,7 +616,7 @@
   <a href="https://www.linkedin.com/in/meerhusam" target="_blank" rel="noopener">LinkedIn</a>
   <a href="https://github.com/MeerHusam" target="_blank" rel="noopener">GitHub</a>
   <div class="footer-sub">Khutbah transcribed &amp; translated with AI</div>
-  <div><button class="footer-feedback" onclick="openFeedback()">💬 Send feedback</button></div>
+  <div><button class="footer-feedback" onclick="openFeedback()">Send feedback</button></div>
 </footer>
 
 <!-- Feedback modal -->
@@ -628,9 +717,9 @@
     const matched = qRefs.filter(q => q.matched).length;
     const wordCount = r.metadata?.transcript_word_count || 0;
     const transcriptionMode = r.metadata?.transcription_mode || '';
-    const modeLabel = transcriptionMode.startsWith('groq') ? '⚡ Groq'
-      : transcriptionMode.startsWith('local') ? '🔒 Local (MLX)'
-      : transcriptionMode.startsWith('gemini') ? '✨ Gemini'
+    const modeLabel = transcriptionMode.startsWith('groq') ? 'Groq'
+      : transcriptionMode.startsWith('local') ? 'Local (MLX)'
+      : transcriptionMode.startsWith('gemini') ? 'Gemini'
       : transcriptionMode || 'n/a';
 
     return `
@@ -643,26 +732,24 @@
         </div>` : ''}
 
         <div class="share-card">
-          <div class="share-label">Quick Share</div>
-          <div class="share-text">${escHtml(r.share_summary || r.summary || '')}</div>
-          <button class="copy-btn" onclick="copyShare()">📋 Copy for WhatsApp</button>
+          <div class="share-label">In Short</div>
+          <p class="share-text">${escHtml(r.share_summary || r.summary || '')}</p>
+          <button class="copy-btn" onclick="copyShare()">Copy for WhatsApp</button>
+        </div>
+
+        <div class="share-card">
+          <div class="share-label">Summary</div>
+          <p class="share-text">${escHtml(r.summary || 'No summary available.')}</p>
         </div>
 
         <div class="section">
-          <div class="section-header"><h2>📝 Summary</h2></div>
-          <div class="section-body">
-            <p class="summary-text">${escHtml(r.summary || 'No summary available.')}</p>
-          </div>
-        </div>
-
-        <div class="section">
-          <div class="section-header"><h2>🌍 Full Translation</h2></div>
+          <div class="section-header"><h2>Full Translation</h2></div>
           <div class="section-body">${renderTranslation(r)}</div>
         </div>
 
         <div class="section">
           <div class="section-header">
-            <h2>📖 Quranic References <span class="count-badge">${matched}/${qRefs.length} matched</span></h2>
+            <h2>Quranic References <span class="count-badge">${matched}/${qRefs.length} matched</span></h2>
           </div>
           <div class="section-body">
             ${qRefs.length === 0
@@ -673,7 +760,7 @@
 
         <div class="section">
           <div class="section-header">
-            <h2>📜 Hadith References <span class="count-badge">${hadithRefs.length} found</span></h2>
+            <h2>Hadith References <span class="count-badge">${hadithRefs.length} found</span></h2>
           </div>
           <div class="section-body">
             ${hadithRefs.length === 0
@@ -686,7 +773,7 @@
 
       <div class="sidebar">
         <div class="sidebar-card">
-          <div class="sidebar-header">📊 Stats</div>
+          <div class="sidebar-header">Stats</div>
           <div class="sidebar-body">
             <div class="stat-row"><span class="stat-label">Words transcribed</span><span class="stat-value">${wordCount.toLocaleString()}</span></div>
             <div class="stat-row"><span class="stat-label">Quran verses</span><span class="stat-value stat-green">${matched}/${qRefs.length}</span></div>
@@ -695,11 +782,11 @@
           </div>
         </div>
         <div class="sidebar-card">
-          <div class="sidebar-header">🕌 About</div>
-          <div class="sidebar-body" style="font-size:13px;color:var(--text-muted);line-height:1.6;">
+          <div class="sidebar-header">About</div>
+          <div class="sidebar-body" style="font-size:13px;color:var(--text-muted);line-height:1.65;">
             Quranic verses are verified using dual-verification: Claude AI + a local matching algorithm. Hadith references are matched against a local corpus and linked to sunnah.com.
             <div class="about-credit">
-              Built by <strong style="color:var(--text);">Meer Husamuddin</strong> ·
+              Built by <strong style="color:var(--cream);">Meer Husamuddin</strong> ·
               <a href="https://www.linkedin.com/in/meerhusam" target="_blank" rel="noopener">LinkedIn</a> ·
               <a href="https://github.com/MeerHusam" target="_blank" rel="noopener">GitHub</a>
             </div>
@@ -774,7 +861,7 @@
         <div class="ref-meta"><span class="verify-badge ${verifyClass}">${verifyLabel}</span></div>
       </div>
       <div class="ref-arabic" data-ref="${i}">${escHtml(q.detected_text || q.arabic || '')}</div>
-      ${link ? `<a class="ref-link" href="${link}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 View on Quran.com ↗</a>` : ''}
+      ${link ? `<a class="ref-link" href="${link}" target="_blank" rel="noopener" onclick="event.stopPropagation()">View on Quran.com ↗</a>` : ''}
       <p class="tafsir-hint">Tap to view tafsir →</p>
     </div>`;
   }
@@ -790,7 +877,7 @@
         ${collection ? `<span class="collection-badge">${escHtml(collection)}${h.hadith_number ? ' · ' + escHtml(String(h.hadith_number)) : ''}</span>` : ''}
       </div>
       <div class="hadith-arabic">${escHtml(h.detected_text || h.arabic || '')}</div>
-      ${link ? `<a class="ref-link" style="border-color:#c7d2fe;color:#3730a3;" href="${escAttr(link)}" target="_blank" rel="noopener">🔗 View on sunnah.com ↗</a>` : ''}
+      ${link ? `<a class="ref-link" href="${escAttr(link)}" target="_blank" rel="noopener">View on sunnah.com ↗</a>` : ''}
     </div>`;
   }
 
@@ -802,9 +889,9 @@
       const hadithMatch = part.match(/^📚\s+Hadith\s+[·•]\s*(.+)/);
       if (quranMatch) {
         const [, label, url] = quranMatch;
-        return `<a class="chunk-quran-cite" href="${escAttr(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">📖 <strong>${escHtml(label)}</strong> ↗</a>`;
+        return `<a class="chunk-quran-cite" href="${escAttr(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">۞ <strong>${escHtml(label)}</strong> ↗</a>`;
       } else if (hadithMatch) {
-        return `<div class="chunk-hadith-cite">📚 ${escHtml(hadithMatch[1])}</div>`;
+        return `<div class="chunk-hadith-cite">${escHtml(hadithMatch[1])}</div>`;
       }
       return `<div class="chunk-english">${escHtml(part)}</div>`;
     }).join('');
@@ -819,14 +906,17 @@
           if (qm) { arabicAttrs = `data-surah="${qm[1]}" data-ayah="${qm[2]}"`; break; }
         }
         const startAttr = c.start_time != null ? `data-start="${c.start_time}"` : '';
-        return `
+        const divider = c.second_khutbah_start
+          ? `<div class="khutbah-divider"><span>۞ الخطبة الثانية · Second Khutbah ۞</span></div>`
+          : '';
+        return `${divider}
         <div class="reader-chunk" ${startAttr}>
           <div class="chunk-arabic" ${arabicAttrs}>${escHtml(c.arabic)}</div>
           ${renderEnglishParts(c.english)}
         </div>`;
       }).join('');
     }
-    return `<p style="font-size:14px;line-height:1.9;color:#374151;">${escHtml(r.translation || 'No translation available.')}</p>`;
+    return `<p style="font-size:14px;line-height:1.9;color:#c3bca8;">${escHtml(r.translation || 'No translation available.')}</p>`;
   }
 
   // ── Tafsir popup ──
@@ -841,10 +931,10 @@
     document.getElementById('popupBody').innerHTML = `
       <div class="popup-arabic" id="popup-arabic-${i}">${escHtml(q.detected_text || q.arabic || '')}</div>
       <div class="popup-tafsir-title">Tafsir Ibn Kathir</div>
-      <p class="popup-tafsir-text" style="color:var(--text-muted);font-style:italic;">
+      <p class="popup-tafsir-text" style="font-style:italic;">
         Tafsir integration coming soon. Full commentary from Ibn Kathir and As-Sa'di will appear here.
       </p>
-      ${link ? `<a class="popup-qurancom" href="${link}" target="_blank" rel="noopener">🔗 Read full tafsir on Quran.com ↗</a>` : ''}
+      ${link ? `<a class="popup-qurancom" href="${link}" target="_blank" rel="noopener">Read full tafsir on Quran.com ↗</a>` : ''}
     `;
     document.getElementById('popupOverlay').classList.add('show');
   }
@@ -868,7 +958,7 @@
     const message = document.getElementById('fbMessage').value.trim();
     const contact = document.getElementById('fbContact').value.trim();
     const status = document.getElementById('fbStatus');
-    if (!message) { status.style.color = '#991b1b'; status.textContent = 'Please enter a message.'; return; }
+    if (!message) { status.style.color = '#fca5a5'; status.textContent = 'Please enter a message.'; return; }
     const btn = document.getElementById('fbSend');
     btn.disabled = true;
     try {
@@ -885,7 +975,7 @@
       document.getElementById('fbContact').value = '';
       setTimeout(closeFeedback, 1500);
     } catch {
-      status.style.color = '#991b1b';
+      status.style.color = '#fca5a5';
       status.textContent = 'Could not send. Please try again.';
     } finally {
       btn.disabled = false;
@@ -897,7 +987,7 @@
     navigator.clipboard.writeText(text).then(() => {
       const btn = document.querySelector('.copy-btn');
       btn.textContent = '✓ Copied!';
-      setTimeout(() => btn.innerHTML = '📋 Copy for WhatsApp', 2000);
+      setTimeout(() => btn.textContent = 'Copy for WhatsApp', 2000);
     });
   }
 

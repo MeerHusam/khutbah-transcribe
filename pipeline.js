@@ -858,7 +858,7 @@ Given this Arabic Khutbah transcript, do the following:
 1. Translate the full text into natural, readable English. Preserve Islamic terms untranslated: Allah, Rasulullah, Salah, Zakat, Ummah, Sunnah, Hadith, Quran, Surah, Ayah, Jummah, Khatib, and any Arabic honorifics like صلى الله عليه وسلم or رضي الله عنه
 
 2. Write two summaries:
-   a. "share_summary": 2-3 SHORT sentences in simple, friendly English suitable for sharing in a community WhatsApp group. Mention the topic and one or two key takeaways. No academic language.
+   a. "share_summary": A ONE-SENTENCE TL;DR — ABSOLUTE MAXIMUM 30 WORDS. State the khutbah's topic and its single biggest takeaway, nothing more. Simple, friendly English; no academic language; do NOT list multiple points or describe both khutbah parts. This is a one-line hook, not a summary. (The detailed "summary" field below carries the full content.)
    b. "summary": A fuller 3-5 sentence summary covering all main points and themes in detail.
 
 3. Identify every Quranic reference by detecting these signal phrases in the Arabic text:
@@ -899,6 +899,8 @@ For each one found:
 - ففي الحديث
 For each one found, extract ONLY the hadith text (the Prophet's actual words or the reported content). Do NOT include the signal phrase itself or the narrator chain (isnad) in the arabic_text field — only the matn (the body of the hadith). Identify the narrator (the Companion who reported it) and the collection from your own knowledge of the hadith, even when they are not spoken aloud in the khutbah. Only use null if you genuinely cannot identify it.
 
+5. A Friday khutbah is delivered in TWO parts: the first khutbah ends with the khatib's closing du'a/istighfar (e.g. "أقول قولي هذا وأستغفر الله لي ولكم" / "...فاستغفروه وتوبوا إليه إنه هو البر الرحيم"), the khatib sits briefly, then stands and begins the SECOND khutbah with a fresh opening praise (a new "الحمد لله..." or "إن الحمد لله نحمده ونستعينه..."). Identify where the SECOND khutbah begins and return its first 6-10 Arabic words EXACTLY as they appear in the transcript (so they can be located by text search). Key off this STRUCTURE — closing istighfar/du'a followed by a renewed opening praise — NOT any single word, since transcription can mishear words. If the transcript contains only one khutbah or you cannot confidently find the split, return null.
+
 Return ONLY a valid JSON object with no markdown formatting, no backticks, no preamble. Exactly this structure:
 {
   "chunk_translations": ["natural English translation of chunk [1]", "translation of chunk [2]", "...one string per numbered chunk, in order"],
@@ -921,7 +923,8 @@ Return ONLY a valid JSON object with no markdown formatting, no backticks, no pr
       "narrator": "the Companion (sahabi) who narrated it, from your knowledge — null only if truly unknown",
       "collection": "bukhari/muslim/tirmidhi etc, from your knowledge — null only if truly unknown"
     }
-  ]
+  ],
+  "second_khutbah_start": "first 6-10 Arabic words of the second khutbah exactly as in the transcript, or null if there is only one khutbah / no confident split"
 }`;
 
 // ---- Hadith deduplication ---------------------------------------------------
@@ -948,6 +951,122 @@ function deduplicateHadithRefs(refs) {
     if (!isDuplicate) kept.push(ref);
   }
   return kept;
+}
+
+// ---- Two-khutbah split ------------------------------------------------------
+
+// Locate the boundary between the first and second khutbah. Primary signal is Claude's
+// `second_khutbah_start` marker phrase (located in the transcript by fingerprint); this is
+// cross-checked against — or, when the phrase can't be found, replaced by — the largest
+// silence gap between Whisper segments (the khatib sitting between the two khutbahs).
+// Returns { word_index, time, marker_text, via, validated } or null.
+function locateSecondKhutbah(markerText, transcript, segments = [], wordTimes = []) {
+  const origWords = transcript.split(/\s+/).filter(Boolean);
+  const normWords = normalizeArabic(transcript).split(/\s+/).filter(Boolean);
+  const total = origWords.length;
+  if (total < 40) return null;
+  const timeAt = i => (wordTimes[i] && typeof wordTimes[i].start === 'number') ? wordTimes[i].start : null;
+
+  // Largest silence gap whose boundary falls in the middle 20%–85% of the khutbah.
+  let gapWordIndex = -1, gapTime = null, maxGap = 0;
+  if (segments.length > 1) {
+    const cumAt = []; let cum = 0;
+    for (const s of segments) { cumAt.push(cum); cum += (s.text ?? '').trim().split(/\s+/).filter(Boolean).length; }
+    for (let i = 0; i < segments.length - 1; i++) {
+      const gap = (segments[i + 1].start ?? 0) - (segments[i].end ?? 0);
+      const frac = cumAt[i + 1] / Math.max(total, 1);
+      if (frac > 0.2 && frac < 0.85 && gap > maxGap) {
+        maxGap = gap; gapWordIndex = cumAt[i + 1]; gapTime = segments[i + 1].start ?? null;
+      }
+    }
+  }
+
+  // Locate Claude's marker phrase — take the first occurrence past the first quarter
+  // (so it can't match the opening hamd of the FIRST khutbah).
+  let markerWordIndex = -1;
+  if (markerText) {
+    const m = normalizeArabic(markerText).split(/\s+/).filter(Boolean);
+    if (m.length >= 3) {
+      const normStr = normWords.join(' ');
+      for (let fp = Math.min(6, m.length); fp >= 3 && markerWordIndex < 0; fp--) {
+        const needle = m.slice(0, fp).join(' ');
+        let from = 0;
+        while (true) {
+          const p = normStr.indexOf(needle, from);
+          if (p === -1) break;
+          const wi = p === 0 ? 0 : normStr.slice(0, p).split(/\s+/).filter(Boolean).length;
+          if (wi / total > 0.25) { markerWordIndex = wi; break; }
+          from = p + 1;
+        }
+      }
+    }
+  }
+
+  if (markerWordIndex >= 0) {
+    const time = timeAt(markerWordIndex) ?? gapTime;
+    const validated = gapTime != null && time != null && Math.abs(time - gapTime) <= 30;
+    return {
+      word_index: markerWordIndex,
+      time: time != null ? Math.round(time * 10) / 10 : null,
+      marker_text: origWords.slice(markerWordIndex, markerWordIndex + 8).join(' '),
+      via: 'claude', validated,
+    };
+  }
+  // Fallback: a clear silence gap (khatib sitting) when the phrase wasn't found.
+  if (gapWordIndex >= 0 && maxGap >= 1.2) {
+    return {
+      word_index: gapWordIndex,
+      time: gapTime != null ? Math.round(gapTime * 10) / 10 : null,
+      marker_text: origWords.slice(gapWordIndex, gapWordIndex + 8).join(' '),
+      via: 'silence_gap', validated: true,
+    };
+  }
+  return null;
+}
+
+// If the khutbah-2 boundary falls INSIDE a prose chunk, split that chunk in two at the
+// boundary and translate each half with a small dedicated Claude call — so the boundary
+// becomes a real chunk edge (clean divider, no mid-chunk bleed) and each side gets a complete
+// translation. Mutates proseChunks + chunkTranslations in place and reindexes proseIdx.
+// Returns true if it split; no-op (false) when the boundary is already on a chunk edge, lands
+// in a Quran zone, the chunk counts are inconsistent, or the Claude call fails (graceful
+// fallback to the whole-chunk divider).
+async function splitChunkAtKhutbahBoundary(proseChunks, chunkTranslations, splitWordIndex, transcriptWords, anthropic, model) {
+  if (splitWordIndex == null || splitWordIndex < 0) return false;
+  if (!Array.isArray(chunkTranslations) || chunkTranslations.length !== proseChunks.length) return false;
+  const si = proseChunks.findIndex(c => c.wordStart < splitWordIndex && splitWordIndex < c.wordEnd);
+  if (si < 0) return false; // boundary already on a chunk edge, or inside a Quran zone
+
+  const chunk = proseChunks[si];
+  const arabicA = transcriptWords.slice(chunk.wordStart, splitWordIndex).join(' ');
+  const arabicB = transcriptWords.slice(splitWordIndex, chunk.wordEnd).join(' ');
+  if (!arabicA || !arabicB) return false;
+  const origEnglish = chunkTranslations[si] ?? '';
+
+  const prompt = `The Arabic below is one prose chunk from a Friday khutbah. It spans the boundary between the FIRST and the SECOND khutbah, so it must be split into two parts. Translate each part into natural English in the same style, preserving Islamic terms (Allah, Sunnah, Tawhid, Eid al-Adha, etc.).
+
+PART 1 (end of the first khutbah): ${arabicA}
+
+PART 2 (start of the second khutbah): ${arabicB}
+
+(For reference, the whole chunk was previously translated as: "${origEnglish}")
+
+Return ONLY valid JSON, no markdown: {"part1":"English of PART 1","part2":"English of PART 2"}`;
+
+  try {
+    const msg = await anthropic.messages.create({ model, max_tokens: 1200, messages: [{ role: 'user', content: prompt }] });
+    const raw = (msg.content?.[0]?.text ?? '').replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+    const j = JSON.parse(raw);
+    if (!j.part1 || !j.part2) return false;
+    proseChunks.splice(si, 1,
+      { text: arabicA, wordStart: chunk.wordStart, wordEnd: splitWordIndex, proseIdx: si },
+      { text: arabicB, wordStart: splitWordIndex, wordEnd: chunk.wordEnd, proseIdx: si + 1 });
+    chunkTranslations.splice(si, 1, j.part1, j.part2);
+    proseChunks.forEach((c, k) => { c.proseIdx = k; });
+    return true;
+  } catch {
+    return false; // any failure → keep the original single chunk + whole-chunk divider
+  }
 }
 
 // ---- Reader view formatter --------------------------------------------------
@@ -1095,7 +1214,30 @@ function buildReaderView(transcript, result) {
 
   const lines = ['ANNOTATED READER VIEW', '=====================\n'];
 
+  // Insert a divider before the chunk that begins the second khutbah. Rendered as its own
+  // block (Arabic-only label) so server-side chunk parsing drops it rather than mis-attaching it.
+  // The split word usually falls mid-chunk (chunks break at breath pauses, not khutbah
+  // boundaries), so place the divider before the chunk whose start is NEAREST the split word —
+  // this keeps the bulk of a straddling chunk on the correct side.
+  const splitWordIndex = result.second_khutbah?.word_index ?? -1;
+  let dividerBeforeStartWord = null;
+  if (splitWordIndex >= 0) {
+    let bestDist = Infinity;
+    for (const s of segments) {
+      const d = Math.abs((s.startWord ?? 0) - splitWordIndex);
+      if (d < bestDist) { bestDist = d; dividerBeforeStartWord = s.startWord ?? 0; }
+    }
+  }
+  let dividerInserted = false;
+
   for (const seg of segments) {
+    if (dividerBeforeStartWord !== null && !dividerInserted && (seg.startWord ?? 0) === dividerBeforeStartWord) {
+      lines.push('الخطبة الثانية  ·  SECOND KHUTBAH');
+      lines.push('');
+      lines.push('─'.repeat(60));
+      lines.push('');
+      dividerInserted = true;
+    }
     const arabic = seg.words.join(' ');
     let english;
     if (chunkTranslations) {
@@ -1792,12 +1934,19 @@ async function main() {
 
   // Step 9: Assemble final output object
   const matchedCount = allQuranRefs.filter(r => r.matched).length;
+  const secondKhutbah = locateSecondKhutbah(analysis.second_khutbah_start, transcript, transcriptSegments, transcriptWordTimes);
+  if (secondKhutbah) {
+    console.log(`✓ Second khutbah split at word ${secondKhutbah.word_index} (${secondKhutbah.via}${secondKhutbah.validated ? ', gap-validated' : ''})`);
+    const didSplit = await splitChunkAtKhutbahBoundary(proseChunks, analysis.chunk_translations, secondKhutbah.word_index, transcriptWords, anthropic, 'claude-sonnet-4-6');
+    if (didSplit) console.log('  ↳ split the straddling chunk into two (Khutbah 1 | Khutbah 2)');
+  }
 
   const result = {
     share_summary: analysis.share_summary ?? '',
     summary: analysis.summary ?? '',
     chunk_translations: Array.isArray(analysis.chunk_translations) ? analysis.chunk_translations : null,
     prose_chunk_map: proseChunks.map(({ wordStart, wordEnd, proseIdx }) => ({ wordStart, wordEnd, proseIdx })),
+    second_khutbah: secondKhutbah,
     quran_references: allQuranRefs,
     hadith_references: allHadithRefs,
     transcript_segments: transcriptSegments,
@@ -1843,6 +1992,8 @@ export {
   buildReaderView,
   buildReadableOutput,
   buildProseChunks,
+  locateSecondKhutbah,
+  splitChunkAtKhutbahBoundary,
   prescanForQuranZones,
   buildZoneRefs,
   scanTranscriptForQuran,

@@ -352,6 +352,24 @@ Standalone Hadith segment only as a fallback when no prose chunk fits. Verified:
 ### 20. `--gemini` Saves Groq Transcript Too
 **Improvement:** `transcribeWithGemini` now returns `groqText` (the Groq side of the hybrid, which already ran for timing). `main()` writes it to `transcript_groq.txt` so Gemini-vs-Groq text can be diffed without a second transcription pass. On the Sudais khutbah: Gemini 1643 words vs Groq 1442 (+14%), 96.4% coverage.
 
+### 21. Two-Khutbah Split Detection (الخطبة الثانية divider)
+**Goal:** A Friday khutbah has TWO parts (the khatib sits between them). Show a divider in the reader where Khutbah 1 ends (closing istighfar/du'a) and Khutbah 2 begins (a renewed "الحمد لله...").
+
+**Approach — Claude marker + silence-gap cross-check** (chosen over Gemini-at-transcription, which would risk the Gemini↔Groq word alignment):
+- `ANALYSIS_PROMPT` has a `second_khutbah_start` field — Claude returns the first 6-10 Arabic words of Khutbah 2, keyed off STRUCTURE (closing istighfar/du'a → renewed opening praise), not a single word (transcription mishears, e.g. البر→الغفور). Returns null if only one khutbah / no confident split.
+- `locateSecondKhutbah(markerText, transcript, segments, wordTimes)` (pipeline.js, exported): fingerprint-matches the marker in the transcript (first occurrence past the first 25% so it can't hit Khutbah 1's opening hamd); computes its `time` from word-level timestamps; cross-checks against the largest silence gap between Whisper segments in the middle 20-85% (`validated` flag). Falls back to the silence-gap boundary (`via: 'silence_gap'`) if the phrase isn't found. Returns `{word_index, time, marker_text, via, validated}` or null. Stored in `result.json` as `second_khutbah`.
+- **Clean mid-chunk split (`splitChunkAtKhutbahBoundary`, exported):** the boundary usually falls INSIDE a prose chunk (chunks break at breath pauses, not khutbah boundaries). Translation is chunk-granular (1 Arabic chunk → 1 holistic English string, no word alignment), so a mid-chunk English cut can't be made precisely. Instead, after analysis, if a prose chunk straddles the split word, this helper splits it in two at the boundary and makes ONE small dedicated Claude call to re-translate each half (returns `{part1, part2}`); it splices `proseChunks` + `chunk_translations` and reindexes `proseIdx`. The boundary becomes a real chunk edge, so each side gets a complete translation and the divider lands exactly between them. Graceful no-op on any failure / Quran-zone boundary / already-on-edge (falls back to whole-chunk divider). Called from both pipeline.js `main()` and reanalyze.js.
+- `buildReaderView` inserts the divider before the chunk whose start is NEAREST the split word (after the split that's an exact edge; nearest-boundary still handles the no-split fallback). Rendered as an Arabic-only label block so server chunk-parsing drops it rather than mis-attaching.
+- `server.js` `loadResult` flags the boundary chunk with `second_khutbah_start: true`: (1) prefer the chunk whose Arabic STARTS WITH the marker phrase (exact after a clean split — `startsWith`, not `includes`, so Khutbah 1's chunk that merely contains it isn't matched); (2) else the chunk whose `start_time` is NEAREST `second_khutbah.time` (nearest, not first-≥, so a chunk starting a hair before the boundary isn't mis-picked).
+- Frontend (`public/index.html`): `.khutbah-divider` CSS + `renderTranslation` prepends the divider before the flagged chunk.
+- `reanalyze.js` mirrors the locator + split + `second_khutbah` assembly.
+
+**Verified:** Masjid (Arafah) split at word 442 → straddling chunk split into two ("...الغفور الرحيم." | "الحمد لله الذي شرع..."), each with its own translation, divider between → flagged chunk 16/40. Makkah (Sudais) at word 1435 → boundary already on a chunk edge (no split needed) → chunk 50/81 via marker-startsWith (that older folder has `time: null`).
+
+**Cost:** the split adds one small extra Claude call, only when a chunk actually straddles the boundary.
+
+**Known limit:** `server.js` caches parsed results indefinitely (`resultCache`, pre-warmed at startup) — after a `reanalyze`, **restart the server** or the old (un-flagged) parse is served.
+
 ---
 
 ## Known Remaining Issues / Pending Work

@@ -35,13 +35,17 @@ const PUBLIC_KHUTBAHS = [
     featured: true,
   },
   {
-    folder: '2026-05-15T17-45-24_makkah_sudais_ramadan_ummah',
+    folder: '2026-05-22T21-05-05_makkah_sudais_ramadan_ummah',
     title: 'Ramadan: A Season of Renewal',
     speaker: 'Sheikh Sudais · Makkah',
   },
 ];
 const FEATURED_FOLDER = (PUBLIC_KHUTBAHS.find(k => k.featured) || PUBLIC_KHUTBAHS[0]).folder;
 const ALLOWED_FOLDERS = new Set(PUBLIC_KHUTBAHS.map(k => k.folder));
+
+// Parsed results are immutable at runtime (files never change), so cache indefinitely.
+const resultCache = new Map();
+let listCache = null;
 
 // ────────────────────────────────────────────────────────────────────────────
 // Viewer counts. Live = concurrent open WebSocket connections. Total = cumulative
@@ -201,6 +205,34 @@ function loadResult(folder) {
       }
     }
 
+    // Flag the chunk that begins the second khutbah (so the UI can render a divider before it).
+    if (result.second_khutbah && chunks.length) {
+      const sk = result.second_khutbah;
+      const sp = w => w.replace(/[ً-ْٰـ]/g, '').replace(/[^ء-ي]/g, '');
+      let target = -1;
+
+      // 1) Prefer the chunk whose Arabic STARTS with the marker phrase. After the straddling
+      //    chunk has been split (clean case) the second-khutbah chunk begins exactly with it.
+      //    `startsWith` (not `includes`) avoids matching Khutbah 1's chunk that merely contains it.
+      if (sk.marker_text) {
+        const needle = sp(sk.marker_text.split(/\s+/).slice(0, 6).join('')).slice(0, 14);
+        if (needle) target = chunks.findIndex(c => sp(c.arabic.split(/\s+/).slice(0, 8).join('')).startsWith(needle));
+      }
+      // 2) Fall back to the chunk whose start_time is NEAREST the split time (mid-chunk boundary
+      //    when the split didn't happen, or older data). Nearest — not first ≥ — so a chunk that
+      //    starts a hair before the boundary isn't picked over the real one.
+      if (target < 0 && typeof sk.time === 'number' && chunks.some(c => typeof c.start_time === 'number')) {
+        let bestD = Infinity;
+        chunks.forEach((c, i) => {
+          if (typeof c.start_time === 'number') {
+            const d = Math.abs(c.start_time - sk.time);
+            if (d < bestD) { bestD = d; target = i; }
+          }
+        });
+      }
+      if (target >= 0) chunks[target].second_khutbah_start = true;
+    }
+
     result.reader_chunks = chunks;
   } catch (_) {}
   return result;
@@ -208,6 +240,7 @@ function loadResult(folder) {
 
 // Curated list of published khutbahs (with friendly titles + summary stats)
 app.get('/api/results', (req, res) => {
+  if (listCache) return res.json(listCache);
   const items = PUBLIC_KHUTBAHS.map(k => {
     try {
       const r = JSON.parse(readFileSync(join(__dirname, 'outputs', k.folder, 'result.json'), 'utf8'));
@@ -224,7 +257,8 @@ app.get('/api/results', (req, res) => {
       };
     } catch { return null; }
   }).filter(Boolean);
-  res.json({ featured: FEATURED_FOLDER, items });
+  listCache = { featured: FEATURED_FOLDER, items };
+  res.json(listCache);
 });
 
 // Load a specific published khutbah (allowlist-gated)
@@ -232,6 +266,7 @@ app.get('/api/results/:folder', (req, res) => {
   if (!ALLOWED_FOLDERS.has(req.params.folder)) {
     return res.status(404).json({ error: 'Not found' });
   }
+  if (resultCache.has(req.params.folder)) return res.json(resultCache.get(req.params.folder));
   try {
     const folder = `outputs/${req.params.folder}`;
     const result = loadResult(folder);
@@ -239,6 +274,7 @@ app.get('/api/results/:folder', (req, res) => {
     const meta = PUBLIC_KHUTBAHS.find(k => k.folder === req.params.folder);
     result.title = meta?.title || '';
     result.speaker = meta?.speaker || '';
+    resultCache.set(req.params.folder, result);
     res.json(result);
   } catch (e) {
     res.status(404).json({ error: e.message });
@@ -309,4 +345,32 @@ app.get('/admin/feedback', (req, res) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`KhutbahTranscribe (public read-only) running at http://localhost:${PORT}`);
+  // Pre-warm cache so the very first visitor never waits on file I/O.
+  for (const k of PUBLIC_KHUTBAHS) {
+    try {
+      const result = loadResult(`outputs/${k.folder}`);
+      result.audio_url = findAudioUrl(k.folder);
+      result.title = k.title;
+      result.speaker = k.speaker || '';
+      resultCache.set(k.folder, result);
+    } catch (e) {
+      console.warn(`Cache warm failed for ${k.folder}:`, e.message);
+    }
+  }
+  listCache = {
+    featured: FEATURED_FOLDER,
+    items: PUBLIC_KHUTBAHS.map(k => {
+      const r = resultCache.get(k.folder);
+      if (!r) return null;
+      return {
+        folder: k.folder, title: k.title, speaker: k.speaker || '', featured: !!k.featured,
+        summary: (r.share_summary || r.summary || '').slice(0, 160),
+        words: r.metadata?.transcript_word_count || 0,
+        quran: r.metadata?.quran_references_matched || 0,
+        hadith: r.metadata?.hadith_references_found || 0,
+        mode: r.metadata?.transcription_mode || '',
+      };
+    }).filter(Boolean),
+  };
+  console.log(`Cached ${resultCache.size}/${PUBLIC_KHUTBAHS.length} khutbahs.`);
 });

@@ -7,7 +7,7 @@
 #   New +  →  Blueprint  →  pick this repo. It reads this file automatically.
 services:
   - type: web
-    name: khutbah-transcribe
+    name: khutbah-live
     runtime: node
     plan: free            # free spins down after ~15 min idle (~50s cold start). Use "starter" ($7/mo) for always-on.
     region: oregon

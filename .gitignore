@@ -34,4 +34,4 @@ hadith_data/
 # ~150 KB of text (result.json + reader.txt) — this is what the site renders.
 outputs/*
 !outputs/2026-05-22T11-30-04_khutbah-2026-05-22-masjid/
-!outputs/2026-05-15T17-45-24_makkah_sudais_ramadan_ummah/
+!outputs/2026-05-22T21-05-05_makkah_sudais_ramadan_ummah/
