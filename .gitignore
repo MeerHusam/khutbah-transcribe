@@ -28,6 +28,7 @@ hadith_data/
 *.mp4
 *.flac
 !audio_files/khutbah-2026-05-22-masjid.m4a
+!audio_files/makkah_sudais_ramadan_ummah.mp3
 
 # ── Pipeline output runs ──────────────────────────────────────────────────────
 # Ignore all runs, then bundle ONLY the two published khutbahs. Each folder is
