@@ -30,6 +30,7 @@
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
+      overflow-x: hidden;
     }
 
     header {
@@ -94,6 +95,41 @@
     }
 
     .play-btn:hover { background: var(--green-mid); }
+
+    /* Skip back/forward 10s */
+    .skip-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1px;
+      background: transparent;
+      border: none;
+      color: var(--green);
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 2px;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .skip-btn small { font-size: 9px; font-weight: 700; }
+    .skip-btn:hover { color: var(--green-mid); }
+
+    /* Playback speed toggle */
+    .speed-btn {
+      background: var(--white);
+      border: 1px solid #b7dfc8;
+      color: var(--green);
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 9px;
+      cursor: pointer;
+      flex-shrink: 0;
+      min-width: 36px;
+      text-align: center;
+    }
+    .speed-btn:hover { background: var(--green-light); }
 
     .audio-time {
       font-size: 12px;
@@ -391,9 +427,13 @@
     @media (max-width: 600px) {
       header { padding: 10px 14px; gap: 8px 12px; }
       header h1 { font-size: 15px; }
-      .audio-player { order: 3; flex-basis: 100%; }
-      .header-right { gap: 10px; }
-      .khutbah-select { font-size: 12.5px; max-width: 52vw; padding: 6px 28px 6px 10px; }
+      .audio-player { order: 3; flex-basis: 100%; gap: 7px; padding: 6px 12px 6px 6px; }
+      .audio-time { font-size: 11px; }
+      .audio-scrubber { min-width: 40px; }
+      .skip-btn { font-size: 15px; }
+      /* Give the viewer count + khutbah picker their own full-width row so neither clips */
+      .header-right { order: 2; flex: 1 1 100%; justify-content: space-between; margin-left: 0; gap: 10px; }
+      .khutbah-select { font-size: 12.5px; max-width: 62%; padding: 6px 28px 6px 10px; }
       .viewers { font-size: 12px; }
       .khutbah-heading h2 { font-size: 19px; }
       .share-card { padding: 22px 18px; }
@@ -418,9 +458,12 @@
   </div>
 
   <div class="audio-player" id="audioPlayer">
+    <button class="skip-btn" onclick="skip(-10)" title="Back 10 seconds" aria-label="Back 10 seconds">↺<small>10</small></button>
     <button class="play-btn" id="playBtn" onclick="togglePlay()">▶</button>
+    <button class="skip-btn" onclick="skip(10)" title="Forward 10 seconds" aria-label="Forward 10 seconds">↻<small>10</small></button>
     <input class="audio-scrubber" id="scrubber" type="range" min="0" max="100" value="0" step="0.1">
     <span class="audio-time" id="audioTime">0:00 / 0:00</span>
+    <button class="speed-btn" id="speedBtn" onclick="cycleSpeed()" title="Playback speed">1×</button>
   </div>
 
   <div class="header-right">
@@ -749,8 +792,25 @@
 
   // ── Audio player ──
   let audio = null;
+  const SPEEDS = [1, 1.5, 2];
+  let speedIdx = 0;
+
+  function skip(sec) {
+    if (!audio) return;
+    const max = audio.duration || (audio.currentTime + sec);
+    audio.currentTime = Math.min(Math.max(0, audio.currentTime + sec), max);
+  }
+
+  function cycleSpeed() {
+    if (!audio) return;
+    speedIdx = (speedIdx + 1) % SPEEDS.length;
+    audio.playbackRate = SPEEDS[speedIdx];
+    document.getElementById('speedBtn').textContent = SPEEDS[speedIdx] + '×';
+  }
+
   function initAudio(url) {
     audio = new Audio(url);
+    audio.playbackRate = SPEEDS[speedIdx];
     const player = document.getElementById('audioPlayer');
     const scrubber = document.getElementById('scrubber');
     const timeEl = document.getElementById('audioTime');
