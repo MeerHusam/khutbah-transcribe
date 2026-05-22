@@ -419,6 +419,24 @@
     .state-msg { text-align: center; padding: 80px 24px; color: var(--text-muted); }
     .state-msg h2 { font-size: 18px; color: var(--text); margin-bottom: 8px; }
 
+    /* Footer credit */
+    .site-footer {
+      text-align: center;
+      padding: 28px 24px calc(32px + env(safe-area-inset-bottom));
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+    .site-footer strong { color: var(--text); font-weight: 600; }
+    .site-footer a { color: var(--green); text-decoration: none; font-weight: 500; margin: 0 6px; }
+    .site-footer a:hover { text-decoration: underline; }
+    .footer-sep { opacity: 0.45; }
+    .footer-sub { font-size: 12px; margin-top: 6px; opacity: 0.85; }
+
+    .about-credit { margin-top: 10px; }
+    .about-credit a { color: var(--green); text-decoration: none; font-weight: 500; }
+    .about-credit a:hover { text-decoration: underline; }
+
     /* ── Mobile ───────────────────────────────────────────────────── */
     @media (max-width: 860px) {
       .layout { grid-template-columns: 1fr; gap: 16px; padding: 18px 14px 90px; }
@@ -479,6 +497,14 @@
 <div id="app">
   <div class="state-msg"><h2>Loading…</h2></div>
 </div>
+
+<footer class="site-footer">
+  Built by <strong>Meer Husamuddin</strong>
+  <span class="footer-sep">·</span>
+  <a href="https://www.linkedin.com/in/meerhusam" target="_blank" rel="noopener">LinkedIn</a>
+  <a href="https://github.com/MeerHusam" target="_blank" rel="noopener">GitHub</a>
+  <div class="footer-sub">Khutbah transcribed &amp; translated with AI</div>
+</footer>
 
 <!-- Tafsir popup -->
 <div class="popup-overlay" id="popupOverlay">
@@ -631,6 +657,11 @@
           <div class="sidebar-header">🕌 About</div>
           <div class="sidebar-body" style="font-size:13px;color:var(--text-muted);line-height:1.6;">
             Quranic verses are verified using dual-verification: Claude AI + a local matching algorithm. Hadith references are matched against a local corpus and linked to sunnah.com.
+            <div class="about-credit">
+              Built by <strong style="color:var(--text);">Meer Husamuddin</strong> ·
+              <a href="https://www.linkedin.com/in/meerhusam" target="_blank" rel="noopener">LinkedIn</a> ·
+              <a href="https://github.com/MeerHusam" target="_blank" rel="noopener">GitHub</a>
+            </div>
           </div>
         </div>
       </div>
