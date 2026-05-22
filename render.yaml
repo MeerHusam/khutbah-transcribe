@@ -1,0 +1,26 @@
+# Render Blueprint for the public read-only KhutbahTranscribe listening site.
+# Render natively supports persistent Express + WebSocket servers (unlike Vercel's
+# serverless model), which this app needs: it holds open WS connections for the
+# live viewer count and streams audio + result.json straight from disk.
+#
+# Deploy: push this repo to GitHub, then in the Render dashboard
+#   New +  →  Blueprint  →  pick this repo. It reads this file automatically.
+services:
+  - type: web
+    name: khutbah-transcribe
+    runtime: node
+    plan: free            # free spins down after ~15 min idle (~50s cold start). Use "starter" ($7/mo) for always-on.
+    region: oregon
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /api/results
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+    # The total-views counter is written to data/views.json. On the free plan the
+    # filesystem is ephemeral, so the TOTAL resets on each deploy/restart (live count
+    # is always accurate). To persist the total, switch plan to "starter" and uncomment:
+    # disk:
+    #   name: khutbah-data
+    #   mountPath: /opt/render/project/src/data
+    #   sizeGB: 1

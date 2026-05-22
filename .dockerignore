@@ -1,0 +1,11 @@
+.git
+node_modules
+uploads
+data
+.venv
+*.log
+.env
+.DS_Store
+hadith_data
+# Keep the image small: only the bundled audio + published outputs are needed.
+# (Git already excludes the rest; this mirrors it for `docker build` from a full checkout.)

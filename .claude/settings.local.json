@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e ' *)",
+      "Bash(python3 -)",
+      "Bash(node pipeline.js --transcript \"outputs/2026-05-14T15-36-32_2025-11-28-10-09-25-6768140/transcript.txt\")",
+      "Bash(curl -s \"https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/ara-bukhari.json\")",
+      "Bash(curl -s \"https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/\")",
+      "Bash(curl -sI \"https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/ara-tirmizi.json\")",
+      "Bash(curl -s \"https://raw.githubusercontent.com/fawazahmed0/hadith-api/refs/heads/main/editions.json\")",
+      "Bash(curl -s \"https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/ara-bukhari.min.json\")",
+      "Bash(node setup_hadith.js)",
+      "Bash(git init *)",
+      "Bash(xargs -0 du -ch)",
+      "Bash(grep -E \"2025-07-04|node_modules|\\\\.env$|/uploads/\")"
+    ]
+  }
+}

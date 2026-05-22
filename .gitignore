@@ -1,0 +1,37 @@
+.env
+.env.*
+!.env.example
+node_modules/
+uploads/
+data/
+*.log
+.DS_Store
+.venv/
+
+# faster-whisper / HuggingFace model cache
+models/
+*.bin
+*.safetensors
+
+# Hadith corpus — pipeline-only; the listening server reads refs straight from
+# each result.json, so it does not need hadith_data/ at runtime.
+hadith_data/
+
+# ── Audio ────────────────────────────────────────────────────────────────────
+# Ignore all audio by default, then bundle ONLY the featured masjid khutbah
+# (~5.5 MB). To also ship the Sudais audio (~5.9 MB) and make it playable on the
+# deploy, add:  !audio_files/makkah_sudais_ramadan_ummah.mp3
+*.mp3
+*.m4a
+*.ogg
+*.wav
+*.mp4
+*.flac
+!audio_files/khutbah-2026-05-22-masjid.m4a
+
+# ── Pipeline output runs ──────────────────────────────────────────────────────
+# Ignore all runs, then bundle ONLY the two published khutbahs. Each folder is
+# ~150 KB of text (result.json + reader.txt) — this is what the site renders.
+outputs/*
+!outputs/2026-05-22T11-30-04_khutbah-2026-05-22-masjid/
+!outputs/2026-05-15T17-45-24_makkah_sudais_ramadan_ummah/
