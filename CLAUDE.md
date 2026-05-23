@@ -194,237 +194,59 @@ All functions except `main()` are exported for use by `reanalyze.js`.
 
 ---
 
-## Issues Fixed (Session History)
+## Issues Fixed
 
-### 1. Quranic Ayah Spillover into Prose Translations
-**Symptom:** An-Nahl 16:125, Ash-Shu'ara 26:62/63 — Arabic ayah text appeared inside the prose block's English translation instead of being isolated as a Quran card.
+> Full root-cause analyses live in **[FIXES.md](FIXES.md)**. Add new fixes there with a one-line summary here.
 
-**Root cause:** The old pre-scan used a Jaccard sliding window (same as the main scan) which requires near-full ayah coverage to score ≥ 0.65. Partial citations (imam recites half an ayah) scored too low → zone not created → ayah words fell into the prose chunk → Claude translated ayah text as regular prose.
-
-**Fix:** Replaced Jaccard pre-scan with n-gram index (`prescanForQuranZones`). Any 4 consecutive transcript words matching any Quran 4-gram create a zone.
-
-### 2. `buildReaderView` Ignoring `prose_chunk_map`
-**Symptom:** Even with correct zones, reader.txt was mis-aligning translations for Arabic blocks — wrong English chunk showing under Arabic text.
-
-**Root cause:** `proseChunkMap` variable was declared AFTER the segment-building loop, and the fallback was splitting prose into fixed 30-word chunks instead of using the zone-aware map entries.
-
-**Fix:** Moved `proseChunkMap` declaration before the segment loop, replaced fixed-chunk fallback with `buildProseSegs()` helper that uses `prose_chunk_map` entries directly (via `proseIdx`).
-
-### 3. Missing Prose Block Between Ayahs (filter bug)
-**Symptom:** Prose text between Ta-Ha 20:43 and An-Nahl 16:125 was "wiped out" — not appearing in reader.txt.
-
-**Root cause:** `buildProseSegs` used `filter(e => e.wordStart >= from)` — when a ref's `endWord` overshot by 1 word (cursor=307), the chunk starting at wordStart=306 was filtered out because 306 < 307.
-
-**Fix:** Changed filter to `filter(e => e.wordEnd > from && e.wordStart < to)` — inclusive of chunks whose wordStart is slightly before the cursor.
-
-### 4. Ash-Shu'ara 26:63 Disappearing (Claude non-determinism)
-**Symptom:** On one reanalyze run 26:63 was in refs (12/12); on another it disappeared (11/11) because Claude non-deterministically missed it.
-
-**Root cause:** Claude sometimes misses ayahs in one run. The Jaccard scan also can't catch it (partial citation, score < 0.65).
-
-**Fix:** `buildZoneRefs()` — uses the ayah identity now stored per zone in `prescanForQuranZones`. If 26:63's zone exists but 26:63 isn't in refs from Claude/Jaccard, a fallback ref is created from the zone's transcript words.
-
-### 5. `normalizeArabicDeep` — ئ → ي doubling ya'
-**Symptom:** "سيئاتكم" in the transcript was normalizing to "سيياتكم" (double ي) which didn't match the corpus "سياتكم".
-
-**Root cause:** Initially replaced ئ with ي, but in the transcript the ي before ئ is already a separate character — replacing ئ with ي doubled it.
-
-**Fix:** Strip ئ entirely (→ '') since the preceding ي is already present. Corpus "سياتكم" = transcript "سيئاتكم" stripped to "سياتكم". ✓
-
-### 6. "ووقنا" Single-Word Prose Block
-**Symptom:** The word "ووقنا" appeared as a tiny standalone prose block between zones.
-
-**Root cause:** Zone [1521-1531] ends before "ووقنا", zone [1532-1547] starts after it. The transcript has "ووقنا" (extra waw prefix) while the corpus has "وقنا" — normalization doesn't strip waw prefixes, so the n-gram can't match it, creating a 1-word gap between zones.
-
-**Status:** Known cosmetic limitation. The imam's pronunciation variant "ووقنا" vs corpus "وقنا" can't be reconciled at normalization level.
-
-### 8. Prose Chunks Cutting Mid-Sentence (Fixed-Size Chunking)
-**Symptom:** reader.txt prose blocks cut mid-phrase because `buildProseChunks` sliced every 30 words regardless of natural speech boundaries.
-
-**Root cause:** The fixed 30-word slice had no awareness of where the imam paused to breathe. Whisper segments already encode these pause boundaries (each segment ends where speech stops) but were ignored.
-
-**Fix:** `buildProseChunks` now accepts `transcriptSegments` and builds a set of word-index positions where each segment ends. The `flush()` inner function accumulates consecutive segments until the chunk reaches MIN_CHUNK (15 words), then emits at the segment boundary. A MAX_CHUNK (60 words) hard cap splits unusually long single segments. Falls back to fixed 30-word slicing if no segment info is available. Call sites in `pipeline.js` and `reanalyze.js` both pass `transcriptSegments`.
-
-### 9. Timestamp Drift in Reader Chunks (server.js)
-**Symptom:** Timestamps shown next to reader chunks were accurate at the start but drifted further behind the actual audio position as the khutbah progressed — by ~2 minutes 47 seconds off at the end of a 22-minute khutbah.
-
-**Root cause:** `server.js` built a word-time array from all transcript segments (full transcript, including Quran zone words), then tracked position with `wordCursor` counting only prose chunk words. Every Quran zone skipped in the reader (no prose translation) added its word count to the drift. With ~17 ayah zones accumulating over the khutbah, the drift reached 167 seconds.
-
-**Fix (final — text-search approach):** Replaced the entire sequential pcm counter + skip logic with a content-based search. For each reader chunk, its first 6 Arabic words are searched in the full transcript word array starting from the previous cursor position. The matched word's segment start time is used as the chunk's timestamp. This is robust against any ordering of Quran/Hadith refs because it's content-based, not counting-based.
-
-```javascript
-// server.js — buildWordTimeMap: segment start times (no per-word interpolation)
-function buildWordTimeMap(segments) {
-  const wordTimes = [];
-  for (const seg of segments) {
-    const words = seg.text.trim().split(/\s+/).filter(Boolean);
-    for (let i = 0; i < words.length; i++) wordTimes.push(seg.start);
-  }
-  return wordTimes;
-}
-
-// In loadResult: text-search timestamp assignment
-function findWordStart(arabic, fromWord) {
-  const needle = arabic.split(/\s+/).filter(Boolean).slice(0, 6);
-  if (!needle.length) return fromWord;
-  for (let i = fromWord; i <= tWords.length - needle.length; i++) {
-    if (needle.every((w, j) => tWords[i + j] === w)) return i;
-  }
-  return fromWord; // safe fallback
-}
-let cursor = 0;
-for (const chunk of chunks) {
-  const ws = findWordStart(chunk.arabic, cursor);
-  chunk.start_time = Math.round(wordTimes[Math.min(ws, wordTimes.length - 1)] * 10) / 10;
-  cursor = ws + chunk.arabic.split(/\s+/).filter(Boolean).length;
-}
-```
-
-### 10. Gemini 2.5 Flash Transcription Mode (--gemini)
-**Motivation:** Groq whisper-large-v3 misses ~18% of words in dense Arabic speech. Gemini 2.5 Flash has superior Arabic comprehension but its self-reported timestamps drift severely (up to +5:52 off by end of 20-min khutbah).
-
-**Solution — Hybrid Gemini+Groq:** `transcribeWithGemini()` runs both in parallel:
-1. Uploads audio to Gemini Files API, prompts for verbatim Arabic transcript (no timestamps)
-2. Runs Groq Whisper simultaneously for accurate segment timestamps
-3. Proportional mapping: `scale = geminiWords.length / groqTotalWords`. Each Groq segment gets `round(groqSegWordCount * scale)` Gemini words. This distributes Gemini's richer text across Groq's real timing boundaries.
-4. Returns Gemini text with Groq-aligned `transcript_segments`
-
-**Result:** For May 22 khutbah — Groq: 914 words, Gemini: 1005 words, Local: 914 words. Gemini catches missed connecting phrases and short words at segment boundaries.
-
-### 11. `--local` Path Error
-**Symptom:** `--local` mode failed with "No such file or directory" when mlx-whisper internally called ffmpeg.
-
-**Root cause:** mlx-whisper resolved relative audio paths from its own working directory, not the project root.
-
-**Fix:** `pipeline.js` now passes `path.resolve(audioPath)` (absolute path) to `transcribe_local.py`.
-
-### 12. Timestamp Drift (server.js Sequential Counter vs. buildReaderView Position-Based)
-**Root cause:** `server.js` used a sequential `proseIdx` counter to find each reader chunk's word position in `prose_chunk_map`. But `buildReaderView` uses position-based filtering (word ranges per inter-ref gap), not sequential 1:1. After 5 Hadith refs, the counter was 3-4 entries ahead — e.g., a chunk at word 1076 (t=952s) was getting pcm[62]'s timestamp (word 1129, t=991s), 39s off.
-
-**Fix:** Replaced sequential counter with text-search: for each reader chunk, find its first 6 Arabic words in the transcript word array starting from the previous cursor. This is content-based, not counting-based, and immune to any ref ordering.
-
-### 13. Word-Level Timestamp Alignment (Gemini hybrid) — replaces proportional mapping
-**Problem:** The old `--gemini` hybrid distributed Gemini's words across Groq's segments by *proportional count* (`scale = geminiWords/groqWords`). Gemini's extra ~18% words aren't spread evenly — they cluster where Groq missed words — so the count-based slice drifted cumulatively (text landed in the wrong time slot; highlight off by minutes by end).
-
-**Fix (Approach 1):** `transcribeWithGroq` now requests `timestamp_granularities: ['word','segment']` and returns real per-word timestamps. `alignWordTimestamps()` does a Needleman-Wunsch alignment between Gemini display words and Groq timed words: matched words get Groq's real audio time, words Groq missed are interpolated between surrounding anchors. `buildSegmentsFromWordTimes()` places Gemini text into Groq's real breath-pause segments by actual time. Result `result.json` carries `transcript_words: [{word, start}]`. No cumulative drift (re-anchors at ~950 points). Falls back to proportional mapping only if word timestamps are unavailable.
-
-**Also fixed a constant +1s offset:** `preprocessAudio` prepends 1s of silence (`SILENCE_PREPEND_SEC`), so Whisper times were 1s late vs the original audio the player uses. `main()` subtracts it back from segments + words.
-
-**reanalyze.js preserves `transcript_words`:** it reads `transcript_words` from the existing result.json and writes it back (alongside `transcript_segments`), so re-running analysis on a folder does NOT drop the word-level timing. Without this, reanalyze would fall the reader back to coarse segment-start timestamps.
-
-### 14. End-Anchored Reader-Chunk Timestamps (server.js)
-**Problem:** Highlight was perfect until the first Hadith, then off. Hadith words are NOT excluded from prose chunks (unlike Quran), so the Hadith text is duplicated in the reader (signal-phrase chunk + Hadith card). The server advanced its search cursor by *display word count*, so the duplicated Hadith words inflated the cursor ~14 words past their real position; the forward-only search could never recover → drift.
-
-**Fix:** server.js now prefers `result.transcript_words` (each word's own real time) over segment starts. `findWordStart` normalizes to bare Arabic letters (handles Quran-card punctuation) and tries 6/4/3-word prefixes. The cursor advances to where each chunk actually ENDS in the transcript (found via its trailing 3 words in a bounded window), not by display word count — so duplicated text shrinks the span instead of inflating it. Verified within ~2s of ground truth across the whole khutbah, fully monotonic.
-
-### 15. Hadith Rendered in One Chunk (buildReaderView)
-**Problem:** Each Hadith appeared twice in reader.txt — once inside its prose chunk, once as a standalone card (with leaked words like a stray `)` and the next sentence's first word).
-
-**Fix:** Quran refs still render as their own segment (Quran words are excluded from prose). Hadith refs are NOT given a separate segment; instead `buildReaderView` attaches each Hadith's badge to the prose chunk that contains it. A long Hadith can span a prose-chunk boundary (chunks break at breath pauses; Hadith zones aren't known at chunk-build time), so the attach loop MERGES every segment a Hadith overlaps into one chunk and attaches the badge once. The merge:
-- collects all **prose** segments intersecting the Hadith span, plus any **Quran** segment that sits FULLY inside the span (the dhikr/dua-inside-hadith case);
-- rebuilds the merged chunk's Arabic from a **contiguous `origWords.slice(spanStart, spanEnd)`**, which refills gaps left by excluded Quran zones (so the full dhikr text shows, not a gapped version);
-- collects each merged prose chunk's translation into a `proseIdxList` (joined at render time), forces `type = 'prose'` so it renders with a badge even if it began as a Quran segment, and drops the absorbed segments.
-
-Standalone Hadith segment only as a fallback when no prose chunk fits. Verified: both Hadiths in the May 22 khutbah render in one chunk each, with the complete dhikr.
-
-**Known edge case (low probability):** because the merge refills the *entire* contiguous span, a Quran ayah that is NOT part of the Hadith but happens to fall fully inside the Hadith's located span (e.g. Claude over-captured the Hadith's `detected_text` to include an ayah the imam recited right after it) would be absorbed inline and **lose its own 📖 card**. The gate (`quran fully inside span`) keeps this rare since the span normally hugs the Hadith's own words. Tell: a 📖 card you expected near a Hadith is missing and that ayah shows as uncited Arabic inside the Hadith chunk. Tighter fix if it appears: only absorb a Quran segment overlapping the Hadith's matched matn words, not the nominal span.
-
-### 16. Hadith Narrator from Claude Knowledge
-**Problem:** Narrator showed "unknown" because the prompt only filled it "if mentioned" in the khutbah, and imams rarely name the Companion aloud.
-
-**Fix:** ANALYSIS_PROMPT now asks Claude to identify narrator + collection from its own knowledge of the hadith (null only if truly unknown). E.g. the Arafah-fasting hadith now resolves to "Abu Qatadah al-Ansari". NOTE: the hadith *number/link* still come from the local-corpus Jaccard match and can be wrong (e.g. Muslim 2746 vs the correct 1162) — see Pending Work.
-
-### 7. New Zone Refs: Dua Section Ayahs
-**Improvement:** Zone refs now surface Quran phrases in the du'a section that Claude never detects (no signal phrases there):
-- Al-Baqarah 2:201 ("ربنا آتنا في الدنيا حسنة وفي الآخرة حسنة")
-- Al-Baqarah 2:127 ("ربنا تقبل منا إنك أنت السميع العليم")
-- Al-Baqarah 2:128 ("وتب علينا إنك أنت التواب الرحيم")
-- Al-An'am 6:151 ("ما ظهر منها وما بطن")
-
-### 17. Authoritative sunnah.com Hadith Links (numbering-scheme fix) — DONE
-**Symptom:** The hadith `link`/`hadith_number` came straight from the local-corpus Jaccard match, which uses *sequential* numbering. sunnah.com uses **Abdul-Baqi** numbering for some collections (notably Sahih Muslim), so the constructed URL pointed to the WRONG hadith — e.g. the Arafah-fasting hadith is corpus `2746` but `sunnah.com/muslim:2746` is a *repentance* hadith; the correct page is `muslim:1162a`.
-
-**Investigation (do not repeat):**
-- hadithapi.com **cannot** fix this: its hadith object has no sunnah.com reference field, and its `hadithNumber` is the same sequential scheme (Arafah = 2746 there too). Its Arabic search also requires *diacritized* query text (our matn is un-diacritized). Bukhari numbering happens to align everywhere; Muslim is the main offender.
-- No free dataset carries sunnah.com's Abdul-Baqi number (AhmedBaset/hadith-json uses its own `idInBook`; the sunnah.com schema keeps `hadithNumber` vs `ourHadithNumber` but only the gated DB/API has it).
-
-**Fix (no number translation at all):** `resolveSunnahLink()` submits the **un-diacritized matn** to sunnah.com's own search (`sunnah.com/search?q=…`) and reads the real permalink out of the results (e.g. `muslim:1162a`). Because the answer comes from sunnah.com itself, the number/link can't disagree with the page. Picks the result in the corpus/Claude-identified collection (`preferredSlug`); if that collection isn't among results, keeps the local link (safe). Disk-cached at `hadith_data/.sunnah_link_cache.json`; resilient (network/timeout → keep local link, not cached so it retries; definite no-result IS cached). `resolveSunnahLinksForRefs()` runs as a post-pass over the final deduped refs in both pipeline.js and reanalyze.js. Verified on the Sudais khutbah: 7/7 hadiths resolved (Muslim → `1162a`/`1134b`, Bukhari/Ibn Majah aligned). The `HADITH_API_KEY` in `.env` is now **unused** (kept for possible future grade/English enrichment via hadithapi.com).
-
-### 18. Narrator Backfill from sunnah.com
-**Symptom:** Scan-detected hadiths showed `narrator: undefined` — only Claude's signal-phrase path fills a narrator; `scanTranscriptForHadith` does not.
-
-**Fix:** `fetchSunnahNarrator(slug, number)` fetches the resolved sunnah.com hadith page and parses the narrator from the `hadith_narrated` div (handles both "Narrated X:" and "It was narrated that X said:" phrasings). `resolveSunnahLinksForRefs` calls it only when `ref.narrator` is empty. Cached. Verified: all 7 Sudais hadiths now carry clean narrators (e.g. Ibn Majah 1734 → "Ibn 'Abbas").
-
-### 19. 25 MB Whisper Guard Checked Raw File (fixed)
-**Symptom:** A 40.7 MB input was rejected with "File is 40.7 MB -- Whisper API limit is 25 MB", even though `preprocessAudio` compresses to ~5 MB (48kbps mono MP3) before upload.
-
-**Fix:** Moved the size guard to run AFTER `preprocessAudio`, checking the *processed* file size. Large recordings now run directly; the error only fires if even the compressed audio exceeds 25 MB (suggests `--local` or splitting). `--local` is exempt.
-
-### 20. `--gemini` Saves Groq Transcript Too
-**Improvement:** `transcribeWithGemini` now returns `groqText` (the Groq side of the hybrid, which already ran for timing). `main()` writes it to `transcript_groq.txt` so Gemini-vs-Groq text can be diffed without a second transcription pass. On the Sudais khutbah: Gemini 1643 words vs Groq 1442 (+14%), 96.4% coverage.
-
-### 21. Two-Khutbah Split Detection (الخطبة الثانية divider)
-**Goal:** A Friday khutbah has TWO parts (the khatib sits between them). Show a divider in the reader where Khutbah 1 ends (closing istighfar/du'a) and Khutbah 2 begins (a renewed "الحمد لله...").
-
-**Approach — Claude marker + silence-gap cross-check** (chosen over Gemini-at-transcription, which would risk the Gemini↔Groq word alignment):
-- `ANALYSIS_PROMPT` has a `second_khutbah_start` field — Claude returns the first 6-10 Arabic words of Khutbah 2, keyed off STRUCTURE (closing istighfar/du'a → renewed opening praise), not a single word (transcription mishears, e.g. البر→الغفور). Returns null if only one khutbah / no confident split.
-- `locateSecondKhutbah(markerText, transcript, segments, wordTimes)` (pipeline.js, exported): fingerprint-matches the marker in the transcript (first occurrence past the first 25% so it can't hit Khutbah 1's opening hamd); computes its `time` from word-level timestamps; cross-checks against the largest silence gap between Whisper segments in the middle 20-85% (`validated` flag). Falls back to the silence-gap boundary (`via: 'silence_gap'`) if the phrase isn't found. Returns `{word_index, time, marker_text, via, validated}` or null. Stored in `result.json` as `second_khutbah`.
-- **Clean mid-chunk split (`splitChunkAtKhutbahBoundary`, exported):** the boundary usually falls INSIDE a prose chunk (chunks break at breath pauses, not khutbah boundaries). Translation is chunk-granular (1 Arabic chunk → 1 holistic English string, no word alignment), so a mid-chunk English cut can't be made precisely. Instead, after analysis, if a prose chunk straddles the split word, this helper splits it in two at the boundary and makes ONE small dedicated Claude call to re-translate each half (returns `{part1, part2}`); it splices `proseChunks` + `chunk_translations` and reindexes `proseIdx`. The boundary becomes a real chunk edge, so each side gets a complete translation and the divider lands exactly between them. Graceful no-op on any failure / Quran-zone boundary / already-on-edge (falls back to whole-chunk divider). Called from both pipeline.js `main()` and reanalyze.js.
-- `buildReaderView` inserts the divider before the chunk whose start is NEAREST the split word (after the split that's an exact edge; nearest-boundary still handles the no-split fallback). Rendered as an Arabic-only label block so server chunk-parsing drops it rather than mis-attaching.
-- `server.js` `loadResult` flags the boundary chunk with `second_khutbah_start: true`: (1) prefer the chunk whose Arabic STARTS WITH the marker phrase (exact after a clean split — `startsWith`, not `includes`, so Khutbah 1's chunk that merely contains it isn't matched); (2) else the chunk whose `start_time` is NEAREST `second_khutbah.time` (nearest, not first-≥, so a chunk starting a hair before the boundary isn't mis-picked).
-- Frontend (`public/index.html`): `.khutbah-divider` CSS + `renderTranslation` prepends the divider before the flagged chunk.
-- `reanalyze.js` mirrors the locator + split + `second_khutbah` assembly.
-
-**Verified:** Masjid (Arafah) split at word 442 → straddling chunk split into two ("...الغفور الرحيم." | "الحمد لله الذي شرع..."), each with its own translation, divider between → flagged chunk 16/40. Makkah (Sudais) at word 1435 → boundary already on a chunk edge (no split needed) → chunk 50/81 via marker-startsWith (that older folder has `time: null`).
-
-**Cost:** the split adds one small extra Claude call, only when a chunk actually straddles the boundary.
-
-**Known limit:** `server.js` caches parsed results indefinitely (`resultCache`, pre-warmed at startup) — after a `reanalyze`, **restart the server** or the old (un-flagged) parse is served.
+| # | Fix | Key change |
+|---|-----|-----------|
+| 1 | Quranic ayah spillover into prose translations | Replaced Jaccard pre-scan with 4-gram index (`prescanForQuranZones`) |
+| 2 | `buildReaderView` ignoring `prose_chunk_map` | Moved `proseChunkMap` declaration before segment loop |
+| 3 | Missing prose block between ayahs (filter bug) | `filter(e => e.wordEnd > from && e.wordStart < to)` |
+| 4 | Ash-Shu'ara 26:63 disappearing (Claude non-determinism) | `buildZoneRefs()` fallback creates ref from zone identity |
+| 5 | `normalizeArabicDeep` ئ → ي doubling ya' | Strip ئ entirely instead of replacing with ي |
+| 6 | "ووقنا" single-word prose block | Known cosmetic limit — waw-prefix variant unresolvable |
+| 7 | Dua section ayahs missing | Zone refs now surface 2:201, 2:127, 2:128, 6:151 |
+| 8 | Prose chunks cutting mid-sentence | Segment-boundary chunking (MIN=15, MAX=60 words) |
+| 9 | Timestamp drift in reader chunks | Content-based text-search replaces sequential word counter |
+| 10 | `--gemini` transcription mode | Hybrid: Gemini text + Groq Whisper timestamps (Needleman-Wunsch alignment) |
+| 11 | `--local` path error | Pass `path.resolve(audioPath)` to `transcribe_local.py` |
+| 12 | Timestamp drift (sequential proseIdx counter) | Same text-search fix as #9 |
+| 13 | Word-level timestamp alignment (Gemini hybrid) | Needleman-Wunsch alignment; +1s silence offset fix |
+| 14 | End-anchored reader-chunk timestamps | Prefer `transcript_words`; end-anchor cursor by trailing 3 words |
+| 15 | Hadith rendered twice / leaking words | Merge overlapping segments in `buildReaderView`; attach badge once |
+| 16 | Hadith narrator showing "unknown" | `ANALYSIS_PROMPT` asks Claude to identify narrator from knowledge |
+| 17 | Wrong sunnah.com hadith links (numbering mismatch) | `resolveSunnahLink()` matn-searches sunnah.com directly |
+| 18 | Narrator missing on scan-detected hadiths | `fetchSunnahNarrator()` parses narrator from sunnah.com page |
+| 19 | 25 MB Whisper guard rejecting large raw files | Guard moved to after `preprocessAudio()` |
+| 20 | `--gemini` not saving Groq transcript | `transcript_groq.txt` written alongside `transcript.txt` |
+| 21 | Two-khutbah split detection | Claude marker + silence-gap; `splitChunkAtKhutbahBoundary`; divider in reader + frontend |
+| 22 | Share-card design inconsistency (height-dependent shade) | Flat `#112519` base; In Short / Summary / Full Translation all use `.share-card` |
+| 23 | Play/pause button shows as emoji on iOS | Replaced Unicode `▶`/`⏸` with inline SVG |
+| 24 | Geo location tracking | `lookupGeo()` via ip-api.com; appends to `data/geo_views.jsonl` |
+| 25 | Unique visitor count | SHA-256 hashed IPs persisted in `data/views.json`; broadcast as `unique` |
 
 ---
 
 ## Known Remaining Issues / Pending Work
 
 ### Multiple Ayahs Grouped as One Ref (Ta-Ha 20:43 + 20:44)
-Claude detected both 20:43 and 20:44 text under a single signal phrase, attributing it to 20:43. `buildZoneRefs` adds 20:44 to `result.json` but in `buildReaderView` the dedup drops it (20:43 ref already covers the same word range with longer text). The reader.txt shows one combined card for 20:43 instead of two separate cards.
-
-**Potential fix:** After identifying a ref's word range, check if any zone-identified ayah's n-gram starts WITHIN that range, and if so split the ref into two at that boundary.
+`buildZoneRefs` adds 20:44 but `buildReaderView` dedup drops it (20:43 ref covers the same word range with longer text). Fix: after locating a ref's word range, check if any zone-identified ayah's n-gram starts WITHIN that range and split the ref there.
 
 ### 26:62 Missing from reader.txt
-Ash-Shu'ara 26:62 ("كلا إن معي ربي سيهدين", 5 words) is in result.json but doesn't appear as a card in reader.txt. Likely reason: its 5-word detected_text overlaps with 26:63's range in the transcript, causing the dedup to drop it.
+Ash-Shu'ara 26:62 (5 words) is in result.json but deduped out of reader.txt — its short detected_text overlaps 26:63's range.
 
 ### Muhammad 47:7 Duplicate
-ref #9 (signal_phrase) and #11 (scan) both identify Muhammad 47:7. They should be deduplicated before `buildReaderView`. Currently deduplicated at display level by the overlap check, but both entries remain in result.json.
+Signal-phrase ref and scan ref both identify 47:7. Both entries remain in result.json (deduplicated at display level only).
 
 ### PAD_START and Zone Ref Detected Text
-Zone refs' `detected_text` starts from `zone.start` (which includes the 2-word PAD). This means the Quran card in reader.txt starts with the imam's intro words ("ادعو إلى" etc.) rather than the ayah itself. Cosmetically fine but not ideal.
+Zone refs' `detected_text` starts from `zone.start` (includes the 2-word PAD), so the Quran card shows the imam's intro words. Cosmetically acceptable.
 
-### Authoritative Hadith Number/Link — DONE (see fix #17 + #18)
-Resolved via sunnah.com matn search (`resolveSunnahLink` / `resolveSunnahLinksForRefs`), not via hadithapi.com (which can't produce sunnah.com numbers). Narrator now backfilled from the sunnah.com page when missing. See Issues Fixed #17/#18 for the full investigation and rationale.
+### True Matn Span for Hadith (fix #15 edge case)
+Fetch canonical matn from the resolved sunnah.com page (fix #17), align it to the transcript to get the Hadith's real start/end word range, then gate Quran absorption in `buildReaderView` on the matched-matn span (not the nominal span). This prevents a non-Hadith ayah recited right after a Hadith from losing its 📖 card. Prereq (fix #17) already landed.
 
-**Chains into the true-boundary fix for the fix #15 edge case (do these together):** once we have the authoritative canonical matn (from the corpus/API match), align that matn to the transcript to get the Hadith's REAL start/end word range — instead of the current `startWord + detected_text length` guess, which over-captures when an imam runs a hadith and a following ayah together. Then gate Quran absorption in `buildReaderView` on the matched-matn span, not the nominal span:
-- a Quran phrase inside the matn (genuine dhikr, e.g. 64:1 in the Arafah dua) → absorb inline (correct);
-- a separate ayah recited AFTER the matn end → falls outside → keeps its 📖 card.
-This dissolves the fix #15 edge case (non-Hadith ayah losing its card). Caveat: it's only as good as the matn match, so the authoritative-match work above must land first. Ordering: fix the Hadith match → derive the true matn span → gate Quran absorption on it. User confirmed this approach 2026-05-22. **Prerequisite now landed (fix #17):** we have the authoritative sunnah.com hadith; the true-matn-span step can fetch the canonical matn from that page and align it to the transcript. Still TODO.
-
-### Hadith dhikr overlapping a Quran phrase — FIXED (display layer)
-The tirmidhi Arafah-dua hadith contains "له الملك وله الحمد وهو" (= Quran 64:1, At-Taghabun); the Quran pre-scan carved it out as a zone, so the middle of the dhikr vanished from reader.txt. Fixed in `buildReaderView` (fix #15): the Hadith merge now also absorbs any Quran segment that sits FULLY inside the Hadith span, and rebuilds the merged chunk from a CONTIGUOUS `origWords` slice — which refills the gap left by the excluded zone. A standalone Quran recitation (not inside a Hadith) still keeps its own card. Verified: the full dhikr now renders in the single Hadith chunk. (A deeper detection-level fix can still come with the quran-detector refactor, but the reader no longer drops the words.)
-
-### Evaluate quran-detector library — EVALUATED 2026-05-22, decision: AUGMENT (not replace)
-`Quran_Detector`/QDetect (github.com/SElBeltagy/Quran_Detector, PyPI `quran-detector`, needs Python ≥3.12 → project `.venv`) detects Quran fragments ≥3 words with typo/missing-word tolerance. Prototyped as `quran_detect.py` (shells out) + compared via `compare_quran.js`.
-
-**Findings (Sudais ~22-min khutbah, 17 refs):**
-- **Word-ranges work:** it returns `start_word`/`end_word` that align ~1:1 with our whitespace tokenization (e.g. 8:29 → its `words[117-136]` vs our zone `words[117-135]`). So it CAN drive prose-chunk exclusion / zones, not just list refs — the critical constraint is satisfiable in practice.
-- **Strong agreement:** 13+ ayahs found by both.
-- **Recall win:** catches du'a-section partials our pipeline misses (e.g. Ibrahim 14:35 "واجعل هذا البلد آمناً" — also missed in the May-22 masjid khutbah).
-- **Range win:** natively returns consecutive-ayah ranges (20:43-44, 2:127-128) — directly addresses the "Multiple Ayahs Grouped as One Ref" pending item.
-- **Complementary, not strictly better:** our pipeline uniquely caught 6:151; detector uniquely caught 14:35.
-- **Precision issues to handle:** fragments one citation into multiple overlapping matches; emits multiple ayah candidates per span (21:83 vs 7:151 for "وأنت أرحم الراحمين"); false-fires on ritual phrases (isti'adha 16:98 "أعوذ بالله من الشيطان الرجيم"); some matches carry `errs≥1`.
-
-**Decision:** keep the current zone/`prose_chunk_map` pipeline as primary; add quran-detector as an AUGMENTING recall layer (like `buildZoneRefs`) that (a) merges overlapping/consecutive spans into one ref, (b) picks one ayah per span (longest match, fewest errors), (c) filters ritual phrases (isti'adha, basmala), (d) maps its word-ranges into zones for prose exclusion. Tuning: `min_match=3` over-fires (catches 14:35 + noise); `min_match=5` is clean but loses partials → likely settle ~4 + filters. **Next session: build this augmenting layer.** No equivalent off-the-shelf Hadith detector exists (only APIs + research papers), so Hadith stays corpus-matched (+ sunnah.com link resolution, fix #17).
-
-### Hadith Display (results.html) — RESTORED
-The Hadith citation badge rendering in `public/results.html` (the `hadithMatch` branch + `chunk-hadith-cite` div) was restored 2026-05-22. It was never the cause of the timestamp drift (that was the duplicated-Hadith-text cursor inflation, see fix #14).
+### quran-detector Augmenting Layer (TODO — next session)
+`quran-detector` (PyPI, Python ≥3.12, `.venv`) evaluated 2026-05-22. Decision: AUGMENT (not replace). Add as a recall layer like `buildZoneRefs`: merge overlapping spans, pick one ayah per span (longest match, fewest errors), filter ritual phrases (isti'adha, basmala), map word-ranges to zones. Target `min_match≈4`. Catches du'a partials (e.g. Ibrahim 14:35) and consecutive-ayah ranges (20:43-44) that our pipeline misses. See `quran_detect.py` + `compare_quran.js`.
 
 ---
 
