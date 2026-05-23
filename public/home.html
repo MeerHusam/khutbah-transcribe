@@ -328,6 +328,135 @@
     }
     .listen-btn-outline:hover { background: rgba(217,184,106,0.08); opacity: 1; }
 
+    /* ── Nav ── */
+    .header-nav {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .header-nav a {
+      font-size: 13px; font-weight: 500; color: var(--text-muted);
+      text-decoration: none; padding: 6px 12px; border-radius: 8px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .header-nav a:hover { color: var(--cream); background: rgba(255,255,255,0.05); }
+
+    /* ── About & Contact sections ── */
+    .content-section {
+      max-width: 1060px; margin: 0 auto; padding: 0 24px 80px;
+      scroll-margin-top: 80px;
+    }
+    .section-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin: 0 24px 64px;
+    }
+
+    .about-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 0;
+    }
+    .about-card {
+      background: linear-gradient(150deg, rgba(56,178,122,0.08) 0%, transparent 55%), #112519;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      position: relative; overflow: hidden;
+    }
+    .about-card::before {
+      content: ''; position: absolute; inset: 0;
+      background-image: var(--pattern); background-size: 70px 70px;
+      opacity: 0.04; pointer-events: none;
+    }
+    .about-icon {
+      font-size: 28px; margin-bottom: 14px; display: block;
+      position: relative; z-index: 1;
+    }
+    .about-card h3 {
+      font-family: var(--font-serif); font-size: 17px; font-weight: 600;
+      color: var(--cream); margin-bottom: 10px;
+      position: relative; z-index: 1;
+    }
+    .about-card p {
+      font-size: 14px; line-height: 1.75; color: #b5ae9e;
+      position: relative; z-index: 1;
+    }
+    .about-intro {
+      font-family: var(--font-serif);
+      font-size: 18px; line-height: 1.8; color: var(--cream);
+      max-width: 680px; margin-bottom: 32px;
+    }
+    .about-intro span { color: var(--gold); }
+
+    /* Contact form */
+    .contact-wrap {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start;
+    }
+    .contact-info h3 {
+      font-family: var(--font-serif); font-size: 20px; font-weight: 600;
+      color: var(--cream); margin-bottom: 12px;
+    }
+    .contact-info p {
+      font-size: 14px; line-height: 1.75; color: #b5ae9e; margin-bottom: 20px;
+    }
+    .contact-detail {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 13.5px; color: var(--text-muted); margin-bottom: 10px;
+    }
+    .contact-detail a { color: var(--gold); text-decoration: none; }
+    .contact-detail a:hover { text-decoration: underline; }
+    .contact-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--gold); opacity: 0.6; flex-shrink: 0;
+    }
+
+    .contact-form-card {
+      background: linear-gradient(150deg, rgba(56,178,122,0.08) 0%, transparent 55%), #112519;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 28px; position: relative; overflow: hidden;
+    }
+    .contact-form-card::before {
+      content: ''; position: absolute; inset: 0;
+      background-image: var(--pattern); background-size: 70px 70px;
+      opacity: 0.04; pointer-events: none;
+    }
+    .form-row { margin-bottom: 14px; position: relative; z-index: 1; }
+    .form-row label {
+      display: block; font-size: 12px; font-weight: 600; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px;
+    }
+    .form-input, .form-textarea {
+      width: 100%; background: rgba(0,0,0,0.25); border: 1px solid var(--border);
+      border-radius: 10px; padding: 11px 14px;
+      font-family: var(--font-ui); font-size: 14px; color: var(--cream);
+      outline: none; transition: border-color 0.2s;
+      resize: vertical;
+    }
+    .form-input:focus, .form-textarea:focus { border-color: rgba(217,184,106,0.4); }
+    .form-textarea { min-height: 110px; }
+    .form-submit {
+      width: 100%; padding: 12px;
+      background: linear-gradient(135deg, var(--gold-bright), var(--gold-deep));
+      border: none; border-radius: 99px;
+      font-weight: 700; font-size: 14px; color: #0a1611;
+      cursor: pointer; transition: opacity 0.2s;
+      position: relative; z-index: 1;
+    }
+    .form-submit:hover { opacity: 0.9; }
+    .form-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+    .form-status {
+      font-size: 13px; text-align: center; margin-top: 12px;
+      min-height: 18px; color: var(--green);
+      position: relative; z-index: 1;
+    }
+    .form-status.error { color: #e07070; }
+
+    @media (max-width: 700px) {
+      .about-grid { grid-template-columns: 1fr; }
+      .contact-wrap { grid-template-columns: 1fr; }
+      .header-nav { display: none; }
+    }
+
     /* ── Footer ── */
     footer {
       border-top: 1px solid var(--border-soft);
@@ -366,6 +495,11 @@
     <div class="logo-mark">ك</div>
     <span class="brand-name">KhutbahLive</span>
   </a>
+  <nav class="header-nav">
+    <a href="#khutbahs">Khutbahs</a>
+    <a href="#about">About</a>
+    <a href="#contact">Contact</a>
+  </nav>
   <div class="viewers-badge" id="viewersBadge">
     <span class="live-dot"></span>
     <span><b id="liveCount">–</b> live</span>
@@ -382,15 +516,85 @@
   <div class="hero-divider"></div>
 </section>
 
-<main class="khutbahs-section">
+<main class="khutbahs-section" id="khutbahs">
   <div class="section-label">Available Khutbahs</div>
   <div class="khutbahs-grid" id="grid">
     <div style="color:var(--text-dim);font-size:14px;padding:20px 0;">Loading…</div>
   </div>
 </main>
 
+<div class="section-divider"></div>
+
+<!-- About -->
+<section class="content-section" id="about">
+  <div class="section-label">About</div>
+  <p class="about-intro">
+    KhutbahLive makes the Friday Khutbah accessible — full Arabic transcript,
+    fluent English translation, and every <span>Quranic ayah</span> and
+    <span>Hadith</span> identified and linked.
+  </p>
+  <div class="about-grid">
+    <div class="about-card">
+      <span class="about-icon">🎙️</span>
+      <h3>Transcription</h3>
+      <p>Audio is transcribed using <strong style="color:var(--cream)">Gemini 2.5 Flash</strong> for best Arabic accuracy, with <strong style="color:var(--cream)">Groq Whisper</strong> running in parallel to provide precise word-level timestamps. The two are aligned via Needleman-Wunsch sequence matching — so you get Gemini's richer text with Groq's real audio timing.</p>
+    </div>
+    <div class="about-card">
+      <span class="about-icon">✍️</span>
+      <h3>Translation</h3>
+      <p>The transcript is divided into natural prose chunks at breath-pause boundaries (not fixed word counts). <strong style="color:var(--cream)">Claude</strong> translates each chunk holistically in context of the full khutbah, producing fluent English that reads as the imam intended — not word-for-word.</p>
+    </div>
+    <div class="about-card">
+      <span class="about-icon">📖</span>
+      <h3>Quranic References</h3>
+      <p>Three detection layers: Claude identifies explicit citations from signal phrases ("قال الله تعالى"), a Jaccard sliding-window scan catches uncited ayahs, and a 4-gram index pre-scan captures partial recitations. Every detected ayah is cross-verified and linked to <strong style="color:var(--cream)">quran.com</strong>.</p>
+    </div>
+    <div class="about-card">
+      <span class="about-icon">📚</span>
+      <h3>Hadith References</h3>
+      <p>Claude identifies Hadith from signal phrases and its own knowledge of the Islamic corpus. Each match is verified by searching <strong style="color:var(--cream)">sunnah.com</strong> directly with the Arabic matn — so the link points to the exact canonical hadith page, not a sequential number that may differ between databases.</p>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"></div>
+
+<!-- Contact -->
+<section class="content-section" id="contact">
+  <div class="section-label">Contact</div>
+  <div class="contact-wrap">
+    <div class="contact-info">
+      <h3>Get in touch</h3>
+      <p>Spotted a wrong reference, a mistranslation, or want to suggest a khutbah to add? Send a message — all feedback is read.</p>
+      <div class="contact-detail">
+        <span class="contact-dot"></span>
+        <span>Built by <a href="https://linkedin.com/in/meer-husamuddin" target="_blank" rel="noopener">Meer Husamuddin</a></span>
+      </div>
+      <div class="contact-detail">
+        <span class="contact-dot"></span>
+        <a href="https://github.com/MeerHusam/khutbah-live" target="_blank" rel="noopener">View on GitHub</a>
+      </div>
+    </div>
+    <div class="contact-form-card">
+      <div class="form-row">
+        <label>Message</label>
+        <textarea class="form-textarea" id="fbMessage" placeholder="Your feedback, correction, or suggestion…"></textarea>
+      </div>
+      <div class="form-row">
+        <label>Email or name <span style="color:var(--text-dim);font-weight:400">(optional)</span></label>
+        <input class="form-input" id="fbContact" type="text" placeholder="So we can reply">
+      </div>
+      <button class="form-submit" id="fbSubmit" onclick="submitFeedback()">Send Message</button>
+      <div class="form-status" id="fbStatus"></div>
+    </div>
+  </div>
+</section>
+
 <footer>
-  Built by <a href="https://linkedin.com/in/meer-husamuddin" target="_blank" rel="noopener">Meer Husamuddin</a>
+  <span style="color:var(--text-dim)">KhutbahLive · Built by</span>
+  <a href="https://linkedin.com/in/meer-husamuddin" target="_blank" rel="noopener">Meer Husamuddin</a>
+  <span style="color:var(--text-dim)">·</span>
+  <a href="https://github.com/MeerHusam/khutbah-live" target="_blank" rel="noopener">GitHub</a>
 </footer>
 
 <script>
@@ -460,6 +664,30 @@
     .catch(() => {
       document.getElementById('grid').innerHTML = '<p style="color:var(--text-dim)">Could not load khutbahs.</p>';
     });
+
+  async function submitFeedback() {
+    const msg = document.getElementById('fbMessage').value.trim();
+    const contact = document.getElementById('fbContact').value.trim();
+    const status = document.getElementById('fbStatus');
+    const btn = document.getElementById('fbSubmit');
+    if (!msg) { status.textContent = 'Please write a message first.'; status.className = 'form-status error'; return; }
+    btn.disabled = true; status.textContent = ''; status.className = 'form-status';
+    try {
+      const res = await fetch('/api/feedback', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, contact })
+      });
+      if (res.ok) {
+        status.textContent = '✓ Thank you! Your message was received.';
+        document.getElementById('fbMessage').value = '';
+        document.getElementById('fbContact').value = '';
+      } else { throw new Error(); }
+    } catch {
+      status.textContent = 'Something went wrong. Please try again.';
+      status.className = 'form-status error';
+    }
+    btn.disabled = false;
+  }
 
   // Live viewer count via WebSocket
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
