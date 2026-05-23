@@ -369,7 +369,10 @@
       opacity: 0.04; pointer-events: none;
     }
     .about-icon {
-      font-size: 28px; margin-bottom: 14px; display: block;
+      font-family: var(--font-kufi);
+      font-size: 13px; font-weight: 600; letter-spacing: 0.1em;
+      color: var(--gold); opacity: 0.8;
+      margin-bottom: 14px; display: block;
       position: relative; z-index: 1;
     }
     .about-card h3 {
@@ -512,7 +515,7 @@
   <div class="hero-ar" aria-hidden="true">الخطبة</div>
   <span class="hero-ornament">۞ &nbsp; ۞ &nbsp; ۞</span>
   <h1>Friday <span>Khutbahs</span><br>in Arabic & English</h1>
-  <p class="hero-sub">Full transcripts with English translation, verified Quranic citations, and authenticated Hadith references.</p>
+  <p class="hero-sub">The Friday Khutbah in Arabic, translated to English, with every Quranic verse and Hadith citation sourced and linked.</p>
   <div class="hero-divider"></div>
 </section>
 
@@ -529,30 +532,29 @@
 <section class="content-section" id="about">
   <div class="section-label">About</div>
   <p class="about-intro">
-    KhutbahLive makes the Friday Khutbah accessible — full Arabic transcript,
-    fluent English translation, and every <span>Quranic ayah</span> and
-    <span>Hadith</span> identified and linked.
+    The Friday Khutbah, transcribed in Arabic and translated to English, with every
+    <span>Quranic verse</span> and <span>Hadith</span> reference sourced and linked back to its origin.
   </p>
   <div class="about-grid">
     <div class="about-card">
-      <span class="about-icon">🎙️</span>
-      <h3>Transcription</h3>
-      <p>Audio is transcribed using <strong style="color:var(--cream)">Gemini 2.5 Flash</strong> for best Arabic accuracy, with <strong style="color:var(--cream)">Groq Whisper</strong> running in parallel to provide precise word-level timestamps. The two are aligned via Needleman-Wunsch sequence matching — so you get Gemini's richer text with Groq's real audio timing.</p>
+      <span class="about-icon">01 — Transcription</span>
+      <h3>Arabic first</h3>
+      <p>Audio is transcribed using <strong style="color:var(--cream)">Gemini 2.5 Flash</strong>, which handles dense Arabic speech well. <strong style="color:var(--cream)">Groq Whisper</strong> runs in parallel for word-level timestamps. The two outputs are aligned using Needleman-Wunsch sequence matching, so the final transcript carries Gemini's text with Groq's real audio timing.</p>
     </div>
     <div class="about-card">
-      <span class="about-icon">✍️</span>
-      <h3>Translation</h3>
-      <p>The transcript is divided into natural prose chunks at breath-pause boundaries (not fixed word counts). <strong style="color:var(--cream)">Claude</strong> translates each chunk holistically in context of the full khutbah, producing fluent English that reads as the imam intended — not word-for-word.</p>
+      <span class="about-icon">02 — Translation</span>
+      <h3>Read as it was said</h3>
+      <p>The transcript is split at breath-pause boundaries rather than fixed word counts. <strong style="color:var(--cream)">Claude</strong> translates each segment with the full khutbah in view, so the English reads as the imam intended rather than as a word-for-word substitution.</p>
     </div>
     <div class="about-card">
-      <span class="about-icon">📖</span>
-      <h3>Quranic References</h3>
-      <p>Three detection layers: Claude identifies explicit citations from signal phrases ("قال الله تعالى"), a Jaccard sliding-window scan catches uncited ayahs, and a 4-gram index pre-scan captures partial recitations. Every detected ayah is cross-verified and linked to <strong style="color:var(--cream)">quran.com</strong>.</p>
+      <span class="about-icon">03 — Quranic References</span>
+      <h3>Nothing missed</h3>
+      <p>Detection runs in three passes: Claude catches explicit citations ("قال الله تعالى"), a sliding-window scan finds ayahs cited without a signal phrase, and a 4-gram index catches partial recitations the other two miss. Each ayah is matched against the corpus and linked to <strong style="color:var(--cream)">quran.com</strong>.</p>
     </div>
     <div class="about-card">
-      <span class="about-icon">📚</span>
-      <h3>Hadith References</h3>
-      <p>Claude identifies Hadith from signal phrases and its own knowledge of the Islamic corpus. Each match is verified by searching <strong style="color:var(--cream)">sunnah.com</strong> directly with the Arabic matn — so the link points to the exact canonical hadith page, not a sequential number that may differ between databases.</p>
+      <span class="about-icon">04 — Hadith References</span>
+      <h3>Linked to the source</h3>
+      <p>Claude identifies Hadith text and narrator from its knowledge of the Islamic corpus. Each match is then searched on <strong style="color:var(--cream)">sunnah.com</strong> by the Arabic matn, so the link points to the right page regardless of numbering differences between hadith databases.</p>
     </div>
   </div>
 </section>
@@ -564,8 +566,8 @@
   <div class="section-label">Contact</div>
   <div class="contact-wrap">
     <div class="contact-info">
-      <h3>Get in touch</h3>
-      <p>Spotted a wrong reference, a mistranslation, or want to suggest a khutbah to add? Send a message — all feedback is read.</p>
+      <h3>Say something</h3>
+      <p>Noticed a wrong reference or mistranslation? Want to suggest a khutbah to add? Everything sent here is read.</p>
       <div class="contact-detail">
         <span class="contact-dot"></span>
         <span>Built by <a href="https://linkedin.com/in/meer-husamuddin" target="_blank" rel="noopener">Meer Husamuddin</a></span>
@@ -614,8 +616,8 @@
 
     const stats = `
       <div class="card-stats">
-        ${k.quran  ? `<span class="stat-pill stat-quran">📖 ${k.quran} Quran</span>` : ''}
-        ${k.hadith ? `<span class="stat-pill stat-hadith">📚 ${k.hadith} Hadith</span>` : ''}
+        ${k.quran  ? `<span class="stat-pill stat-quran">${k.quran} Quran refs</span>` : ''}
+        ${k.hadith ? `<span class="stat-pill stat-hadith">${k.hadith} Hadith</span>` : ''}
         ${k.words  ? `<span class="stat-pill stat-words">${k.words.toLocaleString()} words</span>` : ''}
       </div>`;
 
