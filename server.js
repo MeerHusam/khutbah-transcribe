@@ -31,13 +31,18 @@ const PUBLIC_KHUTBAHS = [
   {
     folder: '2026-05-22T11-30-04_khutbah-2026-05-22-masjid',
     title: 'The Day of Arafah & Udhiyah',
-    speaker: 'Local Masjid · Friday Khutbah',
+    speaker: 'Friday Khutbah',
+    masjid: 'Askan AlMaather Mosque',
+    masjid_ar: 'جامع إسكان المعذر',
+    maps_url: 'https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6',
+    date: '22 May 2026',
     featured: true,
   },
   {
     folder: '2026-05-22T21-05-05_makkah_sudais_ramadan_ummah',
     title: 'Ramadan: A Season of Renewal',
     speaker: 'Sheikh Sudais · Makkah',
+    date: '22 May 2026',
   },
 ];
 const FEATURED_FOLDER = (PUBLIC_KHUTBAHS.find(k => k.featured) || PUBLIC_KHUTBAHS[0]).folder;
@@ -301,6 +306,10 @@ app.get('/api/results/:folder', (req, res) => {
     const meta = PUBLIC_KHUTBAHS.find(k => k.folder === req.params.folder);
     result.title = meta?.title || '';
     result.speaker = meta?.speaker || '';
+    result.masjid = meta?.masjid || '';
+    result.masjid_ar = meta?.masjid_ar || '';
+    result.maps_url = meta?.maps_url || '';
+    result.date = meta?.date || '';
     resultCache.set(req.params.folder, result);
     res.json(result);
   } catch (e) {
@@ -416,6 +425,10 @@ server.listen(PORT, () => {
       result.audio_url = findAudioUrl(k.folder);
       result.title = k.title;
       result.speaker = k.speaker || '';
+      result.masjid = k.masjid || '';
+      result.masjid_ar = k.masjid_ar || '';
+      result.maps_url = k.maps_url || '';
+      result.date = k.date || '';
       resultCache.set(k.folder, result);
     } catch (e) {
       console.warn(`Cache warm failed for ${k.folder}:`, e.message);

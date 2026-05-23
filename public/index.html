@@ -266,6 +266,15 @@
       font-size: 13.5px; color: var(--gold); margin-top: 6px;
       letter-spacing: 0.3px; font-weight: 500;
     }
+    .khutbah-heading .meta-row {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px;
+      margin-top: 7px; font-size: 13px; color: rgba(255,255,255,0.55);
+    }
+    .khutbah-heading .meta-row a {
+      color: var(--gold); text-decoration: none; opacity: 0.85;
+    }
+    .khutbah-heading .meta-row a:hover { opacity: 1; text-decoration: underline; }
+    .khutbah-heading .meta-dot { opacity: 0.35; }
 
     /* Share card */
     .share-card {
@@ -733,6 +742,13 @@
         ${r.title ? `<div class="khutbah-heading">
           <h2>${escHtml(r.title)}</h2>
           ${r.speaker ? `<div class="speaker">${escHtml(r.speaker)}</div>` : ''}
+          <div class="meta-row">
+            ${r.masjid ? (r.maps_url
+              ? `<a href="${escAttr(r.maps_url)}" target="_blank" rel="noopener">${escHtml(r.masjid)}</a>`
+              : `<span>${escHtml(r.masjid)}</span>`) : ''}
+            ${r.masjid && r.date ? `<span class="meta-dot">·</span>` : ''}
+            ${r.date ? `<span>${escHtml(r.date)}</span>` : ''}
+          </div>
         </div>` : ''}
 
         <div class="share-card">
