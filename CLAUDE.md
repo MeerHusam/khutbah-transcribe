@@ -7,8 +7,10 @@ This file is auto-loaded by Claude Code at session start. It captures the full i
 ## Deployment
 
 - **GitHub:** https://github.com/MeerHusam/khutbah-live (branch: `main`)
-- **Render:** https://khutbah-live.onrender.com (Blueprint, free plan, auto-deploys on push to `main`)
+- **Render:** https://khutbah-live.onrender.com (Blueprint, **Starter plan**, auto-deploys on push to `main`)
+- **Persistent disk:** 1 GB mounted at `/opt/render/project/src/data` — `views.json`, `geo_views.jsonl`, `feedback.jsonl` persist across restarts/redeploys
 - **Admin feedback:** `https://khutbah-live.onrender.com/admin/feedback?key=<ADMIN_TOKEN>` (set in Render Environment tab)
+- **Admin geo:** `https://khutbah-live.onrender.com/admin/geo?key=<ADMIN_TOKEN>` — city/country breakdown of visitors
 - **Public name:** KhutbahLive
 
 ---
@@ -433,23 +435,35 @@ site**. The offline pipeline (`pipeline.js`, `reanalyze.js`, CLI) is unchanged �
 `server.js` + `public/` changed.
 
 - **`server.js`**: upload route / multer / pipeline-spawn **removed**. WebSocket repurposed
-  for **viewer counts**: live = concurrent WS connections, total = cumulative page loads
-  persisted to `data/views.json`. A curated `PUBLIC_KHUTBAHS` allowlist (folder + friendly
-  title + featured flag) replaces the dump-all-folders listing; `/api/results` returns
-  `{ featured, items[] }`, `/api/results/:folder` is allowlist-gated (404 otherwise). The
-  `loadResult`/timestamp logic (fixes #9/#13/#14) is **untouched**. `PORT` env honored.
+  for **viewer counts**: `live` = concurrent WS connections, `total` = cumulative visits,
+  `unique` = distinct IPs (SHA-256 hashed, first 16 chars, persisted as set in `data/views.json`).
+  All three broadcast to clients on every connection/disconnect. Geo lookup on each WS connect
+  via `ip-api.com` (free, no key, 3s timeout, skips private IPs) — appends
+  `{ts, city, region, country, countryCode}` to `data/geo_views.jsonl`. Admin endpoints:
+  `/admin/feedback?key=` and `/admin/geo?key=` (both require `ADMIN_TOKEN` env var).
+  A curated `PUBLIC_KHUTBAHS` allowlist (folder + friendly title + featured flag) replaces
+  the dump-all-folders listing; `/api/results` returns `{ featured, items[] }`,
+  `/api/results/:folder` is allowlist-gated (404 otherwise). `PORT` env honored.
 - **`public/index.html`**: now the **whole reader app** (single source of truth for the
   reader UI). Loads the featured khutbah by default or `?folder=<name>`, has a header
-  khutbah `<select>` switcher, a live/total viewer badge over WS, and a full mobile-responsive
-  pass (wrapping header, fluid scrubber, single-column layout < 860px). The old
-  sessionStorage hand-off is gone.
+  khutbah `<select>` switcher, a **live · unique · visits** badge over WS, and a full
+  mobile-responsive pass. Dark "mosque-at-night" theme: deep green-black palette, Amiri/Reem
+  Kufi/Lora fonts, gold accents, SVG geometric star pattern. **In Short**, **Summary**, and
+  **Full Translation** all use the `.share-card` style (green gradient, pattern overlay, gold
+  border). Play/pause button uses inline SVG (not Unicode `▶`/`⏸` which render as emoji on iOS).
+  The old sessionStorage hand-off is gone.
 - **`public/results.html`**: reduced to a redirect to `/` (preserves `?folder=`).
 - **Featured khutbah**: `outputs/2026-05-22T11-30-04_khutbah-2026-05-22-masjid` (audio
-  `audio_files/khutbah-2026-05-22-masjid.m4a`). Second published: the Sudais one.
-- **Deploy**: Render (see `DEPLOY.md`, `render.yaml`, `Dockerfile`). `.gitignore` bundles
-  only the masjid audio + the two published `outputs/` text folders (~6 MB); Sudais audio
-  is not shipped (its player auto-hides on the deploy). `data/` and `hadith_data/` are not
-  needed by the server. `npm start` now runs `node server.js` (`npm run pipeline` for the CLI).
+  `audio_files/khutbah-2026-05-22-masjid.m4a`). Second published: Sudais —
+  `outputs/2026-05-22T21-05-05_makkah_sudais_ramadan_ummah` (audio
+  `audio_files/makkah_sudais_ramadan_ummah.mp3`, 5.9 MB, now shipped).
+- **In-memory cache**: `resultCache` (Map, keyed by folder) + `listCache` pre-warmed at
+  server startup so zero file I/O on any request. Safe because files never change at runtime.
+- **Deploy**: Render Starter plan (see `DEPLOY.md`, `render.yaml`). `.gitignore` bundles both
+  audio files + the two published `outputs/` text folders (~12 MB total). Persistent disk
+  mounts `data/` at `/opt/render/project/src/data` — views + feedback survive redeploys.
+  `data/` and `hadith_data/` are not committed. `npm start` runs `node server.js`
+  (`npm run pipeline` for the CLI).
 
 ## Environment / Setup
 
