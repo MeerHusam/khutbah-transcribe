@@ -54,7 +54,18 @@ let listCache = null;
 const DATA_DIR = join(__dirname, 'data');
 const VIEWS_FILE = join(DATA_DIR, 'views.json');
 const FEEDBACK_FILE = join(DATA_DIR, 'feedback.jsonl');
+const GEO_FILE = join(DATA_DIR, 'geo_views.jsonl');
 mkdirSync(DATA_DIR, { recursive: true });
+
+async function lookupGeo(ip) {
+  if (!ip || ip === '::1' || ip.startsWith('127.') || ip.startsWith('10.') || ip.startsWith('192.168.')) return null;
+  try {
+    const res = await fetch(`http://ip-api.com/json/${ip}?fields=city,regionName,country,countryCode,status`, { signal: AbortSignal.timeout(3000) });
+    const data = await res.json();
+    if (data.status !== 'success') return null;
+    return { city: data.city, region: data.regionName, country: data.country, countryCode: data.countryCode };
+  } catch { return null; }
+}
 
 let totalViews = 0;
 try {
@@ -74,13 +85,21 @@ function broadcastViewers() {
   }
 }
 
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
   liveClients.add(ws);
   totalViews += 1;
   persistViews();
   // Send the new client its current numbers immediately, then tell everyone.
   if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'viewers', live: liveClients.size, total: totalViews }));
   broadcastViewers();
+
+  // Geo lookup — fire and forget, don't block the connection
+  const rawIp = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+  lookupGeo(rawIp).then(geo => {
+    if (!geo) return;
+    const entry = { ts: new Date().toISOString(), ...geo };
+    try { appendFileSync(GEO_FILE, JSON.stringify(entry) + '\n'); } catch {}
+  });
   ws.on('close', () => {
     liveClients.delete(ws);
     broadcastViewers();
@@ -340,6 +359,43 @@ app.get('/admin/feedback', (req, res) => {
     h1{font-size:18px;margin-bottom:16px}.f{border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:12px}
     .msg{white-space:pre-wrap;line-height:1.55}.meta{font-size:12px;color:#6b7280;margin-top:8px}</style>
     <h1>Feedback (${entries.length})</h1>${cards}`);
+});
+
+app.get('/admin/geo', (req, res) => {
+  if (!ADMIN_TOKEN) return res.status(503).send('Set the ADMIN_TOKEN env var to view geo data.');
+  if (req.query.key !== ADMIN_TOKEN) return res.status(401).send('Unauthorized');
+  let entries = [];
+  try {
+    entries = readFileSync(GEO_FILE, 'utf8').split('\n').filter(Boolean)
+      .map(l => { try { return JSON.parse(l); } catch { return null; } })
+      .filter(Boolean).reverse();
+  } catch {}
+
+  // Summarise by country then city
+  const byCountry = {};
+  for (const e of entries) {
+    const key = `${e.countryCode} ${e.country}`;
+    if (!byCountry[key]) byCountry[key] = { country: e.country, countryCode: e.countryCode, count: 0, cities: {} };
+    byCountry[key].count++;
+    const city = e.city || 'Unknown';
+    byCountry[key].cities[city] = (byCountry[key].cities[city] || 0) + 1;
+  }
+  const rows = Object.values(byCountry).sort((a, b) => b.count - a.count).map(c => {
+    const cities = Object.entries(c.cities).sort((a, b) => b[1] - a[1])
+      .map(([city, n]) => `<span class="city">${city} (${n})</span>`).join(' ');
+    return `<tr><td>${c.countryCode}</td><td>${c.country}</td><td class="n">${c.count}</td><td>${cities}</td></tr>`;
+  }).join('');
+
+  res.send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Viewers by Location (${entries.length})</title>
+    <style>body{font-family:system-ui,sans-serif;max-width:900px;margin:24px auto;padding:0 16px;color:#1a1a1a}
+    h1{font-size:18px;margin-bottom:16px}table{border-collapse:collapse;width:100%}
+    th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:14px}
+    th{background:#f9fafb;font-weight:600}.n{font-weight:700;color:#059669}
+    .city{display:inline-block;background:#f0fdf4;border:1px solid #d1fae5;border-radius:4px;padding:1px 7px;margin:2px;font-size:12px;color:#065f46}</style>
+    <h1>Viewers by Location (${entries.length} total)</h1>
+    <table><thead><tr><th>Code</th><th>Country</th><th>Views</th><th>Cities</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="4">No geo data yet.</td></tr>'}</tbody></table>`);
 });
 
 const PORT = process.env.PORT || 3000;
