@@ -600,10 +600,10 @@
   </div>
 
   <div class="header-right">
-    <span class="viewers" id="viewers" title="People viewing now · total views">
+    <span class="viewers" id="viewers" title="Live · unique visitors · total visits">
       <span class="live-dot"></span>
-      <span><b id="liveCount">–</b> now</span>
-      <span class="total-views">· <b id="totalCount">–</b> total</span>
+      <span><b id="liveCount">–</b> live</span>
+      <span class="total-views">· <b id="uniqueCount">–</b> unique · <b id="totalCount">–</b> visits</span>
     </span>
     <select class="khutbah-select" id="khutbahSelect" onchange="switchKhutbah(this.value)" aria-label="Choose a khutbah"></select>
   </div>
@@ -708,6 +708,7 @@
         const m = JSON.parse(e.data);
         if (m.type !== 'viewers') return;
         document.getElementById('liveCount').textContent = m.live;
+        document.getElementById('uniqueCount').textContent = (m.unique ?? '–').toLocaleString();
         document.getElementById('totalCount').textContent = m.total.toLocaleString();
         document.getElementById('viewers').classList.toggle('online', m.live > 0);
       };

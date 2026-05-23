@@ -67,19 +67,28 @@ async function lookupGeo(ip) {
   } catch { return null; }
 }
 
+import { createHash } from 'crypto';
+
 let totalViews = 0;
+let uniqueIps = new Set();
 try {
-  totalViews = JSON.parse(readFileSync(VIEWS_FILE, 'utf8')).total || 0;
+  const saved = JSON.parse(readFileSync(VIEWS_FILE, 'utf8'));
+  totalViews = saved.total || 0;
+  uniqueIps = new Set(saved.unique_ips || []);
 } catch { totalViews = 0; }
 
 function persistViews() {
-  try { writeFileSync(VIEWS_FILE, JSON.stringify({ total: totalViews })); } catch {}
+  try { writeFileSync(VIEWS_FILE, JSON.stringify({ total: totalViews, unique_ips: [...uniqueIps] })); } catch {}
+}
+
+function hashIp(ip) {
+  return createHash('sha256').update(ip).digest('hex').slice(0, 16);
 }
 
 const liveClients = new Set();
 
 function broadcastViewers() {
-  const payload = JSON.stringify({ type: 'viewers', live: liveClients.size, total: totalViews });
+  const payload = JSON.stringify({ type: 'viewers', live: liveClients.size, total: totalViews, unique: uniqueIps.size });
   for (const ws of liveClients) {
     if (ws.readyState === 1) ws.send(payload);
   }
@@ -88,13 +97,12 @@ function broadcastViewers() {
 wss.on('connection', (ws, req) => {
   liveClients.add(ws);
   totalViews += 1;
+  const rawIp = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+  if (rawIp) uniqueIps.add(hashIp(rawIp));
   persistViews();
   // Send the new client its current numbers immediately, then tell everyone.
-  if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'viewers', live: liveClients.size, total: totalViews }));
+  if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'viewers', live: liveClients.size, total: totalViews, unique: uniqueIps.size }));
   broadcastViewers();
-
-  // Geo lookup — fire and forget, don't block the connection
-  const rawIp = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
   lookupGeo(rawIp).then(geo => {
     if (!geo) return;
     const entry = { ts: new Date().toISOString(), ...geo };
