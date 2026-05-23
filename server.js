@@ -14,6 +14,7 @@ const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
 app.use(express.json({ limit: '16kb' }));
+app.get('/', (req, res) => res.sendFile(join(__dirname, 'public', 'home.html')));
 app.use(express.static(join(__dirname, 'public')));
 app.use('/audio_files', express.static(join(__dirname, 'audio_files')));
 
@@ -280,8 +281,11 @@ app.get('/api/results', (req, res) => {
         folder: k.folder,
         title: k.title,
         speaker: k.speaker || '',
+        masjid: k.masjid || '',
+        maps_url: k.maps_url || '',
+        date: k.date || '',
         featured: !!k.featured,
-        summary: (r.share_summary || r.summary || '').slice(0, 160),
+        summary: (r.share_summary || r.summary || '').slice(0, 200),
         words: r.metadata?.transcript_word_count || 0,
         quran: r.metadata?.quran_references_matched || 0,
         hadith: r.metadata?.hadith_references_found || 0,
