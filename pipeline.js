@@ -64,6 +64,10 @@ function normalizeArabic(text) {
     .replace(/[ۖ-ۭ]/g, '')  // Quranic annotation/pause signs
     .replace(/ٱ/g, 'ا')     // alif wasla → plain alif
     .replace(/[آأإ]/g, 'ا') // hamzated alifs → plain alif
+    // Strip punctuation (Gemini adds sentence punctuation like . and ؟ that attaches to a
+    // word — e.g. "ينفعه؟" — and breaks Quran n-gram matching, spilling ayah tails into prose).
+    // Only punctuation is removed, never spaces or letters, so word-token counts stay aligned.
+    .replace(/[.,!?;:؟،؛"'`(){}\[\]«»…—–-]/g, '')
     .trim();
 }
 
@@ -332,6 +336,50 @@ function getQuranNgramIndex(n = 4) {
 // Catches partial citations and pronunciation variants at boundaries (e.g. ادعو vs ادع)
 // that the Jaccard sliding-window scanner misses because it requires the full ayah length.
 // Returns [{start, end}] word-index ranges to exclude from prose chunking.
+// Local (Smith-Waterman) alignment of a canonical ayah against the transcript, tolerating
+// gaps — fillers, repetitions, transcription variance. Claims the FULL recited span of the
+// ayah (anchored to its first/last matched word), not merely the longest contiguous run, so
+// an ayah head/tail never leaks into a prose chunk. ayahWords/tNorm are deep-normalized.
+// anchorI = transcript index of the matched n-gram; anchorPos = its position within the ayah.
+function alignFullAyah(ayahWords, tNorm, anchorI, anchorPos) {
+  const A = ayahWords;
+  const winStart = Math.max(0, anchorI - anchorPos - 4);
+  const winEnd = Math.min(tNorm.length, anchorI - anchorPos + A.length + 8);
+  const B = tNorm.slice(winStart, winEnd);
+  const n = A.length, m = B.length;
+  if (!n || !m) return null;
+  const MATCH = 2, MISMATCH = -2, GAP = -1;
+  const W = m + 1;
+  const H = new Int32Array((n + 1) * W);
+  const tb = new Int8Array((n + 1) * W); // 0=stop, 1=diag, 2=up(gap in B), 3=left(gap in A)
+  let maxScore = 0, maxA = 0, maxB = 0;
+  for (let a = 1; a <= n; a++) {
+    for (let b = 1; b <= m; b++) {
+      const diag = H[(a - 1) * W + (b - 1)] + (A[a - 1] === B[b - 1] ? MATCH : MISMATCH);
+      const up = H[(a - 1) * W + b] + GAP;
+      const left = H[a * W + (b - 1)] + GAP;
+      let best = 0, dir = 0;
+      if (diag > best) { best = diag; dir = 1; }
+      if (up > best) { best = up; dir = 2; }
+      if (left > best) { best = left; dir = 3; }
+      H[a * W + b] = best; tb[a * W + b] = dir;
+      if (best > maxScore) { maxScore = best; maxA = a; maxB = b; }
+    }
+  }
+  if (maxScore <= 0) return null;
+  // Traceback (from the max cell to the first zero) recording matched B positions.
+  let a = maxA, b = maxB, firstB = -1, lastB = -1, matched = 0;
+  while (a > 0 && b > 0 && tb[a * W + b] !== 0) {
+    const dir = tb[a * W + b];
+    if (dir === 1) {
+      if (A[a - 1] === B[b - 1]) { matched++; if (lastB < 0) lastB = b - 1; firstB = b - 1; }
+      a--; b--;
+    } else if (dir === 2) { a--; } else { b--; }
+  }
+  if (firstB < 0) return null;
+  return { start: winStart + firstB, end: winStart + lastB + 1, matched };
+}
+
 function prescanForQuranZones(transcriptWords, n = 4) {
   if (!quranData) return [];
   const index = getQuranNgramIndex(n);
@@ -345,35 +393,43 @@ function prescanForQuranZones(transcriptWords, n = 4) {
 
     if (!hits) { i++; continue; }
 
-    // Try all matching ayahs, keep the zone with the longest consecutive match
+    // Try all matching ayahs, keep the longest claimed span.
     let bestStart = i, bestEnd = i + n, bestHit = hits[0];
     for (const hit of hits) {
       const { pos, ayah_words } = hit;
-      // Extend backward: how far back do transcript and ayah words agree?
-      let back = 0;
-      while (back < pos && i - back - 1 >= 0 &&
-             tNorm[i - back - 1] === ayah_words[pos - back - 1]) {
-        back++;
+      // Fuzzy full-ayah alignment (handles gaps/repeats/variance).
+      const span = alignFullAyah(ayah_words, tNorm, i, pos);
+      let zStart, zEnd;
+      if (span && span.matched >= n) {
+        zStart = span.start; zEnd = span.end;
+      } else {
+        // Fallback: strict contiguous extension forward/backward from the n-gram.
+        let back = 0;
+        while (back < pos && i - back - 1 >= 0 &&
+               tNorm[i - back - 1] === ayah_words[pos - back - 1]) back++;
+        let fwd = n;
+        while (i + fwd < tNorm.length && pos + fwd < ayah_words.length &&
+               tNorm[i + fwd] === ayah_words[pos + fwd]) fwd++;
+        zStart = i - back; zEnd = i + fwd;
       }
-      // Extend forward past the initial n-gram
-      let fwd = n;
-      while (i + fwd < tNorm.length && pos + fwd < ayah_words.length &&
-             tNorm[i + fwd] === ayah_words[pos + fwd]) {
-        fwd++;
-      }
-      const zStart = i - back;
-      const zEnd = i + fwd;
       if (zEnd - zStart > bestEnd - bestStart) { bestStart = zStart; bestEnd = zEnd; bestHit = hit; }
     }
 
+    // The claimed span must at least cover the matched n-gram [i, i+n]; the fuzzy
+    // alignment can otherwise anchor on a repeated phrase elsewhere in the window.
+    if (bestStart > i) bestStart = i;
+    if (bestEnd < i + n) bestEnd = i + n;
     zones.push({ start: bestStart, end: bestEnd, surah_id: bestHit.surah_id, ayah_id: bestHit.ayah_id, surah_name: bestHit.surah_name });
-    i = bestEnd;
+    // Always advance i past the zone (guard against a span that doesn't move us forward).
+    i = Math.max(bestEnd, i + 1);
   }
 
-  // Pad each zone's start by 2 words so the imam's intro phrase ("ادعو إلى", "قال تعالى" etc.)
-  // that immediately precedes the ayah is excluded from the prose chunk and doesn't dangle
-  // as an incomplete sentence at the end of a chunk translation.
-  const PAD_START = 2;
+  // PAD_START=0: do NOT pad the zone backward. Padding pulled the intro phrase's last
+  // word(s) ("قال الله [تعالى]", "قال عز [وجل]") into the zone, where they were excluded
+  // from the prose chunk but NOT shown in the ayah card (cards render only verse text) —
+  // so those words vanished. Keeping the intro in the prose chunk shows it as a natural
+  // lead-in and renders the ayah cards with clean verse text.
+  const PAD_START = 0;
   const padded = zones.map(z => ({ ...z, start: Math.max(0, z.start - PAD_START) }));
 
   // Merge overlapping/adjacent zones (padding can cause overlaps).
@@ -399,6 +455,7 @@ function prescanForQuranZones(transcriptWords, n = 4) {
 // transcript words from that zone as detected_text.
 function buildZoneRefs(zones, transcriptWords, existingRefs) {
   const index = getQuranNgramIndex();
+  const tNorm = transcriptWords.map(w => normalizeArabicDeep(w));
   const newRefs = [];
 
   for (const zone of zones) {
@@ -414,30 +471,23 @@ function buildZoneRefs(zones, transcriptWords, existingRefs) {
       );
       if (already) continue;
 
-      // Find this ayah's exact offset within the zone by re-scanning with the n-gram index.
-      // Default to the full zone range if not found (e.g. zone covers just this one ayah).
-      const zoneWords = transcriptWords.slice(zone.start, zone.end);
-      const normZone = zoneWords.map(w => normalizeArabicDeep(w));
-      let wordStart = 0, wordEnd = zoneWords.length;
-
-      outer: for (let j = 0; j <= normZone.length - 4; j++) {
-        const key = normZone.slice(j, j + 4).join(' ');
+      // Find this ayah's span within the zone. Anchor on any of its 4-grams, then use the
+      // SAME fuzzy alignment as prescan (alignFullAyah) so transcription variance (e.g.
+      // "زلزله" vs corpus "زلزلة") doesn't truncate the span below the 5-word threshold and
+      // drop the ayah. Default to the whole zone if no anchor is found.
+      let wordStart = zone.start, wordEnd = zone.end;
+      for (let j = zone.start; j <= zone.end - 4; j++) {
+        const key = tNorm.slice(j, j + 4).join(' ');
         const hits = index.get(key);
         if (!hits) continue;
         const hit = hits.find(h => h.surah_id === surah_id && h.ayah_id === ayah_id);
         if (!hit) continue;
-        let back = 0;
-        while (back < hit.pos && j - back - 1 >= 0 &&
-               normZone[j - back - 1] === hit.ayah_words[hit.pos - back - 1]) back++;
-        let fwd = 4;
-        while (j + fwd < normZone.length && hit.pos + fwd < hit.ayah_words.length &&
-               normZone[j + fwd] === hit.ayah_words[hit.pos + fwd]) fwd++;
-        wordStart = j - back;
-        wordEnd = j + fwd;
-        break outer;
+        const span = alignFullAyah(hit.ayah_words, tNorm, j, hit.pos);
+        if (span) { wordStart = span.start; wordEnd = span.end; }
+        break;
       }
 
-      const refWords = transcriptWords.slice(zone.start + wordStart, zone.start + wordEnd);
+      const refWords = transcriptWords.slice(wordStart, wordEnd);
       // Require at least 5 matched words to avoid surfacing 4-word common phrases
       // (ta'awwudh "بالله من الشيطان الرجيم", common endings like "إنه كان حليما غفورا")
       // that happen to appear in an ayah but aren't genuine citations.
@@ -474,14 +524,23 @@ function buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSeg
     }
   }
 
+  // Prefer breaking at SENTENCE ends (Gemini adds . ؟ ! punctuation) so a chunk never
+  // cuts mid-sentence. Fall back to Whisper segment (breath-pause) boundaries when the
+  // transcript has no sentence punctuation (e.g. raw Groq output).
+  const sentenceBreaks = new Set();
+  for (let i = 0; i < transcriptWords.length; i++) {
+    if (/[.؟!…]$/.test(transcriptWords[i])) sentenceBreaks.add(i + 1);
+  }
+  const breakSet = sentenceBreaks.size ? sentenceBreaks : segBreaks;
+
   const proseChunks = [];
   let cursor = 0;
 
   const flush = (from, to) => {
     if (from >= to) return;
 
-    // Fallback: no segment info — use fixed-size chunks
-    if (segBreaks.size === 0) {
+    // Fallback: no break info — use fixed-size chunks
+    if (breakSet.size === 0) {
       for (let i = from; i < to; i += CHUNK_SIZE) {
         const end = Math.min(i + CHUNK_SIZE, to);
         const slice = transcriptWords.slice(i, end);
@@ -491,33 +550,43 @@ function buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSeg
       return;
     }
 
-    // Segment-aware chunking: accumulate consecutive segments until we have
-    // at least MIN_CHUNK words, then break at the segment boundary.
-    // Prevents cuts mid-breath and keeps semantically coherent units.
+    // Break-aware chunking: accumulate until we have at least MIN_CHUNK words, then break
+    // at the next sentence end (or segment boundary). Keeps semantically coherent units
+    // and avoids cutting mid-sentence.
     const MIN_CHUNK = 15;
-    const MAX_CHUNK = CHUNK_SIZE * 2; // hard cap for unusually long single segments
+    const MAX_CHUNK = CHUNK_SIZE * 2; // hard cap for unusually long single sentences
 
-    // Collect segment break points within (from, to), plus 'to' as the final boundary
+    // Collect break points within (from, to), plus 'to' as the final boundary
     const breaks = [];
     for (let b = from + 1; b < to; b++) {
-      if (segBreaks.has(b)) breaks.push(b);
+      if (breakSet.has(b)) breaks.push(b);
     }
     breaks.push(to);
 
+    const ranges = [];
     let chunkStart = from;
     for (const brk of breaks) {
       const len = brk - chunkStart;
-      if (len >= MIN_CHUNK || brk === to) {
-        // Emit chunk — split at MAX_CHUNK if a single segment is unusually long
-        for (let i = chunkStart; i < brk; i += MAX_CHUNK) {
-          const end = Math.min(i + MAX_CHUNK, brk);
-          const slice = transcriptWords.slice(i, end);
-          if (slice.length > 0)
-            proseChunks.push({ text: slice.join(' '), wordStart: i, wordEnd: end, proseIdx: proseChunks.length });
-        }
-        chunkStart = brk;
-      }
+      if (len >= MIN_CHUNK || brk === to) { ranges.push([chunkStart, brk]); chunkStart = brk; }
       // else: accumulated words still below MIN_CHUNK — keep going
+    }
+    // Merge any too-short range into a neighbour (contiguous prose between two zones can
+    // leave a tiny trailing fragment like "وكيف يدعو" right before an ayah; on its own it
+    // gets a misleading expanded translation that paraphrases the upcoming verse).
+    for (let k = ranges.length - 1; k > 0; k--) {
+      if (ranges[k][1] - ranges[k][0] < MIN_CHUNK) { ranges[k - 1][1] = ranges[k][1]; ranges.splice(k, 1); }
+    }
+    if (ranges.length > 1 && ranges[0][1] - ranges[0][0] < MIN_CHUNK) {
+      ranges[1][0] = ranges[0][0]; ranges.shift();
+    }
+    for (const [s, e] of ranges) {
+      // Split at MAX_CHUNK if a single range is unusually long
+      for (let i = s; i < e; i += MAX_CHUNK) {
+        const end = Math.min(i + MAX_CHUNK, e);
+        const slice = transcriptWords.slice(i, end);
+        if (slice.length > 0)
+          proseChunks.push({ text: slice.join(' '), wordStart: i, wordEnd: end, proseIdx: proseChunks.length });
+      }
     }
   };
 
@@ -851,15 +920,40 @@ function scanTranscriptForHadith(transcript, claudeHadithRefs, hadithCorpus) {
 
 // ---- Claude prompt ----------------------------------------------------------
 
-const ANALYSIS_PROMPT = `You are an Islamic scholar assistant processing a Friday Khutbah (sermon) transcript.
+// Khutbah types — drive how the analysis prompt frames the sermon and whether the
+// two-part (sitting + second khutbah) structure applies. Add new types here.
+const KHUTBAH_TYPES = {
+  friday: {
+    desc: 'a Friday Jummah Khutbah (sermon) transcript',
+    ref: "this Friday khutbah",
+    twoPart: true,
+  },
+  arafah: {
+    desc: 'the Khutbah of Arafah (the Hajj sermon delivered at Masjid Namirah on the Day of Arafah) transcript',
+    ref: "this Khutbah of Arafah",
+    twoPart: false,
+  },
+  eid: {
+    desc: 'an Eid Khutbah (the sermon delivered after the Eid prayer) transcript',
+    ref: "this Eid khutbah",
+    twoPart: false,
+  },
+};
+
+const ANALYSIS_PROMPT_TEMPLATE = `You are an Islamic scholar assistant processing {{KHUTBAH_DESC}}.
 
 Given this Arabic Khutbah transcript, do the following:
+
+IMPORTANT STYLE RULE (applies to ALL English text you produce — chunk_translations, share_summary, summary): Do NOT use em dashes (—) or en dashes (–) anywhere. Use a comma, period, colon, parentheses, or the word "and" instead. Write natural prose without dash-joined clauses.
+
+PROSE-CHUNK RULE: A prose chunk may END with a lead-in to a Quranic verse (e.g. "قال الله تعالى", "وقال سبحانه", or the first words of a verse the khatib is about to recite). Translate ONLY the literal Arabic words present in that chunk. Do NOT complete the sentence with, or paraphrase, the content of the Quranic verse that follows — those verses are displayed separately with their own translation. For example, if a chunk ends with "وكيف يدعو", translate just "And how can he invoke", not the full meaning of the verse.
 
 1. Translate the full text into natural, readable English. Preserve Islamic terms untranslated: Allah, Rasulullah, Salah, Zakat, Ummah, Sunnah, Hadith, Quran, Surah, Ayah, Jummah, Khatib, and any Arabic honorifics like صلى الله عليه وسلم or رضي الله عنه
 
 2. Write two summaries:
    a. "share_summary": A ONE-SENTENCE TL;DR — ABSOLUTE MAXIMUM 30 WORDS. State the khutbah's topic and its single biggest takeaway, nothing more. Simple, friendly English; no academic language; do NOT list multiple points or describe both khutbah parts. This is a one-line hook, not a summary. (The detailed "summary" field below carries the full content.)
    b. "summary": A fuller 3-5 sentence summary covering all main points and themes in detail.
+   In BOTH summaries, refer to the sermon as {{KHUTBAH_REF}} — do NOT call it a "Friday khutbah" or "Jummah khutbah" unless that is in fact what it is.
 
 3. Identify every Quranic reference by detecting these signal phrases in the Arabic text:
 - قال الله تعالى
@@ -899,7 +993,7 @@ For each one found:
 - ففي الحديث
 For each one found, extract ONLY the hadith text (the Prophet's actual words or the reported content). Do NOT include the signal phrase itself or the narrator chain (isnad) in the arabic_text field — only the matn (the body of the hadith). Identify the narrator (the Companion who reported it) and the collection from your own knowledge of the hadith, even when they are not spoken aloud in the khutbah. Only use null if you genuinely cannot identify it.
 
-5. A Friday khutbah is delivered in TWO parts: the first khutbah ends with the khatib's closing du'a/istighfar (e.g. "أقول قولي هذا وأستغفر الله لي ولكم" / "...فاستغفروه وتوبوا إليه إنه هو البر الرحيم"), the khatib sits briefly, then stands and begins the SECOND khutbah with a fresh opening praise (a new "الحمد لله..." or "إن الحمد لله نحمده ونستعينه..."). Identify where the SECOND khutbah begins and return its first 6-10 Arabic words EXACTLY as they appear in the transcript (so they can be located by text search). Key off this STRUCTURE — closing istighfar/du'a followed by a renewed opening praise — NOT any single word, since transcription can mishear words. If the transcript contains only one khutbah or you cannot confidently find the split, return null.
+{{SPLIT_INSTRUCTION}}
 
 Return ONLY a valid JSON object with no markdown formatting, no backticks, no preamble. Exactly this structure:
 {
@@ -926,6 +1020,23 @@ Return ONLY a valid JSON object with no markdown formatting, no backticks, no pr
   ],
   "second_khutbah_start": "first 6-10 Arabic words of the second khutbah exactly as in the transcript, or null if there is only one khutbah / no confident split"
 }`;
+
+const SPLIT_INSTRUCTION_TWO_PART = `5. A Friday khutbah is delivered in TWO parts: the first khutbah ends with the khatib's closing du'a/istighfar (e.g. "أقول قولي هذا وأستغفر الله لي ولكم" / "...فاستغفروه وتوبوا إليه إنه هو البر الرحيم"), the khatib sits briefly, then stands and begins the SECOND khutbah with a fresh opening praise (a new "الحمد لله..." or "إن الحمد لله نحمده ونستعينه..."). Identify where the SECOND khutbah begins and return its first 6-10 Arabic words EXACTLY as they appear in the transcript (so they can be located by text search). Key off this STRUCTURE — closing istighfar/du'a followed by a renewed opening praise — NOT any single word, since transcription can mishear words. If the transcript contains only one khutbah or you cannot confidently find the split, return null.`;
+
+const SPLIT_INSTRUCTION_SINGLE = `5. This sermon is delivered as ONE continuous khutbah (no sitting, no second khutbah). Always return null for "second_khutbah_start".`;
+
+// Builds the analysis prompt for a given khutbah type (friday | arafah | eid).
+// Unknown types fall back to friday.
+function buildAnalysisPrompt(khutbahType = 'friday') {
+  const t = KHUTBAH_TYPES[khutbahType] || KHUTBAH_TYPES.friday;
+  return ANALYSIS_PROMPT_TEMPLATE
+    .replace('{{KHUTBAH_DESC}}', t.desc)
+    .replace('{{KHUTBAH_REF}}', t.ref)
+    .replace('{{SPLIT_INSTRUCTION}}', t.twoPart ? SPLIT_INSTRUCTION_TWO_PART : SPLIT_INSTRUCTION_SINGLE);
+}
+
+// Back-compat: the default (Friday) prompt as a ready-to-use string.
+const ANALYSIS_PROMPT = buildAnalysisPrompt('friday');
 
 // ---- Hadith deduplication ---------------------------------------------------
 
@@ -1113,17 +1224,65 @@ function buildReaderView(transcript, result) {
   }
   located.sort((a, b) => a.startWord - b.startWord);
 
-  // Remove overlapping entries — keep the one with the longer detected_text (more specific)
+  // Resolve overlapping entries. Two distinct ayahs recited back-to-back (e.g. Ta-Ha
+  // 20:43 then 20:44) overlap here because a merged Quran zone gives the first ref a
+  // detected_text spanning BOTH ayahs — so the second ayah starts inside the first's
+  // span. That must NOT be deduped away. A true duplicate (the SAME ayah surfaced by
+  // multiple detection layers) still collapses to the longer detected_text.
   const deduped = [];
   for (const loc of located) {
     const prev = deduped[deduped.length - 1];
     if (prev && loc.startWord < prev.endWord) {
-      if ((loc.ref.detected_text ?? '').length > (prev.ref.detected_text ?? '').length) {
+      const bothQuran = prev.ref.refType !== 'hadith' && loc.ref.refType !== 'hadith';
+      const distinctAyah = bothQuran && (
+        prev.ref.surah_number !== loc.ref.surah_number ||
+        prev.ref.ayah_number !== loc.ref.ayah_number
+      );
+      if (distinctAyah && loc.startWord > prev.startWord) {
+        if (loc.endWord >= prev.endWord) {
+          // Distinct, consecutive ayahs: trim the earlier ref to end where the next begins
+          // so each renders its own words and keeps its own citation card.
+          prev.endWord = loc.startWord;
+          deduped.push(loc);
+        } else {
+          // Distinct ayah CONTAINED within the parent's span (the parent ref's detected_text
+          // spans into the next ayah). Trim the parent to end where the child begins and push
+          // the child. Do NOT re-emit the parent's remainder as a tail card — it would carry
+          // the parent's label over the NEXT ayah's words (mislabeling, e.g. a "22:34" card
+          // showing 22:35's text). Those words are covered by their own zone/card or prose.
+          prev.endWord = loc.startWord;
+          deduped.push(loc);
+        }
+      } else if ((loc.ref.detected_text ?? '').length > (prev.ref.detected_text ?? '').length) {
+        // True duplicate or nested match — keep the longer (more specific) detected_text.
         deduped[deduped.length - 1] = loc;
       }
     } else {
       deduped.push(loc);
     }
+  }
+
+  // Collapse multiple cards for the SAME ayah into one. A long ayah recited with a pause,
+  // an echoed phrase, or an ayah detected by several layers can produce 2+ cards for one
+  // surah:ayah. Keep the longest span; drop the rest. The card renders canonical verse text,
+  // so a single card always shows the COMPLETE ayah. Distinct ayahs (e.g. consecutive
+  // 20:43/20:44) have different keys and are untouched. Hadith entries pass through.
+  {
+    const byAyah = new Map();
+    const collapsed = [];
+    for (const loc of deduped) {
+      if (loc.ref.refType === 'hadith') { collapsed.push(loc); continue; }
+      const key = `${loc.ref.surah_number}:${loc.ref.ayah_number}`;
+      const existing = byAyah.get(key);
+      if (!existing) { byAyah.set(key, loc); collapsed.push(loc); continue; }
+      if ((loc.endWord - loc.startWord) > (existing.endWord - existing.startWord)) {
+        collapsed[collapsed.indexOf(existing)] = loc;
+        byAyah.set(key, loc);
+      }
+    }
+    collapsed.sort((a, b) => a.startWord - b.startWord);
+    deduped.length = 0;
+    deduped.push(...collapsed);
   }
 
   // Per-chunk translations (new results) or fall back to proportional sentence slicing
@@ -1139,14 +1298,22 @@ function buildReaderView(transcript, result) {
   // segment carries its proseIdx and exactly the right words. Falls back to fixed
   // 30-word chunks for old results without a map.
   const PROSE_CHUNK = 30;
+  // Guard against emitting the same prose chunk twice. A ref that wasn't pre-scanned as a
+  // Quran zone (e.g. detected only by Claude/Jaccard) can sit ENTIRELY INSIDE one prose
+  // chunk; that chunk then satisfies the (wordEnd > from && wordStart < to) test on BOTH
+  // sides of the ref and would render before AND after it. Emit each proseIdx at most once.
+  const emittedProse = new Set();
   const buildProseSegs = (from, to) => {
     if (proseChunkMap) {
       // Use wordEnd > from (not wordStart >= from) so that a chunk whose wordStart falls
       // slightly inside a ref's span (due to ref detection / zone boundary mismatch) is
       // still included rather than silently dropped.
       return proseChunkMap
-        .filter(e => e.wordEnd > from && e.wordStart < to)
-        .map(e => ({ type: 'prose', words: origWords.slice(e.wordStart, e.wordEnd), startWord: e.wordStart, proseIdx: e.proseIdx }));
+        .filter(e => e.wordEnd > from && e.wordStart < to && !emittedProse.has(e.proseIdx))
+        .map(e => {
+          emittedProse.add(e.proseIdx);
+          return { type: 'prose', words: origWords.slice(e.wordStart, e.wordEnd), startWord: e.wordStart, proseIdx: e.proseIdx };
+        });
     }
     const prose = origWords.slice(from, to);
     const segs = [];
@@ -1646,6 +1813,15 @@ async function main() {
   const useLocal = args.includes('--local');
   const useGroq = args.includes('--groq');
   const useGemini = args.includes('--gemini');
+  // --type <friday|arafah|eid> frames the summary and ref wording (default: friday).
+  const typeFlagIdx = args.indexOf('--type');
+  const khutbahType = (typeFlagIdx !== -1 && KHUTBAH_TYPES[args[typeFlagIdx + 1]])
+    ? args[typeFlagIdx + 1] : 'friday';
+  // --single (alias --no-split): treat the audio as ONE continuous khutbah and skip
+  // second-khutbah split detection. Use for Arafah, Eid, lectures — anything that
+  // isn't a two-part Friday Jumu'ah khutbah. Non-two-part types (arafah, eid) imply it.
+  const singleKhutbah = args.includes('--single') || args.includes('--no-split')
+    || !KHUTBAH_TYPES[khutbahType].twoPart;
   const modelFlagIdx = args.indexOf('--model');
   const localModel = modelFlagIdx !== -1
     ? args[modelFlagIdx + 1]
@@ -1655,13 +1831,14 @@ async function main() {
 
   const skipValues = new Set([
     modelFlagIdx !== -1 ? args[modelFlagIdx + 1] : null,
+    typeFlagIdx !== -1 ? args[typeFlagIdx + 1] : null,
     existingTranscriptPath,
   ].filter(Boolean));
   const audioPath = args.find(a => !a.startsWith('--') && !skipValues.has(a));
 
   if (!audioPath && !existingTranscriptPath) {
     console.error(
-      'Usage: node pipeline.js path/to/khutbah.mp3 [--groq] [--local] [--model <hf-model-id>]\n' +
+      'Usage: node pipeline.js path/to/khutbah.mp3 [--groq] [--local] [--single] [--type friday|arafah|eid] [--model <hf-model-id>]\n' +
       '       node pipeline.js --transcript outputs/<run>/transcript.txt'
     );
     process.exit(1);
@@ -1700,6 +1877,15 @@ async function main() {
   if (existingTranscriptPath) {
     console.log(`Using existing transcript: ${existingTranscriptPath}`);
     transcript = readFileSync(existingTranscriptPath, 'utf8').trim();
+    // Reuse Groq word-timings + segments from the sibling result.json so the regenerated
+    // output keeps accurate audio alignment (chunk start_times) without re-transcribing.
+    try {
+      const sibPath = path.join(path.dirname(existingTranscriptPath), 'result.json');
+      const sib = JSON.parse(readFileSync(sibPath, 'utf8'));
+      if (Array.isArray(sib.transcript_segments)) transcriptSegments = sib.transcript_segments;
+      if (Array.isArray(sib.transcript_words)) transcriptWordTimes = sib.transcript_words;
+      if (transcriptWordTimes.length) console.log(`  reused timing: ${transcriptWordTimes.length} word times, ${transcriptSegments.length} segments`);
+    } catch { /* no sibling timing — proceed without */ }
   } else {
     const fileSizeMB = statSync(audioPath).size / (1024 * 1024);
     console.log('Preprocessing audio (prepending silence, normalising to 16kHz)...');
@@ -1796,7 +1982,7 @@ async function main() {
       messages: [
         {
           role: 'user',
-          content: `${ANALYSIS_PROMPT}\n\nTranscript:\n${transcript}${chunkInstruction}`,
+          content: `${buildAnalysisPrompt(khutbahType)}\n\nTranscript:\n${transcript}${chunkInstruction}`,
         },
       ],
     });
@@ -1934,7 +2120,10 @@ async function main() {
 
   // Step 9: Assemble final output object
   const matchedCount = allQuranRefs.filter(r => r.matched).length;
-  const secondKhutbah = locateSecondKhutbah(analysis.second_khutbah_start, transcript, transcriptSegments, transcriptWordTimes);
+  const secondKhutbah = singleKhutbah
+    ? null
+    : locateSecondKhutbah(analysis.second_khutbah_start, transcript, transcriptSegments, transcriptWordTimes);
+  if (singleKhutbah) console.log('✓ Single-khutbah mode: split detection skipped');
   if (secondKhutbah) {
     console.log(`✓ Second khutbah split at word ${secondKhutbah.word_index} (${secondKhutbah.via}${secondKhutbah.validated ? ', gap-validated' : ''})`);
     const didSplit = await splitChunkAtKhutbahBoundary(proseChunks, analysis.chunk_translations, secondKhutbah.word_index, transcriptWords, anthropic, 'claude-sonnet-4-6');
@@ -1989,6 +2178,8 @@ if (isMain) {
 
 export {
   ANALYSIS_PROMPT,
+  buildAnalysisPrompt,
+  KHUTBAH_TYPES,
   buildReaderView,
   buildReadableOutput,
   buildProseChunks,
