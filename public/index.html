@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>KhutbahTranscribe</title>
+  <title>KhutbahLive</title>
   <meta name="theme-color" content="#0a1611">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -591,10 +591,10 @@
 <body>
 
 <header>
-  <div class="header-left">
+  <a class="header-left" href="/" style="text-decoration:none;color:inherit;">
     <div class="logo-mark">ك</div>
-    <h1>KhutbahTranscribe</h1>
-  </div>
+    <h1>KhutbahLive</h1>
+  </a>
 
   <div class="audio-player" id="audioPlayer">
     <button class="skip-btn" onclick="skip(-10)" title="Back 10 seconds" aria-label="Back 10 seconds">↺<small>10</small></button>
@@ -705,7 +705,7 @@
   }
 
   function switchKhutbah(folder) {
-    location.href = `/?folder=${encodeURIComponent(folder)}`;
+    location.href = `/index.html?folder=${encodeURIComponent(folder)}`;
   }
 
   // ── Live + total viewer counts over WebSocket ──
