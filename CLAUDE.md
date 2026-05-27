@@ -225,16 +225,15 @@ All functions except `main()` are exported for use by `reanalyze.js`.
 | 23 | Play/pause button shows as emoji on iOS | Replaced Unicode `▶`/`⏸` with inline SVG |
 | 24 | Geo location tracking | `lookupGeo()` via ip-api.com; appends to `data/geo_views.jsonl` |
 | 25 | Unique visitor count | SHA-256 hashed IPs persisted in `data/views.json`; broadcast as `unique` |
+| 26 | Consecutive ayahs deduped (20:43 + 20:44) | Dedup trims earlier ref to next ref's start when surah:ayah differ; keeps both cards |
+| 27 | Single-khutbah mode | `--single`/`--no-split` flag skips `locateSecondKhutbah` (Arafah, Eid, lectures) |
 
 ---
 
 ## Known Remaining Issues / Pending Work
 
-### Multiple Ayahs Grouped as One Ref (Ta-Ha 20:43 + 20:44)
-`buildZoneRefs` adds 20:44 but `buildReaderView` dedup drops it (20:43 ref covers the same word range with longer text). Fix: after locating a ref's word range, check if any zone-identified ayah's n-gram starts WITHIN that range and split the ref there.
-
-### 26:62 Missing from reader.txt
-Ash-Shu'ara 26:62 (5 words) is in result.json but deduped out of reader.txt — its short detected_text overlaps 26:63's range.
+### 26:62 Missing from reader.txt (nested-overlap case)
+Ash-Shu'ara 26:62 (5 words) is in result.json but deduped out of reader.txt — its short detected_text is *nested* inside 26:63's range (not consecutive/in-order). Fix #26 deliberately left the nested case on the old longer-text behavior because trimming there can drop a tail of the enclosing ref. The general consecutive-ayah case (e.g. 20:43 + 20:44) is now handled — see fix #26.
 
 ### Muhammad 47:7 Duplicate
 Signal-phrase ref and scan ref both identify 47:7. Both entries remain in result.json (deduplicated at display level only).

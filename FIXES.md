@@ -201,3 +201,21 @@ Full root-cause analyses and implementation notes for every fix. New fixes go he
 
 ### 25. Unique Visitor Count
 **Added:** IP hashes (SHA-256, first 16 chars) stored as a Set in `data/views.json`. Broadcast as `unique` alongside `live` and `total`. Header shows **X live · Y unique · Z visits**. Persistent on paid Render plan (disk mounted at `/opt/render/project/src/data`).
+
+---
+
+### 26. Consecutive Ayahs Deduped (Ta-Ha 20:43 + 20:44)
+**Symptom:** When two ayahs are recited back-to-back, only the first got a Quran card in `reader.txt`; the second silently vanished.
+
+**Root cause:** In `buildReaderView`, each located ref's `endWord = startWord + detected_text.length`. A merged Quran zone gives the FIRST ref a `detected_text` spanning BOTH ayahs, so the second ayah's `startWord` falls inside the first's span. The overlap-dedup then kept only the longer detected_text and dropped the second — it could not tell a true duplicate (same ayah found by multiple layers) from two distinct consecutive ayahs.
+
+**Fix:** Dedup now compares `surah_number`/`ayah_number`. For two distinct (different surah:ayah) Quran refs that overlap with `loc.startWord > prev.startWord && loc.endWord >= prev.endWord` (i.e. consecutive, in recitation order), it **trims the earlier ref's `endWord` to the later ref's `startWord`** and keeps both — each renders its own words and citation card. True duplicates (same ayah) and ambiguous *nested* refs (e.g. 26:62 inside 26:63's span) keep the old longer-detected_text behavior. Verified with a synthetic two-ayah transcript: 20:43 and 20:44 each render once, no duplication; a same-ayah duplicate still collapses to one.
+
+---
+
+### 27. Single-Khutbah Mode (`--single`)
+**Goal:** Process a one-part khutbah (Arafah, Eid, lectures) without the false "الخطبة الثانية" divider.
+
+**Root cause of the false divider:** `locateSecondKhutbah` ran unconditionally. When Claude correctly returned `second_khutbah_start: null`, the function fell through to its silence-gap fallback (`maxGap >= 1.2s` in the middle 20–85%), which fires on ordinary recitation pauses — splitting a continuous khutbah.
+
+**Fix:** `--single` (alias `--no-split`) CLI flag sets `secondKhutbah = null` and skips `locateSecondKhutbah` entirely. Usage: `node pipeline.js audio.mp3 --gemini --single`.
