@@ -29,6 +29,14 @@ const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 // in audio_files/<basename>.<ext> (basename = folder name after the timestamp).
 // ────────────────────────────────────────────────────────────────────────────
 const PUBLIC_KHUTBAHS = [
+  // ── Arafah khutbah (single continuous khutbah — processed with `--single`) ──
+  {
+    folder: '2026-05-26T20-14-57_arafah_khutbah_2026',
+    title: 'The Khutbah of Arafah',
+    speaker: 'Sheikh Ali al-Hudhayfi · Masjid Namirah',
+    date: '26 May 2026',
+    featured: true,
+  },
   {
     folder: '2026-05-22T11-30-04_khutbah-2026-05-22-masjid',
     title: 'The Day of Arafah & Udhiyah',
@@ -37,7 +45,6 @@ const PUBLIC_KHUTBAHS = [
     masjid_ar: 'جامع إسكان المعذر',
     maps_url: 'https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6',
     date: '22 May 2026',
-    featured: true,
   },
   {
     folder: '2026-05-22T21-05-05_makkah_sudais_ramadan_ummah',
