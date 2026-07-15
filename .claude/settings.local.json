@@ -12,7 +12,17 @@
       "Bash(node setup_hadith.js)",
       "Bash(git init *)",
       "Bash(xargs -0 du -ch)",
-      "Bash(grep -E \"2025-07-04|node_modules|\\\\.env$|/uploads/\")"
+      "Bash(grep -E \"2025-07-04|node_modules|\\\\.env$|/uploads/\")",
+      "Bash(node reanalyze.js outputs/2026-05-22T11-30-04_khutbah-2026-05-22-masjid)",
+      "Bash(node --check server.js)",
+      "Bash(git -C /Users/meerhusamuddin/Desktop/Developer/KhutbahTranscribe add server.js)",
+      "Bash(git -C /Users/meerhusamuddin/Desktop/Developer/KhutbahTranscribe commit -m ' *)",
+      "Bash(git -C /Users/meerhusamuddin/Desktop/Developer/KhutbahTranscribe log --oneline -3)",
+      "Bash(node pipeline.js audio_files/arafah_khutbah_2026.m4a --gemini --single --type arafah)",
+      "Bash(node --check pipeline.js)",
+      "Bash(exit 1)",
+      "Bash(node reanalyze.js outputs/2026-05-26T11-44-52_arafah_khutbah_2026 --type arafah)",
+      "Bash(node reanalyze.js outputs/2026-05-26T11-44-52_arafah_khutbah_2026)"
     ]
   }
 }

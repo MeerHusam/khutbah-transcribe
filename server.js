@@ -37,6 +37,16 @@ const PUBLIC_KHUTBAHS = [
     date: '26 May 2026',
     featured: true,
   },
+  // ── Eid al-Adha khutbah (single khutbah — processed with `--type eid`) ──
+  {
+    folder: '2026-05-27T03-50-41_eid_khutbah_2026',
+    title: 'Eid al-Adha Khutbah',
+    speaker: 'Eid Khutbah',
+    masjid: 'Askan AlMaather Mosque',
+    masjid_ar: 'جامع إسكان المعذر',
+    maps_url: 'https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6',
+    date: '27 May 2026',
+  },
   {
     folder: '2026-05-22T11-30-04_khutbah-2026-05-22-masjid',
     title: 'The Day of Arafah & Udhiyah',
