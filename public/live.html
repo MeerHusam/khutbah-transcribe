@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KhutbahLive — Live</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:ital@0;1&family=Lora:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a1410; --panel: #112519; --panel2: #0e1f15;
+    --text: #e8e6df; --dim: #9aa89f; --gold: #c9a227; --teal: #4db6ac; --red: #e05252;
+    --border: rgba(201,162,39,.25);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Lora', Georgia, serif; min-height: 100vh; }
+  header {
+    position: sticky; top: 0; z-index: 10; background: rgba(10,20,16,.92); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border); padding: 12px 16px;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  h1 { font-size: 17px; font-weight: 600; letter-spacing: .3px; }
+  h1 .accent { color: var(--gold); }
+  .status { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--dim); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #555; }
+  .dot.live { background: var(--red); animation: pulse 1.4s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
+  .spacer { flex: 1; }
+  button {
+    font-family: inherit; font-size: 14px; padding: 9px 18px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--panel); color: var(--text);
+  }
+  button.primary { background: var(--gold); border-color: var(--gold); color: #1a1508; font-weight: 700; }
+  button:disabled { opacity: .45; cursor: default; }
+  main { max-width: 780px; margin: 0 auto; padding: 20px 16px 140px; }
+  .hint { color: var(--dim); font-size: 14px; text-align: center; margin-top: 60px; line-height: 1.7; }
+
+  .block { margin: 18px 0; }
+  .arabic {
+    direction: rtl; font-family: 'Amiri', serif; font-size: 24px; line-height: 2;
+    color: var(--text); text-align: right;
+  }
+  .english { margin-top: 8px; font-size: 16px; line-height: 1.65; color: #cfd8d0; }
+  .english.pending { color: var(--dim); font-style: italic; }
+  .english.err { color: var(--dim); font-style: italic; }
+
+  .card { border-radius: 12px; padding: 16px 18px; margin: 18px 0; background: var(--panel); }
+  .card.quran { border: 1px solid var(--gold); background: linear-gradient(160deg, #142a1c, #112519); }
+  .card.hadith { border: 1px solid var(--teal); background: linear-gradient(160deg, #10261f, #0e1f15); }
+  .badge { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 10px; flex-wrap: wrap; }
+  .card.quran .badge { color: var(--gold); }
+  .card.hadith .badge { color: var(--teal); }
+  .badge a { color: inherit; }
+  .badge .note { color: var(--dim); font-size: 12px; }
+  .card .arabic { font-size: 26px; }
+  .card .english { color: #e0ded4; }
+
+  #ticker {
+    position: fixed; bottom: 0; left: 0; right: 0; background: rgba(10,20,16,.95);
+    border-top: 1px solid var(--border); padding: 10px 16px; direction: rtl;
+    font-family: 'Amiri', serif; font-size: 16px; color: var(--dim);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 42px;
+  }
+  #ticker .label { direction: ltr; float: left; font-family: 'Lora', serif; font-size: 11px; color: var(--gold); margin-top: 3px; }
+  #err { color: var(--red); font-size: 13px; width: 100%; }
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="accent">Khutbah</span>Live · live test</h1>
+  <div class="status"><div class="dot" id="dot"></div><span id="statusText">idle</span></div>
+  <div class="spacer"></div>
+  <button class="primary" id="btnStart">🎙 Start Listening</button>
+  <button id="btnStop" disabled>Stop</button>
+  <div id="err"></div>
+</header>
+
+<main>
+  <div id="feed"><div class="hint">Press <b>Start Listening</b> and speak (or play a khutbah recording near the mic).<br>
+  Arabic appears instantly; the English translation follows a few seconds later.<br>
+  Quran ayahs get gold cards with the canonical verse + translation; hadiths get teal cards with references.</div></div>
+</main>
+
+<div id="ticker" hidden><span class="label">HEARING</span><span id="tickerText"></span></div>
+
+<script>
+const CHUNK_MS = 12000;
+const feed = document.getElementById('feed');
+const dot = document.getElementById('dot');
+const statusText = document.getElementById('statusText');
+const btnStart = document.getElementById('btnStart');
+const btnStop = document.getElementById('btnStop');
+const errBox = document.getElementById('err');
+const ticker = document.getElementById('ticker');
+const tickerText = document.getElementById('tickerText');
+
+let ws = null, stream = null, recorder = null, running = false;
+const blocks = new Map();  // event id → DOM element
+
+function setStatus(s) {
+  statusText.textContent = s;
+  dot.className = 'dot' + (s === 'live' ? ' live' : '');
+}
+function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+function nearBottom() { return window.innerHeight + window.scrollY >= document.body.scrollHeight - 200; }
+function scrollFeed() { window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); }
+
+function render(ev) {
+  let el = blocks.get(ev.id);
+  const fresh = !el;
+  if (fresh) { el = document.createElement('div'); blocks.set(ev.id, el); }
+
+  if (ev.type === 'prose') {
+    el.className = 'block';
+    const eng = ev.error
+      ? '<div class="english err">translation unavailable</div>'
+      : ev.english
+        ? `<div class="english">${esc(ev.english)}</div>`
+        : ev.pending ? '<div class="english pending">translating…</div>' : '';
+    el.innerHTML = `<div class="arabic">${esc(ev.arabic)}</div>${eng}`;
+  } else if (ev.type === 'quran') {
+    el.className = 'card quran';
+    el.innerHTML = `
+      <div class="badge">📖 <b>Quran · ${esc(ev.surah_name)} ${ev.surah_number}:${ev.ayah_number}</b>
+        <a href="${esc(ev.link)}" target="_blank" rel="noopener">quran.com ↗</a></div>
+      <div class="arabic">${esc(ev.arabic)}</div>
+      <div class="english">${esc(ev.english)}</div>`;
+  } else if (ev.type === 'hadith') {
+    el.className = 'card hadith';
+    const refBits = [];
+    if (ev.narrator) refBits.push('Narrated ' + esc(ev.narrator));
+    if (ev.collection) refBits.push(esc(ev.collection) + (ev.hadith_number ? ' ' + esc(ev.hadith_number) : ''));
+    const link = ev.link ? ` <a href="${esc(ev.link)}" target="_blank" rel="noopener">sunnah.com ↗</a>` : '';
+    el.innerHTML = `
+      <div class="badge">📜 <b>Hadith</b> · ${refBits.join(' · ') || 'reference pending'}${link}
+        <span class="note">${esc(ev.note || '')}</span></div>
+      <div class="arabic">${esc(ev.arabic)}</div>`;
+  }
+
+  if (fresh) {
+    const wasNear = nearBottom();
+    feed.appendChild(el);
+    if (wasNear) scrollFeed();
+  }
+}
+
+const events = new Map(); // client-side event store: id → latest event object
+
+function upsert(ev) {
+  const cur = events.get(ev.id) || {};
+  Object.assign(cur, ev);
+  events.set(cur.id, cur);
+  render(cur);
+}
+
+function onMessage(raw) {
+  let msg; try { msg = JSON.parse(raw); } catch { return; }
+  if (msg.type === 'snapshot') {
+    if (msg.events?.length || msg.active) feed.innerHTML = '';
+    blocks.clear();
+    events.clear();
+    (msg.events || []).forEach(upsert);
+    if (msg.active) setStatus('live');
+  } else if (msg.type === 'event') {
+    upsert(msg.event);
+  } else if (msg.type === 'update') {
+    if (events.has(msg.id)) upsert(Object.assign({ id: msg.id }, msg.patch));
+  } else if (msg.type === 'live_text') {
+    ticker.hidden = false;
+    tickerText.textContent = msg.text;
+  } else if (msg.type === 'status') {
+    setStatus(msg.status);
+    if (msg.status === 'ended') stopLocal();
+  } else if (msg.type === 'error') {
+    errBox.textContent = msg.message;
+    setTimeout(() => (errBox.textContent = ''), 8000);
+  }
+}
+
+function pickMime() {
+  const options = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+  return options.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || '';
+}
+
+async function start() {
+  errBox.textContent = '';
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: true },
+    });
+  } catch (e) {
+    errBox.textContent = 'Microphone access denied: ' + e.message;
+    return;
+  }
+  const mime = pickMime();
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${proto}//${location.host}/ws/live`);
+  ws.onmessage = e => onMessage(e.data);
+  ws.onopen = () => {
+    const key = new URLSearchParams(location.search).get('key') || '';
+    ws.send(JSON.stringify({ type: 'start', title: 'Live Khutbah (test)', mime, key }));
+    feed.innerHTML = '';
+    blocks.clear();
+    running = true;
+    setStatus('live');
+    btnStart.disabled = true;
+    btnStop.disabled = false;
+    recordLoop(mime);
+  };
+  ws.onclose = () => { if (running) { errBox.textContent = 'connection lost'; stopLocal(); } };
+}
+
+function recordLoop(mime) {
+  if (!running) return;
+  recorder = new MediaRecorder(stream, mime ? { mimeType: mime, audioBitsPerSecond: 64000 } : undefined);
+  recorder.ondataavailable = e => {
+    if (e.data && e.data.size > 2000 && ws && ws.readyState === 1) ws.send(e.data);
+  };
+  recorder.onstop = () => recordLoop(mime);
+  recorder.start();
+  setTimeout(() => { if (recorder.state !== 'inactive') recorder.stop(); }, CHUNK_MS);
+}
+
+function stopLocal() {
+  running = false;
+  try { recorder && recorder.state !== 'inactive' && recorder.stop(); } catch {}
+  try { stream && stream.getTracks().forEach(t => t.stop()); } catch {}
+  btnStart.disabled = false;
+  btnStop.disabled = true;
+  if (statusText.textContent === 'live') setStatus('idle');
+}
+
+btnStart.onclick = start;
+btnStop.onclick = () => {
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'stop' }));
+  running = false; // final events still arrive over the open socket
+  try { recorder && recorder.state !== 'inactive' && recorder.stop(); } catch {}
+  try { stream && stream.getTracks().forEach(t => t.stop()); } catch {}
+  btnStart.disabled = false;
+  btnStop.disabled = true;
+  setStatus('stopping…');
+};
+
+// Passive listener mode: connect on load to receive an in-progress session.
+(function connectListener() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const sock = new WebSocket(`${proto}//${location.host}/ws/live`);
+  sock.onmessage = e => { if (!ws) onMessage(e.data); };
+})();
+</script>
+</body>
+</html>

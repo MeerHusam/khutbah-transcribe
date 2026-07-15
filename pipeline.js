@@ -14,14 +14,17 @@ import { GoogleGenAI } from '@google/genai';
 
 const require = createRequire(import.meta.url);
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Fallback placeholder keys so importing this module (e.g. server.js live mode)
+// never throws when an optional provider key is absent — the API call itself
+// will fail with a clear auth error if that provider is actually used.
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'not-set' });
 const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
+  apiKey: process.env.ANTHROPIC_API_KEY || 'not-set',
   timeout: 120_000,  // 2-minute timeout (large transcripts take a while)
   maxRetries: 3,
 });
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-const gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || 'not-set' });
+const gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || 'not-set' });
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -2194,4 +2197,9 @@ export {
   findMatchingHadith,
   loadHadithCorpus,
   resolveSunnahLinksForRefs,
+  normalizeArabic,
+  normalizeArabicDeep,
+  getQuranNgramIndex,
+  extractMatn,
+  transcribeWithGroq,
 };

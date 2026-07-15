@@ -4,6 +4,7 @@ import { createServer } from 'http';
 import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { handleLiveConnection, liveStatus } from './live.js';
 
 // Load Quran data once at startup
 const quranData = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'node_modules/quran-json/dist/quran.json'), 'utf8'));
@@ -118,6 +119,8 @@ function broadcastViewers() {
 }
 
 wss.on('connection', (ws, req) => {
+  // Live khutbah socket (host + listeners) — separate protocol, not a page-view.
+  if ((req.url || '').split('?')[0] === '/ws/live') return handleLiveConnection(ws, req);
   liveClients.add(ws);
   totalViews += 1;
   const rawIp = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
@@ -337,6 +340,10 @@ app.get('/api/results/:folder', (req, res) => {
     res.status(404).json({ error: e.message });
   }
 });
+
+// Live khutbah mode (test): /live page + status endpoint
+app.get('/live', (req, res) => res.sendFile(join(__dirname, 'public', 'live.html')));
+app.get('/api/live/status', (req, res) => res.json(liveStatus()));
 
 // Quran ayah lookup with harakat
 app.get('/api/quran/:surah/:ayah', (req, res) => {

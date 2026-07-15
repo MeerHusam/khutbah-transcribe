@@ -36,6 +36,8 @@ Takes an Arabic Friday Khutbah (sermon) audio file and produces:
 | `quran_detect.py` | **Prototype** Quran-detection helper using the `quran-detector` PyPI library (shells out like `transcribe_local.py`). Reads a transcript, prints detected verse fragments as JSON. NOT yet wired into the production pipeline — used for evaluation only. Needs the project `.venv` (Python ≥3.12). |
 | `compare_quran.js` | **Eval harness.** Runs the current Quran pipeline (`prescanForQuranZones` + `scanTranscriptForQuran` + `buildZoneRefs`) and `quran_detect.py` on a transcript and prints a side-by-side + surah:ayah delta. Read-only. |
 | `compare_transcripts.py` | Compares two transcripts (word coverage + sequence similarity). Used to compare Gemini vs Groq text in `--gemini` mode. |
+| `live.js` | **Live khutbah engine** (first iteration, 2026-07-15). WebSocket-driven: receives ~12s mic chunks, Groq-transcribes each (rolling transcript tail as Whisper prompt for boundary context), re-runs `prescanForQuranZones` on the full rolling transcript, emits ordered feed events (prose / quran / hadith), translates prose live with Claude (`claude-opus-4-8`, structured JSON output that also flags quoted hadiths), verifies hadiths against local corpus + `resolveSunnahLinksForRefs`, saves session to `outputs/live_<ts>/` on stop. See "Live Mode" section below. |
+| `public/live.html` | Live test page at `/live` — Start Listening (mic) button + live feed (Arabic instantly, English patched in, gold Quran cards, teal Hadith cards, raw-ASR ticker). Doubles as passive listener page. |
 | `public/` | Frontend SPA. |
 
 ---
@@ -248,6 +250,52 @@ Fetch canonical matn from the resolved sunnah.com page (fix #17), align it to th
 `quran-detector` (PyPI, Python ≥3.12, `.venv`) evaluated 2026-05-22. Decision: AUGMENT (not replace). Add as a recall layer like `buildZoneRefs`: merge overlapping spans, pick one ayah per span (longest match, fewest errors), filter ritual phrases (isti'adha, basmala), map word-ranges to zones. Target `min_match≈4`. Catches du'a partials (e.g. Ibrahim 14:35) and consecutive-ayah ranges (20:43-44) that our pipeline misses. See `quran_detect.py` + `compare_quran.js`.
 
 ---
+
+## Live Mode (2026-07-15, first iteration)
+
+Real-time khutbah transcription + translation with live Quran/Hadith reference cards —
+the differentiator over generic live translate. Test page: `http://localhost:3000/live`.
+
+**Architecture (`live.js`):**
+- Single WS endpoint `/ws/live` (host + listeners on same socket protocol). Control JSON:
+  `{type:'start', title, mime, key}` / `{type:'stop'}`; binary frames = audio chunks.
+  When `ADMIN_TOKEN` env is set, `start` requires `key` to match (open in local dev).
+- Browser records mic via MediaRecorder restart-loop (12s standalone webm/opus blobs;
+  mp4/aac on iOS Safari — both accepted by Groq directly, **no ffmpeg needed**).
+- Per chunk (serialized promise queue → feed stays ordered): Groq whisper-large-v3
+  (prompt = last 25 transcript words for cross-chunk decoder context, `timeout 25s,
+  maxRetries 1` — fail fast, drop chunk rather than stall the queue) → append words →
+  `prescanForQuranZones(allWords)` → emit pass.
+- **Emit pass stability rule:** hold back last `HOLDBACK=3` words + any zone touching
+  the transcript end (a zone starting in the last <4 words is only detectable next
+  chunk; n-gram = 4). Zones `< 5` words → left in prose (basmala/isti'adha filter,
+  mirrors `buildZoneRefs` threshold). `stop` runs a final pass with no hold-back.
+- **Quran cards:** canonical Arabic from quran.json + English from `quran_en.json`
+  (quran-json ships translations) + quran.com link. `extra_ayahs` from merged zones all
+  emitted. Dedupe only against last 4 events (imams repeat refrains legitimately).
+- **Prose:** event emitted immediately with Arabic (`pending:true`), Claude Opus 4.8
+  translates with rolling AR/EN context (structured output `output_config.format`
+  json_schema → `{translation, hadith|null}`), then `{type:'update'}` patches English in.
+- **Hadith:** Claude flags quoted hadith in the segment → teal card immediately
+  (narrator/collection from Claude knowledge) → `findMatchingHadith` against local
+  corpus (loaded lazily at first session start, 29k entries) → async
+  `resolveSunnahLinksForRefs` patches the authoritative sunnah.com permalink.
+- On stop: session saved to `outputs/live_<ts>/` (`transcript.txt` +
+  `live_session.json` with words+times+events) so the offline pipeline can re-analyze.
+- `server.js` additions are minimal/additive: `/ws/live` routed before viewer-count
+  logic, `GET /live`, `GET /api/live/status`.
+
+**Tested** (2026-07-15, simulated feed of Arafah audio in 12s chunks): opening →
+Al-Hajj 22:1+22:2 gold cards with correct canonical text/translation; hadith section
+(~720s) → Tirmidhi + Abu Dawud cards with narrator "Abdullah ibn Amr ibn al-As" and
+resolved sunnah.com links; dua ayahs 40:60, 2:201 caught. Feeder harness:
+scratchpad `feeder.js` + ffmpeg-sliced chunks.
+
+**Known v1 limitations:** Quranic phrases *inside* hadith text still get a Quran card
+(same true-matn-span issue as offline fix #15 edge case); zone straddling an emitted
+boundary shows truncated `detected_text` (card's canonical text correct); one lost
+chunk on Groq timeout is dropped, not retried; QR-code join + separate host/listener
+pages + production auth polish deferred (`qrcode` npm dep already installed).
 
 ## Public Listening Site Mode (2026-05-22)
 
