@@ -271,7 +271,10 @@ class LiveSession {
 
     for (const seg of segs) {
       if (seg.type === 'quran') this.emitQuran(seg);
-      else await this.emitProse(seg);
+      // Prose: push the Arabic synchronously (feed order preserved), but do NOT await the
+      // Claude translation here — otherwise the per-chunk queue stalls behind a 3-6s API
+      // call and backs up unboundedly at short chunk sizes. Translation patches in async.
+      else this.emitProse(seg);
     }
   }
 

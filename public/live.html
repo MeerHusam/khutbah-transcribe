@@ -84,7 +84,7 @@
 <div id="ticker" hidden><span class="label">HEARING</span><span id="tickerText"></span></div>
 
 <script>
-const CHUNK_MS = 12000;
+const CHUNK_MS = 4000;   // shorter chunks = lower latency + it never LOOKS frozen
 const feed = document.getElementById('feed');
 const dot = document.getElementById('dot');
 const statusText = document.getElementById('statusText');
@@ -94,7 +94,8 @@ const errBox = document.getElementById('err');
 const ticker = document.getElementById('ticker');
 const tickerText = document.getElementById('tickerText');
 
-let ws = null, stream = null, recorder = null, running = false;
+let ws = null, stream = null, recorder = null, running = false, hosting = false;
+let chunksSent = 0;
 const blocks = new Map();  // event id → DOM element
 
 function setStatus(s) {
@@ -169,6 +170,9 @@ function onMessage(raw) {
     ticker.hidden = false;
     tickerText.textContent = msg.text;
   } else if (msg.type === 'status') {
+    // The host owns its own lifecycle — ignore server 'ended' broadcasts while hosting
+    // (they fire when a stale session is replaced and would otherwise kill our loop).
+    if (hosting) return;
     setStatus(msg.status);
     if (msg.status === 'ended') stopLocal();
   } else if (msg.type === 'error') {
@@ -184,6 +188,7 @@ function pickMime() {
 
 async function start() {
   errBox.textContent = '';
+  if (hosting) return;
   try {
     stream = await navigator.mediaDevices.getUserMedia({
       audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: true },
@@ -201,39 +206,57 @@ async function start() {
     ws.send(JSON.stringify({ type: 'start', title: 'Live Khutbah (test)', mime, key }));
     feed.innerHTML = '';
     blocks.clear();
+    events.clear();
     running = true;
-    setStatus('live');
+    hosting = true;
+    chunksSent = 0;
+    setStatus('listening…');
     btnStart.disabled = true;
     btnStop.disabled = false;
     recordLoop(mime);
   };
   ws.onclose = () => { if (running) { errBox.textContent = 'connection lost'; stopLocal(); } };
+  ws.onerror = () => { errBox.textContent = 'connection error'; };
 }
 
 function recordLoop(mime) {
   if (!running) return;
-  recorder = new MediaRecorder(stream, mime ? { mimeType: mime, audioBitsPerSecond: 64000 } : undefined);
+  try {
+    recorder = new MediaRecorder(stream, mime ? { mimeType: mime, audioBitsPerSecond: 64000 } : undefined);
+  } catch (e) {
+    errBox.textContent = 'recorder error: ' + e.message;
+    return;
+  }
   recorder.ondataavailable = e => {
-    if (e.data && e.data.size > 2000 && ws && ws.readyState === 1) ws.send(e.data);
+    if (e.data && e.data.size > 1200 && ws && ws.readyState === 1) {
+      ws.send(e.data);
+      chunksSent++;
+      // Keep the status alive between chunks so it never LOOKS frozen.
+      setStatus('listening… (' + chunksSent + ')');
+    }
   };
-  recorder.onstop = () => recordLoop(mime);
+  // Restart on stop OR error so one bad cycle never kills the loop.
+  recorder.onstop = () => { if (running) recordLoop(mime); };
+  recorder.onerror = () => { if (running) recordLoop(mime); };
   recorder.start();
-  setTimeout(() => { if (recorder.state !== 'inactive') recorder.stop(); }, CHUNK_MS);
+  setTimeout(() => { try { if (recorder.state !== 'inactive') recorder.stop(); } catch {} }, CHUNK_MS);
 }
 
 function stopLocal() {
   running = false;
+  hosting = false;
   try { recorder && recorder.state !== 'inactive' && recorder.stop(); } catch {}
   try { stream && stream.getTracks().forEach(t => t.stop()); } catch {}
   btnStart.disabled = false;
   btnStop.disabled = true;
-  if (statusText.textContent === 'live') setStatus('idle');
+  setStatus('idle');
 }
 
 btnStart.onclick = start;
 btnStop.onclick = () => {
   if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: 'stop' }));
-  running = false; // final events still arrive over the open socket
+  running = false;
+  hosting = false;
   try { recorder && recorder.state !== 'inactive' && recorder.stop(); } catch {}
   try { stream && stream.getTracks().forEach(t => t.stop()); } catch {}
   btnStart.disabled = false;
