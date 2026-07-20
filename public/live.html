@@ -31,9 +31,44 @@
     border: 1px solid var(--border); background: var(--panel); color: var(--text);
   }
   button.primary { background: var(--gold); border-color: var(--gold); color: #1a1508; font-weight: 700; }
+  button.recording { background: var(--red); border-color: var(--red); color: #fff; }
   button:disabled { opacity: .45; cursor: default; }
   main { max-width: 780px; margin: 0 auto; padding: 20px 16px 140px; }
   .hint { color: var(--dim); font-size: 14px; text-align: center; margin-top: 60px; line-height: 1.7; }
+
+  /* ── Recording bar: unmistakable "we are listening" state ───────────────── */
+  #recbar {
+    position: sticky; top: 57px; z-index: 9;
+    background: linear-gradient(90deg, rgba(224,82,82,.16), rgba(224,82,82,.05));
+    border-bottom: 1px solid rgba(224,82,82,.45);
+    padding: 12px 16px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  #recbar[hidden] { display: none; }
+  .rec-live { display: flex; align-items: center; gap: 9px; font-weight: 700; letter-spacing: 1.2px; font-size: 14px; color: #ff7b7b; }
+  .rec-blob { width: 13px; height: 13px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 0 rgba(224,82,82,.8); animation: recpulse 1.5s infinite; }
+  @keyframes recpulse {
+    0%   { box-shadow: 0 0 0 0 rgba(224,82,82,.75); transform: scale(1); }
+    70%  { box-shadow: 0 0 0 13px rgba(224,82,82,0); transform: scale(1.12); }
+    100% { box-shadow: 0 0 0 0 rgba(224,82,82,0); transform: scale(1); }
+  }
+  #timer { font-variant-numeric: tabular-nums; font-size: 16px; font-weight: 600; color: #fff; }
+
+  /* Live mic level — proves the mic actually hears audio */
+  .meter { display: flex; align-items: center; gap: 8px; }
+  .meter .lbl { font-size: 11px; color: var(--dim); letter-spacing: .5px; }
+  .bars { display: flex; gap: 3px; align-items: flex-end; height: 24px; }
+  .bars i {
+    width: 4px; height: 5px; border-radius: 2px; background: #2f4a3a;
+    transition: height .08s linear, background .08s linear;
+  }
+  .bars i.on { background: var(--gold); }
+  .bars i.hot { background: var(--red); }
+  .quiet-warn { font-size: 12px; color: #e0a552; }
+
+  .rec-stat { font-size: 12px; color: var(--dim); display: flex; align-items: center; gap: 6px; }
+  .rec-stat b { color: var(--gold); font-size: 13px; }
+  .uplink { width: 8px; height: 8px; border-radius: 50%; background: #2f4a3a; transition: background .15s; }
+  .uplink.flash { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
 
   .block { margin: 18px 0; }
   .arabic {
@@ -75,6 +110,18 @@
   <div id="err"></div>
 </header>
 
+<div id="recbar" hidden>
+  <div class="rec-live"><span class="rec-blob"></span> RECORDING</div>
+  <div id="timer">0:00</div>
+  <div class="meter">
+    <span class="lbl">MIC</span>
+    <div class="bars" id="bars"></div>
+    <span class="quiet-warn" id="quietWarn" hidden>no sound detected — check mic</span>
+  </div>
+  <div class="spacer"></div>
+  <div class="rec-stat"><span class="uplink" id="uplink"></span> sent <b id="chunkCount">0</b> · <span id="phase">warming up…</span></div>
+</div>
+
 <main>
   <div id="feed"><div class="hint">Press <b>Start Listening</b> and speak (or play a khutbah recording near the mic).<br>
   Arabic appears instantly; the English translation follows a few seconds later.<br>
@@ -97,6 +144,84 @@ const tickerText = document.getElementById('tickerText');
 let ws = null, stream = null, recorder = null, running = false, hosting = false;
 let chunksSent = 0;
 const blocks = new Map();  // event id → DOM element
+
+// Recording-indicator elements + state
+const recbar = document.getElementById('recbar');
+const timerEl = document.getElementById('timer');
+const barsEl = document.getElementById('bars');
+const quietWarn = document.getElementById('quietWarn');
+const uplink = document.getElementById('uplink');
+const chunkCountEl = document.getElementById('chunkCount');
+const phaseEl = document.getElementById('phase');
+const BAR_COUNT = 14;
+for (let i = 0; i < BAR_COUNT; i++) barsEl.appendChild(document.createElement('i'));
+const barEls = [...barsEl.children];
+let audioCtx = null, analyser = null, meterRAF = null, timerInt = null, startedMs = 0, loudFrames = 0;
+
+function fmtTime(ms) {
+  const s = Math.floor(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+// Drives the bar meter off the live mic signal — instant proof the mic is working.
+function startMeter(mediaStream) {
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = audioCtx.createMediaStreamSource(mediaStream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 512;
+    analyser.smoothingTimeConstant = 0.75;
+    src.connect(analyser);
+    const buf = new Uint8Array(analyser.frequencyBinCount);
+    loudFrames = 0;
+    const tick = () => {
+      if (!running) return;
+      analyser.getByteFrequencyData(buf);
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++) sum += buf[i];
+      const avg = sum / buf.length;              // 0..255, typically 0-60 for speech
+      const level = Math.min(1, avg / 55);
+      if (avg > 4) loudFrames++;
+      const lit = Math.round(level * BAR_COUNT);
+      barEls.forEach((b, i) => {
+        b.style.height = (5 + (i < lit ? 4 + i * 1.3 : 0)) + 'px';
+        b.className = i < lit ? (i > BAR_COUNT - 4 ? 'hot' : 'on') : '';
+      });
+      // Warn only after a few seconds of continuous silence.
+      quietWarn.hidden = !(Date.now() - startedMs > 5000 && loudFrames < 5);
+      meterRAF = requestAnimationFrame(tick);
+    };
+    tick();
+  } catch (e) { /* meter is cosmetic — never block recording */ }
+}
+
+function stopMeter() {
+  if (meterRAF) cancelAnimationFrame(meterRAF), meterRAF = null;
+  try { audioCtx && audioCtx.close(); } catch {}
+  audioCtx = null; analyser = null;
+  barEls.forEach(b => { b.style.height = '5px'; b.className = ''; });
+}
+
+function showRecbar(show) {
+  recbar.hidden = !show;
+  if (show) {
+    startedMs = Date.now();
+    chunksSent = 0;
+    chunkCountEl.textContent = '0';
+    phaseEl.textContent = 'warming up…';
+    quietWarn.hidden = true;
+    timerInt = setInterval(() => { timerEl.textContent = fmtTime(Date.now() - startedMs); }, 500);
+  } else {
+    clearInterval(timerInt); timerInt = null;
+    timerEl.textContent = '0:00';
+    stopMeter();
+  }
+}
+
+function flashUplink() {
+  uplink.classList.add('flash');
+  setTimeout(() => uplink.classList.remove('flash'), 250);
+}
 
 function setStatus(s) {
   statusText.textContent = s;
@@ -169,6 +294,7 @@ function onMessage(raw) {
   } else if (msg.type === 'live_text') {
     ticker.hidden = false;
     tickerText.textContent = msg.text;
+    if (hosting) phaseEl.textContent = 'listening…';
   } else if (msg.type === 'status') {
     // The host owns its own lifecycle — ignore server 'ended' broadcasts while hosting
     // (they fire when a stale session is replaced and would otherwise kill our loop).
@@ -210,9 +336,13 @@ async function start() {
     running = true;
     hosting = true;
     chunksSent = 0;
-    setStatus('listening…');
+    setStatus('live');
     btnStart.disabled = true;
+    btnStart.textContent = '🔴 Recording';
+    btnStart.classList.add('recording');
     btnStop.disabled = false;
+    showRecbar(true);
+    startMeter(stream);
     recordLoop(mime);
   };
   ws.onclose = () => { if (running) { errBox.textContent = 'connection lost'; stopLocal(); } };
@@ -231,8 +361,9 @@ function recordLoop(mime) {
     if (e.data && e.data.size > 1200 && ws && ws.readyState === 1) {
       ws.send(e.data);
       chunksSent++;
-      // Keep the status alive between chunks so it never LOOKS frozen.
-      setStatus('listening… (' + chunksSent + ')');
+      chunkCountEl.textContent = chunksSent;
+      phaseEl.textContent = 'transcribing…';
+      flashUplink();
     }
   };
   // Restart on stop OR error so one bad cycle never kills the loop.
@@ -242,13 +373,20 @@ function recordLoop(mime) {
   setTimeout(() => { try { if (recorder.state !== 'inactive') recorder.stop(); } catch {} }, CHUNK_MS);
 }
 
+function resetControls() {
+  btnStart.disabled = false;
+  btnStart.textContent = '🎙 Start Listening';
+  btnStart.classList.remove('recording');
+  btnStop.disabled = true;
+  showRecbar(false);
+}
+
 function stopLocal() {
   running = false;
   hosting = false;
   try { recorder && recorder.state !== 'inactive' && recorder.stop(); } catch {}
   try { stream && stream.getTracks().forEach(t => t.stop()); } catch {}
-  btnStart.disabled = false;
-  btnStop.disabled = true;
+  resetControls();
   setStatus('idle');
 }
 
@@ -259,8 +397,7 @@ btnStop.onclick = () => {
   hosting = false;
   try { recorder && recorder.state !== 'inactive' && recorder.stop(); } catch {}
   try { stream && stream.getTracks().forEach(t => t.stop()); } catch {}
-  btnStart.disabled = false;
-  btnStop.disabled = true;
+  resetControls();
   setStatus('stopping…');
 };
 
