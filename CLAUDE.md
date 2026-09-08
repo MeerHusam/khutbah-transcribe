@@ -6,12 +6,12 @@ This file is auto-loaded by Claude Code at session start. It captures the full i
 
 ## Deployment
 
-- **GitHub:** https://github.com/MeerHusam/khutbah-live (branch: `main`)
+- **GitHub:** https://github.com/MeerHusam/khutbah-transcribe (branch: `main`)
 - **Render:** https://khutbah-live.onrender.com (Blueprint, **Starter plan**, auto-deploys on push to `main`)
 - **Persistent disk:** 1 GB mounted at `/opt/render/project/src/data` — `views.json`, `geo_views.jsonl`, `feedback.jsonl` persist across restarts/redeploys
 - **Admin feedback:** `https://khutbah-live.onrender.com/admin/feedback?key=<ADMIN_TOKEN>` (set in Render Environment tab)
 - **Admin geo:** `https://khutbah-live.onrender.com/admin/geo?key=<ADMIN_TOKEN>` — city/country breakdown of visitors
-- **Public name:** KhutbahLive
+- **Public name:** KhutbahTranscribe
 
 ---
 

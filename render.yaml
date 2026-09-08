@@ -5,11 +5,16 @@
 #
 # Deploy: push this repo to GitHub, then in the Render dashboard
 #   New +  →  Blueprint  →  pick this repo. It reads this file automatically.
+#
+# Plan is `free`: the instance sleeps after ~15 min idle (~50s cold start) and has
+# NO persistent disk, so data/ (views, geo, feedback) resets on every restart. All
+# published content lives in git, so the site itself is unaffected. Move to
+# `starter` + a disk if the counters need to survive.
 services:
   - type: web
-    name: khutbah-live
+    name: khutbah-transcribe
     runtime: node
-    plan: starter
+    plan: free
     region: oregon
     buildCommand: npm install
     startCommand: node server.js
@@ -21,7 +26,3 @@ services:
       # sync:false → Render prompts you to set it in the dashboard (not stored in git).
       - key: ADMIN_TOKEN
         sync: false
-    disk:
-      name: khutbah-data
-      mountPath: /opt/render/project/src/data
-      sizeGB: 1

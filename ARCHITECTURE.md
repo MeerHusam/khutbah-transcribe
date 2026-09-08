@@ -1,4 +1,4 @@
-# KhutbahLive — Architecture & Production Reference
+# KhutbahTranscribe — Architecture & Production Reference
 
 > **Status:** proposal under review. Nothing in the "Proposed" sections is built
 > yet. The SQLite schema (§5) and the open decisions (§13) are awaiting sign-off

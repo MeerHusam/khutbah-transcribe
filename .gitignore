@@ -29,6 +29,8 @@ hadith_data/
 *.flac
 !audio_files/khutbah-2026-05-22-masjid.m4a
 !audio_files/makkah_sudais_ramadan_ummah.mp3
+!audio_files/arafah_khutbah_2026.m4a
+!audio_files/eid_khutbah_2026.m4a
 
 # ── Pipeline output runs ──────────────────────────────────────────────────────
 # Ignore all runs, then bundle ONLY the two published khutbahs. Each folder is
@@ -36,3 +38,5 @@ hadith_data/
 outputs/*
 !outputs/2026-05-22T11-30-04_khutbah-2026-05-22-masjid/
 !outputs/2026-05-22T21-05-05_makkah_sudais_ramadan_ummah/
+!outputs/2026-05-26T20-14-57_arafah_khutbah_2026/
+!outputs/2026-05-27T03-50-41_eid_khutbah_2026/
