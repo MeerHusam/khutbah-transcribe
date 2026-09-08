@@ -11,7 +11,7 @@
 # fresh empty disk instead of updating this one.
 services:
   - type: web
-    name: khutbah-transcribe
+    name: khutbahtranscribe
     runtime: node
     plan: starter
     region: oregon
