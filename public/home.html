@@ -105,8 +105,10 @@
       100% { box-shadow: 0 0 0 0   rgba(56,178,122,0);   }
     }
     .viewers-badge b { color: var(--cream); font-weight: 600; }
-    /* Brand + 3 stats overflow under ~420px, so drop to just the live count. */
-    @media (max-width: 420px) { .badge-extra { display: none; } }
+    /* Unique + total visit counts are hidden while traffic is still small; the
+       server keeps counting them either way. To show them again, delete this
+       rule (and the matching .total-views rule in index.html). */
+    .badge-extra { display: none; }
 
     /* ── Hero ── */
     .hero {

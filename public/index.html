@@ -583,9 +583,9 @@
       .popup-overlay { padding: 12px; }
       .popup-arabic { font-size: 21px; padding: 16px; }
     }
-    @media (max-width: 380px) {
-      .viewers .total-views { display: none; }  /* keep header tidy on tiny screens */
-    }
+    /* Hidden while traffic is still small; the server keeps counting. Delete this
+       rule (and .badge-extra in home.html) to show unique + visits again. */
+    .viewers .total-views { display: none; }
   </style>
 </head>
 <body>
