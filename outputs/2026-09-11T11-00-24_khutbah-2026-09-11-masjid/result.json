@@ -396,28 +396,6 @@
       "detection_method": "signal_phrase",
       "note": "Link verified via sunnah.com search",
       "verification": "sunnah_search"
-    },
-    {
-      "detected_text": "صل على محمد وعلى ال محمد كما صليت على ابراهيم وعلى ال ابراهيم انك حميد مجيد وبارك اللهم على محمد وعلى ال محمد كما باركت على ابراهيم وعلى ال ابراهيم انك حميد",
-      "collection": "Sunan an-Nasa'i",
-      "hadith_number": "1290",
-      "link": "https://sunnah.com/nasai:1290",
-      "confidence": 0.82,
-      "detection_method": "scan",
-      "verification": "sunnah_search",
-      "note": "Link verified via sunnah.com search",
-      "narrator": "from Musa bin Talha that"
-    },
-    {
-      "detected_text": "عنا وعن اخواننا المسلمين ربنا اتنا في الدنيا حسنة وفي الاخرة حسنة وقنا عذاب النار",
-      "collection": "Sahih Muslim",
-      "hadith_number": "2690b",
-      "link": "https://sunnah.com/muslim:2690b",
-      "confidence": 0.63,
-      "detection_method": "scan",
-      "verification": "sunnah_search",
-      "note": "Link verified via sunnah.com search",
-      "narrator": "Anas reported that Allah's Messenger (ﷺ) used to supplicate (in these words)"
     }
   ],
   "transcript_segments": [
@@ -5836,7 +5814,7 @@
     "quran_references_found": 13,
     "quran_references_matched": 13,
     "quran_references_by_scan": 4,
-    "hadith_references_found": 5,
+    "hadith_references_found": 3,
     "hadith_references_by_scan": 2
   }
 }

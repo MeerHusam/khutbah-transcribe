@@ -1048,9 +1048,46 @@ const ANALYSIS_PROMPT = buildAnalysisPrompt('friday');
 // the most complete matn; drops any whose text is a subset of one already kept.
 // Also drops entries with fewer than 8 words — those are pure signal phrases with
 // no actual hadith content, not real references.
+// Liturgy the khatib *performs* rather than *cites*. Every one of these is a genuine
+// narrated hadith, so the corpus matches them correctly — but in a khutbah they are the
+// closing ritual, not a quotation, and tagging them as cited hadiths puts a citation card
+// on the imam's own du'a. This is the hadith-side counterpart to the minimum-word gate
+// that keeps the basmala and isti'adha out of Quran zone refs.
+//
+// Deliberately a small curated set, not a general rule: the closing formulas of a khutbah
+// are a genuinely closed class, and every entry here has to be a phrase that is always
+// liturgy and never evidence. Matching is Jaccard, not substring, so wording and
+// transcription variants still land. Add to it only with that test in mind.
+const LITURGICAL_FORMULAS = [
+  // Salawat Ibrahimiyyah — both halves, which the khatib recites as one unit
+  'اللهم صل على محمد وعلى آل محمد كما صليت على إبراهيم وعلى آل إبراهيم إنك حميد مجيد',
+  'وبارك على محمد وعلى آل محمد كما باركت على إبراهيم وعلى آل إبراهيم إنك حميد مجيد',
+  // Closing du'a of essentially every khutbah (itself Quran 2:201, which the Quran
+  // layer surfaces separately — suppressing the hadith card is what lets that card show)
+  'ربنا آتنا في الدنيا حسنة وفي الآخرة حسنة وقنا عذاب النار',
+  // Standard closing supplications
+  'اللهم اغفر للمسلمين والمسلمات والمؤمنين والمؤمنات الأحياء منهم والأموات',
+  'سبحان ربك رب العزة عما يصفون وسلام على المرسلين والحمد لله رب العالمين',
+].map(f => new Set(normalizeArabic(f).split(/\s+/).filter(Boolean)));
+
+const LITURGICAL_MATCH_THRESHOLD = 0.55;
+
+function isLiturgicalFormula(text) {
+  const words = new Set(normalizeArabic(text ?? '').split(/\s+/).filter(Boolean));
+  if (!words.size) return false;
+  return LITURGICAL_FORMULAS.some(formula => {
+    let intersect = 0;
+    for (const w of words) if (formula.has(w)) intersect++;
+    return intersect / (words.size + formula.size - intersect) >= LITURGICAL_MATCH_THRESHOLD;
+  });
+}
+
 function deduplicateHadithRefs(refs) {
   const kept = [];
   for (const ref of refs) {
+    // Ritual closing formulas are matched correctly by the corpus but are not citations.
+    if (isLiturgicalFormula(ref.detected_text)) continue;
+
     // Content check: strip the prophet attribution and measure what remains.
     // Pure attribution phrases ("الصحيح ان رسول الله صلى الله عليه وسلم") leave
     // < 4 content words; real hadiths (even short ones like "كلكم راع...") leave ≥ 4.
@@ -1205,9 +1242,13 @@ function buildReaderView(transcript, result) {
     const refNormWords = normalizeArabic(ref.detected_text ?? '').split(/\s+/).filter(Boolean);
     if (refNormWords.length < 3) continue;
 
-    // Increase fingerprint length until only one match remains in the transcript
+    // Increase fingerprint length until only one match remains in the transcript.
+    // Start at 5 words, or the whole ref when it is shorter — starting at a fixed 5
+    // made the loop body unreachable for 3- and 4-word refs, silently dropping them
+    // despite the length guard above (e.g. Ibrahim 14:7 "لئن شكرتم لأزيدنكم").
     let charPos = -1;
-    for (let fpLen = 5; fpLen <= refNormWords.length; fpLen++) {
+    const fpStart = Math.min(5, refNormWords.length);
+    for (let fpLen = fpStart; fpLen <= refNormWords.length; fpLen++) {
       const fp = refNormWords.slice(0, fpLen).join(' ');
       const matches = [];
       let from = 0;
@@ -2193,6 +2234,7 @@ export {
   scanTranscriptForQuran,
   scanTranscriptForHadith,
   deduplicateHadithRefs,
+  isLiturgicalFormula,
   findMatchingAyah,
   findMatchingHadith,
   loadHadithCorpus,

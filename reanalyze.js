@@ -65,10 +65,20 @@ if (result.chunk_translations) {
   }
 }
 
+// Re-apply the hadith ref filters to the stored refs. Detection needs the corpus and
+// stays in pipeline.js, but the filtering (liturgical formulas, attribution-only matches)
+// is pure and cheap — running it here means a fix to those filters reaches an existing
+// run without re-transcribing. Idempotent on refs that are already clean.
+const hadithBefore = (result.hadith_references || []).length;
+result.hadith_references = deduplicateHadithRefs(result.hadith_references || []);
+const hadithDropped = hadithBefore - result.hadith_references.length;
+if (hadithDropped) console.log(`  − ${hadithDropped} hadith ref(s) filtered (liturgical / attribution-only)`);
+
 // Update metadata
 const matchedCount = allQuranRefs.filter(r => r.matched).length;
 result.metadata.quran_references_found = allQuranRefs.length;
 result.metadata.quran_references_matched = matchedCount;
+result.metadata.hadith_references_found = result.hadith_references.length;
 
 // Step 5: Rebuild reader.txt
 console.log('Building reader view...');
