@@ -844,24 +844,38 @@
     for (const el of chunkArabics) {
       const s = el.dataset.surah, a = el.dataset.ayah;
       if (!s || !a) continue;
+      // A recited passage spans several ayahs; fetch every verse in the range so the card
+      // shows what was actually recited instead of only its opening verse.
+      const aEnd = Math.max(+a, +(el.dataset.ayahEnd || a));
+      const ayahNums = [];
+      for (let n = +a; n <= aEnd && ayahNums.length < 25; n++) ayahNums.push(n);
       try {
-        const arRes = await fetch(`/api/quran/${s}/${a}`);
-        if (!arRes.ok) continue;
-        const arData = await arRes.json();
-        if (!arData.text) continue;
-        el.textContent = `﴿${arData.text}﴾`;
+        const arTexts = [];
+        for (const n of ayahNums) {
+          const arRes = await fetch(`/api/quran/${s}/${n}`);
+          if (!arRes.ok) break;
+          const arData = await arRes.json();
+          if (!arData.text) break;
+          arTexts.push(arData.text);
+        }
+        if (!arTexts.length) continue;
+        el.textContent = `﴿${arTexts.join(' ')}﴾`;
         el.classList.add('chunk-arabic-quran');
 
-        const enRes = await fetch(`https://api.alquran.cloud/v1/ayah/${s}:${a}/en.sahih`);
-        if (enRes.ok) {
+        const enTexts = [];
+        for (const n of ayahNums) {
+          const enRes = await fetch(`https://api.alquran.cloud/v1/ayah/${s}:${n}/en.sahih`);
+          if (!enRes.ok) break;
           const enData = await enRes.json();
-          const enText = enData?.data?.text;
-          if (enText) {
-            const enEl = document.createElement('div');
-            enEl.className = 'chunk-quran-translation';
-            enEl.textContent = enText;
-            el.insertAdjacentElement('afterend', enEl);
-          }
+          const t = enData?.data?.text;
+          if (!t) break;
+          enTexts.push(t);
+        }
+        if (enTexts.length) {
+          const enEl = document.createElement('div');
+          enEl.className = 'chunk-quran-translation';
+          enEl.textContent = enTexts.join(' ');
+          el.insertAdjacentElement('afterend', enEl);
         }
       } catch {}
     }
@@ -934,7 +948,13 @@
         let arabicAttrs = '';
         for (const part of c.english.split(/\n\n+/)) {
           const qm = part.match(/^📖\s+.+?\s+—\s+https:\/\/quran\.com\/([\d]+)\/([\d]+)/);
-          if (qm) { arabicAttrs = `data-surah="${qm[1]}" data-ayah="${qm[2]}"`; break; }
+          if (qm) {
+            // A badge label of "Abasa 80:25-32" marks a recited passage, not one verse —
+            // carry the end ayah through so the card renders the whole range.
+            const range = part.match(/\d+:\d+\s*-\s*(\d+)\s+—/);
+            arabicAttrs = `data-surah="${qm[1]}" data-ayah="${qm[2]}"` + (range ? ` data-ayah-end="${range[1]}"` : '');
+            break;
+          }
         }
         const startAttr = c.start_time != null ? `data-start="${c.start_time}"` : '';
         const divider = c.second_khutbah_start

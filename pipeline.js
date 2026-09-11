@@ -475,6 +475,44 @@ function ayahFollowsAt(ayahWords, tNorm, at) {
   return len - wrong >= Math.ceil(len / 2);
 }
 
+// How many consecutive ayahs does a reference's detected_text actually cover?
+//
+// A khutbah often recites a passage, not a single verse, and whichever layer detected it
+// (Claude's signal phrase, the Jaccard scan, or an n-gram zone) labels the reference with
+// the FIRST ayah only. The reader then renders the card by fetching that one ayah, so a
+// recitation of 'Abasa 80:25-32 displays as just 80:25 and the rest of the passage is lost
+// from the card. Walk forward from the labelled ayah, consuming as many following ayahs as
+// the detected text continues into, and record the last one as ayah_number_end.
+function annotateRefAyahRange(ref) {
+  if (!ref?.matched || !ref.surah_number || !ref.ayah_number) return ref;
+  const verses = getQuranAyahWords().get(ref.surah_number);
+  if (!verses) return ref;
+
+  const words = normalizeArabicDeep(ref.detected_text ?? '').split(/\s+/).filter(Boolean);
+  if (!words.length) return ref;
+
+  let idx = verses.findIndex(v => v.ayah_id === ref.ayah_number);
+  if (idx < 0) return ref;
+
+  // The reference may open with an intro phrase, so find where the labelled ayah starts.
+  let pos = -1;
+  for (let s = 0; s <= Math.min(words.length - 1, 6); s++) {
+    if (ayahFollowsAt(verses[idx].words, words, s)) { pos = s + verses[idx].words.length; break; }
+  }
+  if (pos < 0) return ref;
+
+  let last = ref.ayah_number;
+  while (idx + 1 < verses.length) {
+    const next = verses[idx + 1];
+    if (!next.words.length || !ayahFollowsAt(next.words, words, pos)) break;
+    pos += next.words.length;
+    last = next.ayah_id;
+    idx++;
+  }
+  if (last !== ref.ayah_number) ref.ayah_number_end = last;
+  return ref;
+}
+
 // Walk a zone forward through the ayahs that follow the one it was identified as.
 //
 // The n-gram index is built per ayah and skips any ayah shorter than n words, so a run of
@@ -663,12 +701,27 @@ function buildZoneRefs(zones, transcriptWords, existingRefs) {
       }
 
       for (const run of runs) {
-        const already = existingRefs.some(r =>
+        const refWords = transcriptWords.slice(run.start, run.end);
+        // An earlier layer may already name one ayah of this run — typically the first,
+        // with detected_text covering only that verse. Skipping the run then leaves the
+        // rest of the recitation inside the zone (so out of prose) but outside any
+        // reference, and it renders nowhere: that is how the khutbah's closing
+        // "وسلام على المرسلين والحمد لله رب العالمين" (37:181-182) disappeared. Widen the
+        // existing reference to the whole run instead of dropping it.
+        const existing = existingRefs.find(r =>
           r.matched && r.surah_number === run.surah_id &&
           r.ayah_number >= run.ayah_start && r.ayah_number <= run.ayah_end
         );
-        if (already) continue;
-        const refWords = transcriptWords.slice(run.start, run.end);
+        if (existing) {
+          const existingLen = (existing.detected_text ?? '').split(/\s+/).filter(Boolean).length;
+          if (refWords.length > existingLen) {
+            existing.detected_text = refWords.join(' ');
+            existing.ayah_number = run.ayah_start;
+            existing.quran_link = `https://quran.com/${run.surah_id}/${run.ayah_start}`;
+            if (run.ayah_end !== run.ayah_start) existing.ayah_number_end = run.ayah_end;
+          }
+          continue;
+        }
         if (refWords.length < MIN_ZONE_WORDS) continue;
         newRefs.push({
           detected_text: refWords.join(' '),
@@ -1529,6 +1582,17 @@ Return ONLY valid JSON, no markdown: {"part1":"English of PART 1","part2":"Engli
 // have one. The translation is its own paragraph prefixed with ❝ so the web reader can
 // style it apart from the prose translation above it (server.js splits reader.txt blocks
 // on blank lines, and renderEnglishParts keys off the prefix).
+// Emit a Quran citation badge. A recited passage carries ayah_number_end, so the label
+// reads as a range ("'Abasa 80:25-32") and the web reader fetches every verse in it.
+function pushQuranBadge(lines, ref) {
+  lines.push('');
+  if (!ref.matched) { lines.push('📖 Quranic reference — no match found'); return; }
+  const ayahLabel = ref.ayah_number_end && ref.ayah_number_end !== ref.ayah_number
+    ? `${ref.ayah_number}-${ref.ayah_number_end}`
+    : `${ref.ayah_number}`;
+  lines.push(`📖 ${ref.surah_name} ${ref.surah_number}:${ayahLabel}  —  ${ref.quran_link}  (confidence: ${ref.confidence})`);
+}
+
 function pushHadithBadge(lines, ref) {
   lines.push('');
   lines.push(`📚 Hadith  ·  Narrator: ${ref.narrator ?? 'unknown'}  ·  Collection: ${ref.collection ?? 'unknown'}`);
@@ -1691,14 +1755,46 @@ function buildReaderView(transcript, result) {
   const quranLocated = deduped.filter(l => l.ref.refType !== 'hadith');
   const hadithLocated = deduped.filter(l => l.ref.refType === 'hadith');
 
+  // A Quran ref only gets its own segment when its words were carved out of prose. Zones
+  // shorter than MIN_ZONE_WORDS are deliberately LEFT in prose (removing them without
+  // rendering them made their text disappear), so a short ayah like Ibrahim 14:7
+  // ("لئن شكرتم لأزيدنكم") still sits inside a prose chunk. Emitting a separate segment for
+  // it would print the ayah twice — once inline where it was said, once as a card further
+  // down. Attach those to their prose chunk instead, exactly as Hadith are handled, so the
+  // citation appears under the passage where the imam actually said it.
+  // Require MOST of the ref to sit in prose, not merely to touch it. Ref spans are located
+  // by fingerprint and chunk spans by zone boundaries, so the two differ by a word or two
+  // at the edges; treating a one-word overlap as "inline" made a carved-out ayah attach as
+  // a badge while its words — already removed from prose — rendered nowhere at all.
+  const wordsStillInProse = (startWord, endWord) => {
+    if (!proseChunkMap) return false;
+    const span = Math.max(endWord - startWord, 1);
+    let inside = 0;
+    for (const e of proseChunkMap) {
+      inside += Math.max(0, Math.min(e.wordEnd, endWord) - Math.max(e.wordStart, startWord));
+    }
+    return inside / span >= 0.5;
+  };
+
+  const quranInline = quranLocated.filter(l => wordsStillInProse(l.startWord, l.endWord));
+  const quranStandalone = quranLocated.filter(l => !wordsStillInProse(l.startWord, l.endWord));
+
   let segments = [];
   let cursor = 0;
-  for (const { ref, startWord, endWord } of quranLocated) {
+  for (const { ref, startWord, endWord } of quranStandalone) {
     if (startWord > cursor) segments.push(...buildProseSegs(cursor, startWord));
     segments.push({ type: ref.refType, words: origWords.slice(startWord, endWord), ref, startWord });
     cursor = endWord;
   }
   if (cursor < origWords.length) segments.push(...buildProseSegs(cursor, origWords.length));
+
+  // Badge each inline Quran ref onto the prose segment that contains it.
+  for (const { ref, startWord, endWord } of quranInline) {
+    const host = segments.find(s => s.type === 'prose' &&
+      s.startWord < endWord && s.startWord + s.words.length > startWord);
+    if (host) (host.quranRefs ??= []).push(ref);
+    else segments.push({ type: 'quran', words: origWords.slice(startWord, endWord), ref, startWord });
+  }
 
   // Attach each Hadith to the prose chunk(s) it covers. A long Hadith can span a prose-chunk
   // boundary (chunks break at breath pauses, and Hadith zones — unlike Quran — aren't known
@@ -1719,7 +1815,11 @@ function buildReaderView(transcript, result) {
     if (!overlap.length) {
       const before = segments.filter(s => s.type === 'prose' && s.startWord <= startWord);
       const host = before[before.length - 1];
-      if (host) (host.hadithRefs ??= []).push(ref);
+      if (host) {
+        (host.hadithRefs ??= []).push(ref);
+        host._hadithCoverage = Math.max(host._hadithCoverage ?? 0,
+          (endWord - startWord) / Math.max(host.words.length, 1));
+      }
       else segments.push({ type: 'hadith', words: origWords.slice(startWord, endWord), ref, startWord });
       continue;
     }
@@ -1736,6 +1836,10 @@ function buildReaderView(transcript, result) {
       seg._removed = true;
     }
     (first.hadithRefs ??= []).push(ref);
+    // How much of this block is the Hadith itself? Used below to decide whether the block's
+    // prose translation is just a second rendering of the Hadith.
+    first._hadithCoverage = Math.max(first._hadithCoverage ?? 0,
+      (endWord - startWord) / Math.max(first.words.length, 1));
     segments = segments.filter(s => !s._removed);
   }
 
@@ -1791,25 +1895,43 @@ function buildReaderView(transcript, result) {
       engCursor = Math.min(engCursor + engCount, englishSentences.length);
     }
 
+    // When a block is essentially just a quoted Hadith, its prose translation and the
+    // published sunnah.com translation say the same thing, and the reader shows two
+    // near-identical English paragraphs. Compare them directly rather than guessing from
+    // how much of the block the Hadith spans — word overlap is what actually decides
+    // whether the reader sees a duplicate. Blocks carrying real surrounding prose keep
+    // their translation, or that prose would lose its English entirely.
+    if (english && (seg.hadithRefs ?? []).some(h => h.translation)) {
+      const bag = s => s.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean);
+      const proseWords = bag(english);
+      const proseSet = new Set(proseWords);
+      for (const h of seg.hadithRefs) {
+        if (!h.translation) continue;
+        const tw = bag(h.translation);
+        if (!tw.length) continue;
+        // Overlap measured against the published translation: if nearly all of it is
+        // already in the prose paragraph, the prose paragraph is the duplicate.
+        const covered = tw.filter(w => proseSet.has(w)).length / tw.length;
+        // ...and the prose must not be substantially longer, or it carries extra content.
+        if (covered > 0.6 && proseWords.length < tw.length * 1.8) { english = ''; break; }
+      }
+    }
+
     lines.push(arabic);
     lines.push('');
     if (english) lines.push(english);
 
     if (seg.type === 'quran') {
-      lines.push('');
-      if (seg.ref.matched) {
-        const ayahLabel = seg.ref.ayah_number_end && seg.ref.ayah_number_end !== seg.ref.ayah_number
-          ? `${seg.ref.ayah_number}-${seg.ref.ayah_number_end}`
-          : `${seg.ref.ayah_number}`;
-        lines.push(`📖 ${seg.ref.surah_name} ${seg.ref.surah_number}:${ayahLabel}  —  ${seg.ref.quran_link}  (confidence: ${seg.ref.confidence})`);
-      } else {
-        lines.push('📖 Quranic reference — no match found');
-      }
+      pushQuranBadge(lines, seg.ref);
     } else if (seg.type === 'hadith') {
       pushHadithBadge(lines, seg.ref);
     }
 
-    // Hadith badges attached to a prose chunk (the Hadith text is inside this chunk).
+    // Badges for refs whose text lives inside this prose chunk rather than in a card of
+    // its own — short Quran refs and Hadith both land here.
+    if (seg.quranRefs) {
+      for (const qref of seg.quranRefs) pushQuranBadge(lines, qref);
+    }
     if (seg.hadithRefs) {
       for (const href of seg.hadithRefs) pushHadithBadge(lines, href);
     }
@@ -2494,6 +2616,9 @@ async function main() {
   const zoneRefs = buildZoneRefs(quranZones, transcriptWords, allQuranRefs);
   if (zoneRefs.length) console.log(`  + ${zoneRefs.length} additional via ngram zones`);
   allQuranRefs = [...allQuranRefs, ...zoneRefs];
+  // Label multi-ayah recitations with their full range so the reader renders the whole
+  // passage rather than only the verse the detecting layer happened to name.
+  allQuranRefs.forEach(annotateRefAyahRange);
 
   // Step 8c: Scan for Hadith references
   process.stdout.write('Scanning transcript for Hadith references...');
@@ -2576,6 +2701,7 @@ export {
   splitChunkAtKhutbahBoundary,
   prescanForQuranZones,
   buildZoneRefs,
+  annotateRefAyahRange,
   scanTranscriptForQuran,
   scanTranscriptForHadith,
   deduplicateHadithRefs,
