@@ -399,6 +399,14 @@
       background: rgba(56,178,122,0.08); border: 1px solid rgba(56,178,122,0.28); border-left: 3px solid var(--green);
       border-radius: 6px; font-size: 12.5px; color: #8fe0b6;
     }
+    /* Published sunnah.com translation of the hadith — distinct from the prose
+       translation above it, which renders as .chunk-english */
+    .chunk-hadith-trans {
+      margin-top: 10px; padding: 10px 14px;
+      background: rgba(56,178,122,0.05); border-left: 2px solid rgba(56,178,122,0.45);
+      border-radius: 4px; font-size: 14px; line-height: 1.75;
+      color: #bfe8d1; font-style: italic;
+    }
 
     /* Quran refs */
     .ref-card {
@@ -907,9 +915,12 @@
       if (!part) return '';
       const quranMatch = part.match(/^📖\s+(.+?)\s+—\s+(https:\/\/quran\.com\/([\d]+)\/([\d]+))/);
       const hadithMatch = part.match(/^📚\s+Hadith\s+[·•]\s*(.+)/);
+      const hadithTransMatch = part.match(/^❝\s*([\s\S]+)/);
       if (quranMatch) {
         const [, label, url] = quranMatch;
         return `<a class="chunk-quran-cite" href="${escAttr(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">۞ <strong>${escHtml(label)}</strong> ↗</a>`;
+      } else if (hadithTransMatch) {
+        return `<div class="chunk-hadith-trans">${escHtml(hadithTransMatch[1])}</div>`;
       } else if (hadithMatch) {
         return `<div class="chunk-hadith-cite">${escHtml(hadithMatch[1])}</div>`;
       }

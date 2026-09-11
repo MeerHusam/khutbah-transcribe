@@ -14,6 +14,7 @@ import {
   scanTranscriptForQuran,
   findMatchingAyah,
   deduplicateHadithRefs,
+  resolveSunnahLinksForRefs,
 } from './pipeline.js';
 
 const folder = process.argv[2];
@@ -59,7 +60,19 @@ result.prose_chunk_map = proseChunks.map(({ wordStart, wordEnd, proseIdx }) => (
 // Ensure chunk_translations length matches prose chunks.
 // If we have more prose chunks than translations (because zone changes shifted boundaries),
 // pad with empty strings so buildReaderView doesn't crash.
+//
+// A large mismatch means the chunking parameters (MIN_CHUNK / MAX_CHUNK / MIN_ZONE_WORDS)
+// changed since this run was translated. Translations are matched to chunks BY INDEX, so
+// padding then silently pairs each chunk with another chunk's English. Warn loudly —
+// the fix is to re-run the full pipeline, not to reanalyze.
 if (result.chunk_translations) {
+  const drift = proseChunks.length - result.chunk_translations.length;
+  if (Math.abs(drift) > 2) {
+    console.warn(`⚠ chunk/translation mismatch: ${proseChunks.length} chunks vs ${result.chunk_translations.length} translations.`);
+    console.warn('  Chunking parameters have changed since this run was translated; translations are');
+    console.warn('  index-matched, so the reader will pair text with the wrong English.');
+    console.warn('  Re-run the full pipeline for this folder instead of reanalyze.');
+  }
   while (result.chunk_translations.length < proseChunks.length) {
     result.chunk_translations.push('');
   }
@@ -73,6 +86,15 @@ const hadithBefore = (result.hadith_references || []).length;
 result.hadith_references = deduplicateHadithRefs(result.hadith_references || []);
 const hadithDropped = hadithBefore - result.hadith_references.length;
 if (hadithDropped) console.log(`  − ${hadithDropped} hadith ref(s) filtered (liturgical / attribution-only)`);
+
+// Backfill the published sunnah.com translation (and narrator) for the surviving refs.
+// Disk-cached, so this is a no-op on a second run.
+if (result.hadith_references.length) {
+  console.log('Resolving sunnah.com links + translations...');
+  await resolveSunnahLinksForRefs(result.hadith_references);
+  const withTrans = result.hadith_references.filter(h => h.translation).length;
+  console.log(`  ${withTrans}/${result.hadith_references.length} hadith translations fetched`);
+}
 
 // Update metadata
 const matchedCount = allQuranRefs.filter(r => r.matched).length;

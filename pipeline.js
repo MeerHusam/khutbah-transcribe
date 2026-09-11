@@ -70,7 +70,14 @@ function normalizeArabic(text) {
     // Strip punctuation (Gemini adds sentence punctuation like . and ؟ that attaches to a
     // word — e.g. "ينفعه؟" — and breaks Quran n-gram matching, spilling ayah tails into prose).
     // Only punctuation is removed, never spaces or letters, so word-token counts stay aligned.
-    .replace(/[.,!?;:؟،؛"'`(){}\[\]«»…—–-]/g, '')
+    //
+    // The ornate parentheses ﴿﴾ (U+FD3E/U+FD3F) that Gemini wraps ayahs in MUST be in this
+    // set. They attach to the ayah's first and last word ("﴿لئن"), so a fingerprint lookup
+    // in buildReaderView matches *inside* the token; the slice before the match then ends
+    // with a bare "﴿" that counts as a word, shifting every located ref one word to the
+    // right. The ayah's first word is stranded in the preceding prose block and the span
+    // runs one word into the next — the whole class of "ayah head/tail leaking into prose".
+    .replace(/[.,!?;:؟،؛"'`(){}\[\]«»﴿﴾…—–-]/g, '')
     .trim();
 }
 
@@ -456,6 +463,13 @@ function prescanForQuranZones(transcriptWords, n = 4) {
 // Surface Quranic ayahs that the n-gram zones identified but Claude + Jaccard scan both missed.
 // For each zone whose ayah is absent from existingRefs, creates a fallback ref using the
 // transcript words from that zone as detected_text.
+// Minimum matched words before an n-gram zone is worth citing. Shared by buildZoneRefs
+// (which decides whether a zone becomes a card) and buildProseChunks (which decides
+// whether a zone is carved out of prose). These two MUST use the same value: a zone that
+// is carved out but not cited leaves its words in no chunk and no ref, and they vanish
+// from the reader entirely.
+const MIN_ZONE_WORDS = 5;
+
 function buildZoneRefs(zones, transcriptWords, existingRefs) {
   const index = getQuranNgramIndex();
   const tNorm = transcriptWords.map(w => normalizeArabicDeep(w));
@@ -491,10 +505,12 @@ function buildZoneRefs(zones, transcriptWords, existingRefs) {
       }
 
       const refWords = transcriptWords.slice(wordStart, wordEnd);
-      // Require at least 5 matched words to avoid surfacing 4-word common phrases
+      // Require MIN_ZONE_WORDS matched words to avoid surfacing short common phrases
       // (ta'awwudh "بالله من الشيطان الرجيم", common endings like "إنه كان حليما غفورا")
-      // that happen to appear in an ayah but aren't genuine citations.
-      if (refWords.length < 5) continue;
+      // that happen to appear in an ayah but aren't genuine citations. buildProseChunks
+      // uses the same constant to decide which zones to carve out of prose — the two must
+      // agree, or a zone gets removed from prose without ever being rendered as a card.
+      if (refWords.length < MIN_ZONE_WORDS) continue;
       const detected_text = refWords.join(' ');
       newRefs.push({
         detected_text,
@@ -556,8 +572,13 @@ function buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSeg
     // Break-aware chunking: accumulate until we have at least MIN_CHUNK words, then break
     // at the next sentence end (or segment boundary). Keeps semantically coherent units
     // and avoids cutting mid-sentence.
-    const MIN_CHUNK = 15;
-    const MAX_CHUNK = CHUNK_SIZE * 2; // hard cap for unusually long single sentences
+    // MIN_CHUNK drives the typical block size: a block accumulates until it reaches
+    // MIN_CHUNK words and then ends at the NEXT sentence boundary, so blocks always break
+    // on a full sentence. Lowering it shortens blocks without ever cutting mid-sentence.
+    // MAX_CHUNK is only a wall for a single runaway sentence, and it DOES cut mid-sentence,
+    // so it stays well above MIN_CHUNK and is deliberately rare.
+    const MIN_CHUNK = 10;
+    const MAX_CHUNK = Math.round(CHUNK_SIZE * 1.5); // hard cap for unusually long sentences
 
     // Collect break points within (from, to), plus 'to' as the final boundary
     const breaks = [];
@@ -593,7 +614,15 @@ function buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSeg
     }
   };
 
+  // Only carve out zones that will actually be rendered as a reference card. buildZoneRefs
+  // requires MIN_ZONE_WORDS before it will surface a zone, so a shorter zone produces no
+  // card — and if it were still excluded here its words would belong to no chunk and no
+  // ref, and would silently disappear from the reader. That is how "إنه هو الغفور الرحيم"
+  // (a 4-word match on 12:98) and the closing "والحمد لله رب العالمين" (6:45) were lost.
+  // Leaving them in prose means they are translated as prose, which is the right outcome
+  // for a fragment too short to cite.
   for (const zone of quranZones) {
+    if (zone.end - zone.start < MIN_ZONE_WORDS) continue;
     if (zone.start > cursor) flush(cursor, zone.start);
     cursor = zone.end;
   }
@@ -747,6 +776,55 @@ async function resolveSunnahLink(detectedText, preferredSlug = null) {
 // Fetch the narrator from a resolved sunnah.com hadith page (cached). Scan-detected
 // hadiths have no narrator (only Claude's signal-phrase path fills one); sunnah.com
 // states it on the page ("Narrated Abu Bakr:"), so we can backfill it from the lookup.
+// Fetch the canonical English translation of a resolved hadith from sunnah.com.
+// Without this the English shown under a Hadith card is whatever Claude produced while
+// translating the surrounding prose — a paraphrase of the imam's recitation rather than
+// the published translation of the hadith itself.
+//
+// Page shape (see fetchSunnahNarrator for the sibling parse):
+//   <div class="english_hadith_full">
+//     <div class=hadith_narrated><p>Anas said:</div>
+//     <div class=text_details>The Apostle of Allah (ﷺ) performed ablution ...</div>
+// The `english_hadith_full` block is isolated first because `arabic_text_details` would
+// otherwise match the same `text_details` suffix and return the Arabic.
+async function fetchSunnahTranslation(slug, number) {
+  if (!slug || !number) return null;
+  const cache = loadSunnahCache();
+  const key = `translation::${slug}:${number}`;
+  if (Object.prototype.hasOwnProperty.call(cache, key)) return cache[key];
+
+  let translation = null, gotResponse = false;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 12_000);
+    const res = await fetch(`https://sunnah.com/${slug}:${number}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15)', 'Accept': 'text/html' },
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+    if (res.ok) {
+      gotResponse = true;
+      const html = await res.text();
+      const block = html.match(/class=["']?english_hadith_full["']?[^>]*>([\s\S]*?)<div class=["']?clear/i);
+      const scope = block ? block[1] : '';
+      const m = scope.match(/class=["']?text_details["']?[^>]*>([\s\S]*?)<\/div>/i);
+      if (m) {
+        const txt = m[1]
+          .replace(/<[^>]+>/g, '')        // drop stray inline tags (<b>, <a>, unclosed </b>)
+          .replace(/&quot;/g, '"').replace(/&#039;|&apos;/g, "'")
+          .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        translation = txt || null;
+      }
+    }
+  } catch { /* network/timeout — leave null, do not cache */ }
+
+  if (gotResponse) { cache[key] = translation; try { writeFileSync(SUNNAH_CACHE_FILE, JSON.stringify(cache, null, 2), 'utf8'); } catch {} }
+  return translation;
+}
+
 async function fetchSunnahNarrator(slug, number) {
   if (!slug || !number) return null;
   const cache = loadSunnahCache();
@@ -803,6 +881,9 @@ async function resolveSunnahLinksForRefs(refs) {
         const narr = await fetchSunnahNarrator(sunnah.collection_slug, sunnah.hadith_number);
         if (narr) ref.narrator = narr;
       }
+      // Always prefer the published translation over Claude's paraphrase of the prose.
+      const trans = await fetchSunnahTranslation(sunnah.collection_slug, sunnah.hadith_number);
+      if (trans) ref.translation = trans;
     }
   }
   return refs;
@@ -1222,6 +1303,19 @@ Return ONLY valid JSON, no markdown: {"part1":"English of PART 1","part2":"Engli
 
 // ---- Reader view formatter --------------------------------------------------
 
+// Emit a Hadith citation badge, followed by the published sunnah.com translation when we
+// have one. The translation is its own paragraph prefixed with ❝ so the web reader can
+// style it apart from the prose translation above it (server.js splits reader.txt blocks
+// on blank lines, and renderEnglishParts keys off the prefix).
+function pushHadithBadge(lines, ref) {
+  lines.push('');
+  lines.push(`📚 Hadith  ·  Narrator: ${ref.narrator ?? 'unknown'}  ·  Collection: ${ref.collection ?? 'unknown'}`);
+  if (ref.translation) {
+    lines.push('');
+    lines.push(`❝ ${ref.translation}`);
+  }
+}
+
 // Splits the Arabic transcript around detected references and produces an
 // annotated bilingual reader: Arabic chunk -> English chunk -> source badge.
 function buildReaderView(transcript, result) {
@@ -1487,16 +1581,12 @@ function buildReaderView(transcript, result) {
         lines.push('📖 Quranic reference — no match found');
       }
     } else if (seg.type === 'hadith') {
-      lines.push('');
-      lines.push(`📚 Hadith  ·  Narrator: ${seg.ref.narrator ?? 'unknown'}  ·  Collection: ${seg.ref.collection ?? 'unknown'}`);
+      pushHadithBadge(lines, seg.ref);
     }
 
     // Hadith badges attached to a prose chunk (the Hadith text is inside this chunk).
     if (seg.hadithRefs) {
-      for (const href of seg.hadithRefs) {
-        lines.push('');
-        lines.push(`📚 Hadith  ·  Narrator: ${href.narrator ?? 'unknown'}  ·  Collection: ${href.collection ?? 'unknown'}`);
-      }
+      for (const href of seg.hadithRefs) pushHadithBadge(lines, href);
     }
 
     lines.push('');
