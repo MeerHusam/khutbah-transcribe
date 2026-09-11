@@ -387,6 +387,11 @@
       font-size: 13.5px; line-height: 1.75; color: #b89a5a;
       font-style: italic; margin-top: 8px; padding-right: 4px;
     }
+    .inline-ayah {
+      color: var(--gold-bright); background: rgba(217,184,106,0.09);
+      border-radius: 4px; padding: 1px 5px; font-size: 1.04em;
+      box-decoration-break: clone; -webkit-box-decoration-break: clone;
+    }
     .chunk-quran-cite {
       display: inline-flex; align-items: center; gap: 7px; margin-top: 8px;
       padding: 5px 12px 5px 10px; background: rgba(217,184,106,0.08); border: 1px solid var(--border);
@@ -953,6 +958,81 @@
     }).join('');
   }
 
+  // ── Inline ayah marking ──
+  // A 📑 badge means the verse was quoted *inside* the imam's own sentence, so the block's
+  // Arabic must stay exactly as he said it (unlike 📖, where the whole block is replaced by
+  // canonical text). Without this the verse reads as ordinary prose. Locate the ref's
+  // detected words inside the block and wrap just those words in ornate brackets + the
+  // end-of-ayah mark, leaving the surrounding speech untouched.
+  const arabicDigits = n => String(n).replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[+d]);
+
+  // Mirrors normalizeArabic() in pipeline.js — the ref's detected_text and the transcript
+  // differ only in punctuation and diacritics, so both sides must be normalised the same way.
+  function normArWord(w) {
+    return w
+      .replace(/[\u0610-\u061A]/g, '')
+      .replace(/\u0670/g, 'ا')
+      .replace(/[\u064B-\u065F]/g, '')
+      .replace(/\u0640/g, '')
+      .replace(/[\u06D6-\u06ED]/g, '')
+      .replace(/[\u0671\u0622\u0623\u0625]/g, 'ا')
+      .replace(/[.,!?;:؟،؛"'`(){}\[\]«»﴿﴾…—–-]/g, '');
+  }
+
+  // Every 📑 badge in this block, resolved to the words to highlight.
+  function inlineAyahRefs(english) {
+    const out = [];
+    for (const part of english.split(/\n\n+/)) {
+      const m = part.trim().match(/^📑\s+.+?\s+(\d+):(\d+)(?:\s*-\s*(\d+))?\s+—\s+https:\/\/quran\.com\/(\d+)\/(\d+)/);
+      if (!m) continue;
+      const surah = +m[4], ayah = +m[5], endAyah = m[3] ? +m[3] : ayah;
+      for (const q of (quranRefs || [])) {
+        if (+q.surah_number !== surah || +q.ayah_number !== ayah) continue;
+        const words = String(q.detected_text || '').split(/\s+/).map(normArWord).filter(Boolean);
+        if (words.length) out.push({ words, endAyah });
+      }
+    }
+    return out;
+  }
+
+  function renderChunkArabic(arabic, refs) {
+    if (!refs.length) return escHtml(arabic);
+    const toks = arabic.split(/(\s+)/);
+    const wordPos = [];
+    toks.forEach((t, i) => { if (t.trim()) wordPos.push(i); });
+    const norms = wordPos.map(i => normArWord(toks[i]));
+    const opens = {}, closes = {};
+    for (const ref of refs) {
+      const w = ref.words;
+      for (let s = 0; s + w.length <= norms.length; s++) {
+        let ok = true;
+        for (let k = 0; k < w.length; k++) if (norms[s + k] !== w[k]) { ok = false; break; }
+        if (!ok) continue;
+        const e = s + w.length - 1;
+        // Overlapping refs would produce interleaved spans; first match wins.
+        let clash = false;
+        for (let k = s; k <= e; k++) if (opens[k] || closes[k]) { clash = true; break; }
+        if (!clash) { opens[s] = ref; closes[e] = ref; }
+        break;
+      }
+    }
+    if (!Object.keys(opens).length) return escHtml(arabic);
+    let html = '', wi = 0;
+    for (const tok of toks) {
+      if (!tok.trim()) { html += escHtml(tok); continue; }
+      const p = wi++;
+      if (opens[p]) html += '<span class="inline-ayah">﴿';
+      if (closes[p]) {
+        // Keep the imam's sentence punctuation outside the closing bracket.
+        const m = tok.match(/^([\s\S]*?)([.,!?;:؟،؛…]*)$/);
+        html += escHtml(m[1]) + ' ۝' + arabicDigits(closes[p].endAyah) + '﴾</span>' + escHtml(m[2]);
+      } else {
+        html += escHtml(tok);
+      }
+    }
+    return html;
+  }
+
   function renderTranslation(r) {
     if (r.reader_chunks && r.reader_chunks.length > 0) {
       return r.reader_chunks.map(c => {
@@ -973,7 +1053,7 @@
           : '';
         return `${divider}
         <div class="reader-chunk" ${startAttr}>
-          <div class="chunk-arabic" ${arabicAttrs}>${escHtml(c.arabic)}</div>
+          <div class="chunk-arabic" ${arabicAttrs}>${arabicAttrs ? escHtml(c.arabic) : renderChunkArabic(c.arabic, inlineAyahRefs(c.english))}</div>
           ${renderEnglishParts(c.english)}
         </div>`;
       }).join('');

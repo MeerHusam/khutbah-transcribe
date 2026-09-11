@@ -170,6 +170,28 @@ if (hadithBadges !== (result.hadith_references ?? []).length) {
   warn(`${(result.hadith_references ?? []).length} hadith refs but ${hadithBadges} badges rendered`);
 }
 
+// ── 5b. An inline (📑) verse must be locatable inside its block's Arabic ──────
+// The web reader highlights an inline verse by finding the ref's detected words as a
+// contiguous run in the block and wrapping just those words. If the run is not there the
+// highlight silently no-ops and the verse reads as ordinary prose — which is exactly how
+// Ibrahim 14:7 shipped unmarked.
+for (const b of blocks) {
+  const blockWords = words(b.arabic);
+  const joined = ' ' + blockWords.join(' ') + ' ';
+  for (const p of b.englishParas) {
+    if (!p.trim().startsWith('📑')) continue;
+    const m = p.match(badgeRe);
+    if (!m) continue;
+    const key = `${m[2]}:${m[3]}`;
+    const cands = (result.quran_references ?? []).filter(
+      q => `${q.surah_number}:${q.ayah_number}` === key && q.detected_text);
+    if (!cands.length) { fail(`inline badge ${key} has no ref in result.json to highlight`); continue; }
+    if (!cands.some(q => joined.includes(' ' + words(q.detected_text).join(' ') + ' '))) {
+      fail(`inline badge ${key}: detected text is not a contiguous run in its block — the reader cannot mark it`);
+    }
+  }
+}
+
 // ── 6. Blocks should not end mid-sentence ────────────────────────────────────
 const proseBlocks = blocks.filter(b => !b.englishParas.some(p => /^(📖|📑|📚)/.test(p)));
 const midSentence = proseBlocks.filter(b => !/[.؟!…،:]$/.test(b.arabic.trim()));

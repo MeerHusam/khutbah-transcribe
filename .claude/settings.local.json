@@ -22,7 +22,10 @@
       "Bash(node --check pipeline.js)",
       "Bash(exit 1)",
       "Bash(node reanalyze.js outputs/2026-05-26T11-44-52_arafah_khutbah_2026 --type arafah)",
-      "Bash(node reanalyze.js outputs/2026-05-26T11-44-52_arafah_khutbah_2026)"
+      "Bash(node reanalyze.js outputs/2026-05-26T11-44-52_arafah_khutbah_2026)",
+      "Bash(mv audio_files/AUDIO-2026-09-11-12-40-57.m4a audio_files/khutbah-2026-09-11-masjid.m4a)",
+      "Bash(ffprobe -v error -show_entries format=duration,bit_rate -of default=noprint_wrappers=1 audio_files/khutbah-2026-09-11-masjid.m4a)",
+      "Bash(brew reinstall *)"
     ]
   }
 }
