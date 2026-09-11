@@ -294,7 +294,43 @@ function loadResult(folder) {
           const te = findSeq(tail, ws, ws + cw.length + 15);
           if (te >= 0) we = te + 3;
         }
-        cursor = Math.max(ws + 1, we);
+        // Advance past most of this chunk, not merely one word. When the trailing-word
+        // search fails the cursor barely moved, so the NEXT chunk's prefix could match a
+        // repeated phrase inside this chunk and be handed a start time from the middle of
+        // it — two chunks then resolve to nearly the same moment and the earlier one flashes
+        // past unread. 60% of the chunk's length is a floor that guarantees real progress
+        // while still tolerating the duplication that made end-anchoring necessary here.
+        cursor = Math.max(ws + 1, we, ws + Math.floor(cw.length * 0.6));
+      }
+
+      // Chunk start times must be STRICTLY increasing, not merely non-decreasing. The
+      // player highlights the last chunk whose start_time is <= the current time, so two
+      // chunks sharing a time make the earlier one unreachable — it is never highlighted
+      // and the reader appears to skip it. Clamping the word times to a running maximum
+      // (above) removes backward jumps but can leave two chunks on the same value, so
+      // separate them here by a tenth of a second.
+      // Where a chunk's time is not greater than the previous chunk's, its anchor word sits
+      // in a stretch the aligner filled in backwards, so the value itself is wrong rather
+      // than merely out of order — nudging it a tenth of a second past its neighbour makes
+      // it reachable but leaves it tens of seconds early, so the block still flashes past.
+      // Interpolate the bad run between the last trustworthy time and the next one instead,
+      // weighted by how many words each block holds.
+      for (let i = 1; i < chunks.length; i++) {
+        if (typeof chunks[i].start_time !== 'number') continue;
+        if (chunks[i].start_time > chunks[i - 1].start_time) continue;
+        let j = i;
+        while (j < chunks.length && chunks[j].start_time <= chunks[i - 1].start_time) j++;
+        const t0 = chunks[i - 1].start_time;
+        const t1 = j < chunks.length ? chunks[j].start_time : t0 + (j - i + 1);
+        const lens = [];
+        for (let k = i - 1; k < j; k++) lens.push(Math.max(1, chunks[k].arabic.split(/\s+/).filter(Boolean).length));
+        const total = lens.reduce((a, b) => a + b, 0);
+        let acc = 0;
+        for (let k = i; k < j; k++) {
+          acc += lens[k - i];
+          chunks[k].start_time = Math.round((t0 + (t1 - t0) * (acc / total)) * 10) / 10;
+        }
+        i = j - 1;
       }
     }
 
