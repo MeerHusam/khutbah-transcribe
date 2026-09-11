@@ -392,6 +392,11 @@
       border-radius: 4px; padding: 1px 5px; font-size: 1.04em;
       box-decoration-break: clone; -webkit-box-decoration-break: clone;
     }
+    .inline-ayah-en {
+      color: var(--gold-bright); font-style: italic;
+      background: rgba(217,184,106,0.07); border-radius: 4px; padding: 1px 4px;
+      box-decoration-break: clone; -webkit-box-decoration-break: clone;
+    }
     .chunk-quran-cite {
       display: inline-flex; align-items: center; gap: 7px; margin-top: 8px;
       padding: 5px 12px 5px 10px; background: rgba(217,184,106,0.08); border: 1px solid var(--border);
@@ -937,7 +942,24 @@
     </div>`;
   }
 
+  // The English half of an inline verse is the quoted run inside the translation. Mark it
+  // so the ayah stands out on both sides, matching the Arabic highlight. Only applied in
+  // blocks that cite a verse and nothing else, so a hadith quotation is never gilded.
+  function markQuotedVerse(text) {
+    const re = /["\u201C]([^"\u201C\u201D]+)["\u201D]/g;
+    let out = '', last = 0, m;
+    while ((m = re.exec(text))) {
+      out += escHtml(text.slice(last, m.index));
+      out += '<span class="inline-ayah-en">\u201C' + escHtml(m[1]) + '\u201D</span>';
+      last = m.index + m[0].length;
+    }
+    if (!last) return escHtml(text);
+    return out + escHtml(text.slice(last));
+  }
+
   function renderEnglishParts(english) {
+    const paras = english.split(/\n\n+/).map(p => p.trim());
+    const markVerse = paras.some(p => p.startsWith('\u{1F4D1}')) && !paras.some(p => p.startsWith('\u{1F4DA}'));
     return english.split(/\n\n+/).map(part => {
       part = part.trim();
       if (!part) return '';
@@ -954,7 +976,7 @@
       } else if (hadithMatch) {
         return `<div class="chunk-hadith-cite">${escHtml(hadithMatch[1])}</div>`;
       }
-      return `<div class="chunk-english">${escHtml(part)}</div>`;
+      return `<div class="chunk-english">${markVerse ? markQuotedVerse(part) : escHtml(part)}</div>`;
     }).join('');
   }
 
