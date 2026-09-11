@@ -89,6 +89,7 @@ const DATA_DIR = join(__dirname, 'data');
 const VIEWS_FILE = join(DATA_DIR, 'views.json');
 const FEEDBACK_FILE = join(DATA_DIR, 'feedback.jsonl');
 const GEO_FILE = join(DATA_DIR, 'geo_views.jsonl');
+const VISITS_FILE = join(DATA_DIR, 'visits.jsonl');
 mkdirSync(DATA_DIR, { recursive: true });
 
 async function lookupGeo(ip) {
@@ -105,14 +106,18 @@ import { createHash } from 'crypto';
 
 let totalViews = 0;
 let uniqueIps = new Set();
+// Hashed IP -> ISO timestamp of that visitor's first ever visit. Hashes recorded before
+// this map existed have no entry; /admin/traffic reports those as "before tracking".
+let firstSeen = {};
 try {
   const saved = JSON.parse(readFileSync(VIEWS_FILE, 'utf8'));
   totalViews = saved.total || 0;
   uniqueIps = new Set(saved.unique_ips || []);
+  firstSeen = saved.first_seen || {};
 } catch { totalViews = 0; }
 
 function persistViews() {
-  try { writeFileSync(VIEWS_FILE, JSON.stringify({ total: totalViews, unique_ips: [...uniqueIps] })); } catch {}
+  try { writeFileSync(VIEWS_FILE, JSON.stringify({ total: totalViews, unique_ips: [...uniqueIps], first_seen: firstSeen })); } catch {}
 }
 
 function hashIp(ip) {
@@ -136,8 +141,17 @@ wss.on('connection', (ws, req) => {
   liveClients.add(ws);
   totalViews += 1;
   const rawIp = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
-  if (rawIp) uniqueIps.add(hashIp(rawIp));
+  const visitTs = new Date().toISOString();
+  let isNewVisitor = false;
+  if (rawIp) {
+    const h = hashIp(rawIp);
+    isNewVisitor = !uniqueIps.has(h);
+    uniqueIps.add(h);
+    if (isNewVisitor) firstSeen[h] = visitTs;
+  }
   persistViews();
+  // Per-visit log so traffic can be charted over time (views.json only holds running totals).
+  try { appendFileSync(VISITS_FILE, JSON.stringify({ ts: visitTs, new: isNewVisitor }) + '\n'); } catch {}
   // Send the new client its current numbers immediately, then tell everyone.
   if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'viewers', live: liveClients.size, total: totalViews, unique: uniqueIps.size }));
   broadcastViewers();
@@ -222,6 +236,20 @@ function loadResult(folder) {
       wordTimes = buildWordTimeMap(segments);
       tWords = [];
       for (const seg of segments) tWords.push(...seg.text.trim().split(/\s+/).filter(Boolean));
+    }
+    // Word times must never go backwards. In --gemini mode the times come from aligning
+    // Gemini's words onto Groq's word-level timestamps, and around an alignment gap a later
+    // word can be handed an earlier time than the one before it. A chunk starting on such a
+    // word then gets a start_time before the previous chunk's, so following the audio jumps
+    // backwards mid-khutbah and a block looks skipped. Clamp to a running maximum: the
+    // affected words are a fraction of a second out, so this costs nothing in accuracy.
+    if (wordTimes && wordTimes.length) {
+      let maxSoFar = -Infinity;
+      wordTimes = wordTimes.map(t => {
+        if (typeof t !== 'number' || Number.isNaN(t)) return maxSoFar === -Infinity ? 0 : maxSoFar;
+        maxSoFar = Math.max(maxSoFar, t);
+        return maxSoFar;
+      });
     }
     if (tWords && tWords.length) {
       // Normalize to bare Arabic letters so punctuation/parens/diacritics in Quran cards
@@ -458,6 +486,51 @@ app.get('/admin/geo', (req, res) => {
     <h1>Viewers by Location (${entries.length} total)</h1>
     <table><thead><tr><th>Code</th><th>Country</th><th>Views</th><th>Cities</th></tr></thead>
     <tbody>${rows || '<tr><td colspan="4">No geo data yet.</td></tr>'}</tbody></table>`);
+});
+
+// Traffic over time: visits + first-time visitors bucketed by UTC day, built from
+// data/visits.jsonl (one line per page view). Answers "when did unique go up?".
+app.get('/admin/traffic', (req, res) => {
+  if (!ADMIN_TOKEN) return res.status(503).send('Set the ADMIN_TOKEN env var to view traffic data.');
+  if (req.query.key !== ADMIN_TOKEN) return res.status(401).send('Unauthorized');
+
+  const byDay = new Map(); // 'YYYY-MM-DD' -> { visits, newVisitors }
+  const bump = (day, isNew) => {
+    if (!byDay.has(day)) byDay.set(day, { visits: 0, newVisitors: 0 });
+    const d = byDay.get(day);
+    d.visits++;
+    if (isNew) d.newVisitors++;
+  };
+  try {
+    for (const line of readFileSync(VISITS_FILE, 'utf8').split('\n')) {
+      if (!line) continue;
+      try {
+        const e = JSON.parse(line);
+        if (e.ts) bump(e.ts.slice(0, 10), !!e.new);
+      } catch {}
+    }
+  } catch {}
+
+  const untracked = uniqueIps.size - Object.keys(firstSeen).length;
+  const days = [...byDay.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+  const peak = Math.max(1, ...days.map(([, d]) => d.visits));
+  const rows = days.map(([day, d]) => `<tr><td>${day}</td><td class="n">${d.visits}</td>
+    <td class="u">${d.newVisitors || ''}</td>
+    <td><span class="bar" style="width:${Math.round((d.visits / peak) * 100)}%"></span></td></tr>`).join('');
+
+  res.send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Traffic over time</title>
+    <style>body{font-family:system-ui,sans-serif;max-width:900px;margin:24px auto;padding:0 16px;color:#1a1a1a}
+    h1{font-size:18px;margin-bottom:4px}p.sub{color:#6b7280;font-size:13px;margin-top:0}
+    table{border-collapse:collapse;width:100%}
+    th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:14px}
+    th{background:#f9fafb;font-weight:600}.n{font-weight:700;color:#059669}
+    .u{font-weight:700;color:#b45309}
+    .bar{display:block;height:10px;background:#34d399;border-radius:3px;min-width:2px}</style>
+    <h1>Traffic over time</h1>
+    <p class="sub">${totalViews} total views &middot; ${uniqueIps.size} unique visitors${untracked > 0 ? ` (${untracked} first seen before per-day tracking started)` : ''}. Days are UTC.</p>
+    <table><thead><tr><th>Day (UTC)</th><th>Views</th><th>New visitors</th><th></th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="4">No visits logged yet &mdash; data/visits.jsonl starts filling on the next page view.</td></tr>'}</tbody></table>`);
 });
 
 const PORT = process.env.PORT || 3000;

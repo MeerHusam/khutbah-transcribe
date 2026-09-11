@@ -1584,19 +1584,28 @@ Return ONLY valid JSON, no markdown: {"part1":"English of PART 1","part2":"Engli
 // on blank lines, and renderEnglishParts keys off the prefix).
 // Emit a Quran citation badge. A recited passage carries ayah_number_end, so the label
 // reads as a range ("'Abasa 80:25-32") and the web reader fetches every verse in it.
-function pushQuranBadge(lines, ref) {
+// `inline` marks a citation sitting inside a prose block (a short ayah quoted mid-sentence)
+// rather than a block that IS the recitation. The web reader replaces a block's Arabic with
+// the canonical verse text, which is right for a recitation but destroys the imam's own
+// words around a short inline quote — so the two cases need different markers. 📖 means
+// "this block is the verse"; 📑 means "this block cites the verse, leave its text alone".
+function pushQuranBadge(lines, ref, inline = false) {
   lines.push('');
-  if (!ref.matched) { lines.push('📖 Quranic reference — no match found'); return; }
+  const marker = inline ? '📑' : '📖';
+  if (!ref.matched) { lines.push(`${marker} Quranic reference — no match found`); return; }
   const ayahLabel = ref.ayah_number_end && ref.ayah_number_end !== ref.ayah_number
     ? `${ref.ayah_number}-${ref.ayah_number_end}`
     : `${ref.ayah_number}`;
-  lines.push(`📖 ${ref.surah_name} ${ref.surah_number}:${ayahLabel}  —  ${ref.quran_link}  (confidence: ${ref.confidence})`);
+  lines.push(`${marker} ${ref.surah_name} ${ref.surah_number}:${ayahLabel}  —  ${ref.quran_link}  (confidence: ${ref.confidence})`);
 }
 
-function pushHadithBadge(lines, ref) {
+// `skipTranslation` suppresses the published sunnah.com text for this block because the
+// block's own prose translation already renders the Hadith — showing both prints the same
+// words twice.
+function pushHadithBadge(lines, ref, skipTranslation = false) {
   lines.push('');
   lines.push(`📚 Hadith  ·  Narrator: ${ref.narrator ?? 'unknown'}  ·  Collection: ${ref.collection ?? 'unknown'}`);
-  if (ref.translation) {
+  if (ref.translation && !skipTranslation) {
     lines.push('');
     lines.push(`❝ ${ref.translation}`);
   }
@@ -1901,21 +1910,24 @@ function buildReaderView(transcript, result) {
     // how much of the block the Hadith spans — word overlap is what actually decides
     // whether the reader sees a duplicate. Blocks carrying real surrounding prose keep
     // their translation, or that prose would lose its English entirely.
-    if (english && (seg.hadithRefs ?? []).some(h => h.translation)) {
-      const bag = s => s.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean);
-      const proseWords = bag(english);
-      const proseSet = new Set(proseWords);
-      for (const h of seg.hadithRefs) {
-        if (!h.translation) continue;
-        const tw = bag(h.translation);
-        if (!tw.length) continue;
-        // Overlap measured against the published translation: if nearly all of it is
-        // already in the prose paragraph, the prose paragraph is the duplicate.
-        const covered = tw.filter(w => proseSet.has(w)).length / tw.length;
-        // ...and the prose must not be substantially longer, or it carries extra content.
-        if (covered > 0.6 && proseWords.length < tw.length * 1.8) { english = ''; break; }
-      }
-    }
+    // A block must never show the same thing translated twice. Where the block's prose
+    // translation and the published sunnah.com translation both render the quoted Hadith,
+    // keep exactly one:
+    // keep the block's own prose translation and drop the published one when it is
+    // redundant. The prose translation is the only one that covers the WHOLE block — the
+    // Hadith plus the imam's words around it, such as "رواه الإمام ابن ماجه وأحمد وحسنه
+    // الألباني". Dropping it to keep the published translation leaves that framing with no
+    // English at all, which is how this block briefly lost its attribution line. The
+    // published translation still appears wherever the prose does not already render the
+    // Hadith.
+    // The rule is deterministic rather than a similarity score: word-overlap kept getting
+    // this wrong in both directions, because "perform Wudu with a mudd" and "performed
+    // ablution with one Mudd" share almost no content words while saying the same thing,
+    // and common English words push unrelated sentences above any sensible threshold.
+    // If the block has a prose translation it already renders the quoted Hadith, so the
+    // published translation would repeat it.
+    const skipFetched = new Set();
+    if (english) for (const h of (seg.hadithRefs ?? [])) skipFetched.add(h);
 
     lines.push(arabic);
     lines.push('');
@@ -1930,10 +1942,10 @@ function buildReaderView(transcript, result) {
     // Badges for refs whose text lives inside this prose chunk rather than in a card of
     // its own — short Quran refs and Hadith both land here.
     if (seg.quranRefs) {
-      for (const qref of seg.quranRefs) pushQuranBadge(lines, qref);
+      for (const qref of seg.quranRefs) pushQuranBadge(lines, qref, true);
     }
     if (seg.hadithRefs) {
-      for (const href of seg.hadithRefs) pushHadithBadge(lines, href);
+      for (const href of seg.hadithRefs) pushHadithBadge(lines, href, skipFetched.has(href));
     }
 
     lines.push('');

@@ -91,7 +91,7 @@ for (const [w, n] of transcriptCounts) {
 // stacked on top of each other.
 const wordsOf = s => s.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean);
 for (const b of blocks) {
-  const prose = b.englishParas.filter(p => !/^(📖|📚|❝)/.test(p));
+  const prose = b.englishParas.filter(p => !/^(📖|📑|📚|❝)/.test(p));
   const fetched = b.englishParas.filter(p => /^❝/.test(p));
   if (!prose.length || !fetched.length) continue;
   const proseWords = wordsOf(prose.join(' '));
@@ -110,7 +110,8 @@ for (const b of blocks) {
 // ── 4. Every Quran badge must name the verses it displays ────────────────────
 // A short ayah that could not be anchored used to claim its whole zone, which showed
 // Al-Baqarah 2:201 under the citation As-Saffat 37:181.
-const badgeRe = /^📖\s+(.+?)\s+(\d+):(\d+)(?:-(\d+))?\s+—\s+https:\/\/quran\.com\/(\d+)\/(\d+)/;
+// 📖 = this block IS the recitation; 📑 = the block cites a verse quoted inside its prose.
+const badgeRe = /^(?:📖|📑)\s+(.+?)\s+(\d+):(\d+)(?:-(\d+))?\s+—\s+https:\/\/quran\.com\/(\d+)\/(\d+)/;
 for (const b of blocks) {
   for (const p of b.englishParas) {
     const m = p.match(badgeRe);
@@ -170,7 +171,7 @@ if (hadithBadges !== (result.hadith_references ?? []).length) {
 }
 
 // ── 6. Blocks should not end mid-sentence ────────────────────────────────────
-const proseBlocks = blocks.filter(b => !b.englishParas.some(p => /^(📖|📚)/.test(p)));
+const proseBlocks = blocks.filter(b => !b.englishParas.some(p => /^(📖|📑|📚)/.test(p)));
 const midSentence = proseBlocks.filter(b => !/[.؟!…،:]$/.test(b.arabic.trim()));
 if (midSentence.length > proseBlocks.length * 0.25) {
   warn(`${midSentence.length}/${proseBlocks.length} prose blocks end mid-sentence`);

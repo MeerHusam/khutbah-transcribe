@@ -859,7 +859,12 @@
           arTexts.push(arData.text);
         }
         if (!arTexts.length) continue;
-        el.textContent = `﴿${arTexts.join(' ')}﴾`;
+        // Close each verse with the mushaf end-of-ayah mark and its number in Arabic-Indic
+        // digits, so a recited passage reads as distinct verses rather than one long run.
+        const arabicNum = n => String(n).replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[+d]);
+        el.textContent = '﴿' + arTexts
+          .map((t, i) => `${t} ۝${arabicNum(ayahNums[i])}`)
+          .join(' ') + '﴾';
         el.classList.add('chunk-arabic-quran');
 
         const enTexts = [];
@@ -874,7 +879,11 @@
         if (enTexts.length) {
           const enEl = document.createElement('div');
           enEl.className = 'chunk-quran-translation';
-          enEl.textContent = enTexts.join(' ');
+          // Number the English too when several verses are shown, so the reader can line
+          // each sentence up with the Arabic verse it renders.
+          enEl.textContent = ayahNums.length > 1
+            ? enTexts.map((t, i) => `(${ayahNums[i]}) ${t}`).join(' ')
+            : enTexts.join(' ');
           el.insertAdjacentElement('afterend', enEl);
         }
       } catch {}
@@ -927,7 +936,9 @@
     return english.split(/\n\n+/).map(part => {
       part = part.trim();
       if (!part) return '';
-      const quranMatch = part.match(/^📖\s+(.+?)\s+—\s+(https:\/\/quran\.com\/([\d]+)\/([\d]+))/);
+      // 📑 cites a verse quoted inside this block's prose. Unlike 📖 the block is NOT the
+      // recitation, so its Arabic is left exactly as the imam said it.
+      const quranMatch = part.match(/^(?:📖|📑)\s+(.+?)\s+—\s+(https:\/\/quran\.com\/([\d]+)\/([\d]+))/);
       const hadithMatch = part.match(/^📚\s+Hadith\s+[·•]\s*(.+)/);
       const hadithTransMatch = part.match(/^❝\s*([\s\S]+)/);
       if (quranMatch) {
