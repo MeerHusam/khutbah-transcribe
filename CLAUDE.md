@@ -229,6 +229,7 @@ All functions except `main()` are exported for use by `reanalyze.js`.
 | 25 | Unique visitor count | SHA-256 hashed IPs persisted in `data/views.json`; broadcast as `unique` |
 | 26 | Consecutive ayahs deduped (20:43 + 20:44) | Dedup trims earlier ref to next ref's start when surah:ayah differ; keeps both cards |
 | 27 | Single-khutbah mode | `--single`/`--no-split` flag skips `locateSecondKhutbah` (Arafah, Eid, lectures) |
+| 28 | Phone-recorded audio won't stream (`moov` at end of file) | Remux on ingest: `ffmpeg -i in.m4a -c copy -movflags +faststart out.m4a` — see "Audio ingest" below |
 
 ---
 
@@ -313,8 +314,11 @@ site**. The offline pipeline (`pipeline.js`, `reanalyze.js`, CLI) is unchanged �
   A curated `PUBLIC_KHUTBAHS` allowlist (folder + friendly title + featured flag) replaces
   the dump-all-folders listing; `/api/results` returns `{ featured, items[] }`,
   `/api/results/:folder` is allowlist-gated (404 otherwise). `PORT` env honored.
-- **`public/index.html`**: now the **whole reader app** (single source of truth for the
-  reader UI). Loads the featured khutbah by default or `?folder=<name>`, has a header
+- **`public/home.html`**: the **landing page**, served at `/` (`app.get('/')`). It has no
+  audio player — linking someone to `/?folder=<name>` shows the landing page, not the reader.
+- **`public/index.html`**: the **whole reader app** (single source of truth for the reader
+  UI), reached at **`/index.html?folder=<name>`** via `express.static`. Loads the featured
+  khutbah by default or `?folder=<name>`, has a header
   khutbah `<select>` switcher, a **live · unique · visits** badge over WS, and a full
   mobile-responsive pass. Dark "mosque-at-night" theme: deep green-black palette, Amiri/Reem
   Kufi/Lora fonts, gold accents, SVG geometric star pattern. **In Short**, **Summary**, and
@@ -325,7 +329,18 @@ site**. The offline pipeline (`pipeline.js`, `reanalyze.js`, CLI) is unchanged �
 - **Featured khutbah**: `outputs/2026-05-22T11-30-04_khutbah-2026-05-22-masjid` (audio
   `audio_files/khutbah-2026-05-22-masjid.m4a`). Second published: Sudais —
   `outputs/2026-05-22T21-05-05_makkah_sudais_ramadan_ummah` (audio
-  `audio_files/makkah_sudais_ramadan_ummah.mp3`, 5.9 MB, now shipped).
+  `audio_files/makkah_sudais_ramadan_ummah.mp3`, 5.9 MB, now shipped). Also published:
+  Arafah, Eid al-Adha, and `outputs/2026-09-11T11-00-24_khutbah-2026-09-11-masjid`
+  ("The Blessing of Water", 11 Sep 2026 — audio trimmed 35 s to drop the adhan tail;
+  untrimmed original kept locally as `khutbah-2026-09-11-masjid-full.m4a`, not committed).
+- **Audio ingest (manual step)**: `pipeline.js` never rewrites the source file, so whatever
+  lands in `audio_files/` is what the browser streams. Phone/WhatsApp recordings put the
+  `moov` atom *after* `mdat`, which means the player shows 0:00 until the whole file
+  downloads. Always remux before publishing:
+  `ffmpeg -i in.m4a -c copy -movflags +faststart out.m4a` (lossless, no re-encode).
+  Verify with `ffprobe` or by checking that `moov` precedes `mdat`.
+  Note: VS Code's built-in Simple Browser has no AAC decoder — every `.m4a` silently
+  fails there with no console error. Test the player in Firefox/Safari/Chrome.
 - **In-memory cache**: `resultCache` (Map, keyed by folder) + `listCache` pre-warmed at
   server startup so zero file I/O on any request. Safe because files never change at runtime.
 - **Deploy**: Render Starter plan (see `DEPLOY.md`, `render.yaml`). `.gitignore` bundles both

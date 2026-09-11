@@ -59,6 +59,15 @@ const PUBLIC_KHUTBAHS = [
     date: '22 May 2026',
   },
   {
+    folder: '2026-09-11T11-00-24_khutbah-2026-09-11-masjid',
+    title: 'The Blessing of Water',
+    speaker: 'Friday Khutbah',
+    masjid: 'Askan AlMaather Mosque',
+    masjid_ar: 'جامع إسكان المعذر',
+    maps_url: 'https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6',
+    date: '11 September 2026',
+  },
+  {
     folder: '2026-05-22T21-05-05_makkah_sudais_ramadan_ummah',
     title: 'Ramadan: A Season of Renewal',
     speaker: 'Sheikh Sudais · Makkah',
