@@ -59,7 +59,7 @@ const PUBLIC_KHUTBAHS = [
     date: '22 May 2026',
   },
   {
-    folder: '2026-09-11T12-08-53_khutbah-2026-09-11-masjid',
+    folder: '2026-09-11T12-31-17_khutbah-2026-09-11-masjid',
     title: 'The Blessing of Water',
     speaker: 'Friday Khutbah',
     masjid: 'Askan AlMaather Mosque',

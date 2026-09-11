@@ -58,6 +58,29 @@ let hadithCorpus = null;
 // We strip all of these and unify alif variants so both sides compare on bare consonants.
 // All ranges use explicit \uXXXX escapes -- literal Arabic characters in regex ranges
 // can silently expand to include consonants when saved in certain editors.
+// Gemini decorates recited ayahs with quotation markup, and which markup it picks varies
+// between runs of the same audio: ornate parentheses ﴿…﴾, curly braces {…}, and a "*"
+// separating consecutive ayahs of a single run. None of it is spoken.
+//
+// Left in the transcript it breaks the pipeline in two ways. A bracket attached to a word
+// ("﴿لئن") makes a fingerprint match land mid-token and shifts every located reference by
+// one word. A standalone "*" between ayahs sits in the middle of a recited run, so
+// consecutive-ayah chaining fails and reference spans straddle two verses.
+//
+// Strip it once, here, where the transcript is produced, so every downstream stage sees
+// plain spoken words. Doing it in normalizeArabic instead cannot work: a token that is
+// ONLY markup would normalise to empty and be dropped, desynchronising the normalised word
+// list from the original one that reference spans are sliced against.
+function stripAyahMarkup(text) {
+  if (!text) return text;
+  return text
+    .replace(/[﴿﴾{}]/g, '')
+    .split('\n')
+    .map(line => line.split(/\s+/).filter(w => w && !/^[*۞]+$/.test(w)).join(' '))
+    .join('\n')
+    .trim();
+}
+
 function normalizeArabic(text) {
   return text
     .replace(/[ؐ-ؚ]/g, '')  // Arabic sign combining marks
@@ -390,6 +413,124 @@ function alignFullAyah(ayahWords, tNorm, anchorI, anchorPos) {
   return { start: winStart + firstB, end: winStart + lastB + 1, matched };
 }
 
+// Lazy surah_id -> [{ayah_id, surah_name, words}] map, used to walk from an identified
+// ayah into the ones that follow it.
+let _quranAyahWords = null;
+function getQuranAyahWords() {
+  if (_quranAyahWords) return _quranAyahWords;
+  const m = new Map();
+  for (const surah of (quranData ?? [])) {
+    m.set(surah.id, (surah.verses ?? []).map(v => ({
+      ayah_id: v.id,
+      surah_name: surah.transliteration ?? surah.name,
+      words: normalizeArabicDeep(v.text ?? '').split(/\s+/).filter(Boolean),
+    })));
+  }
+  _quranAyahWords = m;
+  return m;
+}
+
+// Levenshtein distance, capped: we only care whether two words are within a small edit
+// distance, so bail out as soon as the best possible result exceeds `max`.
+function editDistanceWithin(a, b, max) {
+  if (a === b) return 0;
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    let best = i;
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = a[i - 1] === b[j - 1]
+        ? prev[j - 1]
+        : 1 + Math.min(prev[j - 1], prev[j], cur[j - 1]);
+      if (cur[j] < best) best = cur[j];
+    }
+    if (best > max) return max + 1;
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
+// Does `ayahWords` appear in the transcript starting at `at`?
+//
+// Exact matching is too strict for ASR output: a single mis-heard word ("وقطبا" for the
+// Quran's "وقضبا") would break the chain mid-recitation, stranding the remaining verses in
+// prose while the card above still quotes them — the passage then renders twice. So allow a
+// small number of positions to differ, and only when the differing word is a near-miss of
+// the expected one rather than a genuinely different word. This mirrors the transcription
+// tolerance alignFullAyah already applies elsewhere.
+function ayahFollowsAt(ayahWords, tNorm, at) {
+  const len = ayahWords.length;
+  if (!len || at + len > tNorm.length) return false;
+  const allowed = Math.max(1, Math.floor(len * 0.25));
+  let wrong = 0;
+  for (let k = 0; k < len; k++) {
+    const got = tNorm[at + k], want = ayahWords[k];
+    if (got === want) continue;
+    // A near-miss counts as transcription noise; anything further apart is a real mismatch.
+    if (editDistanceWithin(got, want, 2) <= 2) { wrong++; if (wrong > allowed) return false; continue; }
+    return false;
+  }
+  // Require most of the ayah to be genuinely present, so a short ayah cannot chain on noise.
+  return len - wrong >= Math.ceil(len / 2);
+}
+
+// Walk a zone forward through the ayahs that follow the one it was identified as.
+//
+// The n-gram index is built per ayah and skips any ayah shorter than n words, so a run of
+// short ayahs is invisible to the scan no matter how clearly it is recited. 'Abasa 80:27-32
+// ("فأنبتنا فيها حبا" / "وعنبا وقضبا" / ...) are all 2-3 words, so every one of them fell
+// through into prose and was translated as if the imam were speaking rather than reciting.
+//
+// Recitation is sequential, so once a zone's ayah is known we can simply check whether the
+// transcript continues into ayah+1, ayah+2, ... Matching is exact on the deep-normalised
+// words: a khutbah recites verbatim, and a strict test avoids swallowing prose that merely
+// resembles the next ayah.
+function extendZonesByConsecutiveAyahs(zones, tNorm) {
+  const byS = getQuranAyahWords();
+  if (!byS.size) return zones;
+
+  for (const zone of zones) {
+    // A merged zone can hold several ayah identities; any of them might be the one sitting
+    // at the zone's end, so try each as the anchor to continue from.
+    const candidates = [
+      { surah_id: zone.surah_id, ayah_id: zone.ayah_id },
+      ...(zone.extra_ayahs ?? []).map(e => ({ surah_id: e.surah_id, ayah_id: e.ayah_id })),
+    ];
+
+    let advanced = true;
+    while (advanced) {
+      advanced = false;
+      for (const c of candidates) {
+        const verses = byS.get(c.surah_id);
+        if (!verses) continue;
+        const nextIdx = verses.findIndex(v => v.ayah_id === c.ayah_id) + 1;
+        if (nextIdx <= 0 || nextIdx >= verses.length) continue;
+        const next = verses[nextIdx];
+        if (!next.words.length) continue;
+        if (zone.end + next.words.length > tNorm.length) continue;
+
+        if (!ayahFollowsAt(next.words, tNorm, zone.end)) continue;
+
+        if (!zone.ayah_spans) zone.ayah_spans = [];
+        zone.ayah_spans.push({
+          surah_id: c.surah_id, ayah_id: next.ayah_id, surah_name: next.surah_name,
+          start: zone.end, end: zone.end + next.words.length,
+        });
+        zone.end += next.words.length;
+        if (!zone.extra_ayahs) zone.extra_ayahs = [];
+        const dup = (zone.surah_id === c.surah_id && zone.ayah_id === next.ayah_id) ||
+          zone.extra_ayahs.some(e => e.surah_id === c.surah_id && e.ayah_id === next.ayah_id);
+        if (!dup) zone.extra_ayahs.push({ surah_id: c.surah_id, ayah_id: next.ayah_id, surah_name: next.surah_name });
+        c.ayah_id = next.ayah_id; // continue the walk from the ayah we just consumed
+        advanced = true;
+        break;
+      }
+    }
+  }
+  return zones;
+}
+
 function prescanForQuranZones(transcriptWords, n = 4) {
   if (!quranData) return [];
   const index = getQuranNgramIndex(n);
@@ -429,7 +570,15 @@ function prescanForQuranZones(transcriptWords, n = 4) {
     // alignment can otherwise anchor on a repeated phrase elsewhere in the window.
     if (bestStart > i) bestStart = i;
     if (bestEnd < i + n) bestEnd = i + n;
-    zones.push({ start: bestStart, end: bestEnd, surah_id: bestHit.surah_id, ayah_id: bestHit.ayah_id, surah_name: bestHit.surah_name });
+    zones.push({
+      start: bestStart, end: bestEnd,
+      surah_id: bestHit.surah_id, ayah_id: bestHit.ayah_id, surah_name: bestHit.surah_name,
+      // Exact word range of each ayah inside the zone. Ayahs shorter than n have no entry
+      // in the n-gram index, so buildZoneRefs cannot re-derive their position by anchoring
+      // and would fall back to claiming the whole zone — which mislabels the card. Record
+      // the spans here, where they are known.
+      ayah_spans: [{ surah_id: bestHit.surah_id, ayah_id: bestHit.ayah_id, surah_name: bestHit.surah_name, start: bestStart, end: bestEnd }],
+    });
     // Always advance i past the zone (guard against a span that doesn't move us forward).
     i = Math.max(bestEnd, i + 1);
   }
@@ -453,11 +602,33 @@ function prescanForQuranZones(transcriptWords, n = 4) {
       const isDup = (prev.surah_id === z.surah_id && prev.ayah_id === z.ayah_id) ||
         prev.extra_ayahs.some(e => e.surah_id === z.surah_id && e.ayah_id === z.ayah_id);
       if (!isDup) prev.extra_ayahs.push({ surah_id: z.surah_id, ayah_id: z.ayah_id, surah_name: z.surah_name });
+      prev.ayah_spans = [...(prev.ayah_spans ?? []), ...(z.ayah_spans ?? [])];
     } else {
       merged.push({ ...z });
     }
   }
-  return merged;
+
+  // Pick up runs of ayahs too short for the n-gram index to see (see the function's note).
+  extendZonesByConsecutiveAyahs(merged, tNorm);
+
+  // Extension can push one zone into the next; merge again so spans stay disjoint.
+  const settled = [];
+  for (const z of merged) {
+    const prev = settled[settled.length - 1];
+    if (prev && z.start <= prev.end) {
+      prev.end = Math.max(prev.end, z.end);
+      if (!prev.extra_ayahs) prev.extra_ayahs = [];
+      for (const e of [{ surah_id: z.surah_id, ayah_id: z.ayah_id, surah_name: z.surah_name }, ...(z.extra_ayahs ?? [])]) {
+        const isDup = (prev.surah_id === e.surah_id && prev.ayah_id === e.ayah_id) ||
+          prev.extra_ayahs.some(x => x.surah_id === e.surah_id && x.ayah_id === e.ayah_id);
+        if (!isDup) prev.extra_ayahs.push(e);
+      }
+      prev.ayah_spans = [...(prev.ayah_spans ?? []), ...(z.ayah_spans ?? [])];
+    } else {
+      settled.push(z);
+    }
+  }
+  return settled;
 }
 
 // Surface Quranic ayahs that the n-gram zones identified but Claude + Jaccard scan both missed.
@@ -476,6 +647,45 @@ function buildZoneRefs(zones, transcriptWords, existingRefs) {
   const newRefs = [];
 
   for (const zone of zones) {
+    // When prescan recorded exact per-ayah spans, prefer them. A consecutive recitation
+    // (e.g. 'Abasa 80:25-32) becomes ONE card covering the run rather than one card per
+    // ayah: several of those ayahs are 2-3 words and would fall under MIN_ZONE_WORDS
+    // individually, and eight stacked cards for a single passage reads worse than one.
+    const spans = (zone.ayah_spans ?? []).slice().sort((a, b) => a.start - b.start);
+    if (spans.length) {
+      const runs = [];
+      for (const s of spans) {
+        const prev = runs[runs.length - 1];
+        const consecutive = prev && prev.surah_id === s.surah_id &&
+          s.ayah_id === prev.ayah_end + 1 && s.start <= prev.end;
+        if (consecutive) { prev.ayah_end = s.ayah_id; prev.end = Math.max(prev.end, s.end); }
+        else runs.push({ surah_id: s.surah_id, surah_name: s.surah_name, ayah_start: s.ayah_id, ayah_end: s.ayah_id, start: s.start, end: s.end });
+      }
+
+      for (const run of runs) {
+        const already = existingRefs.some(r =>
+          r.matched && r.surah_number === run.surah_id &&
+          r.ayah_number >= run.ayah_start && r.ayah_number <= run.ayah_end
+        );
+        if (already) continue;
+        const refWords = transcriptWords.slice(run.start, run.end);
+        if (refWords.length < MIN_ZONE_WORDS) continue;
+        newRefs.push({
+          detected_text: refWords.join(' '),
+          matched: true,
+          surah_name: run.surah_name,
+          surah_number: run.surah_id,
+          ayah_number: run.ayah_start,
+          ...(run.ayah_end !== run.ayah_start ? { ayah_number_end: run.ayah_end } : {}),
+          quran_link: `https://quran.com/${run.surah_id}/${run.ayah_start}`,
+          confidence: 0.8,
+          verification: 'ngram_zone',
+          detection_method: 'ngram_zone',
+        });
+      }
+      continue;
+    }
+
     const ayahs = [
       { surah_id: zone.surah_id, ayah_id: zone.ayah_id, surah_name: zone.surah_name },
       ...(zone.extra_ayahs ?? []),
@@ -604,12 +814,24 @@ function buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSeg
       ranges[1][0] = ranges[0][0]; ranges.shift();
     }
     for (const [s, e] of ranges) {
-      // Split at MAX_CHUNK if a single range is unusually long
-      for (let i = s; i < e; i += MAX_CHUNK) {
-        const end = Math.min(i + MAX_CHUNK, e);
+      // Split a range that exceeds MAX_CHUNK. Cutting at exactly MAX_CHUNK slices
+      // mid-phrase ("...ولأنعامكم عباد" / "...as provision for you. O servants of"), so
+      // prefer the last breath pause or comma inside the window and only cut at the hard
+      // limit when the span has no internal boundary at all.
+      let i = s;
+      while (i < e) {
+        let end = Math.min(i + MAX_CHUNK, e);
+        if (end < e) {
+          let cut = -1;
+          for (let b = end; b > i + MIN_CHUNK; b--) {
+            if (segBreaks.has(b) || /[،,؛;]$/.test(transcriptWords[b - 1] ?? '')) { cut = b; break; }
+          }
+          if (cut > i) end = cut;
+        }
         const slice = transcriptWords.slice(i, end);
         if (slice.length > 0)
           proseChunks.push({ text: slice.join(' '), wordStart: i, wordEnd: end, proseIdx: proseChunks.length });
+        i = end;
       }
     }
   };
@@ -1576,7 +1798,10 @@ function buildReaderView(transcript, result) {
     if (seg.type === 'quran') {
       lines.push('');
       if (seg.ref.matched) {
-        lines.push(`📖 ${seg.ref.surah_name} ${seg.ref.surah_number}:${seg.ref.ayah_number}  —  ${seg.ref.quran_link}  (confidence: ${seg.ref.confidence})`);
+        const ayahLabel = seg.ref.ayah_number_end && seg.ref.ayah_number_end !== seg.ref.ayah_number
+          ? `${seg.ref.ayah_number}-${seg.ref.ayah_number_end}`
+          : `${seg.ref.ayah_number}`;
+        lines.push(`📖 ${seg.ref.surah_name} ${seg.ref.surah_number}:${ayahLabel}  —  ${seg.ref.quran_link}  (confidence: ${seg.ref.confidence})`);
       } else {
         lines.push('📖 Quranic reference — no match found');
       }
@@ -1641,7 +1866,10 @@ function buildReadableOutput(result) {
                          : verif === 'algorithm_only'   ? '~ Algorithm matched (Claude uncertain)'
                          : verif.startsWith('DISAGREEMENT') ? `⚠ DISAGREEMENT — ${verif.replace('DISAGREEMENT:', '')}`
                          : '';
-        lines.push(`${i + 1}. ${ref.surah_name} ${ref.surah_number}:${ref.ayah_number}`);
+        const ayahLabel = ref.ayah_number_end && ref.ayah_number_end !== ref.ayah_number
+          ? `${ref.ayah_number}-${ref.ayah_number_end}`
+          : `${ref.ayah_number}`;
+        lines.push(`${i + 1}. ${ref.surah_name} ${ref.surah_number}:${ayahLabel}`);
         lines.push(`   Arabic: ${ref.detected_text}`);
         lines.push(`   Link: ${ref.quran_link}`);
         lines.push(`   Confidence: ${ref.confidence}  |  ${verifLabel}`);
@@ -1843,15 +2071,33 @@ async function transcribeWithGemini(audioPath) {
   if (file.state !== 'ACTIVE') throw new Error(`Gemini file upload failed: ${file.state}`);
   console.log(' done');
 
+  // The markup rules matter as much as the transcription instruction. Left unsaid, the model
+  // decorates recited ayahs — and picks DIFFERENT decoration between runs of the same audio
+  // (ornate ﴿…﴾ one run, {…} with "*" between verses the next). Anything that is not a spoken
+  // word shifts word offsets or lands mid-recitation, which breaks reference alignment.
+  // stripAyahMarkup() still cleans the output defensively; this just stops it being needed.
   const geminiPrompt = `Transcribe this Arabic khutbah (Friday sermon) audio exactly as spoken.
 Output ONLY the Arabic transcript as plain text with no timestamps, no transliteration, no commentary.
-Preserve all Arabic text exactly including Quranic verses and Hadith.`;
+Preserve all Arabic text exactly including Quranic verses and Hadith.
+
+Formatting rules — follow these exactly:
+- Write ONLY the spoken words. Do not add any character that was not spoken.
+- Do NOT mark, quote, bracket or otherwise set apart Quranic verses or Hadith. Specifically do
+  not use ﴿ ﴾ { } " " « » or any other quotation or ornament around them.
+- Do NOT insert verse separators such as * or ۞ between consecutive Quranic verses. Recited
+  verses run together as continuous text, exactly as the speaker says them.
+- Ordinary sentence punctuation (. ، ؟ !) is fine.`;
 
   process.stdout.write('Transcribing (Gemini text + Groq timing in parallel)...');
   const [geminiResponse, groqResult] = await Promise.all([
     gemini.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: [{ parts: [{ text: geminiPrompt }, { fileData: { mimeType, fileUri: file.uri } }] }],
+      // Transcription has one correct answer, so sample as little as possible. The default
+      // temperature of 1.0 is why the same audio produced different ayah markup on
+      // consecutive runs. temperature 0 + a fixed seed makes runs repeatable in practice,
+      // though the API does not guarantee bit-identical output.
+      config: { temperature: 0, seed: 42 },
     }),
     transcribeWithGroq(audioPath),
   ]);
@@ -2081,6 +2327,15 @@ async function main() {
       }));
     }
   }
+
+  // Remove Gemini's ayah-quotation markup before anything downstream reads the transcript.
+  // Segments and word timings must be cleaned with it, or their token streams no longer
+  // line up with the transcript that reference spans are computed against.
+  transcript = stripAyahMarkup(transcript);
+  transcriptSegments = transcriptSegments.map(s => ({ ...s, text: stripAyahMarkup(s.text ?? '') }));
+  transcriptWordTimes = transcriptWordTimes
+    .map(w => ({ ...w, word: stripAyahMarkup(w.word ?? '') }))
+    .filter(w => w.word);
 
   // Step 4: Save raw Arabic transcript
   writeFileSync(path.join(outDir, 'transcript.txt'), transcript, 'utf8');
@@ -2325,6 +2580,7 @@ export {
   scanTranscriptForHadith,
   deduplicateHadithRefs,
   isLiturgicalFormula,
+  stripAyahMarkup,
   findMatchingAyah,
   findMatchingHadith,
   loadHadithCorpus,
