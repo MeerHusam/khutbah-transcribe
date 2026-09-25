@@ -60,6 +60,15 @@ const PUBLIC_KHUTBAHS = [
     date: '22 May 2026',
   },
   {
+    folder: '2026-09-25T10-04-57_khutbah-2026-09-25-masjid',
+    title: 'The Blessing of Security',
+    speaker: 'Friday Khutbah',
+    masjid: 'Askan AlMaather Mosque',
+    masjid_ar: 'جامع إسكان المعذر',
+    maps_url: 'https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6',
+    date: '25 September 2026',
+  },
+  {
     folder: '2026-09-11T13-55-21_khutbah-2026-09-11-masjid',
     title: 'The Blessing of Water',
     speaker: 'Friday Khutbah',
