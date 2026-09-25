@@ -400,7 +400,21 @@
     .about-developer { max-width: 680px; }
     .why-block { max-width: 680px; }
     .why-block p { font-size: 16px; line-height: 1.8; color: var(--text-muted); }
-    .why-block p + p { margin-top: 14px; }
+    .why-block p + p, .why-block figure + p, .why-block p + figure { margin-top: 14px; }
+    .why-hadith {
+      margin: 22px 0; padding: 18px 22px;
+      background: var(--surface); border: 1px solid var(--border-soft);
+      border-left: 3px solid var(--green); border-radius: 12px;
+    }
+    .why-block .why-hadith-ar {
+      font-family: var(--font-ar); font-size: 21px; line-height: 2; color: var(--cream);
+      text-align: right;
+    }
+    .why-block .why-hadith-en { margin-top: 10px; font-size: 15px; line-height: 1.7; font-style: italic; color: var(--text); }
+    .why-hadith figcaption { margin-top: 10px; font-size: 13px; color: var(--text-dim); }
+    .why-hadith figcaption a { color: var(--green); text-decoration: none; }
+    .why-hadith figcaption a:hover { text-decoration: underline; }
+    .why-block strong { color: var(--cream); font-weight: 600; }
     .dev-card {
       background: linear-gradient(150deg, rgba(56,178,122,0.08) 0%, transparent 55%), #112519;
       border: 1px solid var(--border); border-radius: var(--radius);
@@ -607,8 +621,13 @@
 <section class="content-section" id="why">
   <div class="section-label">Why This Exists</div>
   <div class="why-block">
-    <p>Every Friday I'd look around the masjid and see brothers who don't speak Arabic chatting, drifting off, or on their phones during the khutbah. Not because they didn't care, but because they couldn't follow it. The khutbah is for all of us, so I wanted everyone in the room to be able to understand it in full, including the verses and hadith the imam builds it on.</p>
-    <p>This is the first phase: each khutbah is recorded, transcribed, translated, and published after Jumu'ah. The next phase, and the more important one, is live translation during the khutbah itself, so you can follow along in English while the imam is speaking.</p>
+    <p>Every Friday I'd look around the masjid and see non-native Arabic speakers chatting, drifting off, or on their phones during the khutbah. Not because they didn't care, but because they couldn't follow it. The khutbah is for all of us, so I wanted everyone in the room to be able to understand it in full, including the verses and hadith the imam builds it on.</p>
+    <figure class="why-hadith">
+      <p class="why-hadith-ar" lang="ar" dir="rtl">مَنْ تَوَضَّأَ فَأَحْسَنَ الْوُضُوءَ ثُمَّ أَتَى الْجُمُعَةَ فَاسْتَمَعَ وَأَنْصَتَ غُفِرَ لَهُ مَا بَيْنَهُ وَبَيْنَ الْجُمُعَةِ وَزِيَادَةُ ثَلاَثَةِ أَيَّامٍ وَمَنْ مَسَّ الْحَصَى فَقَدْ لَغَا</p>
+      <p class="why-hadith-en">&ldquo;He who performed ablution well, then came to Friday prayer, listened (to the sermon), kept silence all (his sins) between that time and the next Friday would be forgiven with three days extra, and he who touched pebbles caused an interruption.&rdquo;</p>
+      <figcaption>Abu Huraira · <a href="https://sunnah.com/muslim:857b" target="_blank" rel="noopener">Sahih Muslim 857b</a></figcaption>
+    </figure>
+    <p>This is the first phase: each khutbah is recorded, transcribed, translated, and published after Jumu'ah. The next phase, and the more important one, is <strong>real-time translation</strong> during the khutbah itself, so you can follow along in English while the imam is speaking.</p>
   </div>
 </section>
 
@@ -622,7 +641,7 @@
         <div class="dev-initials">MH</div>
         <div class="dev-info">
           <h2 class="dev-name">Meer Husamuddin</h2>
-          <p class="dev-title">Software developer · Hafiz of the Quran</p>
+          <p class="dev-title">Software Engineer · Hafiz of the Quran</p>
           <div class="dev-links">
             <a href="https://www.linkedin.com/in/meerhusam" target="_blank" rel="noopener">LinkedIn</a>
             <span class="dev-link-dot">·</span>
@@ -632,6 +651,9 @@
       </div>
       <p class="dev-bio">
         I built KhutbahTranscribe and look after it. Every khutbah here is one I've processed, reviewed, and chosen to publish.
+      </p>
+      <p class="dev-bio" style="margin-top:14px;">
+        I'm also a hafiz of the Quran, alhamdulillah. Having the Quran memorised is a big part of why the Quranic references here matter to me: when the imam recites a verse, I want every listener to know exactly which verse it is and what it means, in its full context.
       </p>
     </div>
   </div>
