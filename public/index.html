@@ -397,6 +397,27 @@
       background: rgba(217,184,106,0.07); border-radius: 4px; padding: 1px 4px;
       box-decoration-break: clone; -webkit-box-decoration-break: clone;
     }
+    /* A hadith quoted inside the imam's prose — teal, matching its citation badge, so it
+       reads apart from both the surrounding speech and a gilded verse. */
+    .inline-hadith {
+      color: #9fe8c2; background: rgba(56,178,122,0.10);
+      border-radius: 4px; padding: 1px 5px;
+      box-decoration-break: clone; -webkit-box-decoration-break: clone;
+    }
+    .inline-hadith-en {
+      color: #9fe8c2; font-style: italic;
+      background: rgba(56,178,122,0.08); border-radius: 4px; padding: 1px 4px;
+      box-decoration-break: clone; -webkit-box-decoration-break: clone;
+    }
+    /* The imam's attribution of a hadith — "رواه مسلم" / "Reported by Muslim". Styled as a
+       source line so it does not read as part of his speech. Arabic stays upright (Amiri
+       has no bold italic), English is bold italic. */
+    .src-cite { color: #7fcfa6; font-weight: 700; opacity: 0.9; }
+    .src-cite-en { color: #7fcfa6; font-weight: 600; font-style: italic; opacity: 0.9; }
+    /* A verse card shows the whole verse; when the imam recited only part of it, that part
+       is bold and the rest recedes, in the Arabic and (by sentence) in the translation. */
+    .recited { font-weight: 700; }
+    .not-recited { opacity: 0.55; }
     .chunk-quran-cite {
       display: inline-flex; align-items: center; gap: 7px; margin-top: 8px;
       padding: 5px 12px 5px 10px; background: rgba(217,184,106,0.08); border: 1px solid var(--border);
@@ -407,8 +428,9 @@
     .chunk-hadith-cite {
       display: inline-block; margin-top: 8px; padding: 4px 12px;
       background: rgba(56,178,122,0.08); border: 1px solid rgba(56,178,122,0.28); border-left: 3px solid var(--green);
-      border-radius: 6px; font-size: 12.5px; color: #8fe0b6;
+      border-radius: 6px; font-size: 12.5px; color: #8fe0b6; text-decoration: none; transition: background 0.15s;
     }
+    a.chunk-hadith-cite:hover { background: rgba(56,178,122,0.16); }
     /* Published sunnah.com translation of the hadith — distinct from the prose
        translation above it, which renders as .chunk-english */
     .chunk-hadith-trans {
@@ -680,6 +702,7 @@
 <script>
   let result = null;
   let quranRefs = [];
+  let hadithRefList = [];
 
   // ── Boot: load the curated list + the requested (or featured) khutbah ──
   init();
@@ -710,6 +733,7 @@
     }
 
     quranRefs = result.quran_references || [];
+    hadithRefList = result.hadith_references || [];
     document.getElementById('app').innerHTML = renderResults(result);
     enhanceQuranRefs(quranRefs);
     if (result.audio_url) initAudio(result.audio_url);
@@ -859,6 +883,9 @@
       const aEnd = Math.max(+a, +(el.dataset.ayahEnd || a));
       const ayahNums = [];
       for (let n = +a; n <= aEnd && ayahNums.length < 25; n++) ayahNums.push(n);
+      // The block's text is what the imam actually said — read it before the card replaces
+      // it with the full verse.
+      const recitedText = el.textContent;
       try {
         const arTexts = [];
         for (const n of ayahNums) {
@@ -872,8 +899,14 @@
         // Close each verse with the mushaf end-of-ayah mark and its number in Arabic-Indic
         // digits, so a recited passage reads as distinct verses rather than one long run.
         const arabicNum = n => String(n).replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[+d]);
-        el.textContent = '﴿' + arTexts
-          .map((t, i) => `${t} ۝${arabicNum(ayahNums[i])}`)
+        // Mark the recited part only when some verse was recited PARTLY; a verse recited
+        // whole needs no marking, and neither does a passage recited in full.
+        const spans = recitedSpans(recitedText, arTexts);
+        const vLen = arTexts.map(t => t.split(/\s+/).filter(Boolean).length);
+        const whole = spans.map((sp, v) => sp && sp[0] <= 1 && sp[1] >= vLen[v] - 2);
+        const partial = spans.some(Boolean) && !whole.every(Boolean);
+        el.innerHTML = '﴿' + arTexts
+          .map((t, i) => `${partial ? markWords(t, whole[i] ? [0, vLen[i] - 1] : spans[i]) : escHtml(t)} ۝${arabicNum(ayahNums[i])}`)
           .join(' ') + '﴾';
         el.classList.add('chunk-arabic-quran');
 
@@ -891,13 +924,80 @@
           enEl.className = 'chunk-quran-translation';
           // Number the English too when several verses are shown, so the reader can line
           // each sentence up with the Arabic verse it renders.
-          enEl.textContent = ayahNums.length > 1
-            ? enTexts.map((t, i) => `(${ayahNums[i]}) ${t}`).join(' ')
-            : enTexts.join(' ');
+          const enVerse = (t, i) => {
+            if (!partial) return escHtml(t);
+            if (whole[i]) return `<span class="recited">${escHtml(t)}</span>`;
+            if (!spans[i]) return `<span class="not-recited">${escHtml(t)}</span>`;
+            const r = recitedSentences(t, spans[i], vLen[i]);
+            if (!r) return escHtml(t);
+            return r.sents.map((x, k) => `<span class="${k >= r.first && k <= r.last ? 'recited' : 'not-recited'}">${escHtml(x)}</span>`).join(' ');
+          };
+          enEl.innerHTML = ayahNums.length > 1
+            ? enTexts.map((t, i) => `(${ayahNums[i]}) ${enVerse(t, i)}`).join(' ')
+            : enVerse(enTexts[0], 0);
           el.insertAdjacentElement('afterend', enEl);
         }
       } catch {}
     }
+  }
+
+  // ── Recited part of a verse card ──
+  // Loose word form for aligning the imam's words to the mushaf text: drops every alif and
+  // hamza seat and folds ى/ة, so هذا ↔ هَٰذَا and ءامنوا ↔ آمنوا still line up.
+  const looseAr = w => normArWord(w).replace(/[\u08F0-\u08FF]/g, '').replace(/[اءأإآٱئؤ]/g, '').replace(/ى/g, 'ي').replace(/ة/g, 'ه');
+
+  // For each verse, the [first, last] canonical word index the imam recited, or null.
+  // Longest-common-subsequence alignment, so skipped or misheard words don't break it.
+  function recitedSpans(recitedText, verseTexts) {
+    const rw = recitedText.split(/\s+/).map(looseAr).filter(Boolean);
+    const cw = [];
+    verseTexts.forEach((t, v) => t.split(/\s+/).filter(Boolean).forEach((w, i) => cw.push({ v, i, k: looseAr(w) })));
+    const n = cw.length, m = rw.length;
+    const dp = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+    for (let a = n - 1; a >= 0; a--) for (let b = m - 1; b >= 0; b--) {
+      dp[a][b] = cw[a].k && cw[a].k === rw[b] ? dp[a + 1][b + 1] + 1 : Math.max(dp[a + 1][b], dp[a][b + 1]);
+    }
+    const hit = verseTexts.map(() => []);
+    for (let a = 0, b = 0; a < n && b < m;) {
+      if (cw[a].k && cw[a].k === rw[b]) { hit[cw[a].v].push(cw[a].i); a++; b++; }
+      else if (dp[a + 1][b] >= dp[a][b + 1]) a++; else b++;
+    }
+    // Enough hits to trust: three, or half of a short verse (Abasa 80:28 is two words).
+    return hit.map((h, v) => {
+      const need = Math.min(3, Math.ceil(verseTexts[v].split(/\s+/).filter(Boolean).length / 2));
+      return h.length >= need ? [Math.min(...h), Math.max(...h)] : null;
+    });
+  }
+
+  // Wrap words [first, last] of a verse as recited and the rest as not.
+  function markWords(text, span) {
+    const words = text.split(/\s+/).filter(Boolean);
+    if (!span) return `<span class="not-recited">${escHtml(words.join(' '))}</span>`;
+    const [f, l] = span, part = (a, b) => escHtml(words.slice(a, b).join(' '));
+    return [f > 0 ? `<span class="not-recited">${part(0, f)}</span>` : '',
+      `<span class="recited">${part(f, l + 1)}</span>`,
+      l < words.length - 1 ? `<span class="not-recited">${part(l + 1, words.length)}</span>` : '']
+      .filter(Boolean).join(' ');
+  }
+
+  // English has no word alignment to the Arabic, so map the recited share of the verse onto
+  // whole clauses of the translation (Sahih International follows the verse's order).
+  // Clauses, not sentences: Al-A'raf 7:31's recited half ("eat and drink, but be not
+  // excessive…") starts mid-sentence. Returns the clause range, or null when it would not
+  // single out a strict subset.
+  function recitedSentences(enText, span, nWords) {
+    const sents = enText.split(/(?<=[,;:.!?])\s+/).filter(Boolean);
+    if (sents.length < 2 || !span) return null;
+    const lens = sents.map(t => t.split(/\s+/).length), total = lens.reduce((x, y) => x + y, 0);
+    const from = span[0] / nWords, to = (span[1] + 1) / nWords;
+    let acc = 0; const picked = [];
+    sents.forEach((t, i) => {
+      const a = acc / total, b = (acc + lens[i]) / total; acc += lens[i];
+      const overlap = Math.max(0, Math.min(b, to) - Math.max(a, from));
+      if (overlap / (b - a) >= 0.4) picked.push(i); // 0.5 dropped 7:31's "and eat and drink"
+    });
+    if (!picked.length || picked.length === sents.length) return null;
+    return { sents, first: picked[0], last: picked[picked.length - 1] };
   }
 
   function renderQuranRef(q, i) {
@@ -942,24 +1042,42 @@
     </div>`;
   }
 
-  // The English half of an inline verse is the quoted run inside the translation. Mark it
-  // so the ayah stands out on both sides, matching the Arabic highlight. Only applied in
-  // blocks that cite a verse and nothing else, so a hadith quotation is never gilded.
-  function markQuotedVerse(text) {
-    const re = /["\u201C]([^"\u201C\u201D]+)["\u201D]/g;
-    let out = '', last = 0, m;
-    while ((m = re.exec(text))) {
-      out += escHtml(text.slice(last, m.index));
-      out += '<span class="inline-ayah-en">\u201C' + escHtml(m[1]) + '\u201D</span>';
+  // The English half of an inline verse or hadith is the quoted run inside the translation.
+  // Mark it so the quotation stands out on both sides, matching the Arabic highlight.
+  // `kinds` is the order in which the quotations were found in the block's Arabic
+  // ('quran' / 'hadith'); the translation keeps that order, so the Nth quote gets the Nth
+  // kind. If the counts disagree, only a block quoting a single kind is marked — a verse is
+  // never gilded as a hadith or the reverse. Claude uses double quotes or single quotes; a
+  // single quote only closes before a space or punctuation, so "Allah's" is not a boundary.
+  // "Reported by Muslim", "Recorded by al-Tirmidhi", "Narrated by Abu Dawud", "Agreed upon".
+  const EN_SOURCE_RE = /\b(?:(?:Reported|Recorded|Narrated|Related|Transmitted|Collected)(?: by)(?: (?:the )?Imams?)? (?:(?:al-|Al-|an-|at-|Ibn |Abu |Abi )?[A-Z][A-Za-z'`\u2019-]+(?: (?:ibn |bin |and |al-)?[A-Z][A-Za-z'`\u2019-]+){0,3})|Agreed upon)/g;
+  function escWithSources(text) {
+    let out = '', last = 0;
+    for (const m of text.matchAll(EN_SOURCE_RE)) {
+      out += escHtml(text.slice(last, m.index)) + '<span class="src-cite-en">' + escHtml(m[0]) + '</span>';
       last = m.index + m[0].length;
     }
-    if (!last) return escHtml(text);
     return out + escHtml(text.slice(last));
   }
 
-  function renderEnglishParts(english) {
-    const paras = english.split(/\n\n+/).map(p => p.trim());
-    const markVerse = paras.some(p => p.startsWith('\u{1F4D1}')) && !paras.some(p => p.startsWith('\u{1F4DA}'));
+  const QUOTE_RE = /["\u201C]([^"\u201C\u201D]+)["\u201D]|(?<![A-Za-z])['\u2018](.+?)['\u2019](?=[\s.,;:!?)]|$)/g;
+  function markQuotes(text, kinds) {
+    const quotes = [...text.matchAll(QUOTE_RE)];
+    if (!quotes.length || !kinds.length) return escWithSources(text);
+    const single = new Set(kinds).size === 1 ? kinds[0] : null;
+    if (quotes.length !== kinds.length && !single) return escWithSources(text);
+    let out = '', last = 0;
+    quotes.forEach((m, i) => {
+      const kind = quotes.length === kinds.length ? kinds[i] : single;
+      const cls = kind === 'hadith' ? 'inline-hadith-en' : 'inline-ayah-en';
+      out += escWithSources(text.slice(last, m.index));
+      out += `<span class="${cls}">\u201C` + escHtml(m[1] ?? m[2]) + '\u201D</span>';
+      last = m.index + m[0].length;
+    });
+    return out + escWithSources(text.slice(last));
+  }
+
+  function renderEnglishParts(english, kinds = []) {
     return english.split(/\n\n+/).map(part => {
       part = part.trim();
       if (!part) return '';
@@ -974,9 +1092,13 @@
       } else if (hadithTransMatch) {
         return `<div class="chunk-hadith-trans">${escHtml(hadithTransMatch[1])}</div>`;
       } else if (hadithMatch) {
-        return `<div class="chunk-hadith-cite">${escHtml(hadithMatch[1])}</div>`;
+        // Link the badge to the hadith on sunnah.com, as the verse badge links to quran.com.
+        const h = hadithRefForBadge(part.trim());
+        return h && h.link
+          ? `<a class="chunk-hadith-cite" href="${escAttr(h.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${escHtml(hadithMatch[1])} ↗</a>`
+          : `<div class="chunk-hadith-cite">${escHtml(hadithMatch[1])}</div>`;
       }
-      return `<div class="chunk-english">${markVerse ? markQuotedVerse(part) : escHtml(part)}</div>`;
+      return `<div class="chunk-english">${markQuotes(part, kinds)}</div>`;
     }).join('');
   }
 
@@ -1017,42 +1139,132 @@
     return out;
   }
 
+  // Every 📚 badge in this block, resolved to its hadith's words. The badge line carries the
+  // narrator and collection, which identify the ref; each ref is used at most once.
+  // The hadith ref a 📚 badge line names ("📚 Hadith · Narrator: X · Collection: Y").
+  function hadithRefForBadge(line, used = new Set()) {
+    const m = line.match(/^📚\s+Hadith\s+[·•]\s*Narrator:\s*(.*?)\s+[·•]\s+Collection:\s*(.*)$/);
+    if (!m) return null;
+    return hadithRefList.find(r => !used.has(r) &&
+      String(r.narrator ?? 'unknown').trim() === m[1].trim() &&
+      String(r.collection ?? 'unknown').trim() === m[2].trim()) || null;
+  }
+
+  function inlineHadithRefs(english) {
+    const out = [], used = new Set();
+    for (const part of english.split(/\n\n+/)) {
+      const h = hadithRefForBadge(part.trim(), used);
+      if (!h) continue;
+      used.add(h);
+      const words = String(h.detected_text || '').split(/\s+/).map(normArWord).filter(Boolean);
+      if (words.length >= 3) out.push({ words, kind: 'hadith' });
+    }
+    return out;
+  }
+
+  // Find a ref's words in the block. A verse must match exactly. A hadith is located by its
+  // opening and closing words, because the imam may restart a word mid-quote
+  // ("عينان لا تمس لا تمسهما النار") which the detected text cleans up.
+  function locateSpan(norms, w, kind) {
+    const find = (run, from) => {
+      for (let s = from; s + run.length <= norms.length; s++) {
+        if (run.every((x, k) => norms[s + k] === x)) return s;
+      }
+      return -1;
+    };
+    if (kind !== 'hadith') {
+      const s = find(w, 0);
+      return s < 0 ? null : [s, s + w.length - 1];
+    }
+    let s = -1;
+    for (let k = 0; k <= 4 && s < 0 && k + 3 <= w.length; k++) {
+      const p = find(w.slice(k, k + 3), 0);
+      if (p < 0) continue;
+      s = p;
+      for (let j = p; j >= Math.max(0, p - k - 3); j--) if (norms[j] === w[0]) { s = j; break; }
+    }
+    if (s < 0) return null;
+    const tail = w.slice(-3);
+    const t = find(tail, s);
+    if (t < 0 || t + 2 - s > w.length + 6) return null;
+    return [s, t + 2];
+  }
+
+  // Returns the marked-up Arabic and the kinds of quotation it marked, in reading order,
+  // so the English can mark its quotes the same way.
+  // The imam's attribution after a hadith: رواه / أخرجه + collection, or متفق عليه.
+  // Names are matched normalised, one or two words.
+  const AR_SOURCE_NAMES = ['البخاري', 'مسلم', 'الترمذي', 'ابو داود', 'النسائي', 'ابن ماجه', 'ابن ماجة',
+    'احمد', 'الامام احمد', 'مالك', 'الامام مالك', 'البيهقي', 'الطبراني', 'الحاكم', 'الدارمي', 'ابن حبان',
+    'الشيخان', 'الامام البخاري', 'الامام مسلم'].map(n => n.split(' '));
+  function sourceSpans(norms) {
+    const spans = [];
+    for (let p = 0; p < norms.length; p++) {
+      if (norms[p] === 'متفق' && norms[p + 1] === 'عليه') { spans.push([p, p + 1]); p++; continue; }
+      if (!['رواه', 'اخرجه', 'خرجه'].includes(norms[p])) continue;
+      // An optional "الإمام" before the name ("رواه الإمام ابن ماجه").
+      const at = norms[p + 1] === 'الامام' ? p + 2 : p + 1;
+      let len = 0;
+      for (const n of AR_SOURCE_NAMES) {
+        if (n.length > len && n.every((w, k) => norms[at + k] === w)) len = n.length;
+      }
+      if (len) len += at - p - 1;
+      // "رواه البخاري ومسلم" — a second collection joined by و
+      if (len && norms[p + 1 + len]?.startsWith('و')) {
+        const rest = norms[p + 1 + len].slice(1);
+        if (AR_SOURCE_NAMES.some(n => n.length === 1 && n[0] === rest)) len++;
+      }
+      if (len) { spans.push([p, p + len]); p += len; }
+    }
+    return spans;
+  }
+
   function renderChunkArabic(arabic, refs) {
-    if (!refs.length) return escHtml(arabic);
     const toks = arabic.split(/(\s+)/);
     const wordPos = [];
     toks.forEach((t, i) => { if (t.trim()) wordPos.push(i); });
     const norms = wordPos.map(i => normArWord(toks[i]));
     const opens = {}, closes = {};
     for (const ref of refs) {
-      const w = ref.words;
-      for (let s = 0; s + w.length <= norms.length; s++) {
-        let ok = true;
-        for (let k = 0; k < w.length; k++) if (norms[s + k] !== w[k]) { ok = false; break; }
-        if (!ok) continue;
-        const e = s + w.length - 1;
-        // Overlapping refs would produce interleaved spans; first match wins.
-        let clash = false;
-        for (let k = s; k <= e; k++) if (opens[k] || closes[k]) { clash = true; break; }
-        if (!clash) { opens[s] = ref; closes[e] = ref; }
-        break;
-      }
+      const span = locateSpan(norms, ref.words, ref.kind);
+      if (!span) continue;
+      const [s, e] = span;
+      // Overlapping refs would produce interleaved spans; first match wins.
+      let clash = false;
+      for (let k = s; k <= e; k++) if (opens[k] || closes[k]) { clash = true; break; }
+      if (!clash) { opens[s] = ref; closes[e] = ref; }
     }
-    if (!Object.keys(opens).length) return escHtml(arabic);
+    const kinds = Object.keys(opens).map(Number).sort((a, b) => a - b)
+      .map(p => opens[p].kind === 'hadith' ? 'hadith' : 'quran');
+    const srcOpen = {}, srcClose = {};
+    for (const [a, b] of sourceSpans(norms)) {
+      let inside = false;
+      for (let k = a; k <= b; k++) if (opens[k] || closes[k]) inside = true;
+      if (!inside) { srcOpen[a] = true; srcClose[b] = true; }
+    }
+    if (!kinds.length && !Object.keys(srcOpen).length) return { html: escHtml(arabic), kinds };
     let html = '', wi = 0;
     for (const tok of toks) {
       if (!tok.trim()) { html += escHtml(tok); continue; }
       const p = wi++;
-      if (opens[p]) html += '<span class="inline-ayah">﴿';
+      if (srcOpen[p]) html += '<span class="src-cite">';
+      if (srcClose[p]) {
+        const m = tok.match(/^([\s\S]*?)([.,!?;:؟،؛…]*)$/);
+        html += escHtml(m[1]) + '</span>' + escHtml(m[2]);
+        continue;
+      }
+      if (opens[p]) html += opens[p].kind === 'hadith' ? '<span class="inline-hadith">«' : '<span class="inline-ayah">﴿';
       if (closes[p]) {
         // Keep the imam's sentence punctuation outside the closing bracket.
         const m = tok.match(/^([\s\S]*?)([.,!?;:؟،؛…]*)$/);
-        html += escHtml(m[1]) + ' ۝' + arabicDigits(closes[p].endAyah) + '﴾</span>' + escHtml(m[2]);
+        html += escHtml(m[1]) + (closes[p].kind === 'hadith'
+          ? '»</span>'
+          : ' ۝' + arabicDigits(closes[p].endAyah) + '﴾</span>') + escHtml(m[2]);
       } else {
         html += escHtml(tok);
       }
     }
-    return html;
+    return { html, kinds };
   }
 
   function renderTranslation(r) {
@@ -1070,13 +1282,16 @@
           }
         }
         const startAttr = c.start_time != null ? `data-start="${c.start_time}"` : '';
+        const marked = arabicAttrs
+          ? { html: escHtml(c.arabic), kinds: [] }
+          : renderChunkArabic(c.arabic, [...inlineAyahRefs(c.english), ...inlineHadithRefs(c.english)]);
         const divider = c.second_khutbah_start
           ? `<div class="khutbah-divider"><span>۞ الخطبة الثانية · Second Khutbah ۞</span></div>`
           : '';
         return `${divider}
         <div class="reader-chunk" ${startAttr}>
-          <div class="chunk-arabic" ${arabicAttrs}>${arabicAttrs ? escHtml(c.arabic) : renderChunkArabic(c.arabic, inlineAyahRefs(c.english))}</div>
-          ${renderEnglishParts(c.english)}
+          <div class="chunk-arabic" ${arabicAttrs}>${marked.html}</div>
+          ${renderEnglishParts(c.english, marked.kinds)}
         </div>`;
       }).join('');
     }
