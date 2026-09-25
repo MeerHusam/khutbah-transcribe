@@ -788,10 +788,22 @@
   }
 
   // ── Live + total viewer counts over WebSocket ──
+  // A random ID this browser keeps, so people sharing one Wi-Fi count separately.
+  function deviceId() {
+    try {
+      let id = localStorage.getItem('kt_device');
+      if (!id) {
+        id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+          : Math.random().toString(36).slice(2) + Date.now().toString(36);
+        localStorage.setItem('kt_device', id);
+      }
+      return id;
+    } catch { return ''; }
+  }
   function connectViewers() {
     try {
       const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-      const ws = new WebSocket(`${proto}://${location.host}`);
+      const ws = new WebSocket(`${proto}://${location.host}/?d=${encodeURIComponent(deviceId())}`);
       ws.onmessage = e => {
         const m = JSON.parse(e.data);
         if (m.type !== 'viewers') return;

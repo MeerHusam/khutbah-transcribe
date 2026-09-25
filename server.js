@@ -138,15 +138,19 @@ let uniqueIps = new Set();
 // Hashed IP -> ISO timestamp of that visitor's first ever visit. Hashes recorded before
 // this map existed have no entry; /admin/traffic reports those as "before tracking".
 let firstSeen = {};
+// Distinct browsers, by a random ID each browser keeps in localStorage. Unique IPs undercount:
+// a whole household (or a masjid) on one Wi-Fi is one IP. Counted from 25 Sep 2026 on.
+let uniqueDevices = new Set();
 try {
   const saved = JSON.parse(readFileSync(VIEWS_FILE, 'utf8'));
   totalViews = saved.total || 0;
   uniqueIps = new Set(saved.unique_ips || []);
   firstSeen = saved.first_seen || {};
+  uniqueDevices = new Set(saved.unique_devices || []);
 } catch { totalViews = 0; }
 
 function persistViews() {
-  try { writeFileSync(VIEWS_FILE, JSON.stringify({ total: totalViews, unique_ips: [...uniqueIps], first_seen: firstSeen })); } catch {}
+  try { writeFileSync(VIEWS_FILE, JSON.stringify({ total: totalViews, unique_ips: [...uniqueIps], first_seen: firstSeen, unique_devices: [...uniqueDevices] })); } catch {}
 }
 
 function hashIp(ip) {
@@ -155,8 +159,12 @@ function hashIp(ip) {
 
 const liveClients = new Set();
 
+function viewerCounts() {
+  return { type: 'viewers', live: liveClients.size, total: totalViews, unique: uniqueIps.size, devices: uniqueDevices.size };
+}
+
 function broadcastViewers() {
-  const payload = JSON.stringify({ type: 'viewers', live: liveClients.size, total: totalViews, unique: uniqueIps.size });
+  const payload = JSON.stringify(viewerCounts());
   for (const ws of liveClients) {
     if (ws.readyState === 1) ws.send(payload);
   }
@@ -178,11 +186,19 @@ wss.on('connection', (ws, req) => {
     uniqueIps.add(h);
     if (isNewVisitor) firstSeen[h] = visitTs;
   }
+  // The page sends its browser ID as ?d=; stored hashed, like IPs.
+  let isNewDevice = false;
+  const device = new URL(req.url || '/', 'http://x').searchParams.get('d') || '';
+  if (/^[A-Za-z0-9-]{8,64}$/.test(device)) {
+    const h = hashIp('device:' + device);
+    isNewDevice = !uniqueDevices.has(h);
+    uniqueDevices.add(h);
+  }
   persistViews();
   // Per-visit log so traffic can be charted over time (views.json only holds running totals).
-  try { appendFileSync(VISITS_FILE, JSON.stringify({ ts: visitTs, new: isNewVisitor }) + '\n'); } catch {}
+  try { appendFileSync(VISITS_FILE, JSON.stringify({ ts: visitTs, new: isNewVisitor, new_device: isNewDevice }) + '\n'); } catch {}
   // Send the new client its current numbers immediately, then tell everyone.
-  if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'viewers', live: liveClients.size, total: totalViews, unique: uniqueIps.size }));
+  if (ws.readyState === 1) ws.send(JSON.stringify(viewerCounts()));
   broadcastViewers();
   lookupGeo(rawIp).then(geo => {
     if (!geo) return;
@@ -384,19 +400,20 @@ app.get('/admin/traffic', (req, res) => {
   if (!ADMIN_TOKEN) return res.status(503).send('Set the ADMIN_TOKEN env var to view traffic data.');
   if (req.query.key !== ADMIN_TOKEN) return res.status(401).send('Unauthorized');
 
-  const byDay = new Map(); // 'YYYY-MM-DD' -> { visits, newVisitors }
-  const bump = (day, isNew) => {
-    if (!byDay.has(day)) byDay.set(day, { visits: 0, newVisitors: 0 });
+  const byDay = new Map(); // 'YYYY-MM-DD' -> { visits, newVisitors, newDevices }
+  const bump = (day, isNew, isNewDevice) => {
+    if (!byDay.has(day)) byDay.set(day, { visits: 0, newVisitors: 0, newDevices: 0 });
     const d = byDay.get(day);
     d.visits++;
     if (isNew) d.newVisitors++;
+    if (isNewDevice) d.newDevices++;
   };
   try {
     for (const line of readFileSync(VISITS_FILE, 'utf8').split('\n')) {
       if (!line) continue;
       try {
         const e = JSON.parse(line);
-        if (e.ts) bump(e.ts.slice(0, 10), !!e.new);
+        if (e.ts) bump(e.ts.slice(0, 10), !!e.new, !!e.new_device);
       } catch {}
     }
   } catch {}
@@ -405,7 +422,7 @@ app.get('/admin/traffic', (req, res) => {
   const days = [...byDay.entries()].sort((a, b) => b[0].localeCompare(a[0]));
   const peak = Math.max(1, ...days.map(([, d]) => d.visits));
   const rows = days.map(([day, d]) => `<tr><td>${day}</td><td class="n">${d.visits}</td>
-    <td class="u">${d.newVisitors || ''}</td>
+    <td class="u">${d.newVisitors || ''}</td><td class="u">${d.newDevices || ''}</td>
     <td><span class="bar" style="width:${Math.round((d.visits / peak) * 100)}%"></span></td></tr>`).join('');
 
   res.send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -418,9 +435,9 @@ app.get('/admin/traffic', (req, res) => {
     .u{font-weight:700;color:#b45309}
     .bar{display:block;height:10px;background:#34d399;border-radius:3px;min-width:2px}</style>
     <h1>Traffic over time</h1>
-    <p class="sub">${totalViews} total views &middot; ${uniqueIps.size} unique visitors${untracked > 0 ? ` (${untracked} first seen before per-day tracking started)` : ''}. Days are UTC.</p>
-    <table><thead><tr><th>Day (UTC)</th><th>Views</th><th>New visitors</th><th></th></tr></thead>
-    <tbody>${rows || '<tr><td colspan="4">No visits logged yet &mdash; data/visits.jsonl starts filling on the next page view.</td></tr>'}</tbody></table>`);
+    <p class="sub">${totalViews} total views &middot; ${uniqueIps.size} unique visitors${untracked > 0 ? ` (${untracked} first seen before per-day tracking started)` : ''} &middot; ${uniqueDevices.size} unique devices (counted from 25 Sep 2026). Days are UTC.</p>
+    <table><thead><tr><th>Day (UTC)</th><th>Views</th><th>New visitors (IP)</th><th>New devices</th><th></th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="5">No visits logged yet &mdash; data/visits.jsonl starts filling on the next page view.</td></tr>'}</tbody></table>`);
 });
 
 const PORT = process.env.PORT || 3000;
