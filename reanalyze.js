@@ -92,7 +92,7 @@ if (hadithDropped) console.log(`  − ${hadithDropped} hadith ref(s) filtered (l
 // Disk-cached, so this is a no-op on a second run.
 if (result.hadith_references.length) {
   console.log('Resolving sunnah.com links + translations...');
-  await resolveSunnahLinksForRefs(result.hadith_references);
+  await resolveSunnahLinksForRefs(result.hadith_references, transcript);
   const withTrans = result.hadith_references.filter(h => h.translation).length;
   console.log(`  ${withTrans}/${result.hadith_references.length} hadith translations fetched`);
 }

@@ -1100,7 +1100,7 @@ async function resolveSunnahLink(detectedText, preferredSlug = null) {
   if (words.length < 4) return null; // too short to search reliably
 
   const cache = loadSunnahCache();
-  const cacheKey = (preferredSlug ?? '*') + '::' + norm;
+  const cacheKey = 'v2::' + (preferredSlug ?? '*') + '::' + norm; // v2: results text-verified
   if (Object.prototype.hasOwnProperty.call(cache, cacheKey)) return cache[cacheKey];
 
   let resolved = null;
@@ -1118,15 +1118,28 @@ async function resolveSunnahLink(detectedText, preferredSlug = null) {
     if (res.ok) {
       gotResponse = true;
       const html = await res.text();
-      // Result permalinks look like  href="/muslim:1162a"
-      const results = [...html.matchAll(/href="\/([a-z]+):(\d+[a-z]?)"/g)]
-        .map(m => ({ slug: m[1], number: m[2] }))
-        .filter(r => SUNNAH_SLUGS.has(r.slug));
-      // Prefer a result in the collection the corpus/Claude identified (high confidence
-      // it's the same hadith); with no expectation, trust sunnah.com's top result.
-      // If we expected a collection but it isn't among results, return null and keep the
-      // local link rather than risk linking to a different collection.
-      const pick = preferredSlug ? results.find(r => r.slug === preferredSlug) : results[0];
+      // sunnah.com search matches words loosely, so a result is only a candidate if its
+      // Arabic actually carries the quoted matn. Taking the first hit in the expected
+      // collection linked "من صلى علي صلاة واحدة…" to Abu Dawud 5085 — Aisha describing the
+      // night prayer — which merely shares common words. Score each result by the share of
+      // the query's word PAIRS found in its Arabic: word order separates the real hadith
+      // from one that happens to use the same vocabulary.
+      const pairs = ws => ws.slice(1).map((w, i) => ws[i] + ' ' + w);
+      const qPairs = pairs(q.split(' '));
+      const results = [];
+      for (const part of html.split('actualHadithContainer').slice(1)) {
+        const m = part.match(/href="\/([a-z]+):(\d+[a-z]?)"/); // permalink, e.g. /muslim:1162a
+        if (!m || !SUNNAH_SLUGS.has(m[1])) continue;
+        const ar = part.match(/arabic_text_details[^>]*>([\s\S]*?)<\/span>\s*<\/div>/)?.[1] ?? '';
+        const have = new Set(pairs(normalizeArabic(ar.replace(/<[^>]+>/g, ' ')).split(/\s+/).filter(Boolean)));
+        const score = qPairs.filter(p => have.has(p)).length / Math.max(qPairs.length, 1);
+        if (score >= 0.5) results.push({ slug: m[1], number: m[2], score });
+      }
+      // Prefer the collection the imam or Claude named, best-scoring within it; with no
+      // expectation, the best-scoring result. If the expected collection has no verified
+      // hit, return null and keep the local link rather than risk a different hadith.
+      const inPreferred = preferredSlug ? results.filter(r => r.slug === preferredSlug) : results;
+      const pick = inPreferred.reduce((best, r) => (!best || r.score > best.score ? r : best), null);
       if (pick) {
         resolved = {
           collection_slug: pick.slug,
@@ -1196,7 +1209,7 @@ async function fetchSunnahTranslation(slug, number) {
 async function fetchSunnahNarrator(slug, number) {
   if (!slug || !number) return null;
   const cache = loadSunnahCache();
-  const key = `narrator::${slug}:${number}`;
+  const key = `narrator2::${slug}:${number}`; // 2: reporting clause trimmed
   if (Object.prototype.hasOwnProperty.call(cache, key)) return cache[key];
 
   let narrator = null, gotResponse = false;
@@ -1215,13 +1228,17 @@ async function fetchSunnahNarrator(slug, number) {
       if (m) {
         let txt = m[1].replace(/\s+/g, ' ').trim();
         // Strip leading narration framing: "Narrated X:", "It was narrated that X said:",
-        // "It was narrated on the authority of X that ...", "On the authority of X ...".
-        txt = txt.replace(/^it (?:is|was) narrated(?: on the authority of [^,]+,)?(?: from [^,]+,)?(?: that)?\s*/i, '');
+        // "It has been narrated on the authority of X who …", "On the authority of X ...".
+        txt = txt.replace(/^it (?:is|was|has been) narrated(?: on the authority of| from)?(?: that)?\s*/i, '');
         txt = txt.replace(/^(?:it was )?narrated\s*/i, '');
         txt = txt.replace(/^on the authority of\s*/i, '');
-        // Strip trailing reporting verb / colon ("... said:", "... reported:").
-        txt = txt.replace(/\s*(?:said|reported|narrated|relates|relating)\s*:?\s*$/i, '');
-        txt = txt.replace(/\s*:?\s*$/, '').trim();
+        // "Salamah bin 'Ubaidullah … narrated from his father" — the Companion is the father.
+        const fromFather = txt.match(/^\S+ (?:bin|ibn|b\.) (.+?) (?:narrated|reported) from his father/i);
+        if (fromFather) txt = fromFather[1];
+        // Cut at the reporting clause: "Sa'd b. Abu Waqqas reported Allah's Messenger (ﷺ) as
+        // saying" and "Salman who" were shown whole as the narrator's name.
+        txt = txt.split(/\s+(?:who|reported|narrated|said|says|relates|relating|that|as saying)\b|\s*[:(]/i)[0];
+        txt = txt.replace(/[\s,:]+$/, '').trim();
         narrator = txt || null;
       }
     }
@@ -1235,20 +1252,50 @@ async function fetchSunnahNarrator(slug, number) {
 // permalink resolved from the matn. Mutates refs in place; leaves the existing
 // local-corpus number/link untouched when sunnah.com returns no matching result.
 // Also backfills a narrator from the resolved page when the ref lacks one.
-async function resolveSunnahLinksForRefs(refs) {
+// The collection the imam names right after quoting a hadith ("… رواه مسلم"). Imams almost
+// always say where a hadith is from, and that is more reliable than Claude's recollection:
+// a matn found in several collections was carded as Ibn Majah while the imam said Muslim.
+const IMAM_ATTRIBUTION = [
+  [/^البخاري|^متفق عليه/, 'bukhari'], [/^مسلم/, 'muslim'], [/^الترمذي/, 'tirmidhi'],
+  [/^ابو داود/, 'abudawud'], [/^النسائي/, 'nasai'], [/^ابن ماج/, 'ibnmajah'],
+  [/^الامام احمد|^احمد/, 'ahmad'], [/^مالك/, 'malik'],
+];
+function imamAttributionSlug(transcript, detectedText) {
+  const tNorm = normalizeArabic(transcript);
+  const dWords = normalizeArabic(detectedText ?? '').split(/\s+/).filter(Boolean);
+  for (const n of [5, 4, 3]) {
+    if (dWords.length < n) continue;
+    const tail = dWords.slice(-n).join(' ');
+    const at = tNorm.indexOf(tail);
+    if (at < 0 || tNorm.indexOf(tail, at + 1) >= 0) continue; // absent or ambiguous
+    const after = tNorm.slice(at + tail.length).trim().split(/\s+/).slice(0, 6).join(' ');
+    const m = after.match(/^(?:\S+\s+){0,2}?(?:رواه|اخرجه|خرجه)\s+(.*)$|^(متفق عليه)/);
+    if (!m) return null;
+    const name = (m[1] ?? m[2]).trim();
+    for (const [re, slug] of IMAM_ATTRIBUTION) if (re.test(name)) return slug;
+    return null;
+  }
+  return null;
+}
+
+async function resolveSunnahLinksForRefs(refs, transcript = null) {
   for (const ref of refs) {
-    const preferredSlug = collectionToSlug(ref.collection);
-    const sunnah = await resolveSunnahLink(ref.detected_text, preferredSlug);
+    const claudeSlug = collectionToSlug(ref.collection);
+    const imamSlug = transcript ? imamAttributionSlug(transcript, ref.detected_text) : null;
+    let sunnah = null;
+    if (imamSlug) sunnah = await resolveSunnahLink(ref.detected_text, imamSlug);
+    if (!sunnah) sunnah = await resolveSunnahLink(ref.detected_text, claudeSlug);
     if (sunnah) {
       ref.collection = slugToDisplay(sunnah.collection_slug);
       ref.hadith_number = sunnah.hadith_number;
       ref.link = sunnah.link;
       ref.verification = 'sunnah_search';
       ref.note = 'Link verified via sunnah.com search';
-      if (!ref.narrator) {
-        const narr = await fetchSunnahNarrator(sunnah.collection_slug, sunnah.hadith_number);
-        if (narr) ref.narrator = narr;
-      }
+      // The resolved page states the narrator of THAT hadith; Claude's narrator is from
+      // memory and was wrong for Bukhari's ribat hadith (Sahl ibn Sa'd, not Salman). Keep
+      // Claude's only when the page cannot be read.
+      const narr = await fetchSunnahNarrator(sunnah.collection_slug, sunnah.hadith_number);
+      if (narr) ref.narrator = narr;
       // Always prefer the published translation over Claude's paraphrase of the prose.
       const trans = await fetchSunnahTranslation(sunnah.collection_slug, sunnah.hadith_number);
       if (trans) ref.translation = trans;
@@ -1744,8 +1791,30 @@ function buildReaderView(transcript, result) {
       if (matches.length === 0) break; // phrase not in transcript at all
       // multiple matches — try longer fingerprint next iteration
     }
+    // A hadith's opening words can be missing from the transcript as written: the imam
+    // restarts a word ("عينان لا تمس لا تمسهما النار"), which Claude cleans up in the
+    // detected text. The prefix fingerprint then never matches and the hadith lost its badge.
+    // Anchor on a unique run further in instead. Hadith only: its span just decides which
+    // prose chunk carries the badge, so being off by the stuttered word is harmless, whereas
+    // a Quran span carves words out of prose and must be exact.
+    let backOff = 0;
+    if (charPos === -1 && ref.refType === 'hadith') {
+      for (let k = 1; k <= 4 && charPos === -1 && k + 5 <= refNormWords.length; k++) {
+        const fp = refNormWords.slice(k, k + 5).join(' ');
+        const p = normTranscriptStr.indexOf(fp);
+        if (p !== -1 && normTranscriptStr.indexOf(fp, p + 1) === -1) { charPos = p; backOff = k; }
+      }
+    }
     if (charPos === -1) continue;
-    const startWord = normTranscriptStr.slice(0, charPos).split(/\s+/).filter(Boolean).length;
+    let startWord = Math.max(0,
+      normTranscriptStr.slice(0, charPos).split(/\s+/).filter(Boolean).length - backOff);
+    // The stutter shifts the anchor by the repeated words, so walk back to where the
+    // hadith's first word actually is — otherwise its opening stays in the previous block.
+    if (backOff) {
+      for (let j = startWord; j >= Math.max(0, startWord - 4); j--) {
+        if (normWords[j] === refNormWords[0]) { startWord = j; break; }
+      }
+    }
     located.push({ ref, startWord, endWord: startWord + refNormWords.length });
   }
   located.sort((a, b) => a.startWord - b.startWord);
@@ -2771,7 +2840,7 @@ async function main() {
   // Step 8d: Replace corpus numbers/links with canonical sunnah.com permalinks
   // (searches sunnah.com for each matn; falls back to the corpus link on any failure).
   process.stdout.write('Resolving sunnah.com links...');
-  await resolveSunnahLinksForRefs(allHadithRefs);
+  await resolveSunnahLinksForRefs(allHadithRefs, transcript);
   console.log(` ${allHadithRefs.filter(r => r.verification === 'sunnah_search').length}/${allHadithRefs.length} verified`);
 
   // Step 9: Assemble final output object
