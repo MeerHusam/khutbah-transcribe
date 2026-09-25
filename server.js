@@ -46,7 +46,10 @@ const PUBLIC_KHUTBAHS = [
   {
     folder: '2026-09-11T15-48-51_arafah_khutbah_2026',
     title: 'The Khutbah of Arafah',
-    speaker: 'Sheikh Ali al-Hudhayfi · Masjid Namirah',
+    speaker: 'Sheikh Ali al-Hudhayfi',
+    masjid: 'Masjid Namirah, Arafat',
+    masjid_ar: 'مسجد نمرة',
+    maps_url: 'https://www.google.com/maps/search/?api=1&query=Masjid+Namirah+Arafat',
     date: '26 May 2026',
   },
   // ── Eid al-Adha khutbah (single khutbah — processed with `--type eid`) ──
@@ -80,7 +83,10 @@ const PUBLIC_KHUTBAHS = [
   {
     folder: '2026-05-22T21-05-05_makkah_sudais_ramadan_ummah',
     title: 'Ramadan: A Season of Renewal',
-    speaker: 'Sheikh Sudais · Makkah',
+    speaker: 'Sheikh Abdul Rahman al-Sudais',
+    masjid: 'Masjid al-Haram, Makkah',
+    masjid_ar: 'المسجد الحرام',
+    maps_url: 'https://www.google.com/maps/search/?api=1&query=Masjid+al-Haram+Makkah',
     date: '22 May 2026',
   },
 ];
