@@ -467,8 +467,17 @@ function ayahFollowsAt(ayahWords, tNorm, at) {
   for (let k = 0; k < len; k++) {
     const got = tNorm[at + k], want = ayahWords[k];
     if (got === want) continue;
+    const d = editDistanceWithin(got, want, 2);
+    // A single-letter difference in a word of four letters or more is orthography, not a
+    // different word: the corpus writes the long vowel of عَلَىٰ / ذَٰلِكَ / ٱلْمَوْتَىٰ as a
+    // superscript alef, which normalisation turns into a full alif ("علىا", "ذالك"), while
+    // transcribed speech spells them the modern way. Those words are among the commonest in
+    // the Quran, so charging each one against the budget exhausted it on ordinary verses and
+    // broke consecutive-ayah chaining mid-passage (Al-Hajj 22:6 stopped short of 22:7).
+    // Short words stay strict — at three letters a single edit is usually a different word.
+    if (d === 1 && Math.max(got.length, want.length) >= 4) continue;
     // A near-miss counts as transcription noise; anything further apart is a real mismatch.
-    if (editDistanceWithin(got, want, 2) <= 2) { wrong++; if (wrong > allowed) return false; continue; }
+    if (d <= 2) { wrong++; if (wrong > allowed) return false; continue; }
     return false;
   }
   // Require most of the ayah to be genuinely present, so a short ayah cannot chain on noise.
@@ -488,7 +497,14 @@ function annotateRefAyahRange(ref) {
   const verses = getQuranAyahWords().get(ref.surah_number);
   if (!verses) return ref;
 
-  const words = normalizeArabicDeep(ref.detected_text ?? '').split(/\s+/).filter(Boolean);
+  // Normalise token by token so each normalised word keeps a pointer back to the original
+  // token — the reference's text is trimmed against these positions at the end.
+  const origTokens = (ref.detected_text ?? '').split(/\s+/).filter(Boolean);
+  const words = [], srcIdx = [];
+  origTokens.forEach((t, i) => {
+    const n = normalizeArabicDeep(t);
+    if (n) { words.push(n); srcIdx.push(i); }
+  });
   if (!words.length) return ref;
 
   let idx = verses.findIndex(v => v.ayah_id === ref.ayah_number);
@@ -498,6 +514,20 @@ function annotateRefAyahRange(ref) {
   let pos = -1;
   for (let s = 0; s <= Math.min(words.length - 1, 6); s++) {
     if (ayahFollowsAt(verses[idx].words, words, s)) { pos = s + verses[idx].words.length; break; }
+  }
+  // An imam often picks a passage up MID-verse, and the detection layer still labels the
+  // reference with the verse the recitation starts inside. The whole verse then never
+  // matches, the walk never starts, and a two-verse passage is left labelled as one — which
+  // is how Al-Hajj 22:34 came to carry the text of 22:34's tail plus all of 22:35. Try the
+  // tails of the labelled verse, longest first, so the walk can still reach 22:35.
+  if (pos < 0) {
+    const av = verses[idx].words;
+    for (let cut = 1; cut <= av.length - 3 && pos < 0; cut++) {
+      const tail = av.slice(cut);
+      for (let s = 0; s <= Math.min(words.length - 1, 6); s++) {
+        if (ayahFollowsAt(tail, words, s)) { pos = s + tail.length; break; }
+      }
+    }
   }
   if (pos < 0) return ref;
 
@@ -510,6 +540,28 @@ function annotateRefAyahRange(ref) {
     idx++;
   }
   if (last !== ref.ayah_number) ref.ayah_number_end = last;
+
+  // Whatever follows the last consumed verse does not belong to this reference. The imam
+  // skips verses — at Arafah he recited Al-Hajj 22:45 and then jumped to 22:48 — and the
+  // detection layer hands back both as one block of text under the first verse's label. A
+  // range cannot express a gap, so the card would display two verses that were never
+  // recited. Trim instead: the skipped-to verse is picked up on its own by the zone scan,
+  // so nothing is lost and the reference now says only what it cites.
+  // A recitation often stops PART-WAY through its closing verse, which the full-verse walk
+  // above cannot consume. That leftover text is still part of this reference, so check for a
+  // partial continuation before trimming anything — otherwise Al-Hajj 22:27's run into the
+  // first half of 22:28 would be cut off as if it belonged elsewhere.
+  const leftover = words.length - pos;
+  if (leftover >= 4 && idx + 1 < verses.length) {
+    const next = verses[idx + 1];
+    if (next.words.length > leftover && ayahFollowsAt(next.words.slice(0, leftover), words, pos)) {
+      ref.ayah_number_end = next.ayah_id;
+      return ref;
+    }
+  }
+  if (leftover >= 3 && pos > 0) {
+    ref.detected_text = origTokens.slice(0, srcIdx[pos - 1] + 1).join(' ');
+  }
   return ref;
 }
 
@@ -2553,15 +2605,51 @@ async function main() {
     const disagree = claudeIdentified && algoMatch &&
       (algoMatch.surah_number !== claudeSurahNum || algoMatch.ayah_number !== claudeAyahNum);
 
+    // On a disagreement, let the detected words themselves break the tie. Claude reads
+    // meaning and is usually right about which passage is being cited, but it mislabels an
+    // adjacent verse when two share a phrase: Al-Hajj 22:36 and 22:37 both contain
+    // "كذلك سخر…ها لكم", and Claude labelled 22:36's closing words as 22:37. Deferring to
+    // Claude unconditionally put the wrong verse on the card. Prefer the algorithm only when
+    // its verse contains clearly more of the detected text, so an ordinary near-tie still
+    // goes to Claude.
+    const ayahCoverage = (sNum, aNum) => {
+      const verse = getQuranAyahWords().get(sNum)?.find(v => v.ayah_id === aNum);
+      if (!verse) return 0;
+      const inVerse = new Set(verse.words);
+      const det = normalizeArabicDeep(ref.arabic_text ?? '').split(/\s+/).filter(Boolean);
+      if (!det.length) return 0;
+      return det.filter(w => inVerse.has(w)).length / det.length;
+    };
+    // Neighbouring verses of the same surah are a different case: a recitation that runs
+    // across both contains words of both, and whole-text coverage then favours whichever
+    // verse is longer — Quraysh 106:3-4 was labelled 106:4 because 106:4 has twice the
+    // words, and the range walk (which only extends forward) could never recover 106:3.
+    // The label must name the verse the recitation STARTS in, so decide on the leading words.
+    const leadCoverage = (sNum, aNum) => {
+      const verse = getQuranAyahWords().get(sNum)?.find(v => v.ayah_id === aNum);
+      if (!verse) return 0;
+      const inVerse = new Set(verse.words);
+      const lead = normalizeArabicDeep(ref.arabic_text ?? '').split(/\s+/).filter(Boolean).slice(0, 3);
+      return lead.filter(w => inVerse.has(w)).length;
+    };
+    const adjacent = disagree && algoMatch.surah_number === claudeSurahNum &&
+      Math.abs(algoMatch.ayah_number - claudeAyahNum) === 1;
+    const preferAlgo = disagree && (adjacent
+      ? leadCoverage(algoMatch.surah_number, algoMatch.ayah_number)
+          > leadCoverage(claudeSurahNum, claudeAyahNum)
+      : ayahCoverage(algoMatch.surah_number, algoMatch.ayah_number)
+          > ayahCoverage(claudeSurahNum, claudeAyahNum) + 0.15);
+
     // Choose which identification to use:
     //  - Agreed: either (they match)
     //  - Claude only: trust Claude, algorithm couldn't confirm
     //  - Algorithm only: use algorithm, Claude was uncertain
-    //  - Disagreement: use Claude (semantic > pattern scoring), flag it
-    const surahNum  = claudeIdentified ? claudeSurahNum  : (algoMatch?.surah_number ?? null);
-    const ayahNum   = claudeIdentified ? claudeAyahNum   : (algoMatch?.ayah_number  ?? null);
-    const surahName = claudeIdentified ? (ref.surah_name ?? algoMatch?.surah_name ?? null)
-                                       : (algoMatch?.surah_name ?? null);
+    //  - Disagreement: whichever verse the words belong to (above), defaulting to Claude
+    const useClaude = claudeIdentified && !preferAlgo;
+    const surahNum  = useClaude ? claudeSurahNum  : (algoMatch?.surah_number ?? null);
+    const ayahNum   = useClaude ? claudeAyahNum   : (algoMatch?.ayah_number  ?? null);
+    const surahName = useClaude ? (ref.surah_name ?? algoMatch?.surah_name ?? null)
+                                : (algoMatch?.surah_name ?? null);
 
     if (!surahNum || !ayahNum) {
       return {
@@ -2591,7 +2679,7 @@ async function main() {
       quran_link: quranLink,
       confidence: Math.round(confidence * 100) / 100,
       verification: bothAgree    ? 'claude+algorithm'
-                  : disagree     ? `DISAGREEMENT:claude=${claudeSurahNum}:${claudeAyahNum},algo=${algoMatch.surah_number}:${algoMatch.ayah_number}`
+                  : disagree     ? `DISAGREEMENT:claude=${claudeSurahNum}:${claudeAyahNum},algo=${algoMatch.surah_number}:${algoMatch.ayah_number}${preferAlgo ? ',used=algo' : ',used=claude'}`
                   : claudeIdentified ? 'claude_only'
                   : 'algorithm_only',
     };

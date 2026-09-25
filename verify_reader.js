@@ -11,6 +11,7 @@
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { normalizeArabic } from './pipeline.js';
+import { loadResult } from './reader_chunks.js';
 
 const folder = process.argv[2];
 if (!folder || !existsSync(folder)) {
@@ -190,6 +191,25 @@ for (const b of blocks) {
       fail(`inline badge ${key}: detected text is not a contiguous run in its block — the reader cannot mark it`);
     }
   }
+}
+
+// ── 5c. Chunk start times must be strictly increasing ────────────────────────
+// The player highlights the last chunk whose start_time is <= the current time, so two
+// chunks on the same value make the earlier one unreachable — it is never highlighted and
+// the reader appears to skip a block. Built through the same module the server uses, so
+// this tests the timings the site actually serves.
+try {
+  const served = loadResult(folder);
+  const rc = served.reader_chunks ?? [];
+  for (let i = 1; i < rc.length; i++) {
+    const a = rc[i - 1].start_time, b = rc[i].start_time;
+    if (typeof a !== 'number' || typeof b !== 'number') continue;
+    if (b <= a) {
+      fail(`chunk ${i} starts at ${b}s, not after chunk ${i - 1} at ${a}s — it can never be highlighted`);
+    }
+  }
+} catch (e) {
+  warn(`could not build reader chunks to check timings: ${e.message}`);
 }
 
 // ── 6. Blocks should not end mid-sentence ────────────────────────────────────
