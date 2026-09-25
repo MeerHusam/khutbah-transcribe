@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // retime.js — Redo the word timings of an existing run without re-transcribing its text or
-// re-running Claude. Aligns the saved transcript to a fresh Groq pass (plus the gap re-timing
-// in retimeUnanchoredGaps), writes transcript_words into result.json and re-times the existing
-// transcript_segments without moving their boundaries.
+// re-running Claude. Aligns the saved transcript to fresh Groq passes (whole file + windows,
+// combined per word, plus the gap re-timing in retimeUnanchoredGaps), writes transcript_words
+// into result.json and re-times the existing transcript_segments without moving their
+// boundaries.
 // Run reanalyze.js afterwards to rebuild reader.txt from the new timings.
 //
 //   node retime.js outputs/<folder> audio_files/<audio>
@@ -10,8 +11,8 @@
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import {
-  preprocessAudio, SILENCE_PREPEND_SEC, transcribeWithGroqWindowed,
-  alignWordTimestamps, retimeUnanchoredGaps,
+  preprocessAudio, SILENCE_PREPEND_SEC, transcribeWithGroq, transcribeWithGroqWindowed,
+  combineTimings, retimeUnanchoredGaps,
 } from './pipeline.js';
 
 const [folder, audio] = process.argv.slice(2);
@@ -28,11 +29,12 @@ console.log('Preprocessing audio...');
 const pre = await preprocessAudio(audio);
 try {
   console.log('Timing with Groq...');
-  const groq = await transcribeWithGroqWindowed(pre);
-  let times = alignWordTimestamps(words, groq.words ?? []);
+  const [whole, windowed] = await Promise.all([transcribeWithGroq(pre), transcribeWithGroqWindowed(pre)]);
+  const sources = [windowed.words ?? [], whole.words ?? []];
+  let times = combineTimings(words, sources);
   if (!times) { console.error('Alignment failed — no Groq words'); process.exit(1); }
   const before = times.anchored.filter(Boolean).length;
-  times = (await retimeUnanchoredGaps(pre, words, groq.words, times)) ?? times;
+  times = (await retimeUnanchoredGaps(pre, words, sources, times)) ?? times;
   console.log(`  anchored words: ${before} -> ${times.anchored.filter(Boolean).length} of ${words.length}`);
 
   // Groq timed the preprocessed audio (silence prepended) — shift back to the original file.
