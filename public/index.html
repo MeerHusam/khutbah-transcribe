@@ -605,10 +605,25 @@
       .audio-time { font-size: 11px; }
       .audio-scrubber { min-width: 40px; }
       .skip-btn { font-size: 15px; }
-      /* Give the viewer count + khutbah picker their own full-width row so neither clips */
-      .header-right { order: 2; flex: 1 1 100%; justify-content: space-between; margin-left: 0; gap: 10px; }
-      .khutbah-select { font-size: 12.5px; max-width: 62%; padding: 6px 28px 6px 10px; }
-      .viewers { font-size: 12px; }
+      /* Brand and khutbah picker share the top row; the live count tucks under the name:
+           [logo] KhutbahTranscribe   [picker]
+                  ● 3 live
+           [player ..................]          */
+      header {
+        display: grid;
+        grid-template-columns: auto auto minmax(0, 1fr);
+        grid-template-areas: "logo name pick" "logo live pick" "player player player";
+        align-items: center;
+        gap: 0 10px;
+      }
+      .header-left, .header-right { display: contents; }
+      .logo-mark { grid-area: logo; width: 34px; height: 34px; }
+      header h1 { grid-area: name; align-self: end; line-height: 1.2; font-size: 14.5px; }
+      .viewers { grid-area: live; align-self: start; font-size: 11px; gap: 5px; margin-top: 2px; }
+      .viewers .live-dot { width: 6px; height: 6px; }
+      /* The name stays whole; the picker takes what is left and truncates its label. */
+      .khutbah-select { grid-area: pick; justify-self: end; min-width: 0; max-width: 100%; font-size: 12.5px; padding: 6px 26px 6px 10px; text-overflow: ellipsis; }
+      .audio-player { grid-area: player; margin-top: 10px; }
       .khutbah-heading h2 { font-size: 21px; }
       .share-card { padding: 22px 18px; }
       .section-body { padding: 16px; }
