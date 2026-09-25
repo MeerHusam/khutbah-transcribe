@@ -214,7 +214,27 @@ try {
 
 // ── 6. Blocks should not end mid-sentence ────────────────────────────────────
 const proseBlocks = blocks.filter(b => !b.englishParas.some(p => /^(📖|📑|📚)/.test(p)));
-const midSentence = proseBlocks.filter(b => !/[.؟!…،:]$/.test(b.arabic.trim()));
+// A block that ends right before a recited verse is its lead-in ("فقال جل وعلا"), which
+// is meant to end there — the verse card that follows completes the sentence.
+const leadsIntoVerse = b => blocks[blocks.indexOf(b) + 1]?.englishParas.some(p => /^📖/.test(p));
+// Sentence ends come from the transcript's own punctuation and, in newer runs, from the
+// stored sentence_ends (positions only — the text carries no mark there). Locate each
+// block's closing words in the transcript, in reading order, to test the stored positions.
+const storedEnds = new Set(result.sentence_ends ?? []);
+const endsAtStoredSentenceEnd = (() => {
+  const at = new Map();
+  let cursor = 0;
+  for (const b of blocks) {
+    const bw = words(b.arabic);
+    const tail = bw.slice(-3);
+    for (let i = cursor; i + tail.length <= tWords.length; i++) {
+      if (tail.every((w, k) => tWords[i + k] === w)) { at.set(b, i + tail.length); cursor = i + 1; break; }
+    }
+  }
+  return b => storedEnds.has(at.get(b));
+})();
+const midSentence = proseBlocks.filter(b =>
+  !/[.؟!…،:]$/.test(b.arabic.trim()) && !endsAtStoredSentenceEnd(b) && !leadsIntoVerse(b));
 if (midSentence.length > proseBlocks.length * 0.25) {
   warn(`${midSentence.length}/${proseBlocks.length} prose blocks end mid-sentence`);
 }

@@ -888,7 +888,61 @@ function buildZoneRefs(zones, transcriptWords, existingRefs) {
 // Splits transcript words into numbered prose chunks, skipping detected Quran zones.
 // Returns [{text, wordStart, wordEnd, proseIdx}] for prose chunks only.
 // proseIdx is the 0-based index matching the chunk_translations array.
-function buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSegments) {
+// Where sentences end, as break positions (index of the word AFTER the sentence's last
+// word). The chunker breaks prose at sentence ends, and it used to take them only from
+// Gemini's punctuation — which varies from run to run: the 25 Sep transcript had 23
+// sentence marks in 1,433 words, so long stretches had nowhere to break but a breath pause,
+// and 16 blocks ended mid-sentence. One Claude Haiku call now punctuates a copy of the
+// transcript; that copy is aligned back onto the original words and only the positions of
+// its sentence-ending marks are kept, so the transcript itself never changes (and a word
+// the model altered or dropped simply carries no break). Asking for the punctuated text
+// works far better than asking for positions: on the same 300 words the model marked 21
+// sentence ends when punctuating and 6 when listing indices. If the call fails, pauses in
+// the word timings stand in.
+const SENTENCE_MODEL = 'claude-haiku-4-5';
+async function findSentenceEnds(words, wordTimes = []) {
+  try {
+    const response = await anthropic.messages.create({
+      model: SENTENCE_MODEL,
+      max_tokens: 32000,
+      messages: [{
+        role: 'user',
+        content:
+          'Punctuate this Arabic khutbah transcript the way a careful editor would for readers: ' +
+          'end every complete sentence with "." (or "؟" for a question), and separate clauses ' +
+          'within a sentence with "،". Each du\'a ("اللهم ...") and each quoted hadith with its ' +
+          'attribution ("... رواه مسلم") is its own sentence. Do not end a sentence on a lead-in ' +
+          'such as "قال تعالى" — the quotation belongs to it. Change nothing else: keep every ' +
+          'word exactly as written, in order, without adding, removing, or correcting words. ' +
+          'Output only the punctuated text.\n\n' + words.join(' '),
+      }],
+    });
+    if (response.stop_reason === 'refusal') throw new Error('refused');
+    if (response.stop_reason === 'max_tokens') throw new Error('output truncated');
+    const out = (response.content.find(b => b.type === 'text')?.text ?? '').split(/\s+/).filter(Boolean);
+    // Align the punctuated copy to the original (the same aligner the timing uses, with the
+    // copy's token index standing in for a time) and read off where its sentences end.
+    const at = anchorTimes(words, out.map((word, k) => ({ word, start: k })));
+    const ends = [];
+    at.forEach((k, i) => { if (k !== null && /[.؟!]$/.test(out[k])) ends.push(i + 1); });
+    if (ends.length) return { ends, source: SENTENCE_MODEL };
+    throw new Error('no sentence ends found');
+  } catch (e) {
+    console.warn(`  [WARN] sentence segmentation failed (${e.message}) — using pauses`);
+  }
+  // Fallback: a noticeably long gap before the next word marks a likely sentence end.
+  const t = wordTimes.map(w => w?.start ?? w);
+  if (t.length !== words.length) return { ends: [], source: 'none' };
+  const gaps = t.slice(1).map((x, k) => x - t[k]).filter(g => g > 0).sort((a, b) => a - b);
+  const median = gaps[gaps.length >> 1] ?? 0.4;
+  const ends = [];
+  for (let k = 0; k < t.length - 1; k++) {
+    if (t[k + 1] - t[k] >= Math.max(1.0, median * 2.5)) ends.push(k + 1);
+  }
+  return { ends, source: 'pauses' };
+}
+
+function buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSegments, sentenceEnds = null) {
   // Build set of word-index positions where each Whisper segment ends.
   // These are the natural breath/pause boundaries in the imam's speech.
   const segBreaks = new Set();
@@ -903,7 +957,7 @@ function buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSeg
   // Prefer breaking at SENTENCE ends (Gemini adds . ؟ ! punctuation) so a chunk never
   // cuts mid-sentence. Fall back to Whisper segment (breath-pause) boundaries when the
   // transcript has no sentence punctuation (e.g. raw Groq output).
-  const sentenceBreaks = new Set();
+  const sentenceBreaks = new Set(sentenceEnds ?? []);
   for (let i = 0; i < transcriptWords.length; i++) {
     if (/[.؟!…]$/.test(transcriptWords[i])) sentenceBreaks.add(i + 1);
   }
@@ -2931,7 +2985,10 @@ async function main() {
   const quranZones = prescanForQuranZones(transcriptWords);
   console.log(` ${quranZones.length} zones detected`);
 
-  const proseChunks = buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSegments);
+  process.stdout.write('Finding sentence ends...');
+  const sentenceEnds = await findSentenceEnds(transcriptWords, transcriptWordTimes);
+  console.log(` ${sentenceEnds.ends.length} (${sentenceEnds.source})`);
+  const proseChunks = buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSegments, sentenceEnds.ends);
   const numberedChunks = proseChunks.map((c, i) => `[${i + 1}] ${c.text}`).join('\n');
   const chunkInstruction = `\n\nThe transcript has been divided into ${proseChunks.length} prose chunks below ` +
     `(Quranic verses are excluded and handled separately). ` +
@@ -3142,6 +3199,9 @@ async function main() {
     summary: analysis.summary ?? '',
     chunk_translations: Array.isArray(analysis.chunk_translations) ? analysis.chunk_translations : null,
     prose_chunk_map: proseChunks.map(({ wordStart, wordEnd, proseIdx }) => ({ wordStart, wordEnd, proseIdx })),
+    // Kept so reanalyze.js rebuilds exactly the chunks that were translated.
+    sentence_ends: sentenceEnds.ends,
+    sentence_ends_source: sentenceEnds.source,
     second_khutbah: secondKhutbah,
     quran_references: allQuranRefs,
     hadith_references: allHadithRefs,
@@ -3190,6 +3250,7 @@ export {
   buildReaderView,
   buildReadableOutput,
   buildProseChunks,
+  findSentenceEnds,
   locateSecondKhutbah,
   splitChunkAtKhutbahBoundary,
   prescanForQuranZones,
