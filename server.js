@@ -10,6 +10,8 @@ import { handleStreamConnection, streamStatus } from './live/index.js';
 
 // Load Quran data once at startup
 const quranData = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'node_modules/quran-json/dist/quran.json'), 'utf8'));
+// Sahih International, the same translation the pipeline swaps into quoted verses.
+const quranEn = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'node_modules/quran-json/dist/quran_en.json'), 'utf8'));
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -286,7 +288,8 @@ app.get('/api/quran/:surah/:ayah', (req, res) => {
   if (!surah) return res.status(404).json({ error: 'Not found' });
   const verse = surah.verses.find(v => v.id === a);
   if (!verse) return res.status(404).json({ error: 'Not found' });
-  res.json({ surah: s, ayah: a, surah_name: surah.name, text: verse.text });
+  const translation = quranEn[s - 1]?.verses.find(v => v.id === a)?.translation?.trim() || '';
+  res.json({ surah: s, ayah: a, surah_name: surah.name, text: verse.text, translation });
 });
 
 // ────────────────────────────────────────────────────────────────────────────

@@ -480,8 +480,24 @@
     }
     .hadith-arabic {
       font-family: var(--font-ar); font-size: 19px;
-      direction: rtl; text-align: right; line-height: 2.05; color: var(--cream); margin-bottom: 8px;
+      direction: rtl; text-align: right; line-height: 2.05; color: #9fe8c2; margin-bottom: 8px;
     }
+    /* Published translations under each reference: Sahih International for verses,
+       sunnah.com for hadith (the whole hadith, which is often longer than the quote). */
+    .ref-english, .hadith-english {
+      font-family: var(--font-serif); font-size: 14.5px; line-height: 1.75;
+      color: var(--text); margin: 4px 0 6px;
+    }
+    .hadith-english { font-style: italic; color: #cdeedd; }
+    .ref-en-source {
+      font-family: var(--font-ui); font-style: normal; font-size: 11px;
+      color: var(--text-dim); white-space: nowrap; margin-left: 4px;
+    }
+    .hadith-card .collection-badge {
+      background: rgba(56,178,122,0.12); color: #9fe8c2; border-color: rgba(56,178,122,0.3);
+    }
+    .hadith-card .ref-link { color: #9fe8c2; border-color: rgba(56,178,122,0.3); }
+    .hadith-card .ref-link:hover { background: rgba(56,178,122,0.12); }
     .hadith-note { font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 4px; }
 
     /* Sidebar */
@@ -891,6 +907,11 @@
         if (!d.text) continue;
         const el = document.querySelector(`.ref-arabic[data-ref="${i}"]`);
         if (el) { el.textContent = `﴿${d.text}﴾`; el.classList.add('ref-arabic-full'); }
+        const en = document.querySelector(`.ref-english[data-ref-en="${i}"]`);
+        if (en && d.translation) {
+          en.innerHTML = `${escHtml(d.translation)} <span class="ref-en-source">Sahih International</span>`;
+          en.hidden = false;
+        }
         const pop = document.getElementById(`popup-arabic-${i}`);
         if (pop) pop.textContent = `﴿${d.text}﴾`;
       } catch {}
@@ -1043,6 +1064,7 @@
         <div class="ref-meta"><span class="verify-badge ${verifyClass}">${verifyLabel}</span></div>
       </div>
       <div class="ref-arabic" data-ref="${i}">${escHtml(q.detected_text || q.arabic || '')}</div>
+      <p class="ref-english" data-ref-en="${i}" hidden></p>
       ${link ? `<a class="ref-link" href="${link}" target="_blank" rel="noopener" onclick="event.stopPropagation()">View on Quran.com ↗</a>` : ''}
       <p class="tafsir-hint">Tap to view tafsir →</p>
     </div>`;
@@ -1059,7 +1081,8 @@
         ${collection ? `<span class="collection-badge">${escHtml(collection)}${h.hadith_number ? ' · ' + escHtml(String(h.hadith_number)) : ''}</span>` : ''}
       </div>
       <div class="hadith-arabic">${escHtml(h.detected_text || h.arabic || '')}</div>
-      ${link ? `<a class="ref-link" href="${escAttr(link)}" target="_blank" rel="noopener">View on sunnah.com ↗</a>` : ''}
+      ${h.translation ? `<p class="hadith-english">${escHtml(h.translation.charAt(0).toUpperCase() + h.translation.slice(1))} <span class="ref-en-source">sunnah.com</span></p>` : ''}
+      ${link ? `<a class="ref-link hadith-link" href="${escAttr(link)}" target="_blank" rel="noopener">View on sunnah.com ↗</a>` : ''}
     </div>`;
   }
 
