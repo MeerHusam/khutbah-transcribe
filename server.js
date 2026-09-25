@@ -59,18 +59,6 @@ const PUBLIC_KHUTBAHS = [
     maps_url: 'https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6',
     date: '22 May 2026',
   },
-  // Preview: the same khutbah re-run with sentence-end chunking. Unlisted — reachable only
-  // by its link (/index.html?folder=…), not shown in the switcher or on the home page.
-  {
-    folder: '2026-09-25T12-02-25_khutbah-2026-09-25-masjid',
-    unlisted: true,
-    title: 'The Blessing of Security (preview: sentence blocks)',
-    speaker: 'Friday Khutbah',
-    masjid: 'Askan AlMaather Mosque',
-    masjid_ar: 'جامع إسكان المعذر',
-    maps_url: 'https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6',
-    date: '25 September 2026',
-  },
   {
     folder: '2026-09-25T10-04-57_khutbah-2026-09-25-masjid',
     title: 'The Blessing of Security',
@@ -97,7 +85,6 @@ const PUBLIC_KHUTBAHS = [
   },
 ];
 const FEATURED_FOLDER = (PUBLIC_KHUTBAHS.find(k => k.featured) || PUBLIC_KHUTBAHS[0]).folder;
-// `unlisted: true` entries are served by link but left out of the listing (previews).
 const ALLOWED_FOLDERS = new Set(PUBLIC_KHUTBAHS.map(k => k.folder));
 
 // Parsed results are immutable at runtime (files never change), so cache indefinitely.
@@ -211,7 +198,7 @@ function findAudioUrl(folder) {
 // Curated list of published khutbahs (with friendly titles + summary stats)
 app.get('/api/results', (req, res) => {
   if (listCache) return res.json(listCache);
-  const items = PUBLIC_KHUTBAHS.filter(k => !k.unlisted).map(k => {
+  const items = PUBLIC_KHUTBAHS.map(k => {
     try {
       const r = JSON.parse(readFileSync(join(__dirname, 'outputs', k.folder, 'result.json'), 'utf8'));
       return {
@@ -431,7 +418,7 @@ server.listen(PORT, () => {
   }
   listCache = {
     featured: FEATURED_FOLDER,
-    items: PUBLIC_KHUTBAHS.filter(k => !k.unlisted).map(k => {
+    items: PUBLIC_KHUTBAHS.map(k => {
       const r = resultCache.get(k.folder);
       if (!r) return null;
       return {
