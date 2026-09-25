@@ -285,8 +285,16 @@ function scanTranscriptForQuran(transcript, alreadyFound, keepPositions = false)
 
       const detectedText = tWords.slice(bestStart, bestStart + aLen).join(' ');
 
-      // Skip if Claude already found this region
-      if ([...claudeNorm].some(cn => cn.includes(detectedText) || detectedText.includes(cn))) continue;
+      // Skip if Claude already found this region. Compare only the words the window shares
+      // with the ayah: a window is fixed at the ayah's length, so it can pull in a word of the
+      // imam's lead-in ("جل وعلا ألم تر كيف فعل ربك"), and that stray word defeated the
+      // containment test — the opening of Al-Fil 105:1, already cited, came back as Al-Fajr
+      // 89:6, which starts with the same four words.
+      let lo = bestStart, hi = bestStart + aLen;
+      while (lo < hi && !aWordSet.has(tWords[lo])) lo++;
+      while (hi > lo && !aWordSet.has(tWords[hi - 1])) hi--;
+      const core = tWords.slice(lo, hi).join(' ');
+      if ([...claudeNorm].some(cn => cn.includes(core) || detectedText.includes(cn))) continue;
 
       candidates.push({
         detected_text: detectedText,
@@ -492,6 +500,39 @@ function ayahFollowsAt(ayahWords, tNorm, at) {
 // recitation of 'Abasa 80:25-32 displays as just 80:25 and the rest of the passage is lost
 // from the card. Walk forward from the labelled ayah, consuming as many following ayahs as
 // the detected text continues into, and record the last one as ayah_number_end.
+// A multi-verse reference whose later verses are ALSO cited by their own reference gives
+// those verses up. The two layers see different spans: Claude cited Quraysh 106:3-4 as one
+// passage, while the n-gram pre-scan carved out only 106:4 (the corpus spells هذا "هاذا",
+// so 106:3's 4-grams never matched) and cited it separately. 106:3 stayed in prose with a
+// badge claiming both verses, and 106:4's words left that block for their own card — the
+// badge's text was no longer contiguous in its block, so the reader could not mark it.
+// Trimming the earlier reference to end where the later one begins lets each verse render
+// once, where it was recited. Mutates in place.
+function yieldTailToLaterRefs(refs) {
+  const tokensOf = t => (t ?? '').split(/\s+/).filter(Boolean);
+  const norm = t => normalizeArabicDeep(t.replace(/[.,،؛؟!:]/g, ''));
+  for (const r of refs) {
+    if (!r.ayah_number_end || r.ayah_number_end <= r.ayah_number) continue;
+    const rTok = tokensOf(r.detected_text), rNorm = rTok.map(norm);
+    for (const z of refs) {
+      if (z === r || z.surah_number !== r.surah_number) continue;
+      if (!(z.ayah_number > r.ayah_number && z.ayah_number <= r.ayah_number_end)) continue;
+      const zLead = tokensOf(z.detected_text).map(norm).filter(Boolean).slice(0, 4);
+      if (zLead.length < 3) continue;
+      let at = -1;
+      for (let p = 1; p + zLead.length <= rNorm.length && at < 0; p++) {
+        if (zLead.every((w, k) => rNorm[p + k] === w)) at = p;
+      }
+      if (at < 0) continue;
+      r.detected_text = rTok.slice(0, at).join(' ');
+      if (z.ayah_number - 1 > r.ayah_number) r.ayah_number_end = z.ayah_number - 1;
+      else delete r.ayah_number_end;
+      break;
+    }
+  }
+  return refs;
+}
+
 function annotateRefAyahRange(ref) {
   if (!ref?.matched || !ref.surah_number || !ref.ayah_number) return ref;
   const verses = getQuranAyahWords().get(ref.surah_number);
@@ -2719,6 +2760,7 @@ async function main() {
   // Label multi-ayah recitations with their full range so the reader renders the whole
   // passage rather than only the verse the detecting layer happened to name.
   allQuranRefs.forEach(annotateRefAyahRange);
+  yieldTailToLaterRefs(allQuranRefs);
 
   // Step 8c: Scan for Hadith references
   process.stdout.write('Scanning transcript for Hadith references...');
@@ -2802,6 +2844,7 @@ export {
   prescanForQuranZones,
   buildZoneRefs,
   annotateRefAyahRange,
+  yieldTailToLaterRefs,
   scanTranscriptForQuran,
   scanTranscriptForHadith,
   deduplicateHadithRefs,

@@ -15,6 +15,7 @@ import {
   findMatchingAyah,
   deduplicateHadithRefs,
   resolveSunnahLinksForRefs,
+  yieldTailToLaterRefs,
 } from './pipeline.js';
 
 const folder = process.argv[2];
@@ -51,7 +52,7 @@ console.log(`  ${proseChunks.length} prose chunks`);
 const existingRefs = result.quran_references || [];
 const zoneRefs = buildZoneRefs(quranZones, transcriptWords, existingRefs);
 if (zoneRefs.length) console.log(`  + ${zoneRefs.length} additional zone refs`);
-const allQuranRefs = [...existingRefs, ...zoneRefs];
+const allQuranRefs = yieldTailToLaterRefs([...existingRefs, ...zoneRefs]);
 
 // Step 4: Update result with new prose map and refs
 result.quran_references = allQuranRefs;
