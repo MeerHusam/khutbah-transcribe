@@ -195,26 +195,31 @@ function findAudioUrl(folder) {
 }
 
 
+// One home-page card. Shared by the route and the startup cache warm-up: they were two
+// copies, and the warm-up one lost masjid and date, so the cards never showed them.
+function listItem(k, r) {
+  return {
+    folder: k.folder,
+    title: k.title,
+    speaker: k.speaker || '',
+    masjid: k.masjid || '',
+    maps_url: k.maps_url || '',
+    date: k.date || '',
+    featured: !!k.featured,
+    summary: (r.share_summary || r.summary || '').slice(0, 200),
+    words: r.metadata?.transcript_word_count || 0,
+    quran: r.metadata?.quran_references_matched || 0,
+    hadith: r.metadata?.hadith_references_found || 0,
+    mode: r.metadata?.transcription_mode || '',
+  };
+}
+
 // Curated list of published khutbahs (with friendly titles + summary stats)
 app.get('/api/results', (req, res) => {
   if (listCache) return res.json(listCache);
   const items = PUBLIC_KHUTBAHS.map(k => {
     try {
-      const r = JSON.parse(readFileSync(join(__dirname, 'outputs', k.folder, 'result.json'), 'utf8'));
-      return {
-        folder: k.folder,
-        title: k.title,
-        speaker: k.speaker || '',
-        masjid: k.masjid || '',
-        maps_url: k.maps_url || '',
-        date: k.date || '',
-        featured: !!k.featured,
-        summary: (r.share_summary || r.summary || '').slice(0, 200),
-        words: r.metadata?.transcript_word_count || 0,
-        quran: r.metadata?.quran_references_matched || 0,
-        hadith: r.metadata?.hadith_references_found || 0,
-        mode: r.metadata?.transcription_mode || '',
-      };
+      return listItem(k, JSON.parse(readFileSync(join(__dirname, 'outputs', k.folder, 'result.json'), 'utf8')));
     } catch { return null; }
   }).filter(Boolean);
   listCache = { featured: FEATURED_FOLDER, items };
@@ -420,15 +425,7 @@ server.listen(PORT, () => {
     featured: FEATURED_FOLDER,
     items: PUBLIC_KHUTBAHS.map(k => {
       const r = resultCache.get(k.folder);
-      if (!r) return null;
-      return {
-        folder: k.folder, title: k.title, speaker: k.speaker || '', featured: !!k.featured,
-        summary: (r.share_summary || r.summary || '').slice(0, 160),
-        words: r.metadata?.transcript_word_count || 0,
-        quran: r.metadata?.quran_references_matched || 0,
-        hadith: r.metadata?.hadith_references_found || 0,
-        mode: r.metadata?.transcription_mode || '',
-      };
+      return r ? listItem(k, r) : null;
     }).filter(Boolean),
   };
   console.log(`Cached ${resultCache.size}/${PUBLIC_KHUTBAHS.length} khutbahs.`);

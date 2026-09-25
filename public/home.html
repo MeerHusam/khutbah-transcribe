@@ -273,8 +273,8 @@
       margin-bottom: 16px;
       position: relative; z-index: 1;
     }
-    .card-meta a { color: var(--text-muted); text-decoration: none; }
-    .card-meta a:hover { color: var(--gold); }
+    .card-meta .maps-link { color: var(--text-muted); cursor: pointer; }
+    .card-meta .maps-link:hover { color: var(--gold); text-decoration: underline; }
     .meta-dot { opacity: 0.4; }
 
     .card-summary {
@@ -674,7 +674,8 @@
     const readerUrl = `index.html?folder=${encodeURIComponent(k.folder)}`;
     const masjidHtml = k.masjid
       ? (k.maps_url
-          ? `<a href="${escAttr(k.maps_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${esc(k.masjid)}</a>`
+          // A span, not <a>: the card is already a link and nested anchors break the layout.
+          ? `<span class="maps-link" role="link" tabindex="0" data-href="${escAttr(k.maps_url)}">${esc(k.masjid)}</span>`
           : `<span>${esc(k.masjid)}</span>`)
       : '';
     const dotHtml = k.masjid && k.date ? `<span class="meta-dot">·</span>` : '';
@@ -731,6 +732,18 @@
       const rest     = data.items.filter(k => !k.featured);
       const ordered  = [...(featured ? [featured] : []), ...rest];
       document.getElementById('grid').innerHTML = ordered.map(renderCard).join('');
+    })
+    .then(() => {
+      // Masjid name opens the map instead of the reader behind it.
+      const openMap = e => {
+        const el = e.target.closest('.maps-link');
+        if (!el || (e.type === 'keydown' && e.key !== 'Enter')) return;
+        e.preventDefault(); e.stopPropagation();
+        window.open(el.dataset.href, '_blank', 'noopener');
+      };
+      const grid = document.getElementById('grid');
+      grid.addEventListener('click', openMap);
+      grid.addEventListener('keydown', openMap);
     })
     .catch(() => {
       document.getElementById('grid').innerHTML = '<p style="color:var(--text-dim)">Could not load khutbahs.</p>';
