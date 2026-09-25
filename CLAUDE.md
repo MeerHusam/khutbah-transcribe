@@ -31,6 +31,7 @@ Takes an Arabic Friday Khutbah (sermon) audio file and produces:
 |------|------|
 | `pipeline.js` | Main pipeline — transcription, Claude analysis, ref matching, output generation. Also exports all shared functions. |
 | `reanalyze.js` | Re-runs Claude analysis on an existing `transcript.txt` without re-transcribing. Imports from `pipeline.js`. |
+| `retime.js` | Redoes only the word timings of an existing run (windowed Groq + gap re-timing), keeping segment boundaries so stored translations stay paired. No Claude call. Follow with `reanalyze.js`. |
 | `server.js` | Express + WebSocket server. Accepts audio uploads, spawns `pipeline.js` as child process, streams progress, serves `public/`. |
 | `transcribe_local.py` | Python script for local transcription via faster-whisper or mlx-whisper. Called by `pipeline.js --local`. |
 | `quran_detect.py` | **Prototype** Quran-detection helper using the `quran-detector` PyPI library (shells out like `transcribe_local.py`). Reads a transcript, prints detected verse fragments as JSON. NOT yet wired into the production pipeline — used for evaluation only. Needs the project `.venv` (Python ≥3.12). |
@@ -230,6 +231,7 @@ All functions except `main()` are exported for use by `reanalyze.js`.
 | 26 | Consecutive ayahs deduped (20:43 + 20:44) | Dedup trims earlier ref to next ref's start when surah:ayah differ; keeps both cards |
 | 27 | Single-khutbah mode | `--single`/`--no-split` flag skips `locateSecondKhutbah` (Arafah, Eid, lectures) |
 | 28 | Phone-recorded audio won't stream (`moov` at end of file) | Remux on ingest: `ffmpeg -i in.m4a -c copy -movflags +faststart out.m4a` — see "Audio ingest" below |
+| 29 | Reader highlight up to 30 s behind the imam (Whisper dropped ~90 s of a long file) | `--gemini` timing uses 90 s overlapping Groq windows with no prompt (the prompt caused repetition loops) + re-times any long unanchored gap; `retime.js` applies it to old runs; `reanalyze.js` refuses to write if chunk boundaries change |
 
 ---
 

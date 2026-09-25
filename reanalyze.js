@@ -56,7 +56,20 @@ const allQuranRefs = yieldTailToLaterRefs([...existingRefs, ...zoneRefs]);
 
 // Step 4: Update result with new prose map and refs
 result.quran_references = allQuranRefs;
-result.prose_chunk_map = proseChunks.map(({ wordStart, wordEnd, proseIdx }) => ({ wordStart, wordEnd, proseIdx }));
+// Translations are matched to prose chunks by position, so the chunks must be exactly the
+// ones that were translated. A changed boundary pairs every later block with the wrong
+// English — re-timing a run with fresh Whisper segments did exactly that, shifting two
+// boundaries, which the old count-only check (drift <= 2) let through silently.
+const newMap = proseChunks.map(({ wordStart, wordEnd, proseIdx }) => ({ wordStart, wordEnd, proseIdx }));
+if (result.prose_chunk_map && result.chunk_translations &&
+    JSON.stringify(result.prose_chunk_map) !== JSON.stringify(newMap) && !process.argv.includes('--force')) {
+  const at = newMap.findIndex((e, i) => JSON.stringify(e) !== JSON.stringify(result.prose_chunk_map[i]));
+  console.error(`✗ Prose chunk boundaries changed from chunk ${at} on — the stored translations would pair`);
+  console.error('  with the wrong blocks. Nothing written. Re-run the full pipeline for this folder, or pass');
+  console.error('  --force if the translations are known to be regenerated separately.');
+  process.exit(1);
+}
+result.prose_chunk_map = newMap;
 
 // Ensure chunk_translations length matches prose chunks.
 // If we have more prose chunks than translations (because zone changes shifted boundaries),

@@ -2,11 +2,12 @@
 // Transcribes Arabic audio -> translates -> extracts Quranic/Hadith references -> matches Ayahs
 
 import 'dotenv/config';
-import { writeFileSync, mkdirSync, readFileSync, existsSync, statSync, createReadStream, readdirSync } from 'fs';
+import { writeFileSync, mkdirSync, readFileSync, existsSync, statSync, createReadStream, readdirSync, unlinkSync } from 'fs';
 import { createRequire } from 'module';
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import os from 'os';
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 import Groq from 'groq-sdk';
@@ -2365,7 +2366,12 @@ async function transcribeWithAPI(audioPath) {
 }
 
 // Groq hosts whisper-large-v3 for free — typically ~10s for a 20-min file
-async function transcribeWithGroq(audioPath) {
+// `prompt: false` for timing-only passes. The prompt biases Whisper's wording toward the
+// khutbah's opening formulas, which helps --groq text, but on the preprocessed audio it also
+// sends Whisper into repetition loops that swallow speech: a 90 s window came back as
+// "ورحمة الله الرحمن الرحيم" three times over (43 words instead of 128). The Gemini hybrid
+// takes its text from Gemini, so its timing pass has nothing to gain from the prompt.
+async function transcribeWithGroq(audioPath, { prompt = true } = {}) {
   const ext = path.extname(audioPath).toLowerCase().replace('.', '');
   const mimeMap = { mp3: 'audio/mpeg', mp4: 'audio/mp4', m4a: 'audio/mp4',
     wav: 'audio/wav', ogg: 'audio/ogg', webm: 'audio/webm',
@@ -2379,12 +2385,75 @@ async function transcribeWithGroq(audioPath) {
     language: 'ar',
     response_format: 'verbose_json',
     timestamp_granularities: ['word', 'segment'],
-    prompt: 'بسم الله الرحمن الرحيم، الحمد لله رب العالمين، والصلاة والسلام على رسول الله صلى الله عليه وسلم',
+    ...(prompt ? { prompt: 'بسم الله الرحمن الرحيم، الحمد لله رب العالمين، والصلاة والسلام على رسول الله صلى الله عليه وسلم' } : {}),
   });
   const text = typeof response === 'string' ? response : response.text;
   const segments = (response.segments ?? []).map(s => ({ start: s.start, end: s.end, text: s.text }));
   const words = (response.words ?? []).map(w => ({ word: w.word, start: w.start, end: w.end }));
   return { text, segments, words };
+}
+
+// Cut [start, start+dur) of an audio file to a 16 kHz mono mp3 in the temp dir.
+function cutClip(audioPath, start, dur, tag) {
+  const clip = path.join(os.tmpdir(), `khutbah_${tag}_${process.pid}_${Math.round(start * 10)}.mp3`);
+  return new Promise((resolve, reject) => {
+    const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-ss', String(start), '-t', String(dur),
+      '-i', audioPath, '-ac', '1', '-ar', '16000', clip]);
+    ff.on('error', reject);
+    ff.on('close', code => code === 0 ? resolve(clip) : reject(new Error(`ffmpeg exited ${code}`)));
+  });
+}
+
+function audioDuration(audioPath) {
+  return new Promise(resolve => {
+    const ff = spawn('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', audioPath]);
+    let out = '';
+    ff.stdout.on('data', d => { out += d; });
+    ff.on('error', () => resolve(null));
+    ff.on('close', () => resolve(parseFloat(out) || null));
+  });
+}
+
+// Whisper timing over overlapping windows instead of the whole file, with no prompt (see
+// transcribeWithGroq). Run over a full khutbah, Whisper sometimes drops a passage outright — on 25 Sep 2026 it skipped ~90 s
+// ("من صلى علي صلاة واحدة" … "اللهم اجعل تدبيره") and hallucinated a salutation in its
+// place, which left the reader's highlight up to 30 s behind the imam — while the same
+// passage as a 100 s clip came back complete and correctly timed. Each window keeps only
+// the words in its central part, so every stretch of audio is timed by the window where it
+// sits furthest from an edge. Falls back to a single whole-file pass if the audio's
+// duration cannot be read.
+const TIMING_WINDOW_SEC = 90, TIMING_OVERLAP_SEC = 10;
+async function transcribeWithGroqWindowed(audioPath) {
+  const total = await audioDuration(audioPath);
+  if (!total || total <= TIMING_WINDOW_SEC + TIMING_OVERLAP_SEC) return transcribeWithGroq(audioPath, { prompt: false });
+  const step = TIMING_WINDOW_SEC - TIMING_OVERLAP_SEC;
+  const starts = [];
+  for (let t = 0; t < total - TIMING_OVERLAP_SEC; t += step) starts.push(t);
+  const results = new Array(starts.length);
+  // A few windows at a time — plenty fast, and gentle on the Groq rate limit.
+  for (let b = 0; b < starts.length; b += 3) {
+    await Promise.all(starts.slice(b, b + 3).map(async (start, k) => {
+      const i = b + k;
+      const clip = await cutClip(audioPath, start, TIMING_WINDOW_SEC, 'win');
+      try { results[i] = await transcribeWithGroq(clip, { prompt: false }); }
+      finally { try { unlinkSync(clip); } catch {} }
+    }));
+  }
+  const words = [], segments = [];
+  results.forEach((r, i) => {
+    const start = starts[i];
+    const lo = i === 0 ? -Infinity : start + TIMING_OVERLAP_SEC / 2;
+    const hi = i === starts.length - 1 ? Infinity : start + step + TIMING_OVERLAP_SEC / 2;
+    for (const w of r.words ?? []) {
+      const t = w.start + start;
+      if (t >= lo && t < hi) words.push({ ...w, start: t, end: w.end + start });
+    }
+    for (const s of r.segments ?? []) {
+      const t = s.start + start;
+      if (t >= lo && t < hi) segments.push({ ...s, start: t, end: s.end + start });
+    }
+  });
+  return { text: segments.map(s => s.text.trim()).join(' '), segments, words };
 }
 
 // Sequence-aligns display words (Gemini) to timed words (Whisper word-level timestamps).
@@ -2428,6 +2497,7 @@ function alignWordTimestamps(displayWords, timedWords) {
   const anchors = [];
   for (let k = 0; k < n; k++) if (times[k] !== null) anchors.push(k);
   if (!anchors.length) return null;
+  const anchored = times.map(t => t !== null);
   for (let k = 0; k < anchors[0]; k++) times[k] = times[anchors[0]];
   const last = anchors[anchors.length - 1];
   for (let k = last + 1; k < n; k++) times[k] = times[last];
@@ -2436,7 +2506,49 @@ function alignWordTimestamps(displayWords, timedWords) {
     const tp = times[p], tq = times[q];
     for (let k = p + 1; k < q; k++) times[k] = tp + (tq - tp) * (k - p) / (q - p);
   }
+  times.anchored = anchored; // which times are real audio anchors vs interpolated
   return times;
+}
+
+// Safety net behind the windowed timing: a long run of display words with no Whisper anchor
+// is spread evenly across its gap, which puts the reader's highlight out of step with the
+// imam. Re-run Groq on just that stretch (with context either side) and splice its timings
+// in, replacing whatever Groq returned inside the gap. One pass, a few short requests at most.
+const GAP_MIN_WORDS = 15;
+async function retimeUnanchoredGaps(audioPath, displayWords, timedWords, times) {
+  const gaps = [];
+  for (let k = 0; k < displayWords.length;) {
+    if (times.anchored[k]) { k++; continue; }
+    let e = k;
+    while (e < displayWords.length && !times.anchored[e]) e++;
+    if (e - k >= GAP_MIN_WORDS && (e >= displayWords.length || k === 0 || times[e] - times[k - 1] >= 3)) {
+      const from = k > 0 ? times[k - 1] : 0;
+      const to = e < displayWords.length ? times[e] : times[displayWords.length - 1] + 5;
+      gaps.push({ from, to, words: e - k });
+    }
+    k = e;
+  }
+  if (!gaps.length) return null;
+  let merged = timedWords;
+  for (const g of gaps.slice(0, 6)) {
+    // Whisper needs context: a clip cut tight to the gap can come back empty.
+    const start = Math.max(0, g.from - 15), dur = Math.max(g.to + 15 - start, 45);
+    let clip = null;
+    try {
+      clip = await cutClip(audioPath, start, dur, 'gap');
+      const res = await transcribeWithGroq(clip, { prompt: false });
+      const fresh = (res.words ?? []).map(w => ({ ...w, start: w.start + start, end: w.end + start }))
+        .filter(w => w.start > g.from && w.start < g.to);
+      merged = [...merged.filter(w => !(w.start > g.from && w.start < g.to)), ...fresh]
+        .sort((a, b) => a.start - b.start);
+      console.log(`  re-timed a ${g.words}-word gap at ${g.from.toFixed(0)}–${g.to.toFixed(0)}s (${fresh.length} words from a clip)`);
+    } catch (e) {
+      console.warn(`  [WARN] could not re-time gap at ${g.from.toFixed(0)}s: ${e.message}`);
+    } finally {
+      if (clip) try { unlinkSync(clip); } catch {}
+    }
+  }
+  return merged === timedWords ? null : alignWordTimestamps(displayWords, merged);
 }
 
 // Assigns each timed display word to one of the reference (Whisper) segments by actual time,
@@ -2506,7 +2618,7 @@ Formatting rules — follow these exactly:
       // though the API does not guarantee bit-identical output.
       config: { temperature: 0, seed: 42 },
     }),
-    transcribeWithGroq(audioPath),
+    transcribeWithGroqWindowed(audioPath),
   ]);
   console.log(' done');
 
@@ -2524,7 +2636,8 @@ Formatting rules — follow these exactly:
   const geminiWords = geminiText.split(/\s+/).filter(Boolean);
 
   // Align Gemini's words to Groq's word-level timestamps for real, drift-free timing.
-  const times = groqWords.length ? alignWordTimestamps(geminiWords, groqWords) : null;
+  let times = groqWords.length ? alignWordTimestamps(geminiWords, groqWords) : null;
+  if (times) times = (await retimeUnanchoredGaps(audioPath, geminiWords, groqWords, times)) ?? times;
   if (times) {
     const wordTimes = geminiWords.map((word, k) => ({ word, start: Math.round(times[k] * 100) / 100 }));
     const segments = buildSegmentsFromWordTimes(geminiWords, times, groqSegments);
@@ -3039,4 +3152,10 @@ export {
   getQuranNgramIndex,
   extractMatn,
   transcribeWithGroq,
+  transcribeWithGroqWindowed,
+  preprocessAudio,
+  SILENCE_PREPEND_SEC,
+  alignWordTimestamps,
+  retimeUnanchoredGaps,
+  buildSegmentsFromWordTimes,
 };
