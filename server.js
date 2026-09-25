@@ -32,13 +32,22 @@ const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 // in audio_files/<basename>.<ext> (basename = folder name after the timestamp).
 // ────────────────────────────────────────────────────────────────────────────
 const PUBLIC_KHUTBAHS = [
+  {
+    folder: '2026-09-25T10-04-57_khutbah-2026-09-25-masjid',
+    title: 'The Blessing of Security',
+    speaker: 'Friday Khutbah',
+    masjid: 'Askan AlMaather Mosque',
+    masjid_ar: 'جامع إسكان المعذر',
+    maps_url: 'https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6',
+    date: '25 September 2026',
+    featured: true,
+  },
   // ── Arafah khutbah (single continuous khutbah — processed with `--single`) ──
   {
     folder: '2026-09-11T15-48-51_arafah_khutbah_2026',
     title: 'The Khutbah of Arafah',
     speaker: 'Sheikh Ali al-Hudhayfi · Masjid Namirah',
     date: '26 May 2026',
-    featured: true,
   },
   // ── Eid al-Adha khutbah (single khutbah — processed with `--type eid`) ──
   {
@@ -58,15 +67,6 @@ const PUBLIC_KHUTBAHS = [
     masjid_ar: 'جامع إسكان المعذر',
     maps_url: 'https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6',
     date: '22 May 2026',
-  },
-  {
-    folder: '2026-09-25T10-04-57_khutbah-2026-09-25-masjid',
-    title: 'The Blessing of Security',
-    speaker: 'Friday Khutbah',
-    masjid: 'Askan AlMaather Mosque',
-    masjid_ar: 'جامع إسكان المعذر',
-    maps_url: 'https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6',
-    date: '25 September 2026',
   },
   {
     folder: '2026-09-11T13-55-21_khutbah-2026-09-11-masjid',
