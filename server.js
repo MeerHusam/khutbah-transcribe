@@ -18,6 +18,10 @@ const wss = new WebSocketServer({ server });
 
 app.use(express.json({ limit: '16kb' }));
 app.get('/', (req, res) => res.sendFile(join(__dirname, 'public', 'home.html')));
+app.get('/:slug', (req, res, next) => {
+  if (!SLUG_TO_FOLDER.has(req.params.slug)) return next();
+  res.sendFile(join(__dirname, 'public', 'index.html'));
+});
 app.use(express.static(join(__dirname, 'public')));
 app.use('/audio_files', express.static(join(__dirname, 'audio_files')));
 
@@ -34,6 +38,7 @@ const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 const PUBLIC_KHUTBAHS = [
   {
     folder: '2026-09-25T10-04-57_khutbah-2026-09-25-masjid',
+    slug: '2026-09-25',
     title: 'The Blessing of Security',
     speaker: 'Friday Khutbah',
     masjid: 'Askan AlMaather Mosque',
@@ -45,6 +50,7 @@ const PUBLIC_KHUTBAHS = [
   // ── Arafah khutbah (single continuous khutbah — processed with `--single`) ──
   {
     folder: '2026-09-11T15-48-51_arafah_khutbah_2026',
+    slug: 'arafah-2026',
     title: 'The Khutbah of Arafah',
     speaker: 'Sheikh Ali al-Hudhayfi',
     masjid: 'Masjid Namirah, Arafat',
@@ -55,6 +61,7 @@ const PUBLIC_KHUTBAHS = [
   // ── Eid al-Adha khutbah (single khutbah — processed with `--type eid`) ──
   {
     folder: '2026-05-27T03-50-41_eid_khutbah_2026',
+    slug: 'eid-al-adha-2026',
     title: 'Eid al-Adha Khutbah',
     speaker: 'Eid Khutbah',
     masjid: 'Askan AlMaather Mosque',
@@ -64,6 +71,7 @@ const PUBLIC_KHUTBAHS = [
   },
   {
     folder: '2026-05-22T11-30-04_khutbah-2026-05-22-masjid',
+    slug: '2026-05-22',
     title: 'The Day of Arafah & Udhiyah',
     speaker: 'Friday Khutbah',
     masjid: 'Askan AlMaather Mosque',
@@ -73,6 +81,7 @@ const PUBLIC_KHUTBAHS = [
   },
   {
     folder: '2026-09-11T13-55-21_khutbah-2026-09-11-masjid',
+    slug: '2026-09-11',
     title: 'The Blessing of Water',
     speaker: 'Friday Khutbah',
     masjid: 'Askan AlMaather Mosque',
@@ -82,6 +91,7 @@ const PUBLIC_KHUTBAHS = [
   },
   {
     folder: '2026-05-22T21-05-05_makkah_sudais_ramadan_ummah',
+    slug: 'sudais-ramadan',
     title: 'Ramadan: A Season of Renewal',
     speaker: 'Sheikh Abdul Rahman al-Sudais',
     masjid: 'Masjid al-Haram, Makkah',
@@ -91,6 +101,8 @@ const PUBLIC_KHUTBAHS = [
 ];
 const FEATURED_FOLDER = (PUBLIC_KHUTBAHS.find(k => k.featured) || PUBLIC_KHUTBAHS[0]).folder;
 const ALLOWED_FOLDERS = new Set(PUBLIC_KHUTBAHS.map(k => k.folder));
+// Short share links: /2026-09-25 instead of /index.html?folder=<run folder>.
+const SLUG_TO_FOLDER = new Map(PUBLIC_KHUTBAHS.filter(k => k.slug).map(k => [k.slug, k.folder]));
 
 // Parsed results are immutable at runtime (files never change), so cache indefinitely.
 const resultCache = new Map();
@@ -205,6 +217,7 @@ function findAudioUrl(folder) {
 function listItem(k, r) {
   return {
     folder: k.folder,
+    slug: k.slug || '',
     title: k.title,
     speaker: k.speaker || '',
     masjid: k.masjid || '',

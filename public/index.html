@@ -700,6 +700,7 @@
   let hadithRefList = [];
 
   // ── Boot: load the curated list + the requested (or featured) khutbah ──
+  let slugByFolder = new Map(), currentFolder = '';
   init();
 
   async function init() {
@@ -713,9 +714,17 @@
     }
     populateSwitcher(list);
 
+    // A short link (/2026-09-25) names the khutbah by slug; older ?folder= links still work.
+    const items = list.items || [];
+    const slug = decodeURIComponent(location.pathname.replace(/^\/+|\/+$/g, ''));
     const wanted = new URLSearchParams(location.search).get('folder');
-    const known = (list.items || []).some(i => i.folder === wanted);
-    const folder = known ? wanted : list.featured;
+    const item = items.find(i => i.slug && i.slug === slug) || items.find(i => i.folder === wanted);
+    const folder = item ? item.folder : list.featured;
+    currentFolder = folder;
+    // Show the short link in the address bar so copying it shares the short form.
+    if (item && item.slug && location.pathname !== '/' + item.slug) {
+      history.replaceState(null, '', '/' + item.slug + location.hash);
+    }
     document.getElementById('khutbahSelect').value = folder;
 
     try {
@@ -736,13 +745,15 @@
 
   function populateSwitcher(list) {
     const sel = document.getElementById('khutbahSelect');
+    slugByFolder = new Map((list.items || []).map(i => [i.folder, i.slug]));
     sel.innerHTML = (list.items || []).map(i =>
       `<option value="${escAttr(i.folder)}">${i.featured ? '★ ' : ''}${escHtml(i.title || i.folder)}</option>`
     ).join('');
   }
 
   function switchKhutbah(folder) {
-    location.href = `/index.html?folder=${encodeURIComponent(folder)}`;
+    const slug = slugByFolder.get(folder);
+    location.href = slug ? `/${encodeURIComponent(slug)}` : `/index.html?folder=${encodeURIComponent(folder)}`;
   }
 
   // ── Live + total viewer counts over WebSocket ──
@@ -1336,7 +1347,7 @@
     const btn = document.getElementById('fbSend');
     btn.disabled = true;
     try {
-      const folder = new URLSearchParams(location.search).get('folder') || result?.title || '';
+      const folder = currentFolder || result?.title || '';
       const res = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

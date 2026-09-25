@@ -710,7 +710,7 @@
 
   function renderCard(k) {
     const isFeatured = k.featured;
-    const readerUrl = `index.html?folder=${encodeURIComponent(k.folder)}`;
+    const readerUrl = k.slug ? `/${encodeURIComponent(k.slug)}` : `index.html?folder=${encodeURIComponent(k.folder)}`;
     const masjidHtml = k.masjid
       ? (k.maps_url
           // A span, not <a>: the card is already a link and nested anchors break the layout.
