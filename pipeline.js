@@ -1739,6 +1739,116 @@ function pushQuranBadge(lines, ref, inline = false) {
   lines.push(`${marker} ${ref.surah_name} ${ref.surah_number}:${ayahLabel}  —  ${ref.quran_link}  (confidence: ${ref.confidence})`);
 }
 
+// The English of a verse quoted inside the imam's prose must be the published translation,
+// the same one the verse cards show (Sahih International, fetched from alquran.cloud), not
+// Claude's rendering of it — Claude translated Quraysh 106:3 as "so let them worship the
+// Lord of this House" while the cards beside it read Sahih International. So locate the
+// verse in the block's translation and swap in the published text:
+//  - the candidates are the translation's quoted runs, or — when Claude quoted nothing —
+//    runs of 1-3 clauses (it rendered 106:3 unquoted, which also left it un-gilded);
+//  - imams quote part of a long verse (Al Imran 3:97 "ومن دخله كان آمنا"), so the
+//    replacement is the run of the verse's published SENTENCES that best matches, not the
+//    whole verse;
+//  - the swap happens only on a clear word match, so a hadith quoted in the same block is
+//    never replaced by a verse.
+// The result is always in double quotes, which is what the web reader gilds.
+let _quranEn = null;
+function publishedVerseEnglish(ref) {
+  try { _quranEn ??= require('quran-json/dist/quran_en.json'); } catch { return ''; }
+  const verses = _quranEn[(ref.surah_number ?? 0) - 1]?.verses ?? [];
+  const end = ref.ayah_number_end ?? ref.ayah_number;
+  return verses.filter(v => v.id >= ref.ayah_number && v.id <= end).map(v => v.translation).join(' ');
+}
+const enWords = t => t.toLowerCase().replace(/[^a-z\s']/g, ' ').split(/\s+/).filter(w => w.length >= 3);
+function wordF1(a, b) {
+  if (!a.length || !b.length) return 0;
+  const bs = new Set(b), as = new Set(a);
+  const p = a.filter(w => bs.has(w)).length / a.length, r = b.filter(w => as.has(w)).length / b.length;
+  return p + r ? 2 * p * r / (p + r) : 0;
+}
+const EN_QUOTE_RE = /["\u201C]([^"\u201C\u201D]+)["\u201D]|(?<![A-Za-z])['\u2018](.+?)['\u2019](?=[\s.,;:!?)]|$)/g;
+// Replace the best-matching run of `text` with the best-matching run of `published`.
+// Candidates in `text` are its quoted runs or, when nothing is quoted, runs of 1-3 clauses;
+// `published` is split into units by `unitRe` and runs of up to `maxRun` units are tried.
+// Returns the new text, or null when nothing matches at least `minF1`. Spans in `locked`
+// (text already replaced for another reference) are never candidates.
+function swapInPublished(text, published, { unitRe, maxRun, minF1, locked }) {
+  const units = published.replace(/["\u201C\u201D]/g, '').split(unitRe).map(u => u.trim()).filter(Boolean);
+  if (!units.length) return null;
+  const free = c => !locked.some(l => c.s < l.e && c.e > l.s);
+  // Quoted runs, plus unquoted runs of 1-4 clauses — always both: a block can quote one
+  // hadith and leave the next unquoted, and whichever was swapped first must not hide the
+  // other. Clause runs never cut into a quote.
+  const quotes = [...text.matchAll(EN_QUOTE_RE)]
+    .map(m => ({ s: m.index, e: m.index + m[0].length, t: m[1] ?? m[2] }));
+  const cands = quotes.filter(free);
+  const clauses = [...text.matchAll(/[^,;:.!?\u201C\u201D"]+/g)].map(m => ({ s: m.index, e: m.index + m[0].length }));
+  for (let i = 0; i < clauses.length; i++) for (let j = i; j < Math.min(i + 4, clauses.length); j++) {
+    const c = { s: clauses[i].s, e: clauses[j].e, t: text.slice(clauses[i].s, clauses[j].e),
+      edges: [enWords(text.slice(clauses[i].s, clauses[i].e)), enWords(text.slice(clauses[j].s, clauses[j].e))] };
+    if (free(c) && !quotes.some(q => c.s < q.e && c.e > q.s)) cands.push(c);
+  }
+  let best = null;
+  for (const c of cands) {
+    const cw = enWords(c.t);
+    if (cw.length < 3) continue;
+    for (let i = 0; i < units.length; i++) for (let j = i; j < Math.min(i + maxRun, units.length); j++) {
+      const run = units.slice(i, j + 1).join(' ');
+      const rw = enWords(run);
+      if (rw.length > cw.length * 2 + 4) break; // never pad a short quote with unquoted text
+      // F1 alone favours the one clause that matches best and swaps in only that clause
+      // (Tirmidhi 1639 became just "and an eye that spent the night…"). Weight by the
+      // candidate's length so the whole quotation wins; extending into unrelated prose
+      // still loses, because every unmatched word lowers F1.
+      // A clause run must start and end on matching words, or it swallows the imam's
+      // framing next to the quote ("Reported by al-Tirmidhi").
+      if (c.edges) {
+        const rs = new Set(rw);
+        // Half the words, not any: common words ("allah", "the", "that") alone let the run
+        // swallow "May Allah reward them…" after Tirmidhi 1639.
+        if (!c.edges.every(ew => ew.length && ew.filter(w => rs.has(w)).length / ew.length >= 0.5)) continue;
+      }
+      const f = wordF1(cw, rw);
+      const score = f * Math.sqrt(cw.length);
+      if (f >= minF1 && (!best || score > best.score)) best = { ...c, run, f, score };
+    }
+  }
+  if (!best) return null;
+  const s = best.s + text.slice(best.s).match(/^\s*/)[0].length;
+  const e = best.e - text.slice(best.s, best.e).match(/\s*$/)[0].length;
+  const run = best.run.replace(/^['\u2018\u2019\s]+|['\u2018\u2019\s]+$/g, '').replace(/[.;,:]+$/, '');
+  // A quote that closed the sentence ('…shall be safe.') must still close it.
+  const stop = /[.!?]$/.test(best.t.trim()) && !/^[.!?]/.test(text.slice(e)) ? best.t.trim().slice(-1) : '';
+  const inserted = '\u201C' + run + '\u201D';
+  locked.push({ s, e: s + inserted.length });
+  for (const l of locked.slice(0, -1)) if (l.s >= e) { l.s += inserted.length + stop.length - (e - s); l.e += inserted.length + stop.length - (e - s); }
+  return text.slice(0, s) + inserted + stop + text.slice(e);
+}
+
+// Verses swap in whole published SENTENCES (an imam quotes part of a long verse; a
+// sentence is the smallest unit that still reads as the verse). Hadith swap in CLAUSES:
+// a sunnah.com entry carries the narrator's framing and often far more than the imam
+// quoted — Bukhari 1587 runs on into the rules about Makkah's thorns and game, while the
+// imam said only "إن هذا البلد حرمه الله" — so only the matching clauses are used. Hadith
+// wording in translation varies more than verse wording ("made this town a sanctuary" vs
+// "this land was made sacred"), hence the lower bar; the swap still requires the match to
+// come from this block's own translation.
+function usePublishedTranslations(english, qrefs = [], hrefs = []) {
+  if (!english) return english;
+  let text = english.replace(/,\s*:/g, ':'); // Claude's ",:" artefact
+  const locked = [];
+  for (const ref of qrefs) {
+    const published = publishedVerseEnglish(ref);
+    if (!published) continue;
+    text = swapInPublished(text, published, { unitRe: /(?<=[.;!?])\s+/, maxRun: 99, minF1: 0.5, locked }) ?? text;
+  }
+  for (const ref of hrefs) {
+    if (!ref.translation) continue;
+    text = swapInPublished(text, ref.translation, { unitRe: /(?<=[,;:.!?])\s+/, maxRun: 8, minF1: 0.4, locked }) ?? text;
+  }
+  return text;
+}
+
 // `skipTranslation` suppresses the published sunnah.com text for this block because the
 // block's own prose translation already renders the Hadith — showing both prints the same
 // words twice.
@@ -2091,6 +2201,7 @@ function buildReaderView(transcript, result) {
     const skipFetched = new Set();
     if (english) for (const h of (seg.hadithRefs ?? [])) skipFetched.add(h);
 
+    english = usePublishedTranslations(english, seg.quranRefs, seg.hadithRefs);
     lines.push(arabic);
     lines.push('');
     if (english) lines.push(english);
