@@ -74,7 +74,8 @@
       justify-content: space-between;
       position: sticky; top: 0; z-index: 50;
     }
-    .header-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+    /* Brand and badge take equal widths so the nav sits in the true centre. */
+    .header-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; flex: 1 1 0; min-width: 0; }
     .logo-mark {
       width: 40px; height: 40px;
       border-radius: 50%;
@@ -87,7 +88,8 @@
       color: var(--cream); letter-spacing: 0.2px;
     }
     .viewers-badge {
-      display: flex; align-items: center; gap: 6px;
+      display: flex; align-items: center; justify-content: flex-end; gap: 6px;
+      flex: 1 1 0;
       font-size: 12px; color: var(--text-muted);
     }
     .live-dot {
