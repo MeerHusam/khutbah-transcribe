@@ -718,33 +718,19 @@
     }
     populateSwitcher(list);
 
-    // A linked folder is tried even when it is not in the list: unlisted previews are served
-    // by link only. The server's allowlist still decides; an unknown folder falls back to the
-    // featured khutbah as before.
     const wanted = new URLSearchParams(location.search).get('folder');
     const known = (list.items || []).some(i => i.folder === wanted);
-    let folder = wanted || list.featured;
+    const folder = known ? wanted : list.featured;
+    document.getElementById('khutbahSelect').value = folder;
 
     try {
-      let res = await fetch(`/api/results/${folder}`);
-      if (!res.ok && folder !== list.featured) {
-        folder = list.featured;
-        res = await fetch(`/api/results/${folder}`);
-      }
+      const res = await fetch(`/api/results/${folder}`);
       if (!res.ok) throw new Error('not found');
       result = await res.json();
     } catch {
       document.getElementById('app').innerHTML = '<div class="state-msg"><h2>Khutbah not found</h2></div>';
       return;
     }
-    const select = document.getElementById('khutbahSelect');
-    if (folder === wanted && !known) {
-      const opt = document.createElement('option');
-      opt.value = folder;
-      opt.textContent = 'Preview';
-      select.appendChild(opt);
-    }
-    select.value = folder;
 
     quranRefs = result.quran_references || [];
     hadithRefList = result.hadith_references || [];
