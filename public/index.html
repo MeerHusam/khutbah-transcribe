@@ -853,7 +853,12 @@
           <div class="section-body">
             ${qRefs.length === 0
               ? '<p style="color:var(--text-muted);font-size:14px;">No Quranic references detected.</p>'
-              : qRefs.map((q, i) => renderQuranRef(q, i)).join('')}
+              // Listed in mushaf order (surah, then ayah). Each card keeps its original
+              // index, which the tafsir popup and verse-text loader look it up by.
+              : qRefs.map((q, i) => [q, i])
+                  .sort(([a, ia], [b, ib]) => (a.surah_number || 999) - (b.surah_number || 999)
+                    || (a.ayah_number || 0) - (b.ayah_number || 0) || ia - ib)
+                  .map(([q, i]) => renderQuranRef(q, i)).join('')}
           </div>
         </div>
 
