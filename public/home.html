@@ -244,6 +244,7 @@
       border-radius: 99px;
       padding: 4px 11px;
       display: inline-flex; align-items: center; gap: 6px;
+      align-self: flex-start;
       margin-bottom: 16px;
       position: relative; z-index: 1;
     }
@@ -573,22 +574,22 @@
     <div class="about-card">
       <span class="about-icon">01 — Transcription</span>
       <h3>Arabic first</h3>
-      <p>Audio is transcribed using <strong style="color:var(--cream)">Gemini 2.5 Flash</strong>, which handles dense Arabic speech well. <strong style="color:var(--cream)">Groq Whisper</strong> runs in parallel for word-level timestamps. The two outputs are aligned using Needleman-Wunsch sequence matching, so the final transcript carries Gemini's text with Groq's real audio timing.</p>
+      <p>Audio is transcribed using <strong style="color:var(--cream)">Gemini 2.5 Flash</strong>, which handles dense Arabic speech well. <strong style="color:var(--cream)">Groq Whisper</strong> runs in parallel for word-level timestamps, over the whole file and again in short overlapping windows so no stretch of the audio is skipped. The outputs are aligned using Needleman-Wunsch sequence matching, so the final transcript carries Gemini's text with Whisper's real audio timing.</p>
     </div>
     <div class="about-card">
       <span class="about-icon">02 — Translation</span>
       <h3>Read as it was said</h3>
-      <p>The transcript is split at breath-pause boundaries rather than fixed word counts. <strong style="color:var(--cream)">Claude</strong> translates each segment with the full khutbah in view, so the English reads as the imam intended rather than as a word-for-word substitution.</p>
+      <p>The transcript is split at breath-pause boundaries rather than fixed word counts. <strong style="color:var(--cream)">Claude</strong> translates each segment with the full khutbah in view, so the English reads as the imam intended rather than as a word-for-word substitution. Where the imam quotes a verse or a hadith mid-sentence, the published translation (Sahih International for verses, sunnah.com for hadith) replaces Claude's wording wherever it lines up.</p>
     </div>
     <div class="about-card">
       <span class="about-icon">03 — Quranic References</span>
       <h3>Nothing missed</h3>
-      <p>Detection runs in three passes: Claude catches explicit citations ("قال الله تعالى"), a sliding-window scan finds ayahs cited without a signal phrase, and a 4-gram index catches partial recitations the other two miss. Each ayah is matched against the corpus and linked to <strong style="color:var(--cream)">quran.com</strong>.</p>
+      <p>Detection runs in three passes: Claude catches explicit citations ("قال الله تعالى"), a sliding-window scan finds ayahs cited without a signal phrase, and a 4-gram index catches partial recitations the other two miss. Each ayah is matched against the corpus and linked to <strong style="color:var(--cream)">quran.com</strong>. The full verse is shown with the recited part in bold, alongside the Sahih International translation.</p>
     </div>
     <div class="about-card">
       <span class="about-icon">04 — Hadith References</span>
       <h3>Linked to the source</h3>
-      <p>Claude identifies Hadith text and narrator from its knowledge of the Islamic corpus. Each match is then searched on <strong style="color:var(--cream)">sunnah.com</strong> by the Arabic matn, so the link points to the right page regardless of numbering differences between hadith databases.</p>
+      <p>Claude flags the hadith the imam quotes. The Arabic matn is searched on <strong style="color:var(--cream)">sunnah.com</strong>, preferring the collection the imam names ("رواه مسلم"), and a result is only accepted if its wording matches what was said. The link and narrator come from that sunnah.com page, so they are right regardless of numbering differences between hadith databases.</p>
     </div>
   </div>
 </section>
