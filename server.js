@@ -87,7 +87,6 @@ const PUBLIC_KHUTBAHS = [
     masjid: 'Masjid al-Haram, Makkah',
     masjid_ar: 'المسجد الحرام',
     maps_url: 'https://www.google.com/maps/search/?api=1&query=Masjid+al-Haram+Makkah',
-    date: '22 May 2026',
   },
 ];
 const FEATURED_FOLDER = (PUBLIC_KHUTBAHS.find(k => k.featured) || PUBLIC_KHUTBAHS[0]).folder;
