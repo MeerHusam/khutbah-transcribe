@@ -50,11 +50,13 @@
         "37:180-182"
       ],
       "hadith": [
-        "muslim:325b",
+        "bukhari:201",
         "ibnmajah:425",
         "abudawud:2928"
       ],
-      "corrections": [],
+      "corrections": [
+        "~ hadith muslim:325b -> bukhari:201: the imam says 'رواه البخاري ومسلم' and Bukhari 201 matches his wording; 325b predates the imam-attribution rule"
+      ],
       "confirmed": false
     },
     {
