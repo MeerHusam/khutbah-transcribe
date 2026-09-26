@@ -18,10 +18,12 @@ export function buildWordTimeMap(segments) {
   return wordTimes;
 }
 
-export function loadResult(folder) {
+// `readerRawOverride` lets the test runner check a reader rebuilt in memory with the
+// current code instead of the reader.txt on disk.
+export function loadResult(folder, readerRawOverride = null) {
   const result = JSON.parse(readFileSync(join(__dirname, folder, 'result.json'), 'utf8'));
   try {
-    const readerRaw = readFileSync(join(__dirname, folder, 'reader.txt'), 'utf8');
+    const readerRaw = readerRawOverride ?? readFileSync(join(__dirname, folder, 'reader.txt'), 'utf8');
     // A paragraph is Arabic-dominant if >40% of its word chars are Arabic Unicode
     const isArabicDominant = s => {
       const total = s.replace(/\s/g, '').length;
