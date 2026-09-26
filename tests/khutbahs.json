@@ -5,7 +5,8 @@
     "hadith: sunnah.com slug:number; 'collection:?' when sunnah.com has no page for it.",
     "Built 2026-09-26 from each khutbah's output as published, with the known errors corrected",
     "(each correction is listed under 'corrections'). 'confirmed' is false until Meer has",
-    "checked the lists; the verses in particular need a hafiz's eye, not a script's."
+    "checked the lists; the verses in particular need a hafiz's eye, not a script's.",
+    "hadith_english: per quoted hadith, the narrator its card must name (all distinctive name parts) and words its block's English must ('has') / must not ('not') contain. Chosen to hold for both Claude's wording and a correct published excerpt."
   ],
   "khutbahs": [
     {
@@ -31,6 +32,54 @@
         "muslim:1387a",
         "abudawud:523"
       ],
+      "hadith_english": {
+        "tirmidhi:2346": {
+          "narrator": "'Ubaidullah bin Mihsan",
+          "has": [
+            "body",
+            "world"
+          ]
+        },
+        "bukhari:2892": {
+          "narrator": "Sahl bin Sa'd",
+          "has": [
+            "one day",
+            "better than the world"
+          ]
+        },
+        "muslim:1913a": {
+          "narrator": "Salman",
+          "has": [
+            "month",
+            "night"
+          ]
+        },
+        "tirmidhi:1639": {
+          "narrator": "Ibn 'Abbas",
+          "has": [
+            "two eyes",
+            "fear of Allah"
+          ]
+        },
+        "bukhari:1587": {
+          "narrator": "Ibn 'Abbas",
+          "has": [
+            "Makkah"
+          ]
+        },
+        "muslim:1387a": {
+          "narrator": "Sa'd b. Abu Waqqas",
+          "has": [
+            "salt"
+          ]
+        },
+        "abudawud:523": {
+          "narrator": "Abd Allah b. Amr",
+          "has": [
+            "ten"
+          ]
+        }
+      },
       "corrections": [],
       "confirmed": false
     },
@@ -54,6 +103,32 @@
         "ibnmajah:425",
         "abudawud:2928"
       ],
+      "hadith_english": {
+        "bukhari:201": {
+          "narrator": "Anas",
+          "has": [
+            "mudd",
+            "five"
+          ]
+        },
+        "ibnmajah:425": {
+          "narrator": "'Abdullah bin 'Amr",
+          "has": [
+            "O Sa'd",
+            "flowing river"
+          ],
+          "not": [
+            "and he said”"
+          ]
+        },
+        "abudawud:2928": {
+          "narrator": "'Abdullah bin 'Umar",
+          "has": [
+            "each of you",
+            "responsible for his flock"
+          ]
+        }
+      },
       "corrections": [
         "~ hadith muslim:325b -> bukhari:201: the imam says 'رواه البخاري ومسلم' and Bukhari 201 matches his wording; 325b predates the imam-attribution rule"
       ],
@@ -98,6 +173,15 @@
       "hadith": [
         "tirmidhi:3585"
       ],
+      "hadith_english": {
+        "tirmidhi:3585": {
+          "narrator": "Abdullah ibn Amr",
+          "has": [
+            "Arafah",
+            "before me"
+          ]
+        }
+      },
       "corrections": [
         "+ quran 22:28 (second time): the imam re-reads 'ليشهدوا منافع لهم ويذكروا اسم الله' after 'نعم. نعم'; the words rendered nowhere before",
         "- hadith bukhari:2157: the imam lists the pillars of Islam in his own words ('فهذه أركان دين الإسلام…'); not a quotation, and 2157 is Jarir's pledge hadith"
@@ -123,6 +207,23 @@
         "muslim:1141a",
         "ahmad:?"
       ],
+      "hadith_english": {
+        "muslim:1141a": {
+          "narrator": "Nubayshah al-Hudhali",
+          "has": [
+            "eating",
+            "drinking",
+            "remembrance of Allah"
+          ]
+        },
+        "ahmad:?": {
+          "narrator": "Abu Hurayrah",
+          "has": [
+            "Paradise",
+            "gates"
+          ]
+        }
+      },
       "corrections": [
         "+ quran 37:103: 'فلما أسلما وتله للجبين' is recited but renders nowhere",
         "- hadith ibnmajah:3878: 'ولا حول ولا قوة إلا بالله العلي العظيم' is the imam's own dhikr, not a quoted hadith",
@@ -142,6 +243,24 @@
         "muslim:1162a",
         "tirmidhi:3585"
       ],
+      "hadith_english": {
+        "muslim:1162a": {
+          "narrator": "Abu Qatada",
+          "has": [
+            "Arafah"
+          ],
+          "not": [
+            "Ashura"
+          ]
+        },
+        "tirmidhi:3585": {
+          "narrator": "Amr ibn Shu'ayb from his father from his grandfather",
+          "has": [
+            "Arafah",
+            "before me"
+          ]
+        }
+      },
       "corrections": [],
       "confirmed": false
     },
@@ -167,6 +286,38 @@
         "abudawud:2928",
         "tirmidhi:2910"
       ],
+      "hadith_english": {
+        "ibnmajah:1642": {
+          "narrator": "Abu Hurayrah",
+          "has": [
+            "gates of Paradise",
+            "every night"
+          ]
+        },
+        "nasai:2202": {
+          "narrator": "Abu Hurayrah",
+          "has": [
+            "previous sins"
+          ],
+          "not": [
+            "Qadr"
+          ]
+        },
+        "abudawud:2928": {
+          "narrator": "Ibn Umar",
+          "has": [
+            "shepherd",
+            "responsible"
+          ]
+        },
+        "tirmidhi:2910": {
+          "narrator": "Ibn Mas'ud",
+          "has": [
+            "letter",
+            "Alif"
+          ]
+        }
+      },
       "corrections": [
         "- hadith abudawud:2316: its text is Al-Baqarah 2:185, a verse, not a hadith"
       ],
@@ -188,6 +339,22 @@
         "bukhari:15",
         "muslim:2832"
       ],
+      "hadith_english": {
+        "bukhari:15": {
+          "narrator": "Anas",
+          "has": [
+            "father",
+            "mankind"
+          ]
+        },
+        "muslim:2832": {
+          "narrator": "Abu Huraira",
+          "has": [
+            "family",
+            "wealth"
+          ]
+        }
+      },
       "corrections": [
         "+ quran 3:31 (second recitation): 'قل إن كنتم تحبون الله فاتبعوني يحببكم الله' renders nowhere",
         "- hadith ibnmajah:1487, ibnmajah:3704, abudawud:740: the imam's own sentences matched corpus fragments on 'النبي صلى الله عليه وسلم'"

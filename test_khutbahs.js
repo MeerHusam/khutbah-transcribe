@@ -8,16 +8,22 @@
 //   node test_khutbahs.js --rebuild    rebuild each reader in memory with the current code first
 //                                      (tests buildReaderView changes without writing any files)
 //   node test_khutbahs.js --only 2026-08-21 --warnings
+//   node test_khutbahs.js --root <dir>    check copies of the output folders under <dir> instead
+//                                      (e.g. a regeneration made elsewhere, before it replaces outputs/)
+//
+// Besides the cards, each khutbah may list `hadith_english`: per quoted hadith (slug:number),
+// the narrator the card must name and words its block's English must / must not contain.
 
 import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
+import { join, resolve } from 'path';
 import { verifyReader } from './verify_reader.js';
-import { buildReaderView, deduplicateHadithRefs } from './pipeline.js';
+import { buildReaderView, deduplicateHadithRefs, nameKeys } from './pipeline.js';
 
 const args = process.argv.slice(2);
 const rebuild = args.includes('--rebuild');
 const showWarnings = args.includes('--warnings');
 const only = args.includes('--only') ? args[args.indexOf('--only') + 1] : null;
+const root = args.includes('--root') ? resolve(args[args.indexOf('--root') + 1]) : null;
 
 const spec = JSON.parse(readFileSync(new URL('./tests/khutbahs.json', import.meta.url), 'utf8'));
 
@@ -41,6 +47,7 @@ const hadithKey = h => {
 let failed = 0, ran = 0;
 for (const k of spec.khutbahs) {
   if (only && k.slug !== only) continue;
+  if (root) k.folder = join(root, k.folder);
   if (!existsSync(k.folder)) { console.log(`–  ${k.slug}: folder missing (${k.folder}), skipped`); continue; }
   ran++;
 
@@ -62,8 +69,27 @@ for (const k of spec.khutbahs) {
   const hadith = (v.result.hadith_references ?? []).map(hadithKey);
   const q = diff(k.quran, quran), h = diff(k.hadith, hadith);
 
+  // Each quoted hadith: its card's narrator, and the English of the block it sits in.
+  const english = [];
+  const hadithRefs = v.result.hadith_references ?? [];
+  for (const [key, want] of Object.entries(k.hadith_english ?? {})) {
+    const ref = hadithRefs.find(h => hadithKey(h) === key);
+    if (!ref) { english.push(`${key}: no such hadith card`); continue; }
+    if (want.narrator) {
+      const have = nameKeys(ref.narrator);
+      if ([...nameKeys(want.narrator)].some(x => !have.has(x))) english.push(`${key}: narrator "${ref.narrator}", expected "${want.narrator}"`);
+    }
+    const badge = `Narrator: ${ref.narrator ?? 'unknown'}  ·  Collection: ${ref.collection ?? 'unknown'}`;
+    const block = v.blocks.find(b => b.englishParas.some(p => p.startsWith('📚') && p.includes(badge)));
+    if (!block) { english.push(`${key}: its badge is on no block`); continue; }
+    const text = block.englishParas.filter(p => !/^(📖|📑|📚)/.test(p)).join(' ').replace(/[’‘`]/g, "'").toLowerCase();
+    for (const w of want.has ?? []) if (!text.includes(w.toLowerCase())) english.push(`${key}: English lacks "${w}"`);
+    for (const w of want.not ?? []) if (text.includes(w.toLowerCase())) english.push(`${key}: English has "${w}"`);
+  }
+
   const problems = [
     ...v.failures.map(f => `check: ${f}`),
+    ...english.map(e => `hadith english: ${e}`),
     ...q.missing.map(x => `quran card missing: ${x}`),
     ...q.unexpected.map(x => `quran card not expected: ${x}`),
     ...h.missing.map(x => `hadith card missing: ${x}`),

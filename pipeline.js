@@ -1155,24 +1155,36 @@ async function resolveSunnahLink(detectedText, preferredSlug = null) {
   return resolved;
 }
 
-// Fetch the canonical English translation of a resolved hadith from sunnah.com.
-// Without this the English shown under a Hadith card is whatever Claude produced while
-// translating the surrounding prose — a paraphrase of the imam's recitation rather than
-// the published translation of the hadith itself.
+// Fetch a resolved hadith's sunnah.com page once and keep what the pipeline reads from it:
+// the narrator line, the published English and the Arabic matn (cached as `page::`).
+//  - English: without it the English under a Hadith card is whatever Claude produced while
+//    translating the surrounding prose — a paraphrase of the imam's recitation rather than
+//    the published translation of the hadith itself.
+//  - Arabic: tells which of the imam's words the published hadith actually contains, so a
+//    swap never replaces his words with a version that lacks some of them (Muslim 1141a has
+//    no "وذكر لله", which the imam said).
 //
-// Page shape (see fetchSunnahNarrator for the sibling parse):
+// Page shape:
 //   <div class="english_hadith_full">
 //     <div class=hadith_narrated><p>Anas said:</div>
 //     <div class=text_details>The Apostle of Allah (ﷺ) performed ablution ...</div>
+//   </div> … <span class="arabic_text_details arabic">…</span>
 // The `english_hadith_full` block is isolated first because `arabic_text_details` would
 // otherwise match the same `text_details` suffix and return the Arabic.
-async function fetchSunnahTranslation(slug, number) {
+const decodeEntities = t => t
+  .replace(/<[^>]+>/g, '')        // drop stray inline tags (<b>, <a>, unclosed </b>)
+  .replace(/&quot;/g, '"').replace(/&#039;|&apos;/g, "'")
+  .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+  .replace(/&nbsp;/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim();
+async function fetchSunnahPage(slug, number) {
   if (!slug || !number) return null;
   const cache = loadSunnahCache();
-  const key = `translation::${slug}:${number}`;
+  const key = `page::${slug}:${number}`;
   if (Object.prototype.hasOwnProperty.call(cache, key)) return cache[key];
 
-  let translation = null, gotResponse = false;
+  let page = null, gotResponse = false;
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 12_000);
@@ -1184,24 +1196,31 @@ async function fetchSunnahTranslation(slug, number) {
     if (res.ok) {
       gotResponse = true;
       const html = await res.text();
-      const block = html.match(/class=["']?english_hadith_full["']?[^>]*>([\s\S]*?)<div class=["']?clear/i);
-      const scope = block ? block[1] : '';
-      const m = scope.match(/class=["']?text_details["']?[^>]*>([\s\S]*?)<\/div>/i);
-      if (m) {
-        const txt = m[1]
-          .replace(/<[^>]+>/g, '')        // drop stray inline tags (<b>, <a>, unclosed </b>)
-          .replace(/&quot;/g, '"').replace(/&#039;|&apos;/g, "'")
-          .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-          .replace(/&nbsp;/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim();
-        translation = txt || null;
-      }
+      const scope = html.match(/class=["']?english_hadith_full["']?[^>]*>([\s\S]*?)<div class=["']?clear/i)?.[1] ?? '';
+      const narrated = scope.match(/class=["']?hadith_narrated[^>]*>\s*(?:<p>)?\s*([^<]+)/i)?.[1];
+      const english = scope.match(/class=["']?text_details["']?[^>]*>([\s\S]*?)<\/div>/i)?.[1];
+      const arabic = html.match(/class=["']?arabic_text_details[^>]*>([\s\S]*?)<\/span>\s*<\/div>/i)?.[1];
+      page = {
+        narrated: narrated ? decodeEntities(narrated) : null,
+        english: english ? decodeEntities(english) || null : null,
+        // The span can run on into the page's grade and reference lines; the matn ends at
+        // the first Latin word.
+        arabic: arabic ? decodeEntities(arabic).replace(/[\u200f\u200e]/g, '').split(/[A-Za-z]{3,}/)[0].trim() || null : null,
+      };
     }
   } catch { /* network/timeout — leave null, do not cache */ }
 
-  if (gotResponse) { cache[key] = translation; try { writeFileSync(SUNNAH_CACHE_FILE, JSON.stringify(cache, null, 2), 'utf8'); } catch {} }
-  return translation;
+  if (gotResponse) { cache[key] = page; try { writeFileSync(SUNNAH_CACHE_FILE, JSON.stringify(cache, null, 2), 'utf8'); } catch {} }
+  return page;
+}
+
+// The cached page only, for offline checks (check_english.js); null when never fetched.
+function cachedSunnahPage(slug, number) {
+  return loadSunnahCache()[`page::${slug}:${number}`] ?? null;
+}
+
+async function fetchSunnahTranslation(slug, number) {
+  return (await fetchSunnahPage(slug, number))?.english ?? null;
 }
 
 // Fetch the narrator from a resolved sunnah.com hadith page (cached). Scan-detected
@@ -1250,13 +1269,15 @@ function parseSunnahNarrator(narrated, lead = '') {
 }
 
 // Distinctive name tokens, reduced to consonants so transliterations compare equal
-// ("Shu`aib" = "Shu'ayb", "Mas'ud" = "Masud"). Kinship words and the ubiquitous
+// ("Shu`aib" = "Shu'ayb", "Mas'ud" = "Masud", "Hurayrah" = "Huraira"). Kinship words and the ubiquitous
 // "Abdullah" are ignored: they say nothing about which person is meant.
 const NAME_STOP = new Set(['bin', 'ibn', 'b', 'bint', 'abu', 'abi', 'al', 'from', 'his', 'her', 'father',
   'grandfather', 'and', 'abd', 'abdullah', 'abdallah', 'allah', 'umm', 'the', 'ummul', 'muminin']);
 const nameKeys = s => new Set((s ?? '').toLowerCase().replace(/[^a-z\s-]/g, '').split(/[\s-]+/)
   .filter(w => w && !NAME_STOP.has(w))
-  .map(w => w.replace(/^al/, '').replace(/[aeiouyw]/g, '').replace(/(.)\1+/g, '$1'))
+  .map(w => w.replace(/^al/, '').replace(/o/g, 'u').replace(/e/g, 'i'))
+  // A leading vowel is kept: 'Umar and 'Amr differ only there.
+  .map(w => w[0] + w.slice(1).replace(/[aeiouyw]/g, '').replace(/(.)\1+/g, '$1').replace(/(.)h$/, '$1'))
   .filter(k => k.length >= 2));
 const sameName = (a, b) => { const B = nameKeys(b); return [...nameKeys(a)].some(k => B.has(k)); };
 
@@ -1275,35 +1296,8 @@ function chooseNarrator(page, claudeNarrator) {
 }
 
 async function fetchSunnahNarrator(slug, number) {
-  if (!slug || !number) return null;
-  const cache = loadSunnahCache();
-  const key = `narratorraw::${slug}:${number}`; // raw line + text lead; parsed on use
-  if (!Object.prototype.hasOwnProperty.call(cache, key)) {
-    let raw = null, gotResponse = false;
-    try {
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 12_000);
-      const res = await fetch(`https://sunnah.com/${slug}:${number}`, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15)', 'Accept': 'text/html' },
-        signal: ctrl.signal,
-      });
-      clearTimeout(timer);
-      if (res.ok) {
-        gotResponse = true;
-        const html = await res.text();
-        const block = html.match(/class=["']?english_hadith_full["']?[^>]*>([\s\S]*?)<div class=["']?clear/i)?.[1] ?? '';
-        const narrated = block.match(/class=["']?hadith_narrated[^>]*>\s*(?:<p>)?\s*([^<]+)/i)?.[1];
-        const lead = block.match(/class=["']?text_details["']?[^>]*>([\s\S]*?)<\/div>/i)?.[1]
-          ?.replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&#039;|&apos;/g, "'").replace(/\s+/g, ' ').trim().slice(0, 200);
-        raw = narrated ? { narrated: narrated.replace(/\s+/g, ' ').trim(), lead: lead ?? '' } : null;
-      }
-    } catch { /* network/timeout — leave null, do not cache */ }
-    if (!gotResponse) return null;
-    cache[key] = raw;
-    try { writeFileSync(SUNNAH_CACHE_FILE, JSON.stringify(cache, null, 2), 'utf8'); } catch {}
-  }
-  const raw = cache[key];
-  return raw ? parseSunnahNarrator(raw.narrated, raw.lead) : null;
+  const page = await fetchSunnahPage(slug, number);
+  return page?.narrated ? parseSunnahNarrator(page.narrated, (page.english ?? '').slice(0, 200)) : null;
 }
 
 // Replace each hadith ref's collection/number/link with the canonical sunnah.com
@@ -1360,12 +1354,12 @@ async function resolveSunnahLinksForRefs(refs, transcript = null) {
       // own narrator is kept in narrator_claude, so a re-run still has it to compare with
       // after ref.narrator has been overwritten.
       if (!('narrator_claude' in ref)) ref.narrator_claude = ref.narrator ?? null;
-      const page = await fetchSunnahNarrator(sunnah.collection_slug, sunnah.hadith_number);
-      const narr = chooseNarrator(page, ref.narrator_claude);
+      const narr = chooseNarrator(await fetchSunnahNarrator(sunnah.collection_slug, sunnah.hadith_number), ref.narrator_claude);
       if (narr) ref.narrator = narr;
       // Always prefer the published translation over Claude's paraphrase of the prose.
-      const trans = await fetchSunnahTranslation(sunnah.collection_slug, sunnah.hadith_number);
-      if (trans) ref.translation = trans;
+      const page = await fetchSunnahPage(sunnah.collection_slug, sunnah.hadith_number);
+      if (page?.english) ref.translation = page.english;
+      if (page?.arabic) ref.published_arabic = page.arabic;
     }
   }
   return refs;
@@ -3430,6 +3424,10 @@ export {
   resolveSunnahLinksForRefs,
   parseSunnahNarrator,
   chooseNarrator,
+  nameKeys,
+  fetchSunnahPage,
+  cachedSunnahPage,
+  publishedVerseEnglish,
   normalizeArabic,
   normalizeArabicDeep,
   getQuranNgramIndex,

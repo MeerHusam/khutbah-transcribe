@@ -3,7 +3,7 @@
 // this lives in one module rather than being duplicated.
 
 import { readFileSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -21,9 +21,9 @@ export function buildWordTimeMap(segments) {
 // `readerRawOverride` lets the test runner check a reader rebuilt in memory with the
 // current code instead of the reader.txt on disk.
 export function loadResult(folder, readerRawOverride = null) {
-  const result = JSON.parse(readFileSync(join(__dirname, folder, 'result.json'), 'utf8'));
+  const result = JSON.parse(readFileSync(join(resolve(__dirname, folder), 'result.json'), 'utf8'));
   try {
-    const readerRaw = readerRawOverride ?? readFileSync(join(__dirname, folder, 'reader.txt'), 'utf8');
+    const readerRaw = readerRawOverride ?? readFileSync(join(resolve(__dirname, folder), 'reader.txt'), 'utf8');
     // A paragraph is Arabic-dominant if >40% of its word chars are Arabic Unicode
     const isArabicDominant = s => {
       const total = s.replace(/\s/g, '').length;

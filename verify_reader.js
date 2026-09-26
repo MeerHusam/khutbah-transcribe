@@ -14,6 +14,7 @@ import { join, resolve } from 'path';
 import { pathToFileURL } from 'url';
 import { normalizeArabic, normalizeArabicDeep } from './pipeline.js';
 import { loadResult } from './reader_chunks.js';
+import { checkEnglish } from './check_english.js';
 
 const quran = JSON.parse(readFileSync(new URL('./node_modules/quran-json/dist/quran.json', import.meta.url), 'utf8'));
 const ayahText = (s, a) =>
@@ -294,17 +295,13 @@ export function verifyReader(folder, { readerRaw: readerOverride = null, result:
     }
   }
 
-  // ── 5e. A swapped-in translation must not repeat the framing around it ───────
-  // Bukhari 15 rendered as: Rasulullah said: "The Prophet (ﷺ) said None of you…" — the
-  // published text's own "The Prophet (ﷺ) said" came along inside the quote.
-  const framingRe = /\bsaid:?\s*[“"]\s*(?:the prophet|allah's (?:messenger|apostle)|the messenger of allah|rasulullah|he)\b[^”"]{0,30}?\b(?:said|says)\b/i;
-  for (const b of blocks) {
-    for (const p of b.englishParas) {
-      if (/^(📖|📑|📚|❝)/.test(p)) continue;
-      const m = p.match(framingRe);
-      if (m) warn(`quoted translation repeats its framing: "…${m[0].slice(0, 70)}"`);
-    }
-  }
+  // ── 5e. Swapped-in published translations must say what the imam said ──────
+  // Wrong clause (Ashura for Arafah), clauses he never said (Laylat al-Qadr), words he said
+  // dropped ("and remembrance of Allah"), framing doubled ("The Prophet, “The Messenger of
+  // Allah … said”"). See check_english.js.
+  const english = checkEnglish(blocks, result);
+  for (const f of english.failures) fail(f);
+  for (const w of english.warnings) warn(w);
 
   // ── 6. Blocks should not end mid-sentence ────────────────────────────────────
   const proseBlocks = blocks.filter(b => !b.englishParas.some(p => /^(📖|📑|📚)/.test(p)));
@@ -313,7 +310,7 @@ export function verifyReader(folder, { readerRaw: readerOverride = null, result:
     warn(`${midSentence.length}/${proseBlocks.length} prose blocks end mid-sentence`);
   }
 
-  return { failures, warnings, blocks, result, transcriptWords: tWords.length, badgeRe };
+  return { failures, warnings, blocks, result, transcriptWords: tWords.length, badgeRe, swaps: english.swaps };
 }
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
