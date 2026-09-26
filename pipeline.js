@@ -1155,9 +1155,6 @@ async function resolveSunnahLink(detectedText, preferredSlug = null) {
   return resolved;
 }
 
-// Fetch the narrator from a resolved sunnah.com hadith page (cached). Scan-detected
-// hadiths have no narrator (only Claude's signal-phrase path fills one); sunnah.com
-// states it on the page ("Narrated Abu Bakr:"), so we can backfill it from the lookup.
 // Fetch the canonical English translation of a resolved hadith from sunnah.com.
 // Without this the English shown under a Hadith card is whatever Claude produced while
 // translating the surrounding prose — a paraphrase of the imam's recitation rather than
@@ -1207,46 +1204,106 @@ async function fetchSunnahTranslation(slug, number) {
   return translation;
 }
 
+// Fetch the narrator from a resolved sunnah.com hadith page (cached). Scan-detected
+// hadiths have no narrator (only Claude's signal-phrase path fills one); sunnah.com
+// states it on the page ("Narrated Abu Bakr:"), so we can backfill it from the lookup.
+//
+// Parse sunnah.com's narrator line ("Narrated X:", "X reported …") and the start of the
+// English text into the name to show. Pure, so the rules can change without refetching.
+// Returns { narrator, companion, successor }: `successor` is true when the first-named
+// narrator is a later link in the chain who reports FROM a Companion — Tirmidhi 2910 is
+// "Narrated Muhammad bin Ka'b Al-Qurazi: I heard 'Abdullah bin Mas'ud saying…" (a Tabi'i
+// hearing Ibn Mas'ud), and Tirmidhi 3585 is "`Amr bin Shu`aib narrated from his father, from
+// his grandfather". Showing the first name made the card credit the successor.
+function parseSunnahNarrator(narrated, lead = '') {
+  let txt = (narrated ?? '').replace(/\s+/g, ' ').trim();
+  if (!txt) return { narrator: null, companion: null, successor: false };
+  // Strip leading narration framing: "Narrated X:", "It was narrated that X said:",
+  // "It has been narrated on the authority of X who …", "On the authority of X ...".
+  txt = txt.replace(/^it (?:is|was|has been) narrated(?: on the authority of| from)?(?: that)?\s*/i, '');
+  txt = txt.replace(/^(?:it was )?narrated\s*/i, '');
+  txt = txt.replace(/^on the authority of\s*/i, '');
+  const cut = s => s.split(/\s+(?:who|reported|narrated|said|says|relates|relating|that|as saying)\b|\s*[:(]/i)[0]
+    .replace(/[\s,:]+$/, '').trim();
+  // "`Amr bin Shu`aib narrated from his father, from his grandfather" — the family isnad is
+  // known by that whole phrase; the Companion is the grandfather, whom the page never names.
+  const chain = txt.match(/^(.+?) (?:narrated|reported) from his father,? (?:from|on the authority of) his grandfather/i);
+  if (chain) {
+    const name = cut(chain[1]);
+    return { narrator: `${name} from his father, from his grandfather`, companion: null, successor: true };
+  }
+  // "Salamah bin 'Ubaidullah … narrated from his father -and he was a Companion-" — the
+  // Companion is the father, named inside the son's name.
+  const fromFather = txt.match(/^\S+ (?:bin|ibn|b\.) (.+?) (?:narrated|reported) from his father/i);
+  if (fromFather) return { narrator: cut(fromFather[1]), companion: cut(fromFather[1]), successor: false };
+  // Cut at the reporting clause: "Sa'd b. Abu Waqqas reported Allah's Messenger (ﷺ) as
+  // saying" and "Salman who" were shown whole as the narrator's name.
+  const first = cut(txt) || null;
+  // "Narrated Thabit: that he heard Anas saying" / "Narrated X: I heard Y saying" — Y is the
+  // Companion, unless Y is the Prophet himself.
+  const heard = (lead ?? '').replace(/<[^>]+>/g, '').replace(/^[\s"'“‘]+/, '')
+    .match(/^(?:that )?(?:he |she )?(?:I )?heard (.+?) (?:saying|say|said|narrate|narrating|reporting)\b/i);
+  if (heard && !/messenger|prophet|apostle|allah\b/i.test(heard[1])) {
+    return { narrator: first, companion: cut(heard[1].replace(/^[\s"'“‘]+/, '')), successor: true };
+  }
+  return { narrator: first, companion: first, successor: false };
+}
+
+// Distinctive name tokens, reduced to consonants so transliterations compare equal
+// ("Shu`aib" = "Shu'ayb", "Mas'ud" = "Masud"). Kinship words and the ubiquitous
+// "Abdullah" are ignored: they say nothing about which person is meant.
+const NAME_STOP = new Set(['bin', 'ibn', 'b', 'bint', 'abu', 'abi', 'al', 'from', 'his', 'her', 'father',
+  'grandfather', 'and', 'abd', 'abdullah', 'abdallah', 'allah', 'umm', 'the', 'ummul', 'muminin']);
+const nameKeys = s => new Set((s ?? '').toLowerCase().replace(/[^a-z\s-]/g, '').split(/[\s-]+/)
+  .filter(w => w && !NAME_STOP.has(w))
+  .map(w => w.replace(/^al/, '').replace(/[aeiouyw]/g, '').replace(/(.)\1+/g, '$1'))
+  .filter(k => k.length >= 2));
+const sameName = (a, b) => { const B = nameKeys(b); return [...nameKeys(a)].some(k => B.has(k)); };
+
+// Which narrator a card shows, given the page's parse and Claude's narrator (from memory,
+// which the imam usually says aloud: "عن ابن مسعود"). The page is the authority for who
+// narrated THAT hadith — Claude named Salman for Bukhari's ribat hadith, which is Sahl ibn
+// Sa'd's. But when the page's first name is a successor, Claude's Companion is the right
+// name to show, as long as it is one of the people on that chain.
+function chooseNarrator(page, claudeNarrator) {
+  if (!page?.narrator) return claudeNarrator ?? null;
+  if (!page.successor) return page.narrator;
+  if (claudeNarrator && (sameName(claudeNarrator, page.companion) || sameName(claudeNarrator, page.narrator))) {
+    return claudeNarrator;
+  }
+  return page.companion ?? page.narrator;
+}
+
 async function fetchSunnahNarrator(slug, number) {
   if (!slug || !number) return null;
   const cache = loadSunnahCache();
-  const key = `narrator2::${slug}:${number}`; // 2: reporting clause trimmed
-  if (Object.prototype.hasOwnProperty.call(cache, key)) return cache[key];
-
-  let narrator = null, gotResponse = false;
-  try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 12_000);
-    const res = await fetch(`https://sunnah.com/${slug}:${number}`, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15)', 'Accept': 'text/html' },
-      signal: ctrl.signal,
-    });
-    clearTimeout(timer);
-    if (res.ok) {
-      gotResponse = true;
-      const html = await res.text();
-      const m = html.match(/class=["']?hadith_narrated[^>]*>\s*(?:<p>)?\s*([^<]+)/i);
-      if (m) {
-        let txt = m[1].replace(/\s+/g, ' ').trim();
-        // Strip leading narration framing: "Narrated X:", "It was narrated that X said:",
-        // "It has been narrated on the authority of X who …", "On the authority of X ...".
-        txt = txt.replace(/^it (?:is|was|has been) narrated(?: on the authority of| from)?(?: that)?\s*/i, '');
-        txt = txt.replace(/^(?:it was )?narrated\s*/i, '');
-        txt = txt.replace(/^on the authority of\s*/i, '');
-        // "Salamah bin 'Ubaidullah … narrated from his father" — the Companion is the father.
-        const fromFather = txt.match(/^\S+ (?:bin|ibn|b\.) (.+?) (?:narrated|reported) from his father/i);
-        if (fromFather) txt = fromFather[1];
-        // Cut at the reporting clause: "Sa'd b. Abu Waqqas reported Allah's Messenger (ﷺ) as
-        // saying" and "Salman who" were shown whole as the narrator's name.
-        txt = txt.split(/\s+(?:who|reported|narrated|said|says|relates|relating|that|as saying)\b|\s*[:(]/i)[0];
-        txt = txt.replace(/[\s,:]+$/, '').trim();
-        narrator = txt || null;
+  const key = `narratorraw::${slug}:${number}`; // raw line + text lead; parsed on use
+  if (!Object.prototype.hasOwnProperty.call(cache, key)) {
+    let raw = null, gotResponse = false;
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 12_000);
+      const res = await fetch(`https://sunnah.com/${slug}:${number}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15)', 'Accept': 'text/html' },
+        signal: ctrl.signal,
+      });
+      clearTimeout(timer);
+      if (res.ok) {
+        gotResponse = true;
+        const html = await res.text();
+        const block = html.match(/class=["']?english_hadith_full["']?[^>]*>([\s\S]*?)<div class=["']?clear/i)?.[1] ?? '';
+        const narrated = block.match(/class=["']?hadith_narrated[^>]*>\s*(?:<p>)?\s*([^<]+)/i)?.[1];
+        const lead = block.match(/class=["']?text_details["']?[^>]*>([\s\S]*?)<\/div>/i)?.[1]
+          ?.replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&#039;|&apos;/g, "'").replace(/\s+/g, ' ').trim().slice(0, 200);
+        raw = narrated ? { narrated: narrated.replace(/\s+/g, ' ').trim(), lead: lead ?? '' } : null;
       }
-    }
-  } catch { /* network/timeout — leave null, do not cache */ }
-
-  if (gotResponse) { cache[key] = narrator; try { writeFileSync(SUNNAH_CACHE_FILE, JSON.stringify(cache, null, 2), 'utf8'); } catch {} }
-  return narrator;
+    } catch { /* network/timeout — leave null, do not cache */ }
+    if (!gotResponse) return null;
+    cache[key] = raw;
+    try { writeFileSync(SUNNAH_CACHE_FILE, JSON.stringify(cache, null, 2), 'utf8'); } catch {}
+  }
+  const raw = cache[key];
+  return raw ? parseSunnahNarrator(raw.narrated, raw.lead) : null;
 }
 
 // Replace each hadith ref's collection/number/link with the canonical sunnah.com
@@ -1286,16 +1343,25 @@ async function resolveSunnahLinksForRefs(refs, transcript = null) {
     let sunnah = null;
     if (imamSlug) sunnah = await resolveSunnahLink(ref.detected_text, imamSlug);
     if (!sunnah) sunnah = await resolveSunnahLink(ref.detected_text, claudeSlug);
+    // A link confirmed on an earlier run stays when today's search finds nothing: search
+    // results drift, and three published links (Ibn Majah 425, 1642, Tirmidhi 3585) no
+    // longer come back although their pages carry the imam's words. Their narrator and
+    // English are still read from that page.
+    const kept = !sunnah && ref.verification === 'sunnah_search'
+      && (ref.link ?? '').match(/sunnah\.com\/([a-z]+):(\w+)$/);
+    if (kept) sunnah = { collection_slug: kept[1], hadith_number: kept[2], link: ref.link };
     if (sunnah) {
       ref.collection = slugToDisplay(sunnah.collection_slug);
       ref.hadith_number = sunnah.hadith_number;
       ref.link = sunnah.link;
       ref.verification = 'sunnah_search';
       ref.note = 'Link verified via sunnah.com search';
-      // The resolved page states the narrator of THAT hadith; Claude's narrator is from
-      // memory and was wrong for Bukhari's ribat hadith (Sahl ibn Sa'd, not Salman). Keep
-      // Claude's only when the page cannot be read.
-      const narr = await fetchSunnahNarrator(sunnah.collection_slug, sunnah.hadith_number);
+      // The resolved page states the narrator of THAT hadith (see chooseNarrator). Claude's
+      // own narrator is kept in narrator_claude, so a re-run still has it to compare with
+      // after ref.narrator has been overwritten.
+      if (!('narrator_claude' in ref)) ref.narrator_claude = ref.narrator ?? null;
+      const page = await fetchSunnahNarrator(sunnah.collection_slug, sunnah.hadith_number);
+      const narr = chooseNarrator(page, ref.narrator_claude);
       if (narr) ref.narrator = narr;
       // Always prefer the published translation over Claude's paraphrase of the prose.
       const trans = await fetchSunnahTranslation(sunnah.collection_slug, sunnah.hadith_number);
@@ -3362,6 +3428,8 @@ export {
   findMatchingHadith,
   loadHadithCorpus,
   resolveSunnahLinksForRefs,
+  parseSunnahNarrator,
+  chooseNarrator,
   normalizeArabic,
   normalizeArabicDeep,
   getQuranNgramIndex,
