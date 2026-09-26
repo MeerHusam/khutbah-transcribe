@@ -2,12 +2,16 @@
 // reanalyze.js — Rebuild reader.txt from existing result.json + transcript.txt
 // using the improved canonical-span alignment. No API calls needed.
 //
-// Usage: node reanalyze.js outputs/<folder> [--keep-chunks]
+// Usage: node reanalyze.js outputs/<folder> [--keep-chunks] [--no-swaps]
 //
 // --keep-chunks reuses the stored prose chunks and Quran refs exactly as they are and only
 // re-applies the hadith filters and rebuilds the reader. For runs translated under older
 // chunking rules (the May khutbahs), where recomputing the chunks would pair every block
 // with another block's translation.
+//
+// Quotes inside the prose are matched to their published English by quote_swaps.js (one
+// call per quote whose inputs changed, claude-sonnet-5 by default; nothing when they did not).
+// --no-swaps skips that and keeps whatever plan result.json already has.
 
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
@@ -22,6 +26,7 @@ import {
   resolveSunnahLinksForRefs,
   yieldTailToLaterRefs,
 } from './pipeline.js';
+import { planQuoteSwaps } from './quote_swaps.js';
 
 const folder = process.argv[2];
 if (!folder || !existsSync(folder)) {
@@ -121,6 +126,14 @@ if (result.hadith_references.length) {
   await resolveSunnahLinksForRefs(result.hadith_references, transcript);
   const withTrans = result.hadith_references.filter(h => h.translation).length;
   console.log(`  ${withTrans}/${result.hadith_references.length} hadith translations fetched`);
+}
+
+if (!process.argv.includes('--no-swaps')) {
+  console.log('Matching quoted hadith and verses to their published English...');
+  const usage = await planQuoteSwaps(transcript, result);
+  console.log(`  ${usage.published} published, ${usage.ours} ours; ${usage.calls} ${usage.model} call(s), ` +
+    `${usage.input_tokens} in / ${usage.output_tokens} out tokens, $${usage.cost_usd.toFixed(4)}`);
+  if (usage.calls) result.metadata.english_swaps = usage;
 }
 
 // Update metadata

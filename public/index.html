@@ -493,6 +493,12 @@
       font-family: var(--font-ui); font-style: normal; font-size: 11px;
       color: var(--text-dim); white-space: nowrap; margin-left: 4px;
     }
+    /* The quote's English above is ours, not the published translation: the imam's words
+       differ from every published excerpt, or none could be matched safely. */
+    .trans-ours {
+      display: inline-block; margin: 8px 0 0 8px; font-family: var(--font-ui); font-size: 11px;
+      color: var(--text-dim); white-space: nowrap; cursor: help;
+    }
     .hadith-card .collection-badge {
       background: rgba(56,178,122,0.12); color: #9fe8c2; border-color: rgba(56,178,122,0.3);
     }
@@ -1138,6 +1144,12 @@
     return out + escWithSources(text.slice(last));
   }
 
+  // Marks a quote whose English above is our own translation rather than the published one.
+  function oursLabel(source) {
+    const tip = `The imam's words differ from the ${source} translation, or no part of it could be matched to them exactly, so this quote is in our own translation.`;
+    return `<span class="trans-ours" title="${escAttr(tip)}">our translation</span>`;
+  }
+
   function renderEnglishParts(english, kinds = []) {
     return english.split(/\n\n+/).map(part => {
       part = part.trim();
@@ -1148,16 +1160,20 @@
       const hadithMatch = part.match(/^📚\s+Hadith\s+[·•]\s*(.+)/);
       const hadithTransMatch = part.match(/^❝\s*([\s\S]+)/);
       if (quranMatch) {
-        const [, label, url] = quranMatch;
-        return `<a class="chunk-quran-cite" href="${escAttr(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">۞ <strong>${escHtml(label)}</strong> ↗</a>`;
+        const [, label, url, s, a] = quranMatch;
+        const q = part.startsWith('📑')
+          && (quranRefs || []).find(r => +r.surah_number === +s && +r.ayah_number === +a && r.english_swap);
+        return `<a class="chunk-quran-cite" href="${escAttr(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">۞ <strong>${escHtml(label)}</strong> ↗</a>`
+          + (q && q.english_swap.status === 'ours' ? oursLabel('Sahih International') : '');
       } else if (hadithTransMatch) {
         return `<div class="chunk-hadith-trans">${escHtml(hadithTransMatch[1])}</div>`;
       } else if (hadithMatch) {
         // Link the badge to the hadith on sunnah.com, as the verse badge links to quran.com.
         const h = hadithRefForBadge(part.trim());
-        return h && h.link
+        return (h && h.link
           ? `<a class="chunk-hadith-cite" href="${escAttr(h.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${escHtml(hadithMatch[1])} ↗</a>`
-          : `<div class="chunk-hadith-cite">${escHtml(hadithMatch[1])}</div>`;
+          : `<div class="chunk-hadith-cite">${escHtml(hadithMatch[1])}</div>`)
+          + (h && h.english_swap && h.english_swap.status === 'ours' ? oursLabel('sunnah.com') : '');
       }
       return `<div class="chunk-english">${markQuotes(part, kinds)}</div>`;
     }).join('');
