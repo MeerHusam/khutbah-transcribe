@@ -31,6 +31,7 @@ Takes an Arabic Friday Khutbah (sermon) audio file and produces:
 |------|------|
 | `pipeline.js` | Main pipeline — transcription, Claude analysis, ref matching, output generation. Also exports all shared functions. |
 | `reanalyze.js` | Re-runs Claude analysis on an existing `transcript.txt` without re-transcribing. Imports from `pipeline.js`. |
+| `test_khutbahs.js` | Regression test set: runs every khutbah in `tests/khutbahs.json` through `verify_reader.js` and compares its Quran/Hadith cards to the expected lists. `--rebuild` rebuilds each reader in memory with the current code first. Run before and after every pipeline/reader change. |
 | `retime.js` | Redoes only the word timings of an existing run (windowed Groq + gap re-timing), keeping segment boundaries so stored translations stay paired. No Claude call. Follow with `reanalyze.js`. |
 | `server.js` | Express + WebSocket server. Accepts audio uploads, spawns `pipeline.js` as child process, streams progress, serves `public/`. |
 | `transcribe_local.py` | Python script for local transcription via faster-whisper or mlx-whisper. Called by `pipeline.js --local`. |
