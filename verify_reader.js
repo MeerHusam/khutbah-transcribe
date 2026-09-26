@@ -91,9 +91,9 @@ const LEAD_IN = new Set(['قال', 'وقال', 'يقول', 'ويقول', 'تعا
   'الله', 'المولى', 'ربنا', 'في', 'كتابه', 'الكريم', 'كما', 'قوله', 'لقوله', 'وقوله', 'فقال', 'اذ', 'حيث']);
 
 // `readerRaw` checks a reader built in memory (test_khutbahs.js --rebuild) instead of reader.txt.
-export function verifyReader(folder, { readerRaw: readerOverride = null } = {}) {
+export function verifyReader(folder, { readerRaw: readerOverride = null, result: resultOverride = null } = {}) {
   const transcript = readFileSync(join(folder, 'transcript.txt'), 'utf8');
-  const result = JSON.parse(readFileSync(join(folder, 'result.json'), 'utf8'));
+  const result = resultOverride ?? JSON.parse(readFileSync(join(folder, 'result.json'), 'utf8'));
   const readerRaw = readerOverride ?? readFileSync(join(folder, 'reader.txt'), 'utf8');
   const blocks = parseReaderBlocks(readerRaw);
 

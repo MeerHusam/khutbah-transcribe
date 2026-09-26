@@ -1582,6 +1582,14 @@ function isLiturgicalFormula(text) {
 function deduplicateHadithRefs(refs) {
   const kept = [];
   for (const ref of refs) {
+    // Only hadith the imam introduces become cards. Every hadith found solely by the corpus
+    // scan across the seven test khutbahs was wrong: the imam's own sentences matched corpus
+    // fragments on "النبي صلى الله عليه وسلم" (21 Aug), his dhikr and Eid takbir matched the
+    // hadith containing them (Eid), a verse matched a hadith quoting it (Sudais 2:185 as Abu
+    // Dawud 2316), and a paraphrase of the pillars of Islam got an unrelated Bukhari link
+    // (Arafah). The scan's finds are kept in result.json as hadith_scan_suggestions.
+    if (ref.detection_method === 'scan') continue;
+
     // Ritual closing formulas are matched correctly by the corpus but are not citations.
     if (isLiturgicalFormula(ref.detected_text)) continue;
 
@@ -3292,6 +3300,8 @@ async function main() {
     second_khutbah: secondKhutbah,
     quran_references: allQuranRefs,
     hadith_references: allHadithRefs,
+    // Corpus-scan finds, not shown (see deduplicateHadithRefs); kept for review.
+    hadith_scan_suggestions: hadithScanRefs,
     transcript_segments: transcriptSegments,
     transcript_words: transcriptWordTimes,
     metadata: {
@@ -3317,7 +3327,7 @@ async function main() {
   console.log(`✓ Transcription complete -- ${wordCount} words`);
   console.log('✓ Translation complete');
   console.log(`✓ ${allQuranRefs.length} Quranic references detected (${quranRefs.length} signal-phrase + ${scanRefs.length} scan), ${matchedCount} matched`);
-  console.log(`✓ ${allHadithRefs.length} Hadith references detected (${claudeHadithRefs.length} signal-phrase + ${hadithScanRefs.length} scan)`);
+  console.log(`✓ ${allHadithRefs.length} Hadith references detected (${hadithScanRefs.length} more corpus-scan suggestions not shown)`);
   console.log(`✓ Results saved to outputs/${timestamp}_${audioBasename}/  (transcript.txt, result.json, readable.txt, reader.txt)`);
 }
 

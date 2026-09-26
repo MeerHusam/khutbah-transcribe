@@ -94,11 +94,11 @@
         "2:202"
       ],
       "hadith": [
-        "tirmidhi:3585",
-        "bukhari:2157"
+        "tirmidhi:3585"
       ],
       "corrections": [
-        "+ quran 22:28 (second time): the imam re-reads 'ليشهدوا منافع لهم ويذكروا اسم الله' after 'نعم. نعم'; the words rendered nowhere before"
+        "+ quran 22:28 (second time): the imam re-reads 'ليشهدوا منافع لهم ويذكروا اسم الله' after 'نعم. نعم'; the words rendered nowhere before",
+        "- hadith bukhari:2157: the imam lists the pillars of Islam in his own words ('فهذه أركان دين الإسلام…'); not a quotation, and 2157 is Jarir's pledge hadith"
       ],
       "to_check": [
         "22:35's card starts with 'فإلهكم إله واحد فله أسلموا وبشر المخبتين', which is the end of 22:34: should the card be 22:34-35?",

@@ -12,7 +12,7 @@
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { verifyReader } from './verify_reader.js';
-import { buildReaderView } from './pipeline.js';
+import { buildReaderView, deduplicateHadithRefs } from './pipeline.js';
 
 const args = process.argv.slice(2);
 const rebuild = args.includes('--rebuild');
@@ -44,13 +44,15 @@ for (const k of spec.khutbahs) {
   if (!existsSync(k.folder)) { console.log(`–  ${k.slug}: folder missing (${k.folder}), skipped`); continue; }
   ran++;
 
-  let readerRaw = null;
+  let readerRaw = null, result = null;
   if (rebuild) {
+    // Mirror reanalyze.js: re-apply the hadith filters to the stored refs, then rebuild.
     const transcript = readFileSync(join(k.folder, 'transcript.txt'), 'utf8').trim();
-    const result = JSON.parse(readFileSync(join(k.folder, 'result.json'), 'utf8'));
+    result = JSON.parse(readFileSync(join(k.folder, 'result.json'), 'utf8'));
+    result.hadith_references = deduplicateHadithRefs(result.hadith_references ?? []);
     readerRaw = buildReaderView(transcript, result);
   }
-  const v = verifyReader(k.folder, { readerRaw });
+  const v = verifyReader(k.folder, { readerRaw, result });
 
   const quran = [];
   for (const b of v.blocks) for (const p of b.englishParas) {
