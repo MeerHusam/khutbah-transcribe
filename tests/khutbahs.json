@@ -11,25 +11,95 @@
     {
       "slug": "2026-09-25",
       "folder": "outputs/2026-09-25T10-04-57_khutbah-2026-09-25-masjid",
-      "quran": ["4:131", "~106:3", "106:4", "~3:97", "105:1-5", "22:25", "33:56", "2:201", "37:180-182"],
-      "hadith": ["tirmidhi:2346", "bukhari:2892", "muslim:1913a", "tirmidhi:1639", "bukhari:1587", "muslim:1387a", "abudawud:523"],
+      "quran": [
+        "4:131",
+        "~106:3",
+        "106:4",
+        "~3:97",
+        "105:1-5",
+        "22:25",
+        "33:56",
+        "2:201",
+        "37:180-182"
+      ],
+      "hadith": [
+        "tirmidhi:2346",
+        "bukhari:2892",
+        "muslim:1913a",
+        "tirmidhi:1639",
+        "bukhari:1587",
+        "muslim:1387a",
+        "abudawud:523"
+      ],
       "corrections": [],
       "confirmed": false
     },
     {
       "slug": "2026-09-11",
       "folder": "outputs/2026-09-11T13-55-21_khutbah-2026-09-11-masjid",
-      "quran": ["4:131", "21:30", "30:24", "41:39", "32:27", "80:25-32", "~14:7", "7:31", "2:201", "37:180-182"],
-      "hadith": ["muslim:325b", "ibnmajah:425", "abudawud:2928"],
+      "quran": [
+        "4:131",
+        "21:30",
+        "30:24",
+        "41:39",
+        "32:27",
+        "80:25-32",
+        "~14:7",
+        "7:31",
+        "2:201",
+        "37:180-182"
+      ],
+      "hadith": [
+        "muslim:325b",
+        "ibnmajah:425",
+        "abudawud:2928"
+      ],
       "corrections": [],
       "confirmed": false
     },
     {
       "slug": "arafah-2026",
       "folder": "outputs/2026-09-11T15-48-51_arafah_khutbah_2026",
-      "quran": ["22:2", "22:6-7", "22:7", "22:12-13", "22:13", "22:31", "22:35", "55:46", "39:10", "~22:36", "22:38", "22:40", "~22:45", "22:48", "22:27-28", "22:25", "22:26", "2:197", "22:30", "22:32", "5:3", "2:198", "2:199", "22:29", "2:200", "2:203", "22:78", "40:60", "2:201-202", "2:202"],
-      "hadith": ["tirmidhi:3585", "bukhari:2157"],
-      "corrections": [],
+      "quran": [
+        "22:2",
+        "22:6-7",
+        "22:7",
+        "22:12-13",
+        "22:13",
+        "22:31",
+        "22:35",
+        "55:46",
+        "39:10",
+        "~22:36",
+        "22:38",
+        "22:40",
+        "~22:45",
+        "22:48",
+        "22:27-28",
+        "22:28",
+        "22:25",
+        "22:26",
+        "2:197",
+        "22:30",
+        "22:32",
+        "5:3",
+        "2:198",
+        "2:199",
+        "22:29",
+        "2:200",
+        "2:203",
+        "22:78",
+        "40:60",
+        "2:201-202",
+        "2:202"
+      ],
+      "hadith": [
+        "tirmidhi:3585",
+        "bukhari:2157"
+      ],
+      "corrections": [
+        "+ quran 22:28 (second time): the imam re-reads 'ليشهدوا منافع لهم ويذكروا اسم الله' after 'نعم. نعم'; the words rendered nowhere before"
+      ],
       "to_check": [
         "22:35's card starts with 'فإلهكم إله واحد فله أسلموا وبشر المخبتين', which is the end of 22:34: should the card be 22:34-35?",
         "22:7 appears both inside 22:6-7 and on its own; 22:13 likewise after 22:12-13: recited twice, or one card too many?"
@@ -39,29 +109,62 @@
     {
       "slug": "eid-al-adha-2026",
       "folder": "outputs/2026-05-27T03-50-41_eid_khutbah_2026",
-      "quran": ["37:103", "37:107", "22:37", "2:203", "33:56", "37:180"],
-      "hadith": ["muslim:1141a", "ahmad:?"],
+      "quran": [
+        "37:103",
+        "~37:107",
+        "22:37",
+        "2:203",
+        "33:56",
+        "37:180"
+      ],
+      "hadith": [
+        "muslim:1141a",
+        "ahmad:?"
+      ],
       "corrections": [
         "+ quran 37:103: 'فلما أسلما وتله للجبين' is recited but renders nowhere",
         "- hadith ibnmajah:3878: 'ولا حول ولا قوة إلا بالله العلي العظيم' is the imam's own dhikr, not a quoted hadith",
         "- hadith bukhari:6123: 'النبي ﷺ عندما تعرض إلى' is the imam's narration, not a quoted hadith",
-        "- hadith nasai:631: 'الله أكبر الله أكبر لا إله إلا الله' is the Eid takbir, not a quoted hadith"
+        "- hadith nasai:631: 'الله أكبر الله أكبر لا إله إلا الله' is the Eid takbir, not a quoted hadith",
+        "~ quran 37:107 is inline: 'وفديناه بذبح عظيم' sits inside the imam's sentence; as a card it printed the words twice"
       ],
       "confirmed": false
     },
     {
       "slug": "2026-05-22",
       "folder": "outputs/2026-05-22T11-30-04_khutbah-2026-05-22-masjid",
-      "quran": ["37:180"],
-      "hadith": ["muslim:1162a", "tirmidhi:3585"],
+      "quran": [
+        "37:180"
+      ],
+      "hadith": [
+        "muslim:1162a",
+        "tirmidhi:3585"
+      ],
       "corrections": [],
       "confirmed": false
     },
     {
       "slug": "sudais-ramadan",
       "folder": "outputs/2026-05-22T21-05-05_makkah_sudais_ramadan_ummah",
-      "quran": ["2:183", "5:64", "66:6", "2:185", "2:186", "20:82", "33:56", "2:201", "2:127", "2:128", "37:180"],
-      "hadith": ["ibnmajah:1642", "nasai:2202", "abudawud:2928", "tirmidhi:2910"],
+      "quran": [
+        "2:183",
+        "5:64",
+        "66:6",
+        "2:185",
+        "2:186",
+        "20:82",
+        "33:56",
+        "2:201",
+        "2:127",
+        "2:128",
+        "37:180"
+      ],
+      "hadith": [
+        "ibnmajah:1642",
+        "nasai:2202",
+        "abudawud:2928",
+        "tirmidhi:2910"
+      ],
       "corrections": [
         "- hadith abudawud:2316: its text is Al-Baqarah 2:185, a verse, not a hadith"
       ],
@@ -70,8 +173,19 @@
     {
       "slug": "2026-08-21",
       "folder": "outputs/2026-09-26T11-57-40_khutbah-2026-08-21-masjid",
-      "quran": ["3:31", "3:31", "8:27", "8:28", "8:29", "2:201", "37:180-182"],
-      "hadith": ["bukhari:15", "muslim:2832"],
+      "quran": [
+        "3:31",
+        "3:31",
+        "8:27",
+        "8:28",
+        "8:29",
+        "2:201",
+        "37:180-182"
+      ],
+      "hadith": [
+        "bukhari:15",
+        "muslim:2832"
+      ],
       "corrections": [
         "+ quran 3:31 (second recitation): 'قل إن كنتم تحبون الله فاتبعوني يحببكم الله' renders nowhere",
         "- hadith ibnmajah:1487, ibnmajah:3704, abudawud:740: the imam's own sentences matched corpus fragments on 'النبي صلى الله عليه وسلم'"

@@ -1862,6 +1862,148 @@ function pushHadithBadge(lines, ref, skipTranslation = false) {
   }
 }
 
+// ---- Reader coverage ----------------------------------------------------------
+// Prose chunks are fixed when a khutbah is translated (they are cut around the pre-scan's
+// Quran zones); cards come from references located afterwards. The two disagree at the edges
+// and whenever a reference cannot be placed — a verse recited twice, a zone whose card was
+// collapsed into another, zones carved out before MIN_ZONE_WORDS applied to chunking — and
+// the words then rendered twice or nowhere. Five of seven published khutbahs lost text this
+// way. reconcileCoverage() makes the final segments render every transcript word once.
+
+function verseWordSet(ref) {
+  const set = new Set();
+  const surah = quranData?.[(ref?.surah_number ?? 0) - 1];
+  if (!surah) return set;
+  const end = ref.ayah_number_end ?? ref.ayah_number;
+  for (const v of surah.verses) {
+    if (v.id < ref.ayah_number || v.id > end) continue;
+    for (const w of normalizeArabicDeep(v.text).split(/\s+/)) if (w) set.add(w);
+  }
+  return set;
+}
+
+// The transcript spells "الصلاة" where the mushaf has "الصلوة": allow one edit.
+function oneEditApart(x, y) {
+  if (Math.abs(x.length - y.length) > 1) return false;
+  let i = 0, j = 0, edits = 0;
+  while (i < x.length && j < y.length) {
+    if (x[i] === y[j]) { i++; j++; continue; }
+    if (++edits > 1) return false;
+    if (x.length > y.length) i++; else if (y.length > x.length) j++; else { i++; j++; }
+  }
+  return edits + (x.length - i) + (y.length - j) <= 1;
+}
+const wordInVerse = (w, set) => set.has(w) || (w.length >= 4 && [...set].some(v => oneEditApart(w, v)));
+
+// Recited, not cited: the isti'adha and basmala match 16:98 and 1:1, and the praise
+// formula "الحمد لله رب العالمين" is all of 1:2, but none of them is the imam citing a verse
+// (the same rule the minimum-word gate enforces for zone refs).
+const RITUAL_RECITATION = /بالله من الشيطان الرجيم|بسم الله الرحمن الرحيم/;
+const RITUAL_WHOLE = new Set(['الحمد لله رب العالمين'].map(p => normalizeArabicDeep(p)));
+// The imam introducing a verse ("كما قال جل وعلا:") versus asking in du'a: the closing du'a
+// borrows Quranic wording ("وجنبهم الفواحش … ما ظهر منها وما بطن", 6:151) without citing it.
+const CITES_VERSE = /(^| )(قال|وقال|فقال|يقول|ويقول|تعالى|وتعالى|وعلا|سبحانه|وجل|قوله|وقوله|لقوله)( |$)/;
+
+// Name the verse a run of uncovered words recites, or null when it is not a citation.
+// `before` is the few transcript words just ahead of the run.
+function identifyRecitation(words, before = []) {
+  if (!quranData) return null;
+  const deep = words.map(w => normalizeArabicDeep(w)).join(' ');
+  if (RITUAL_RECITATION.test(deep) || RITUAL_WHOLE.has(deep.replace(/^و/, ''))) return null;
+  const lead = before.map(w => normalizeArabic(w)).join(' ');
+  const cited = CITES_VERSE.test(lead.split(' ').slice(-4).join(' '));
+  if (!cited && lead.split(' ').slice(-15).includes('اللهم')) return null;
+
+  let best = null;
+  for (const z of prescanForQuranZones(words)) {
+    if (!best || z.end - z.start > best.end - best.start) best = z;
+  }
+  if (!best) return null;
+  const matched = best.end - best.start;
+  // A whole verse counts however short it is ("فلما أسلما وتله للجبين" is all of 37:103).
+  const verse = quranData[best.surah_id - 1]?.verses.find(v => v.id === best.ayah_id);
+  const verseLen = verse ? normalizeArabicDeep(verse.text).split(/\s+/).filter(Boolean).length : Infinity;
+  const whole = verseLen >= 3 && matched >= verseLen;
+  if (!whole && matched < Math.max(MIN_ZONE_WORDS, Math.ceil(words.length * 0.6))) return null;
+
+  const ids = (best.ayah_spans ?? []).filter(s => s.surah_id === best.surah_id).map(s => s.ayah_id).sort((a, b) => a - b);
+  const first = ids[0] ?? best.ayah_id, last = ids[ids.length - 1] ?? best.ayah_id;
+  const surah = quranData[best.surah_id - 1];
+  return {
+    detected_text: words.join(' '),
+    matched: true,
+    surah_name: surah?.transliteration ?? best.surah_name,
+    surah_number: best.surah_id,
+    ayah_number: first,
+    ...(last !== first ? { ayah_number_end: last } : {}),
+    quran_link: `https://quran.com/${best.surah_id}/${first}`,
+    confidence: 0.8,
+    verification: 'reader_gap',
+    detection_method: 'reader_gap',
+  };
+}
+
+function reconcileCoverage(segments, origWords) {
+  const span = s => [s.startWord, s.startWord + s.words.length];
+  const setWords = (s, a, b) => { s.startWord = a; s.words = origWords.slice(a, b); };
+  const isCard = s => s?.type === 'quran';
+  const isProse = s => s?.type === 'prose';
+  const segs = [...segments].sort((a, b) => a.startWord - b.startWord);
+
+  // 1. Words doubled at the edge of a card and the prose next to it. The card shows the
+  //    whole verse anyway, so they leave the prose side ("يا أيها" ended one block and
+  //    began the next verse card). A block nested wholly inside another is an inline case
+  //    handled elsewhere and is left alone.
+  for (let i = 1; i < segs.length; i++) {
+    const prev = segs[i - 1], cur = segs[i];
+    const [ps, pe] = span(prev), [cs, ce] = span(cur);
+    if (cs >= pe || ce <= pe) continue;
+    if (isProse(prev) && isCard(cur) && cs > ps) setWords(prev, ps, cs);
+    else if (isCard(prev) && (isProse(cur) || isCard(cur))) setWords(cur, pe, ce);
+  }
+
+  // 2. Words no block renders.
+  const gaps = [];
+  let cursor = 0;
+  for (const s of segs) {
+    const [a, b] = span(s);
+    if (a > cursor) gaps.push([cursor, a]);
+    cursor = Math.max(cursor, b);
+  }
+  if (cursor < origWords.length) gaps.push([cursor, origWords.length]);
+
+  for (const [gs, ge] of gaps) {
+    const prev = segs.filter(s => span(s)[1] === gs).pop();
+    const next = segs.find(s => span(s)[0] === ge);
+    const gapWords = origWords.slice(gs, ge);
+    const deep = gapWords.map(w => normalizeArabicDeep(w)).filter(Boolean);
+    const partOf = card => {
+      const set = verseWordSet(card.ref);
+      return deep.filter(w => wordInVerse(w, set)).length >= Math.ceil(deep.length * 0.6);
+    };
+    // a. The card ran short of its own verse ("…والله ذو" without "الفضل العظيم").
+    if (isCard(prev) && partOf(prev)) { setWords(prev, span(prev)[0], ge); continue; }
+    if (isCard(next) && partOf(next)) { setWords(next, gs, span(next)[1]); continue; }
+    // b. A recitation with no card: a verse recited a second time, or a zone whose card was
+    //    dropped. A card also gives these words a translation, which they never got: they
+    //    were outside every chunk sent to Claude. Not when it runs straight on from a quoted
+    //    hadith — the Prophet's dhikr "له الملك وله الحمد وهو على كل شيء قدير" matches 64:1
+    //    but is part of the hadith.
+    const afterHadith = prev?.hadithRefs?.length > 0;
+    if (!afterHadith && ge - gs >= 3) {
+      const ref = identifyRecitation(gapWords, origWords.slice(Math.max(0, gs - 15), gs));
+      if (ref) { segs.push({ type: 'quran', words: gapWords, ref, startWord: gs }); continue; }
+    }
+    // c. Otherwise the words stay in the prose where they were spoken.
+    if (isProse(prev)) { setWords(prev, span(prev)[0], ge); continue; }
+    if (isProse(next)) { setWords(next, gs, span(next)[1]); continue; }
+    // d. Between two cards with no prose to join: its own block, marked untranslated.
+    segs.push({ type: 'prose', words: gapWords, startWord: gs, untranslated: true });
+  }
+
+  return segs.filter(s => s.words.length).sort((a, b) => a.startWord - b.startWord);
+}
+
 // Splits the Arabic transcript around detected references and produces an
 // annotated bilingual reader: Arabic chunk -> English chunk -> source badge.
 function buildReaderView(transcript, result) {
@@ -2125,6 +2267,8 @@ function buildReaderView(transcript, result) {
     segments = segments.filter(s => !s._removed);
   }
 
+  segments = reconcileCoverage(segments, origWords);
+
   const lines = ['ANNOTATED READER VIEW', '=====================\n'];
 
   // Insert a divider before the chunk that begins the second khutbah. Rendered as its own
@@ -2153,7 +2297,10 @@ function buildReaderView(transcript, result) {
     }
     const arabic = seg.words.join(' ');
     let english;
-    if (chunkTranslations) {
+    if (seg.untranslated) {
+      // Words between two cards that were never sent for translation (see reconcileCoverage).
+      english = '(Not translated.)';
+    } else if (chunkTranslations) {
       if (seg.type === 'prose') {
         // Use proseIdx stored on the segment (from prose_chunk_map) when available;
         // fall back to position-based lookup for old results without a map. Merged chunks
