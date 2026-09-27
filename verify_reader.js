@@ -273,6 +273,11 @@ export function verifyReader(folder, { readerRaw: readerOverride = null, result:
   try {
     const served = loadResult(folder, readerOverride);
     const rc = served.reader_chunks ?? [];
+    // An Urdu reader (translate_urdu.js) must give every block its Urdu.
+    if (existsSync(join(folder, 'reader_ur.txt'))) {
+      const without = rc.map((c, i) => (c.urdu ? null : i)).filter(i => i !== null);
+      if (without.length) warn(`${without.length} block(s) have no Urdu: ${without.slice(0, 10).join(', ')}`);
+    }
     for (let i = 1; i < rc.length; i++) {
       const a = rc[i - 1].start_time, b = rc[i].start_time;
       if (typeof a !== 'number' || typeof b !== 'number') continue;

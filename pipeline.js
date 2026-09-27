@@ -2004,7 +2004,8 @@ function reconcileCoverage(segments, origWords) {
 // annotated bilingual reader: Arabic chunk -> English chunk -> source badge.
 // `opts.quotes`: when an array, every block that quotes a verse or hadith inside its prose is
 // pushed to it ({ arabic, english, quranRefs, hadithRefs }) — quote_swaps.js plans the
-// published-translation swaps from these.
+// published-translation swaps from these. `opts.untranslated`: the text for words that were
+// never sent for translation (another language's reader, e.g. Urdu, passes its own).
 function buildReaderView(transcript, result, opts = {}) {
   const { chunk_translations, quran_references, hadith_references } = result;
 
@@ -2298,7 +2299,7 @@ function buildReaderView(transcript, result, opts = {}) {
     let english;
     if (seg.untranslated) {
       // Words between two cards that were never sent for translation (see reconcileCoverage).
-      english = '(Not translated.)';
+      english = opts.untranslated ?? '(Not translated.)';
     } else if (chunkTranslations) {
       if (seg.type === 'prose') {
         // Use proseIdx stored on the segment (from prose_chunk_map) when available;

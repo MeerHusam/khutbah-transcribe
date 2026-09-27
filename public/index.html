@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Amiri:ital,wght@0,400;0,700;1,400&family=Reem+Kufi:wght@400;500;600;700&family=Noto+Naskh+Arabic:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Amiri:ital,wght@0,400;0,700;1,400&family=Reem+Kufi:wght@400;500;600;700&family=Noto+Naskh+Arabic:wght@400;500;600&family=Noto+Nastaliq+Urdu:wght@400;500&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -293,6 +293,25 @@
       opacity: 0.07;
       pointer-events: none;
     }
+    /* Urdu (groundwork): each block carries both translations; the switch shows one. */
+    .chunk-ur { display: none; }
+    body.lang-ur .chunk-ur { display: block; }
+    body.lang-ur .chunk-en { display: none; }
+    .chunk-ur { direction: rtl; text-align: right; }
+    .chunk-ur .chunk-english, .chunk-ur .chunk-hadith-trans, .chunk-quran-translation.chunk-ur,
+    .hadith-english.chunk-ur, .ref-english.chunk-ur {
+      font-family: 'Noto Nastaliq Urdu', serif; font-size: 16px; line-height: 2.5; font-style: normal;
+    }
+    .chunk-ur .trans-ours { display: none; }
+    .chunk-ur .chunk-quran-cite, .chunk-ur .chunk-hadith-cite { direction: ltr; }
+    .lang-switch { float: right; display: inline-flex; gap: 2px; text-transform: none; letter-spacing: 0; }
+    .lang-switch button {
+      font-family: var(--font-ui); font-size: 12px; color: var(--text-dim); background: none; cursor: pointer;
+      border: 1px solid var(--border); border-radius: 7px; padding: 2px 9px;
+    }
+    .lang-switch button.on { color: var(--bg); background: var(--gold); border-color: var(--gold); }
+    .lang-switch button[data-lang="ur"] { font-family: 'Noto Nastaliq Urdu', serif; }
+    .ur-source { font-family: var(--font-ui); font-size: 11px; color: var(--text-dim); margin-right: 4px; white-space: nowrap; }
     .share-label {
       font-family: var(--font-kufi);
       font-size: 11px; text-transform: uppercase; letter-spacing: 0.18em;
@@ -776,6 +795,10 @@
     quranRefs = result.quran_references || [];
     hadithRefList = result.hadith_references || [];
     document.getElementById('app').innerHTML = renderResults(result);
+    // ?lang=ur in a shared link opens the Urdu; otherwise the reader's last choice.
+    let lang = new URLSearchParams(location.search).get('lang');
+    if (!lang) { try { lang = localStorage.getItem('kt-lang') || 'en'; } catch { lang = 'en'; } }
+    setLang(document.querySelector('.lang-switch') ? lang : 'en', false);
     enhanceQuranRefs(quranRefs);
     if (result.audio_url) initAudio(result.audio_url);
   }
@@ -860,7 +883,10 @@
         </div>
 
         <div class="share-card" style="padding-bottom: 8px;">
-          <div class="share-label">Full Translation</div>
+          <div class="share-label">Full Translation${(r.reader_chunks || []).some(c => c.urdu) ? `
+            <span class="lang-switch" role="group" aria-label="Translation language">
+              <button data-lang="en" class="on" onclick="setLang('en')">English</button><button data-lang="ur" lang="ur" onclick="setLang('ur')">اردو</button>
+            </span>` : ''}</div>
           ${renderTranslation(r)}
         </div>
 
@@ -934,6 +960,13 @@
         if (en && d.translation) {
           en.innerHTML = `${escHtml(d.translation)} <span class="ref-en-source">Sahih International</span>`;
           en.hidden = false;
+          const ur = result && result.urdu;
+          const urText = ur && ur.verses && ur.verses[`${s}:${a}`];
+          if (urText) {
+            en.classList.add('chunk-en');
+            const src = ur.verse_source || {};
+            en.insertAdjacentHTML('afterend', `<p class="ref-english chunk-ur" lang="ur">${escHtml(urText)} <span class="ur-source">${escHtml(src.name || '')}${src.placeholder ? ' · placeholder' : ''}</span></p>`);
+          }
         }
         const pop = document.getElementById(`popup-arabic-${i}`);
         if (pop) pop.textContent = `﴿${d.text}﴾`;
@@ -1001,6 +1034,22 @@
             ? enTexts.map((t, i) => `(${ayahNums[i]}) ${enVerse(t, i)}`).join(' ')
             : enVerse(enTexts[0], 0);
           el.insertAdjacentElement('afterend', enEl);
+          // The verse in Urdu, from the published translation chosen for Urdu (a placeholder
+          // edition until one is picked).
+          const ur = result && result.urdu;
+          const urTexts = ayahNums.map(n => ur && ur.verses && ur.verses[`${s}:${n}`]);
+          if (urTexts.every(Boolean)) {
+            enEl.classList.add('chunk-en');
+            const src = ur.verse_source || {};
+            const urEl = document.createElement('div');
+            urEl.className = 'chunk-quran-translation chunk-ur';
+            urEl.lang = 'ur';
+            urEl.innerHTML = (ayahNums.length > 1
+              ? urTexts.map((t, i) => `(${arabicNum(ayahNums[i])}) ${escHtml(t)}`).join(' ')
+              : escHtml(urTexts[0]))
+              + ` <span class="ur-source">${escHtml(src.name || '')}${src.placeholder ? ' · placeholder' : ''}</span>`;
+            enEl.insertAdjacentElement('afterend', urEl);
+          }
         }
       } catch {}
     }
@@ -1093,6 +1142,12 @@
     </div>`;
   }
 
+  // The hadith's published Urdu (translate_urdu.js), keyed like its sunnah.com link.
+  function urduOf(h) {
+    const m = (h.link || '').match(/sunnah\.com\/([a-z]+):(\d+)/);
+    return m && result && result.urdu && result.urdu.hadith ? result.urdu.hadith[`${m[1]}:${m[2]}`] || null : null;
+  }
+
   function renderHadithRef(h) {
     const narrator = h.narrator && h.narrator !== 'unknown' ? h.narrator : null;
     const collection = h.collection && h.collection !== 'unknown' ? h.collection : null;
@@ -1104,7 +1159,8 @@
         ${collection ? `<span class="collection-badge">${escHtml(collection)}${h.hadith_number ? ' · ' + escHtml(String(h.hadith_number)) : ''}</span>` : ''}
       </div>
       <div class="hadith-arabic">${escHtml(h.detected_text || h.arabic || '')}</div>
-      ${h.translation ? `<p class="hadith-english">${escHtml(h.translation.charAt(0).toUpperCase() + h.translation.slice(1))} <span class="ref-en-source">sunnah.com</span></p>` : ''}
+      ${h.translation ? `<p class="hadith-english${urduOf(h) ? ' chunk-en' : ''}">${escHtml(h.translation.charAt(0).toUpperCase() + h.translation.slice(1))} <span class="ref-en-source">sunnah.com</span></p>` : ''}
+      ${urduOf(h) ? `<p class="hadith-english chunk-ur" lang="ur">${escHtml(urduOf(h).text)} <span class="ur-source">${escHtml(urduOf(h).edition)} ${escHtml(String(urduOf(h).number))}</span></p>` : ''}
       ${link ? `<a class="ref-link hadith-link" href="${escAttr(link)}" target="_blank" rel="noopener">View on sunnah.com ↗</a>` : ''}
     </div>`;
   }
@@ -1142,6 +1198,13 @@
       last = m.index + m[0].length;
     });
     return out + escWithSources(text.slice(last));
+  }
+
+  // Translation language for the reader blocks (English, or Urdu where the khutbah has it).
+  function setLang(lang, remember = true) {
+    document.body.classList.toggle('lang-ur', lang === 'ur');
+    for (const b of document.querySelectorAll('.lang-switch button')) b.classList.toggle('on', b.dataset.lang === lang);
+    if (remember) { try { localStorage.setItem('kt-lang', lang); } catch {} }
   }
 
   // Marks a quote whose English above is our own translation rather than the published one.
@@ -1368,7 +1431,8 @@
         return `${divider}
         <div class="reader-chunk" ${startAttr}>
           <div class="chunk-arabic" ${arabicAttrs}>${marked.html}</div>
-          ${renderEnglishParts(c.english, marked.kinds)}
+          <div class="chunk-en">${renderEnglishParts(c.english, marked.kinds)}</div>
+          ${c.urdu ? `<div class="chunk-ur" lang="ur">${renderEnglishParts(c.urdu, marked.kinds)}</div>` : ''}
         </div>`;
       }).join('');
     }
