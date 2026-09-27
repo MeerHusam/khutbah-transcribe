@@ -289,7 +289,7 @@
   ],
   "second_khutbah": {
     "word_index": 675,
-    "time": 472.3,
+    "time": 488.3,
     "marker_text": "الحمد لله على احسانه والشكر له على توفيقه",
     "via": "claude",
     "validated": true
@@ -360,7 +360,14 @@
       "quran_link": "https://quran.com/14/7",
       "confidence": 0.95,
       "verification": "claude+algorithm",
-      "detection_method": "signal_phrase"
+      "detection_method": "signal_phrase",
+      "english_swap": {
+        "status": "published",
+        "ours": "If you are grateful, I will surely increase you.",
+        "published": "If you are grateful, I will surely increase you [in favor]",
+        "hash": "d6e611aa009cd5da",
+        "model": "claude-sonnet-5"
+      }
     },
     {
       "detected_text": "وكلوا واشربوا ولا تسرفوا انه لا يحب المسرفين",
@@ -432,7 +439,7 @@
     },
     {
       "detected_text": "ما هذا السرف يا سعد؟ قال: افي الوضوء سرف؟ قال: نعم وان كنت على نهر جار",
-      "narrator": "Sa'd ibn Abi Waqqas",
+      "narrator": "'Abdullah bin 'Amr",
       "collection": "Sunan Ibn Majah",
       "hadith_number": "425",
       "link": "https://sunnah.com/ibnmajah:425",
@@ -440,19 +447,38 @@
       "detection_method": "signal_phrase",
       "note": "Link verified via sunnah.com search",
       "verification": "sunnah_search",
-      "translation": "The Messenger of Allah passed by Sa'd when he was performing ablution, and he said: 'What is this extravagance?' He said: 'Can there be any extravagance in ablution?' He said: 'Yes, even if you are on the bank of a flowing river.'\""
+      "translation": "The Messenger of Allah passed by Sa'd when he was performing ablution, and he said: 'What is this extravagance?' He said: 'Can there be any extravagance in ablution?' He said: 'Yes, even if you are on the bank of a flowing river.'\"",
+      "narrator_claude": "Sa'd ibn Abi Waqqas",
+      "published_arabic": "\" مَا هَذَا السَّرَفُ \" . فَقَالَ أَفِي الْوُضُوءِ إِسْرَافٌ قَالَ \" نَعَمْ وَإِنْ كُنْتَ عَلَى نَهَرٍ جَارٍ \" .",
+      "english_swap": {
+        "status": "ours",
+        "reason": "the published translation adds O Sa'd (name inserted where imam's version has it in question, minor difference)",
+        "ours": "What is this wasteful use of water, O Sa'd?\" Sa'd said: \"Is there wastefulness even in Wudu?\" He replied: \"Yes, even if you are at a flowing river.",
+        "published": "What is this extravagance?' He said: 'Can there be any extravagance in ablution?' He said: 'Yes, even if you are on the bank of a flowing river.",
+        "hash": "2b58cb3bddda3057",
+        "model": "claude-sonnet-5"
+      }
     },
     {
       "detected_text": "كلكم راع وكلكم مسؤول عن رعيته",
-      "narrator": "Abdullah ibn Umar",
-      "collection": "Sunan Abu Dawud",
-      "hadith_number": "2928",
-      "link": "https://sunnah.com/abudawud:2928",
+      "narrator": "`Abdullah bin `Umar",
+      "collection": "Sahih al-Bukhari",
+      "hadith_number": "7138",
+      "link": "https://sunnah.com/bukhari:7138",
       "confidence": 0.65,
       "detection_method": "signal_phrase",
       "note": "Link verified via sunnah.com search",
       "verification": "sunnah_search",
-      "translation": "The Messenger of Allah (ﷺ) as saying: Each of you is a shepherd and each of you is responsible for his flock. The amir (ruler) who is over the people is a shepherd and is responsible for his flock; a man is a shepherd in charge of the inhabitants of his household and he is responsible for his flock; a woman is a shepherdess in charge of her husband's house and children and she is responsible for them; and a man's slave is a shepherd in charge of his master's property and he is responsible for it. So each of you is a shepherd and each of you is responsible for his flock."
+      "translation": "Allah's Messenger (ﷺ) said, \"Surely! Everyone of you is a guardian and is responsible for his charges: The Imam (ruler) of the people is a guardian and is responsible for his subjects; a man is the guardian of his family (household) and is responsible for his subjects; a woman is the guardian of her husband's home and of his children and is responsible for them; and the slave of a man is a guardian of his master's property and is responsible for it. Surely, everyone of you is a guardian and responsible for his charges.\"",
+      "narrator_claude": "Abdullah ibn Umar",
+      "published_arabic": "أَلاَ كُلُّكُمْ رَاعٍ، وَكُلُّكُمْ مَسْئُولٌ عَنْ رَعِيَّتِهِ، فَالإِمَامُ الَّذِي عَلَى النَّاسِ رَاعٍ وَهْوَ مَسْئُولٌ عَنْ رَعِيَّتِهِ، وَالرَّجُلُ رَاعٍ عَلَى أَهْلِ بَيْتِهِ وَهْوَ مَسْئُولٌ عَنْ رَعِيَّتِهِ، وَالْمَرْأَةُ رَاعِيَةٌ عَلَى أَهْلِ بَيْتِ زَوْجِهَا وَوَلَدِهِ وَهِيَ مَسْئُولَةٌ عَنْهُمْ، وَعَبْدُ الرَّجُلِ رَاعٍ عَلَى مَالِ سَيِّدِهِ وَهْوَ مَسْئُولٌ عَنْهُ، أَلاَ فَكُلُّكُمْ رَاعٍ وَكُلُّكُمْ مَسْئُولٌ عَنْ رَعِيَّتِهِ \".",
+      "english_swap": {
+        "status": "published",
+        "ours": "Each of you is a guardian and each of you is responsible for his flock.",
+        "published": "Everyone of you is a guardian and is responsible for his charges",
+        "hash": "a4d38a56480c3568",
+        "model": "claude-sonnet-5"
+      }
     }
   ],
   "transcript_segments": [
@@ -3475,7 +3501,7 @@
     },
     {
       "word": "الحمد",
-      "start": 472.3
+      "start": 488.29
     },
     {
       "word": "لله",
@@ -5942,6 +5968,16 @@
     "quran_references_matched": 11,
     "quran_references_by_scan": 2,
     "hadith_references_found": 3,
-    "hadith_references_by_scan": 2
+    "hadith_references_by_scan": 2,
+    "english_swaps": {
+      "calls": 1,
+      "cached": 3,
+      "input_tokens": 1742,
+      "output_tokens": 67,
+      "cost_usd": 0.004154,
+      "published": 2,
+      "ours": 2,
+      "model": "claude-sonnet-5"
+    }
   }
 }
