@@ -292,7 +292,14 @@
       "quran_link": "https://quran.com/106/3",
       "confidence": 0.75,
       "verification": "DISAGREEMENT:claude=106:3,algo=106:4,used=claude",
-      "detection_method": "signal_phrase"
+      "detection_method": "signal_phrase",
+      "english_swap": {
+        "status": "published",
+        "ours": "so let them worship the Lord of this House",
+        "published": "Let them worship the Lord of this House",
+        "hash": "99ba7fa8ad1671e8",
+        "model": "claude-sonnet-5"
+      }
     },
     {
       "detected_text": "ومن دخله كان آمنا",
@@ -303,7 +310,14 @@
       "quran_link": "https://quran.com/3/97",
       "confidence": 0.95,
       "verification": "claude+algorithm",
-      "detection_method": "signal_phrase"
+      "detection_method": "signal_phrase",
+      "english_swap": {
+        "status": "published",
+        "ours": "and whoever enters it shall be safe.",
+        "published": "And whoever enters it shall be safe.",
+        "hash": "d382227e0f472264",
+        "model": "claude-sonnet-5"
+      }
     },
     {
       "detected_text": "ألم تر كيف فعل ربك بأصحاب الفيل ألم يجعل كيدهم في تضليل وأرسل عليهم طيرا أبابيل ترميهم بحجارة من سجيل فجعلهم كعصف مأكول",
@@ -395,7 +409,16 @@
       "detection_method": "signal_phrase",
       "note": "Link verified via sunnah.com search",
       "verification": "sunnah_search",
-      "translation": "\"The Messenger of Allah (s.a.w) said: \"Whoever among you wakes up in the morning secured in his dwelling, healthy in his body, having his food for the day,then it is as if the world has been gathered for him.'\""
+      "translation": "\"The Messenger of Allah (s.a.w) said: \"Whoever among you wakes up in the morning secured in his dwelling, healthy in his body, having his food for the day,then it is as if the world has been gathered for him.'\"",
+      "narrator_claude": "'Ubaidullah bin Mihsan Al-Khatmi",
+      "published_arabic": "مَنْ أَصْبَحَ مِنْكُمْ آمِنًا فِي سِرْبِهِ مُعَافًى فِي جَسَدِهِ عِنْدَهُ قُوتُ يَوْمِهِ فَكَأَنَّمَا حِيزَتْ لَهُ الدُّنْيَا قَالَ أَبُو عِيسَى هَذَا حَدِيثٌ حَسَنٌ غَرِيبٌ لَا نَعْرِفُهُ إِلَّا مِنْ حَدِيثِ مَرْوَانَ بْنِ مُعَاوِيَةَ وَحِيزَتْ جُمِعَتْ حَدَّثَنَا بِذَلِكَ مُحَمَّدُ بْنُ إِسْمَعِيلَ حَدَّثَنَا الْحُمَيْدِيُّ حَدَّثَنَا مَرْوَانُ بْنُ مُعَاوِيَةَ نَحْوَهُ وَفِي الْبَاب عَنْ أَبِي الدَّرْدَاءِ",
+      "english_swap": {
+        "status": "published",
+        "ours": "Whoever among you wakes up secure in his dwelling, healthy in his body, and has the food of his day, it is as though the whole world has been gathered for him.",
+        "published": "Whoever among you wakes up in the morning secured in his dwelling, healthy in his body, having his food for the day,then it is as if the world has been gathered for him.",
+        "hash": "23ffb757a531efd1",
+        "model": "claude-sonnet-5"
+      }
     },
     {
       "detected_text": "رباط يوم في سبيل الله خير من الدنيا وما عليها",
@@ -407,7 +430,17 @@
       "detection_method": "signal_phrase",
       "note": "Link verified via sunnah.com search",
       "verification": "sunnah_search",
-      "translation": "Allah's Messenger (ﷺ) said, \"To guard Muslims from infidels in Allah's Cause for one day is better than the world and whatever is on its surface, and a place in Paradise as small as that occupied by the whip of one of you is better than the world and whatever is on its surface; and a morning's or an evening's journey which a slave (person) travels in Allah's Cause is better than the world and whatever is on its surface.\""
+      "translation": "Allah's Messenger (ﷺ) said, \"To guard Muslims from infidels in Allah's Cause for one day is better than the world and whatever is on its surface, and a place in Paradise as small as that occupied by the whip of one of you is better than the world and whatever is on its surface; and a morning's or an evening's journey which a slave (person) travels in Allah's Cause is better than the world and whatever is on its surface.\"",
+      "narrator_claude": "Sahl bin Sa`d As-Sa'di",
+      "published_arabic": "رِبَاطُ يَوْمٍ فِي سَبِيلِ اللَّهِ خَيْرٌ مِنَ الدُّنْيَا وَمَا عَلَيْهَا، وَمَوْضِعُ سَوْطِ أَحَدِكُمْ مِنَ الْجَنَّةِ خَيْرٌ مِنَ الدُّنْيَا وَمَا عَلَيْهَا، وَالرَّوْحَةُ يَرُوحُهَا الْعَبْدُ فِي سَبِيلِ اللَّهِ أَوِ الْغَدْوَةُ خَيْرٌ مِنَ الدُّنْيَا وَمَا عَلَيْهَا \".",
+      "english_swap": {
+        "status": "ours",
+        "reason": "the published translation adds Muslims from infidels (specific object of guarding)",
+        "ours": "Ribat, one day of guarding in the cause of Allah, is better than the world and everything in it.",
+        "published": "To guard Muslims from infidels in Allah's Cause for one day is better than the world and whatever is on its surface",
+        "hash": "df00d37f8b5d7b66",
+        "model": "claude-sonnet-5"
+      }
     },
     {
       "detected_text": "رباط يوم وليلة خير من صيام شهر وقيامه",
@@ -419,7 +452,17 @@
       "detection_method": "signal_phrase",
       "note": "Link verified via sunnah.com search",
       "verification": "sunnah_search",
-      "translation": "I heard the Messenger of Allah (ﷺ) say: Keeping watch for a day and a night is better (in point of reward) than fasting for a whole month and standing in prayer every night. If a person dies (while, performing this duty), his (meritorious) activity will continue and he will go on receiving his reward for it perpetually and will be saved from the torture of the grave."
+      "translation": "I heard the Messenger of Allah (ﷺ) say: Keeping watch for a day and a night is better (in point of reward) than fasting for a whole month and standing in prayer every night. If a person dies (while, performing this duty), his (meritorious) activity will continue and he will go on receiving his reward for it perpetually and will be saved from the torture of the grave.",
+      "narrator_claude": "Salman",
+      "published_arabic": "رِبَاطُ يَوْمٍ وَلَيْلَةٍ خَيْرٌ مِنْ صِيَامِ شَهْرٍ وَقِيَامِهِ وَإِنْ مَاتَ جَرَى عَلَيْهِ عَمَلُهُ الَّذِي كَانَ يَعْمَلُهُ وَأُجْرِيَ عَلَيْهِ رِزْقُهُ وَأَمِنَ الْفَتَّانَ \"  .",
+      "english_swap": {
+        "status": "ours",
+        "reason": "the published translation adds every night (nightly repetition detail)",
+        "ours": "One day and night of ribat is better than fasting and standing in prayer for an entire month.",
+        "published": "Keeping watch for a day and a night is better (in point of reward) than fasting for a whole month and standing in prayer every night.",
+        "hash": "fef5e294f93febcf",
+        "model": "claude-sonnet-5"
+      }
     },
     {
       "detected_text": "عينان لا تمسهما النار عين بكت من خشية الله وعين باتت تحرس في سبيل الله",
@@ -431,7 +474,16 @@
       "detection_method": "signal_phrase",
       "note": "Link verified via sunnah.com search",
       "verification": "sunnah_search",
-      "translation": "\"I heard the Messenger of Allah (ﷺ) saying, 'There are two eyes that shall not be touched by the Fire: An eye that wept from the fear of Allah, and an eye that spent the night standing on guard in the cause of Allah.\" [Abu 'Eisa said:] There are narrations on this topic from 'Uthman and Abu Raihanah. The Hadith of Ibn 'Abbas is a Hasan Gharib Hadith, we do not know of it except through the narration of Shu'aib bin Ruzaiq."
+      "translation": "\"I heard the Messenger of Allah (ﷺ) saying, 'There are two eyes that shall not be touched by the Fire: An eye that wept from the fear of Allah, and an eye that spent the night standing on guard in the cause of Allah.\" [Abu 'Eisa said:] There are narrations on this topic from 'Uthman and Abu Raihanah. The Hadith of Ibn 'Abbas is a Hasan Gharib Hadith, we do not know of it except through the narration of Shu'aib bin Ruzaiq.",
+      "narrator_claude": "Ibn 'Abbas",
+      "published_arabic": "\" عَيْنَانِ لاَ تَمَسُّهُمَا النَّارُ عَيْنٌ بَكَتْ مِنْ خَشْيَةِ اللَّهِ وَعَيْنٌ بَاتَتْ تَحْرُسُ فِي سَبِيلِ اللَّهِ \"  . قَالَ أَبُو عِيسَى وَفِي الْبَابِ عَنْ عُثْمَانَ وَأَبِي رَيْحَانَةَ . وَحَدِيثُ ابْنِ عَبَّاسٍ حَدِيثٌ حَسَنٌ لاَ نَعْرِفُهُ إِلاَّ مِنْ حَدِيثِ شُعَيْبِ بْنِ رُزَيْقٍ .",
+      "english_swap": {
+        "status": "published",
+        "ours": "Two eyes that the Fire will never touch: an eye that wept out of fear of Allah, and an eye that spent the night on guard in the cause of Allah",
+        "published": "There are two eyes that shall not be touched by the Fire: An eye that wept from the fear of Allah, and an eye that spent the night standing on guard in the cause of Allah",
+        "hash": "3caee93afbeea7c2",
+        "model": "claude-sonnet-5"
+      }
     },
     {
       "detected_text": "إن هذا البلد حرمه الله",
@@ -443,7 +495,16 @@
       "detection_method": "signal_phrase",
       "note": "Link verified via sunnah.com search",
       "verification": "sunnah_search",
-      "translation": "On the Day of the Conquest of Mecca, Allah's Messenger (ﷺ) said, \"Allah has made this town a sanctuary. Its thorny bushes should not be cut, its game should not be chased, and its fallen things should not be picked up except by one who would announce it publicly.\""
+      "translation": "On the Day of the Conquest of Mecca, Allah's Messenger (ﷺ) said, \"Allah has made this town a sanctuary. Its thorny bushes should not be cut, its game should not be chased, and its fallen things should not be picked up except by one who would announce it publicly.\"",
+      "narrator_claude": "Ibn `Abbas",
+      "published_arabic": "إِنَّ هَذَا الْبَلَدَ حَرَّمَهُ اللَّهُ، لاَ يُعْضَدُ شَوْكُهُ، وَلاَ يُنَفَّرُ صَيْدُهُ، وَلاَ يَلْتَقِطُ لُقَطَتَهُ إِلاَّ مَنْ عَرَّفَهَا \".",
+      "english_swap": {
+        "status": "published",
+        "ours": "Indeed, this land was made sacred by Allah.",
+        "published": "Allah has made this town a sanctuary.",
+        "hash": "56f4b1fcc0aab57d",
+        "model": "claude-sonnet-5"
+      }
     },
     {
       "detected_text": "من أراد أهل المدينة بسوء أذابه الله كما يذوب الملح في الماء",
@@ -455,7 +516,16 @@
       "detection_method": "signal_phrase",
       "note": "Link verified via sunnah.com search",
       "verification": "sunnah_search",
-      "translation": "He who intends to do harm to the people of Medina, Allah would efface him just as water dissolves salt."
+      "translation": "He who intends to do harm to the people of Medina, Allah would efface him just as water dissolves salt.",
+      "narrator_claude": "Sa'd b. Abu Waqqas",
+      "published_arabic": "مَنْ أَرَادَ أَهْلَ الْمَدِينَةِ بِسُوءٍ أَذَابَهُ اللَّهُ كَمَا يَذُوبُ الْمِلْحُ فِي الْمَاءِ \"  .",
+      "english_swap": {
+        "status": "published",
+        "ours": "Whoever intends harm against the people of al-Madinah, Allah will cause him to dissolve just as salt dissolves in water.",
+        "published": "He who intends to do harm to the people of Medina, Allah would efface him just as water dissolves salt.",
+        "hash": "9c0e66419e84e21e",
+        "model": "claude-sonnet-5"
+      }
     },
     {
       "detected_text": "من صلى علي صلاة واحدة صلى الله عليه بها عشرا",
@@ -467,7 +537,17 @@
       "detection_method": "signal_phrase",
       "note": "Link verified via sunnah.com search",
       "verification": "sunnah_search",
-      "translation": "when you hear the mu'adhdhin repeat what he says, invoke a blessing on me, for everyone who invoke one blessing on me will receive ten blessings from Allah. Then ask Allah to give me the wasilah, which is a rank in paradise fitting for only one of Allah’s servants, and I hope that I may be the one. If anyone asks Allah that I be given the wasilah, he will be assured of my intercession."
+      "translation": "when you hear the mu'adhdhin repeat what he says, invoke a blessing on me, for everyone who invoke one blessing on me will receive ten blessings from Allah. Then ask Allah to give me the wasilah, which is a rank in paradise fitting for only one of Allah’s servants, and I hope that I may be the one. If anyone asks Allah that I be given the wasilah, he will be assured of my intercession.",
+      "narrator_claude": "‘Abd Allah b. ‘Amr b. al-As",
+      "published_arabic": "إِذَا سَمِعْتُمُ الْمُؤَذِّنَ فَقُولُوا مِثْلَ مَا يَقُولُ ثُمَّ صَلُّوا عَلَىَّ فَإِنَّهُ مَنْ صَلَّى عَلَىَّ صَلاَةً صَلَّى اللَّهُ عَلَيْهِ بِهَا عَشْرًا ثُمَّ سَلُوا اللَّهَ عَزَّ وَجَلَّ لِيَ الْوَسِيلَةَ فَإِنَّهَا مَنْزِلَةٌ فِي الْجَنَّةِ لاَ تَنْبَغِي إِلاَّ لِعَبْدٍ مِنْ عِبَادِ اللَّهِ تَعَالَى وَأَرْجُو أَنْ أَكُونَ أَنَا هُوَ فَمَنْ سَأَلَ اللَّهَ لِيَ الْوَسِيلَةَ حَلَّتْ عَلَيْهِ الشَّفَاعَةُ \" .",
+      "english_swap": {
+        "status": "ours",
+        "reason": "the excerpt comes from a text without the imam's \"واحده\"",
+        "ours": "Whoever sends one prayer upon me, Allah will send ten prayers upon him in return.",
+        "published": "for everyone who invoke one blessing on me will receive ten blessings from Allah",
+        "hash": "c88afb0823fedff6",
+        "model": "claude-sonnet-5"
+      }
     }
   ],
   "transcript_segments": [

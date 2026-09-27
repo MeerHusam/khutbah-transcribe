@@ -360,7 +360,14 @@
       "quran_link": "https://quran.com/14/7",
       "confidence": 0.95,
       "verification": "claude+algorithm",
-      "detection_method": "signal_phrase"
+      "detection_method": "signal_phrase",
+      "english_swap": {
+        "status": "published",
+        "ours": "If you are grateful, I will surely increase you.",
+        "published": "If you are grateful, I will surely increase you [in favor]",
+        "hash": "d6e611aa009cd5da",
+        "model": "claude-sonnet-5"
+      }
     },
     {
       "detected_text": "وكلوا واشربوا ولا تسرفوا انه لا يحب المسرفين",
@@ -420,19 +427,29 @@
   "hadith_references": [
     {
       "detected_text": "كان النبي صلى الله عليه وسلم يتوضا بالمد ويغتسل بالصاع الى خمسة امداد",
-      "narrator": "Anas ibn Malik",
-      "collection": "Sahih Muslim",
-      "hadith_number": "325b",
-      "link": "https://sunnah.com/muslim:325b",
+      "narrator": "Anas",
+      "collection": "Sahih al-Bukhari",
+      "hadith_number": "201",
+      "link": "https://sunnah.com/bukhari:201",
       "confidence": 0.5,
       "detection_method": "signal_phrase",
       "note": "Link verified via sunnah.com search",
       "verification": "sunnah_search",
-      "translation": "The Apostle of Allah (ﷺ) performed ablution with one Mudd and took bath with a Sa' up to five Mudds."
+      "translation": "The Prophet (ﷺ) used to take a bath with one Sa` up to five Mudds (1 Sa` = [??] Mudds) of water and used to perform ablution with one Mudd of water.",
+      "narrator_claude": "Anas ibn Malik",
+      "published_arabic": "يَغْسِلُ ـ أَوْ كَانَ يَغْتَسِلُ ـ بِالصَّاعِ إِلَى خَمْسَةِ أَمْدَادٍ، وَيَتَوَضَّأُ بِالْمُدِّ.",
+      "english_swap": {
+        "status": "ours",
+        "reason": "the excerpt drops \"Prophet\", \"Wudu\" from our rendering",
+        "ours": "The Prophet, may Allah's peace and blessings be upon him, used to perform Wudu with a mudd of water and bathe with a sa' up to five mudds",
+        "published": "used to take a bath with one Sa` up to five Mudds (1 Sa` = [??] Mudds) of water and used to perform ablution with one Mudd of water",
+        "hash": "b66d1ec9ff65f059",
+        "model": "claude-sonnet-5"
+      }
     },
     {
       "detected_text": "ما هذا السرف يا سعد؟ قال: افي الوضوء سرف؟ قال: نعم وان كنت على نهر جار",
-      "narrator": "Sa'd ibn Abi Waqqas",
+      "narrator": "'Abdullah bin 'Amr",
       "collection": "Sunan Ibn Majah",
       "hadith_number": "425",
       "link": "https://sunnah.com/ibnmajah:425",
@@ -440,11 +457,21 @@
       "detection_method": "signal_phrase",
       "note": "Link verified via sunnah.com search",
       "verification": "sunnah_search",
-      "translation": "The Messenger of Allah passed by Sa'd when he was performing ablution, and he said: 'What is this extravagance?' He said: 'Can there be any extravagance in ablution?' He said: 'Yes, even if you are on the bank of a flowing river.'\""
+      "translation": "The Messenger of Allah passed by Sa'd when he was performing ablution, and he said: 'What is this extravagance?' He said: 'Can there be any extravagance in ablution?' He said: 'Yes, even if you are on the bank of a flowing river.'\"",
+      "narrator_claude": "Sa'd ibn Abi Waqqas",
+      "published_arabic": "\" مَا هَذَا السَّرَفُ \" . فَقَالَ أَفِي الْوُضُوءِ إِسْرَافٌ قَالَ \" نَعَمْ وَإِنْ كُنْتَ عَلَى نَهَرٍ جَارٍ \" .",
+      "english_swap": {
+        "status": "ours",
+        "reason": "the published translation adds O Sa'd (name inserted where imam's version has it in question, minor difference)",
+        "ours": "What is this wasteful use of water, O Sa'd?\" Sa'd said: \"Is there wastefulness even in Wudu?\" He replied: \"Yes, even if you are at a flowing river.",
+        "published": "What is this extravagance?' He said: 'Can there be any extravagance in ablution?' He said: 'Yes, even if you are on the bank of a flowing river.",
+        "hash": "2b58cb3bddda3057",
+        "model": "claude-sonnet-5"
+      }
     },
     {
       "detected_text": "كلكم راع وكلكم مسؤول عن رعيته",
-      "narrator": "Abdullah ibn Umar",
+      "narrator": "'Abdullah bin 'Umar",
       "collection": "Sunan Abu Dawud",
       "hadith_number": "2928",
       "link": "https://sunnah.com/abudawud:2928",
@@ -452,7 +479,16 @@
       "detection_method": "signal_phrase",
       "note": "Link verified via sunnah.com search",
       "verification": "sunnah_search",
-      "translation": "The Messenger of Allah (ﷺ) as saying: Each of you is a shepherd and each of you is responsible for his flock. The amir (ruler) who is over the people is a shepherd and is responsible for his flock; a man is a shepherd in charge of the inhabitants of his household and he is responsible for his flock; a woman is a shepherdess in charge of her husband's house and children and she is responsible for them; and a man's slave is a shepherd in charge of his master's property and he is responsible for it. So each of you is a shepherd and each of you is responsible for his flock."
+      "translation": "The Messenger of Allah (ﷺ) as saying: Each of you is a shepherd and each of you is responsible for his flock. The amir (ruler) who is over the people is a shepherd and is responsible for his flock; a man is a shepherd in charge of the inhabitants of his household and he is responsible for his flock; a woman is a shepherdess in charge of her husband's house and children and she is responsible for them; and a man's slave is a shepherd in charge of his master's property and he is responsible for it. So each of you is a shepherd and each of you is responsible for his flock.",
+      "narrator_claude": "Abdullah ibn Umar",
+      "published_arabic": "أَلاَ كُلُّكُمْ رَاعٍ وَكُلُّكُمْ مَسْئُولٌ عَنْ رَعِيَّتِهِ فَالأَمِيرُ الَّذِي عَلَى النَّاسِ رَاعٍ عَلَيْهِمْ وَهُوَ مَسْئُولٌ عَنْهُمْ وَالرَّجُلُ رَاعٍ عَلَى أَهْلِ بَيْتِهِ وَهُوَ مَسْئُولٌ عَنْهُمْ وَالْمَرْأَةُ رَاعِيَةٌ عَلَى بَيْتِ بَعْلِهَا وَوَلَدِهِ وَهِيَ مَسْئُولَةٌ عَنْهُمْ وَالَعَبْدُ رَاعٍ عَلَى مَالِ سَيِّدِهِ وَهُوَ مَسْئُولٌ عَنْهُ فَكُلُّكُمْ رَاعٍ وَكُلُّكُمْ مَسْئُولٌ عَنْ رَعِيَّتِهِ \" .",
+      "english_swap": {
+        "status": "published",
+        "ours": "Each of you is a guardian and each of you is responsible for his flock.",
+        "published": "Each of you is a shepherd and each of you is responsible for his flock.",
+        "hash": "8d9f3cd316381ee5",
+        "model": "claude-sonnet-5"
+      }
     }
   ],
   "transcript_segments": [

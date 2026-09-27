@@ -283,14 +283,24 @@
   "hadith_references": [
     {
       "detected_text": "صيام يوم عرفة أحتسب على الله أن يكفر السنة التي قبله والسنة التي بعده",
-      "narrator": "Abu Qatadah al-Ansari",
+      "narrator": "Abu Qatada",
       "collection": "Sahih Muslim",
       "hadith_number": "1162a",
       "link": "https://sunnah.com/muslim:1162a",
       "confidence": 0.8,
       "detection_method": "signal_phrase",
       "note": "Link verified via sunnah.com search",
-      "verification": "sunnah_search"
+      "verification": "sunnah_search",
+      "narrator_claude": "Abu Qatadah al-Ansari",
+      "translation": "How do you fast? The Messenger of Allah (ﷺ) felt annoyed. When 'Umar (Allah be pleased with him) noticed his annoyance, he said: We are well pleased with Allah as our Lord, with Islam as our code of life, and with Muhammad as our Prophet. We seek refuge with Allah from the anger of Allah and that of His Messenger. 'Umar kept on repeating these words till his (the Prophet's) anger calmed down. Then Umar said: Messenger of Allah, what is the position of one who fasts perpetually? He (ﷺ) said: He neither fasted nor broke it, or he said: He did not fast and he did not break it. 'Umar said: What about him who fasts for two days and does not fast one day? He (ﷺ) said: Is anyone capable of doing that? He ('Umar) said: What is the position of him who fasts for a day and doesn't fast on the other day? Thereupon he (the Holy Prophet) said: That is the fast of David (peace be upon him). He ('Umar) said: What about him who fasts one day and doesn't fast for two days. Thereupon he (the Messenger of Allah) said: I wish I were given the strength to do that. Thereafter he (ﷺ) said: Fasting three days every month and that of Ramadan every year is a perpetual fasting. I seek from Allah that fasting on the day of 'Arafa may atone for the sins of the preceding and the coming years, and I seek from Allah that fasting on the day of Ashura may atone for the sins of the preceding year.",
+      "published_arabic": "ثَلاَثٌ مِنْ كُلِّ شَهْرٍ وَرَمَضَانُ إِلَى رَمَضَانَ فَهَذَا صِيَامُ الدَّهْرِ كُلِّهِ صِيَامُ يَوْمِ عَرَفَةَ أَحْتَسِبُ عَلَى اللَّهِ أَنْ يُكَفِّرَ السَّنَةَ الَّتِي قَبْلَهُ وَالسَّنَةَ الَّتِي بَعْدَهُ وَصِيَامُ يَوْمِ عَاشُورَاءَ أَحْتَسِبُ عَلَى اللَّهِ أَنْ يُكَفِّرَ السَّنَةَ الَّتِي قَبْلَهُ \" .",
+      "english_swap": {
+        "status": "published",
+        "ours": "Fasting the Day of Arafah, I hope from Allah that it will expiate the sins of the year before it and the year after it.",
+        "published": "I seek from Allah that fasting on the day of 'Arafa may atone for the sins of the preceding and the coming years",
+        "hash": "9107c2221f8d0dd8",
+        "model": "claude-sonnet-5"
+      }
     },
     {
       "detected_text": "خير الدعاء دعاء يوم عرفة، وخير ما قلت أنا والنبيون من قبلي: لا إله إلا الله وحده لا شريك له، له الملك وله الحمد وهو على كل شيء قدير",
@@ -301,7 +311,18 @@
       "confidence": null,
       "detection_method": "signal_phrase",
       "note": "Link verified via sunnah.com search",
-      "verification": "sunnah_search"
+      "verification": "sunnah_search",
+      "narrator_claude": "Amr ibn Shu'ayb from his father from his grandfather",
+      "translation": "“The best of supplication is the supplication of the Day of `Arafah. And the best of what I and the Prophets before me have said is: None has the right to be worshipped but Allah, Alone, without partner, to Him belongs all that exists, and to Him belongs the Praise, and He is powerful over all things. (Lā ilāha illallāh, waḥdahu lā sharīka lahu, lahul-mulku wa lahul-ḥamdu, wa huwa `alā kulli shai’in qadīr).’”",
+      "published_arabic": "\" خَيْرُ الدُّعَاءِ دُعَاءُ يَوْمِ عَرَفَةَ وَخَيْرُ مَا قُلْتُ أَنَا وَالنَّبِيُّونَ مِنْ قَبْلِي لاَ إِلَهَ إِلاَّ اللَّهُ وَحْدَهُ لاَ شَرِيكَ لَهُ لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ \"  . قَالَ هَذَا حَدِيثٌ حَسَنٌ غَرِيبٌ مِنْ هَذَا الْوَجْهِ . وَحَمَّادُ بْنُ أَبِي حُمَيْدٍ هُوَ مُحَمَّدُ بْنُ أَبِي حُمَيْدٍ وَهُوَ أَبُو إِبْرَاهِيمَ الأَنْصَارِيُّ الْمَدَنِيُّ وَلَيْسَ هُوَ بِالْقَوِيِّ عِنْدَ أَهْلِ الْحَدِيثِ .",
+      "english_swap": {
+        "status": "ours",
+        "reason": "the published translation adds 'to Him belongs all that exists' - interprets 'الملك' as 'existence' rather than 'dominion/sovereignty'",
+        "ours": "The best supplication is the supplication of the Day of Arafah, and the best thing I and the prophets before me have said: There is no god but Allah alone, with no partner, to Him belongs all dominion and all praise, and He is over all things capable.",
+        "published": "The best of supplication is the supplication of the Day of `Arafah. And the best of what I and the Prophets before me have said is: None has the right to be worshipped but Allah, Alone, without partner, to Him belongs all that exists, and to Him belongs the Praise, and He is powerful over all things.",
+        "hash": "9497bc212972c396",
+        "model": "claude-sonnet-5"
+      }
     }
   ],
   "transcript_segments": [

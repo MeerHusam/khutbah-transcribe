@@ -244,7 +244,14 @@
       "quran_link": "https://quran.com/37/107",
       "confidence": 1,
       "verification": "claude+algorithm",
-      "detection_method": "signal_phrase"
+      "detection_method": "signal_phrase",
+      "english_swap": {
+        "status": "published",
+        "ours": "And We ransomed him with a great sacrifice.",
+        "published": "And We ransomed him with a great sacrifice",
+        "hash": "a48d75d179daa28b",
+        "model": "claude-sonnet-5"
+      }
     },
     {
       "detected_text": "لن ينال الله لحومها ولا دماؤها ولكن يناله التقوى منكم كذلك سخرها لكم لتكبروا الله على ما هداكم وبشر المحسنين",
@@ -294,14 +301,25 @@
   "hadith_references": [
     {
       "detected_text": "أيام التشريق أيام أكل وشرب وذكر لله",
-      "narrator": "Nubayshah al-Hudhali",
+      "narrator": "Nubaisha al-Hudhali",
       "collection": "Sahih Muslim",
       "hadith_number": "1141a",
       "link": "https://sunnah.com/muslim:1141a",
       "confidence": 0.5,
       "detection_method": "signal_phrase",
       "note": "Link verified via sunnah.com search",
-      "verification": "sunnah_search"
+      "verification": "sunnah_search",
+      "narrator_claude": "Nubayshah al-Hudhali",
+      "translation": "The days of Tashriq are the days of eating and drinking.",
+      "published_arabic": "أَيَّامُ التَّشْرِيقِ أَيَّامُ أَكْلٍ وَشُرْبٍ \"  .",
+      "english_swap": {
+        "status": "ours",
+        "reason": "the published translation lacks and remembrance of Allah",
+        "ours": "The days of Tashreeq are days of eating, drinking, and remembrance of Allah.",
+        "published": "The days of Tashriq are the days of eating and drinking.",
+        "hash": "fb62fdced81218ad",
+        "model": "claude-sonnet-5"
+      }
     },
     {
       "detected_text": "إذا صلت المرأة خمسها وصامت شهرها وحصنت فرجها وأطاعت زوجها قيل لها ادخلي الجنة من أي أبوابها شئت",
@@ -311,40 +329,13 @@
       "link": null,
       "confidence": null,
       "detection_method": "signal_phrase",
-      "note": "Manual verification recommended"
-    },
-    {
-      "detected_text": "ولا حول ولا قوة الا بالله العلي العظيم لا",
-      "collection": "Sunan Ibn Majah",
-      "hadith_number": "3878",
-      "link": "https://sunnah.com/ibnmajah:3878",
-      "confidence": 0.67,
-      "detection_method": "scan",
-      "verification": "sunnah_search",
-      "note": "Link verified via sunnah.com search",
-      "narrator": "‘Ubadah bin As-Samit"
-    },
-    {
-      "detected_text": "النبي صلى الله عليه وسلم عندما تعرض الى",
-      "collection": "Sahih al-Bukhari",
-      "hadith_number": "6123",
-      "link": "https://sunnah.com/bukhari:6123",
-      "confidence": 0.6,
-      "detection_method": "scan",
-      "verification": "sunnah_search",
-      "note": "Link verified via sunnah.com search",
-      "narrator": "Thabit"
-    },
-    {
-      "detected_text": "الله اكبر الله اكبر لا اله الا الله الله اكبر الله",
-      "collection": "Sunan an-Nasa'i",
-      "hadith_number": "631",
-      "link": "https://sunnah.com/nasai:631",
-      "confidence": 0.63,
-      "detection_method": "scan",
-      "verification": "sunnah_search",
-      "note": "Link verified via sunnah.com search",
-      "narrator": "Abu Mahdhura"
+      "note": "Manual verification recommended",
+      "english_swap": {
+        "status": "ours",
+        "reason": "no published English for this reference",
+        "hash": null,
+        "model": "claude-sonnet-5"
+      }
     }
   ],
   "transcript_segments": [
@@ -4653,7 +4644,7 @@
     "quran_references_found": 5,
     "quran_references_matched": 5,
     "quran_references_by_scan": 0,
-    "hadith_references_found": 5,
+    "hadith_references_found": 2,
     "hadith_references_by_scan": 3
   }
 }
