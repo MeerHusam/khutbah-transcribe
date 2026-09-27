@@ -363,6 +363,36 @@
         "- hadith ibnmajah:1487, ibnmajah:3704, abudawud:740: the imam's own sentences matched corpus fragments on 'النبي صلى الله عليه وسلم'"
       ],
       "confirmed": false
+    },
+    {
+      "slug": "makkah-2026-09-25",
+      "folder": "outputs/2026-09-27T16-37-16_makkah_dosari_2026-09-25",
+      "quran": [
+        "5:27",
+        "110:2",
+        "29:69",
+        "23:115",
+        "28:77",
+        "33:56",
+        "37:180-182"
+      ],
+      "hadith": [
+        "bukhari:2790",
+        "at-tabarani:?",
+        "(al-hakim):?"
+      ],
+      "hadith_english": {
+        "bukhari:2790": {
+          "narrator": "Abu Huraira",
+          "has": [
+            "Firdaws"
+          ]
+        }
+      },
+      "corrections": [
+        "local only (not published); 2:148 \"فاستبقوا الخيرات\" left uncarded (also 5:48)"
+      ],
+      "confirmed": false
     }
   ]
 }

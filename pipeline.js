@@ -1063,6 +1063,10 @@ const SLUG_DISPLAY = {
   bukhari: 'Sahih al-Bukhari', muslim: 'Sahih Muslim', abudawud: 'Sunan Abu Dawud',
   nasai: "Sunan an-Nasa'i", ibnmajah: 'Sunan Ibn Majah', tirmidhi: 'Jami` at-Tirmidhi',
   malik: 'Muwatta Malik', ahmad: 'Musnad Ahmad',
+  // Not on sunnah.com: named by the imam ("أخرجه الطبراني", "رواه الحاكم") and returned by
+  // Claude as a bare slug, which the badge showed as-is ("Collection: tabarani").
+  tabarani: 'At-Tabarani', hakim: 'Al-Mustadrak (al-Hakim)', bayhaqi: 'Al-Bayhaqi',
+  darimi: 'Sunan ad-Darimi', ibnhibban: 'Sahih Ibn Hibban',
 };
 const slugToDisplay = slug => SLUG_DISPLAY[slug] ?? slug;
 
@@ -1347,6 +1351,9 @@ async function resolveSunnahLinksForRefs(refs, transcript = null) {
     const kept = !sunnah && ref.verification === 'sunnah_search'
       && (ref.link ?? '').match(/sunnah\.com\/([a-z]+):(\w+)$/);
     if (kept) sunnah = { collection_slug: kept[1], hadith_number: kept[2], link: ref.link };
+    if (!sunnah && SLUG_DISPLAY[(ref.collection ?? '').trim().toLowerCase()]) {
+      ref.collection = SLUG_DISPLAY[ref.collection.trim().toLowerCase()];
+    }
     if (sunnah) {
       ref.collection = slugToDisplay(sunnah.collection_slug);
       ref.hadith_number = sunnah.hadith_number;
