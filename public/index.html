@@ -1057,9 +1057,18 @@
             const urEl = document.createElement('div');
             urEl.className = 'chunk-quran-translation chunk-ur';
             urEl.lang = 'ur';
+            // Bold the recited part, as the English does, by clause.
+            const urVerse = (t, i) => {
+              if (!partial) return escHtml(t);
+              if (whole[i]) return `<span class="recited">${escHtml(t)}</span>`;
+              if (!spans[i]) return `<span class="not-recited">${escHtml(t)}</span>`;
+              const r = recitedSentences(t, spans[i], vLen[i], CLAUSE_UR);
+              if (!r) return escHtml(t);
+              return r.sents.map((x, k) => `<span class="${k >= r.first && k <= r.last ? 'recited' : 'not-recited'}">${escHtml(x)}</span>`).join(' ');
+            };
             urEl.innerHTML = (ayahNums.length > 1
-              ? urTexts.map((t, i) => `(${arabicNum(ayahNums[i])}) ${escHtml(t)}`).join(' ')
-              : escHtml(urTexts[0]))
+              ? urTexts.map((t, i) => `(${arabicNum(ayahNums[i])}) ${urVerse(t, i)}`).join(' ')
+              : urVerse(urTexts[0], 0))
               + ` <span class="ur-source">${escHtml(src.name || '')}${src.placeholder ? ' · placeholder' : ''}</span>`;
             enEl.insertAdjacentElement('afterend', urEl);
           }
@@ -1112,8 +1121,16 @@
   // Clauses, not sentences: Al-A'raf 7:31's recited half ("eat and drink, but be not
   // excessive…") starts mid-sentence. Returns the clause range, or null when it would not
   // single out a strict subset.
-  function recitedSentences(enText, span, nWords) {
-    const sents = enText.split(/(?<=[,;:.!?])\s+/).filter(Boolean);
+  // Urdu translations (Junagarhi) use little punctuation, so an Urdu clause also starts at "اور".
+  const CLAUSE_EN = /(?<=[,;:.!?])\s+/, CLAUSE_UR = /(?<=[،۔؛:!?,.])\s+|\s+(?=اور\s)/;
+  function recitedSentences(enText, span, nWords, splitRe = CLAUSE_EN) {
+    let sents = enText.split(splitRe).filter(Boolean);
+    // "زمین اور آسمان" is one phrase, not two clauses: an Urdu piece under 3 words joins the next.
+    if (splitRe === CLAUSE_UR) sents = sents.reduce((out, t) => {
+      const prev = out[out.length - 1];
+      if (prev && prev.split(/\s+/).length < 3) out[out.length - 1] = prev + ' ' + t; else out.push(t);
+      return out;
+    }, []);
     if (sents.length < 2 || !span) return null;
     const lens = sents.map(t => t.split(/\s+/).length), total = lens.reduce((x, y) => x + y, 0);
     const from = span[0] / nWords, to = (span[1] + 1) / nWords;
