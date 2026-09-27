@@ -285,6 +285,16 @@ export function verifyReader(folder, { readerRaw: readerOverride = null, result:
         fail(`chunk ${i} starts at ${b}s, not after chunk ${i - 1} at ${a}s — it can never be highlighted`);
       }
     }
+    // The "Second Khutbah" divider must sit at the split. The 25 Sep Makkah khutbah opens
+    // both khutbahs with "الحمد لله. الحمد لله", and the divider was drawn above block 0.
+    const sk = served.second_khutbah;
+    if (sk && typeof sk.time === 'number' && rc.length) {
+      const at = rc.findIndex(c => c.second_khutbah_start);
+      if (at < 0) warn(`second khutbah detected at ${sk.time}s but no block carries the divider`);
+      else if (typeof rc[at].start_time === 'number' && Math.abs(rc[at].start_time - sk.time) > 30) {
+        fail(`"Second Khutbah" divider is on block ${at} at ${rc[at].start_time}s, but the split is at ${sk.time}s`);
+      }
+    }
   } catch (e) {
     warn(`could not build reader chunks to check timings: ${e.message}`);
   }

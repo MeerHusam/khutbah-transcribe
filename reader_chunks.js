@@ -169,9 +169,15 @@ export function loadResult(folder, readerRawOverride = null) {
       // 1) Prefer the chunk whose Arabic STARTS with the marker phrase. After the straddling
       //    chunk has been split (clean case) the second-khutbah chunk begins exactly with it.
       //    `startsWith` (not `includes`) avoids matching Khutbah 1's chunk that merely contains it.
+      //    Both khutbahs can open with the same words (the 25 Sep Makkah khutbah starts each
+      //    with "الحمد لله. الحمد لله"), so of several such chunks take the one nearest the split time.
       if (sk.marker_text) {
         const needle = sp(sk.marker_text.split(/\s+/).slice(0, 6).join('')).slice(0, 14);
-        if (needle) target = chunks.findIndex(c => sp(c.arabic.split(/\s+/).slice(0, 8).join('')).startsWith(needle));
+        const hits = needle ? chunks.map((c, i) => i)
+          .filter(i => sp(chunks[i].arabic.split(/\s+/).slice(0, 8).join('')).startsWith(needle)) : [];
+        const dist = i => (typeof sk.time === 'number' && typeof chunks[i].start_time === 'number'
+          ? Math.abs(chunks[i].start_time - sk.time) : i);
+        if (hits.length) target = hits.reduce((a, b) => (dist(b) < dist(a) ? b : a));
       }
       // 2) Fall back to the chunk whose start_time is NEAREST the split time (mid-chunk boundary
       //    when the split didn't happen, or older data). Nearest — not first ≥ — so a chunk that
