@@ -219,3 +219,35 @@ Full root-cause analyses and implementation notes for every fix. New fixes go he
 **Root cause of the false divider:** `locateSecondKhutbah` ran unconditionally. When Claude correctly returned `second_khutbah_start: null`, the function fell through to its silence-gap fallback (`maxGap >= 1.2s` in the middle 20–85%), which fires on ordinary recitation pauses — splitting a continuous khutbah.
 
 **Fix:** `--single` (alias `--no-split`) CLI flag sets `secondKhutbah = null` and skips `locateSecondKhutbah` entirely. Usage: `node pipeline.js audio.mp3 --gemini --single`.
+
+---
+
+### 30. Hadith narrator named the successor, not the Companion
+**Symptom:** Regenerating showed Tirmidhi 2910 as "Muhammad bin Ka'b Al-Qurazi" (a Tabi'i; the imam said Ibn Mas'ud) and Tirmidhi 3585 as "Shu`aib".
+
+**Root cause:** `fetchSunnahNarrator` took the first name on the sunnah.com page. Some pages open with a later narrator: "Narrated Muhammad bin Ka'b: I heard 'Abdullah bin Mas'ud saying…", "`Amr bin Shu`aib narrated from his father, from his grandfather".
+
+**Fix:** `parseSunnahNarrator` reads the narrator line and the start of the English and flags these chains; `chooseNarrator` then keeps Claude's narrator (saved as `narrator_claude`) when it names someone on the chain, else the parsed Companion. Links confirmed on an earlier run are kept when today's search finds nothing, and their page still supplies narrator and English.
+
+---
+
+### 31. Published-translation swaps put the wrong words in the imam's mouth
+**Symptom:** Muslim 1162a's Ashura clause replaced the Arafah clause the imam quoted; Nasa'i 2202 added the Laylat al-Qadr clause; Muslim 1141a lost "and remembrance of Allah"; a Sa'd hadith read "The Prophet ﷺ, “The Messenger of Allah passed by Sa'd … and he said”:".
+
+**Root cause:** `swapInPublished` matched Claude's English to the published English by word overlap (F1), which cannot tell a clause about Ashura from one about Arafah.
+
+**Fix:** `quote_swaps.js` plans each swap with one model call (claude-sonnet-5): the exact text of Claude's rendering, the exact published excerpt, and any meaning the excerpt adds or lacks against the imam's Arabic. Used only when both are verbatim substrings, nothing is added or lacking, the excerpt keeps every number and name, and it passes `check_english.js` (no new proper noun, no doubled framing, published hadith Arabic contains the imam's words, verse coverage matches what was recited). Otherwise Claude's wording stays and the page labels it "our translation". Stored per ref as `english_swap`; answers cached by request hash.
+
+---
+
+### 32. Sudais: every block from chunk 59 on showed its neighbour's English
+**Root cause:** Claude returned 88 translations for 90 chunks (skipped the 3-word verse tail "على ما هداكم", merged chunks 72 and 73); translations pair with chunks by position.
+
+**Fix:** Data repair in result.json (`metadata.realigned`). `check_english.js` now fails a khutbah when chunk English/Arabic length ratios show a slipped pairing; `translate_urdu.js` requires one translation per chunk index.
+
+---
+
+### 33. Second khutbah's first word timed ~15 s into the sitting pause
+**Root cause:** Unanchored words were spread evenly between anchors, including across the pause.
+
+**Fix:** `interpolateAnchors` packs a run at speaking pace against the anchor it belongs to (split at the last sentence end) when its gap is too long for speech; `settleLoneWords` repairs saved runs (via `reanalyze.js`).
