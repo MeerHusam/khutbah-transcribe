@@ -800,12 +800,25 @@
       return id;
     } catch { return ''; }
   }
+  // What /admin/traffic records about this view: the page, the khutbah, the link's ?s= tag
+  // and the site that linked here. The server answers with an ID for the engagement reports.
+  function viewParams() {
+    const q = new URLSearchParams({ d: deviceId(), p: 'reader' });
+    const slug = decodeURIComponent(location.pathname.replace(/^\/+|\/+$/g, ''));
+    const k = slug && slug !== 'index.html' ? slug : new URLSearchParams(location.search).get('folder');
+    if (k) q.set('k', k);
+    const s = new URLSearchParams(location.search).get('s');
+    if (s) q.set('s', s);
+    try { const r = document.referrer && new URL(document.referrer).hostname; if (r) q.set('r', r); } catch {}
+    return q.toString();
+  }
   function connectViewers() {
     try {
       const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-      const ws = new WebSocket(`${proto}://${location.host}/?d=${encodeURIComponent(deviceId())}`);
+      const ws = new WebSocket(`${proto}://${location.host}/?${viewParams()}`);
       ws.onmessage = e => {
         const m = JSON.parse(e.data);
+        if (m.type === 'hello') { visitId = m.id; return; }
         if (m.type !== 'viewers') return;
         document.getElementById('liveCount').textContent = m.live;
         document.getElementById('uniqueCount').textContent = (m.unique ?? '–').toLocaleString();
@@ -1431,6 +1444,31 @@
     });
   }
 
+  // ── Engagement, for /admin/traffic: time the page is on screen, audio actually played,
+  //    the furthest point reached. Sent every 30 s while reading or listening, and when the
+  //    page is hidden or closed (sendBeacon survives the page closing). No personal data.
+  let visitId = null;
+  const engage = { open: 0, played: 0, maxPos: 0 };
+  let visibleSince = document.visibilityState === 'visible' ? Date.now() : null;
+  const openSecs = () => engage.open + (visibleSince ? (Date.now() - visibleSince) / 1000 : 0);
+  function sendEngage(final = false) {
+    if (!visitId || !navigator.sendBeacon) return;
+    const body = JSON.stringify({
+      id: visitId, open_s: openSecs(), played_s: engage.played, max_pos: engage.maxPos,
+      dur: audio && Number.isFinite(audio.duration) ? audio.duration : null,
+      lang: document.body.classList.contains('lang-ur') ? 'ur' : 'en', final,
+    });
+    try { navigator.sendBeacon('/api/engage', new Blob([body], { type: 'text/plain' })); } catch {}
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') { visibleSince = Date.now(); return; }
+    if (visibleSince) engage.open += (Date.now() - visibleSince) / 1000;
+    visibleSince = null;
+    sendEngage(true);
+  });
+  window.addEventListener('pagehide', () => sendEngage(true));
+  setInterval(() => { if (visibleSince || (audio && !audio.paused)) sendEngage(); }, 30000);
+
   // ── Audio player ──
   let audio = null;
   const SPEEDS = [1, 1.5, 2];
@@ -1457,8 +1495,13 @@
     const timeEl = document.getElementById('audioTime');
     player.style.display = 'flex';
 
-    let activeChunk = null;
+    let activeChunk = null, lastT = null;
     audio.addEventListener('timeupdate', () => {
+      // Count audio actually played: small forward steps while playing, not seeks.
+      const step = audio.currentTime - (lastT ?? audio.currentTime);
+      if (!audio.paused && step > 0 && step < 3) engage.played += step;
+      lastT = audio.currentTime;
+      engage.maxPos = Math.max(engage.maxPos, audio.currentTime);
       if (!audio.duration) return;
       scrubber.value = (audio.currentTime / audio.duration) * 100;
       timeEl.textContent = `${fmt(audio.currentTime)} / ${fmt(audio.duration)}`;
@@ -1479,7 +1522,9 @@
       }
     });
 
-    audio.addEventListener('ended', () => { setPlayIcon(true); });
+    audio.addEventListener('ended', () => { setPlayIcon(true); sendEngage(true); });
+    audio.addEventListener('pause', () => sendEngage(true));
+    audio.addEventListener('seeking', () => { lastT = null; });
 
     document.querySelectorAll('.reader-chunk[data-start]').forEach(el => {
       el.addEventListener('click', e => {

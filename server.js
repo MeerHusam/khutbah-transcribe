@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { loadResult } from './reader_chunks.js';
 import { handleLiveConnection, liveStatus } from './live.js';
 import { handleStreamConnection, streamStatus } from './live/index.js';
+import { buildTrafficPage, classifyUA, readJsonl } from './admin_traffic.js';
 
 // Load Quran data once at startup
 const quranData = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'node_modules/quran-json/dist/quran.json'), 'utf8'));
@@ -105,6 +106,7 @@ const FEATURED_FOLDER = (PUBLIC_KHUTBAHS.find(k => k.featured) || PUBLIC_KHUTBAH
 const ALLOWED_FOLDERS = new Set(PUBLIC_KHUTBAHS.map(k => k.folder));
 // Short share links: /2026-09-25 instead of /index.html?folder=<run folder>.
 const SLUG_TO_FOLDER = new Map(PUBLIC_KHUTBAHS.filter(k => k.slug).map(k => [k.slug, k.folder]));
+const FOLDER_TO_SLUG = new Map(PUBLIC_KHUTBAHS.filter(k => k.slug).map(k => [k.folder, k.slug]));
 
 // Parsed results are immutable at runtime (files never change), so cache indefinitely.
 const resultCache = new Map();
@@ -119,19 +121,22 @@ const VIEWS_FILE = join(DATA_DIR, 'views.json');
 const FEEDBACK_FILE = join(DATA_DIR, 'feedback.jsonl');
 const GEO_FILE = join(DATA_DIR, 'geo_views.jsonl');
 const VISITS_FILE = join(DATA_DIR, 'visits.jsonl');
+// Reader-page engagement snapshots (time on screen, audio played), posted by the page.
+const ENGAGE_FILE = join(DATA_DIR, 'engage.jsonl');
 mkdirSync(DATA_DIR, { recursive: true });
 
 async function lookupGeo(ip) {
   if (!ip || ip === '::1' || ip.startsWith('127.') || ip.startsWith('10.') || ip.startsWith('192.168.')) return null;
   try {
-    const res = await fetch(`http://ip-api.com/json/${ip}?fields=city,regionName,country,countryCode,status`, { signal: AbortSignal.timeout(3000) });
+    // hosting: the IP belongs to a data centre (link scanners, crawlers), not a person's connection.
+    const res = await fetch(`http://ip-api.com/json/${ip}?fields=city,regionName,country,countryCode,status,hosting,mobile`, { signal: AbortSignal.timeout(3000) });
     const data = await res.json();
     if (data.status !== 'success') return null;
-    return { city: data.city, region: data.regionName, country: data.country, countryCode: data.countryCode };
+    return { city: data.city, region: data.regionName, country: data.country, countryCode: data.countryCode, hosting: !!data.hosting, mobile: !!data.mobile };
   } catch { return null; }
 }
 
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 
 let totalViews = 0;
 let uniqueIps = new Set();
@@ -187,23 +192,42 @@ wss.on('connection', (ws, req) => {
     if (isNewVisitor) firstSeen[h] = visitTs;
   }
   // The page sends its browser ID as ?d=; stored hashed, like IPs.
-  let isNewDevice = false;
-  const device = new URL(req.url || '/', 'http://x').searchParams.get('d') || '';
+  let isNewDevice = false, deviceHash = null;
+  const params = new URL(req.url || '/', 'http://x').searchParams;
+  const device = params.get('d') || '';
   if (/^[A-Za-z0-9-]{8,64}$/.test(device)) {
-    const h = hashIp('device:' + device);
-    isNewDevice = !uniqueDevices.has(h);
-    uniqueDevices.add(h);
+    deviceHash = hashIp('device:' + device);
+    isNewDevice = !uniqueDevices.has(deviceHash);
+    uniqueDevices.add(deviceHash);
   }
   persistViews();
-  // Per-visit log so traffic can be charted over time (views.json only holds running totals).
-  try { appendFileSync(VISITS_FILE, JSON.stringify({ ts: visitTs, new: isNewVisitor, new_device: isNewDevice }) + '\n'); } catch {}
-  // Send the new client its current numbers immediately, then tell everyone.
-  if (ws.readyState === 1) ws.send(JSON.stringify(viewerCounts()));
+  // Per-visit log for /admin/traffic (views.json only holds running totals). The page says
+  // which page and khutbah it is (p, k), the link's ?s= tag and the referring site (s, r);
+  // the user-agent is kept only as device/OS/browser labels. Written once the IP's city is
+  // known (at most 3 s), so each line carries its place.
+  const page = ['home', 'reader'].includes(params.get('p')) ? params.get('p') : null;
+  const k = params.get('k') || '';
+  const visit = {
+    ts: visitTs, new: isNewVisitor, new_device: isNewDevice,
+    id: randomBytes(6).toString('hex'),
+    dev: deviceHash, page,
+    k: page === 'reader' ? (SLUG_TO_FOLDER.has(k) ? k : FOLDER_TO_SLUG.get(k) || FOLDER_TO_SLUG.get(FEATURED_FOLDER) || null) : null,
+    src: (params.get('s') || '').replace(/[^\w-]/g, '').slice(0, 24) || null,
+    ref: /^[a-z0-9.-]{3,80}$/i.test(params.get('r') || '') && params.get('r') !== req.headers.host ? params.get('r').toLowerCase() : null,
+    ...classifyUA(req.headers['user-agent'] || ''),
+  };
+  // Send the new client its view ID and current numbers immediately, then tell everyone.
+  if (ws.readyState === 1) {
+    ws.send(JSON.stringify({ type: 'hello', id: visit.id }));
+    ws.send(JSON.stringify(viewerCounts()));
+  }
   broadcastViewers();
   lookupGeo(rawIp).then(geo => {
-    if (!geo) return;
-    const entry = { ts: new Date().toISOString(), ...geo };
-    try { appendFileSync(GEO_FILE, JSON.stringify(entry) + '\n'); } catch {}
+    if (geo) {
+      visit.geo = { city: geo.city, country: geo.country, countryCode: geo.countryCode, hosting: geo.hosting };
+      try { appendFileSync(GEO_FILE, JSON.stringify({ ts: new Date().toISOString(), ...geo }) + '\n'); } catch {}
+    }
+    try { appendFileSync(VISITS_FILE, JSON.stringify(visit) + '\n'); } catch {}
   });
   ws.on('close', () => {
     liveClients.delete(ws);
@@ -334,6 +358,25 @@ app.post('/api/feedback', (req, res) => {
   }
 });
 
+// Engagement snapshots from the reader page (navigator.sendBeacon, text/plain JSON): how long
+// the page was on screen and how much of the audio was played, for /admin/traffic. Several
+// per view; the dashboard keeps the largest values. Throttled to one per view per 10 s.
+const lastEngage = new Map();
+app.post('/api/engage', express.text({ type: '*/*', limit: '2kb' }), (req, res) => {
+  let b = req.body;
+  if (typeof b === 'string') { try { b = JSON.parse(b); } catch { return res.sendStatus(400); } }
+  if (!b || !/^[0-9a-f]{12}$/.test(b.id || '')) return res.sendStatus(400);
+  const now = Date.now();
+  if (!b.final && now - (lastEngage.get(b.id) || 0) < 10_000) return res.sendStatus(204);
+  lastEngage.set(b.id, now);
+  if (lastEngage.size > 5000) lastEngage.clear();
+  const secs = x => (Number.isFinite(+x) && +x >= 0 ? Math.min(Math.round(+x), 6 * 3600) : 0);
+  const entry = { ts: new Date(now).toISOString(), id: b.id, open_s: secs(b.open_s), played_s: secs(b.played_s),
+    max_pos: secs(b.max_pos), dur: secs(b.dur) || null, lang: b.lang === 'ur' ? 'ur' : 'en' };
+  try { appendFileSync(ENGAGE_FILE, JSON.stringify(entry) + '\n'); } catch {}
+  res.sendStatus(204);
+});
+
 app.get('/admin/feedback', (req, res) => {
   if (!ADMIN_TOKEN) return res.status(503).send('Set the ADMIN_TOKEN env var to view feedback.');
   if (req.query.key !== ADMIN_TOKEN) return res.status(401).send('Unauthorized');
@@ -394,50 +437,18 @@ app.get('/admin/geo', (req, res) => {
     <tbody>${rows || '<tr><td colspan="4">No geo data yet.</td></tr>'}</tbody></table>`);
 });
 
-// Traffic over time: visits + first-time visitors bucketed by UTC day, built from
-// data/visits.jsonl (one line per page view). Answers "when did unique go up?".
+// Traffic: views over time, places, khutbahs, sources, devices, time of day, engagement.
+// Built by admin_traffic.js from data/visits.jsonl, geo_views.jsonl and engage.jsonl.
 app.get('/admin/traffic', (req, res) => {
   if (!ADMIN_TOKEN) return res.status(503).send('Set the ADMIN_TOKEN env var to view traffic data.');
   if (req.query.key !== ADMIN_TOKEN) return res.status(401).send('Unauthorized');
-
-  const byDay = new Map(); // 'YYYY-MM-DD' -> { visits, newVisitors, newDevices }
-  const bump = (day, isNew, isNewDevice) => {
-    if (!byDay.has(day)) byDay.set(day, { visits: 0, newVisitors: 0, newDevices: 0 });
-    const d = byDay.get(day);
-    d.visits++;
-    if (isNew) d.newVisitors++;
-    if (isNewDevice) d.newDevices++;
-  };
-  try {
-    for (const line of readFileSync(VISITS_FILE, 'utf8').split('\n')) {
-      if (!line) continue;
-      try {
-        const e = JSON.parse(line);
-        if (e.ts) bump(e.ts.slice(0, 10), !!e.new, !!e.new_device);
-      } catch {}
-    }
-  } catch {}
-
-  const untracked = uniqueIps.size - Object.keys(firstSeen).length;
-  const days = [...byDay.entries()].sort((a, b) => b[0].localeCompare(a[0]));
-  const peak = Math.max(1, ...days.map(([, d]) => d.visits));
-  const rows = days.map(([day, d]) => `<tr><td>${day}</td><td class="n">${d.visits}</td>
-    <td class="u">${d.newVisitors || ''}</td><td class="u">${d.newDevices || ''}</td>
-    <td><span class="bar" style="width:${Math.round((d.visits / peak) * 100)}%"></span></td></tr>`).join('');
-
-  res.send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Traffic over time</title>
-    <style>body{font-family:system-ui,sans-serif;max-width:900px;margin:24px auto;padding:0 16px;color:#1a1a1a}
-    h1{font-size:18px;margin-bottom:4px}p.sub{color:#6b7280;font-size:13px;margin-top:0}
-    table{border-collapse:collapse;width:100%}
-    th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:14px}
-    th{background:#f9fafb;font-weight:600}.n{font-weight:700;color:#059669}
-    .u{font-weight:700;color:#b45309}
-    .bar{display:block;height:10px;background:#34d399;border-radius:3px;min-width:2px}</style>
-    <h1>Traffic over time</h1>
-    <p class="sub">${totalViews} total views &middot; ${uniqueIps.size} unique visitors${untracked > 0 ? ` (${untracked} first seen before per-day tracking started)` : ''} &middot; ${uniqueDevices.size} unique devices (counted from 25 Sep 2026). Days are UTC.</p>
-    <table><thead><tr><th>Day (UTC)</th><th>Views</th><th>New visitors (IP)</th><th>New devices</th><th></th></tr></thead>
-    <tbody>${rows || '<tr><td colspan="5">No visits logged yet &mdash; data/visits.jsonl starts filling on the next page view.</td></tr>'}</tbody></table>`);
+  res.send(buildTrafficPage({
+    visits: readJsonl(VISITS_FILE, readFileSync),
+    geo: readJsonl(GEO_FILE, readFileSync),
+    engage: readJsonl(ENGAGE_FILE, readFileSync),
+    totals: { views: totalViews, visitors: uniqueIps.size, devices: uniqueDevices.size },
+    khutbahs: PUBLIC_KHUTBAHS,
+  }));
 });
 
 const PORT = process.env.PORT || 3000;

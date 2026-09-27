@@ -826,7 +826,12 @@
   }
   // Live viewer count via WebSocket
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  const ws = new WebSocket(`${proto}://${location.host}/?d=${encodeURIComponent(deviceId())}`);
+  // /admin/traffic: this is the home page; the link's ?s= tag and the site that linked here.
+  const viewQ = new URLSearchParams({ d: deviceId(), p: 'home' });
+  const sTag = new URLSearchParams(location.search).get('s');
+  if (sTag) viewQ.set('s', sTag);
+  try { const r = document.referrer && new URL(document.referrer).hostname; if (r) viewQ.set('r', r); } catch {}
+  const ws = new WebSocket(`${proto}://${location.host}/?${viewQ}`);
   ws.onmessage = e => {
     const m = JSON.parse(e.data);
     if (m.type !== 'viewers') return;
