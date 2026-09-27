@@ -6860,5 +6860,55 @@
       "calls": 5,
       "cost_usd": 0.1679
     }
-  }
+  },
+  "verse_excerpts": [
+    {
+      "arabic": "ولقد وصينا الذين أوتوا الكتاب من قبلكم وإياكم أن اتقوا الله.",
+      "surah": 4,
+      "ayah": 131,
+      "ayah_end": 131,
+      "verses": {
+        "131": {
+          "span": [
+            7,
+            17
+          ],
+          "en": "And We have instructed those who were given the Scripture before you and yourselves to fear Allah",
+          "ur": "اور واقعی ہم نے ان لوگوں کو جو تم سے پہلے کتاب دیئے گئے تھے اور تم کو بھی یہی حکم کیا ہے کہ اللہ سے ڈرتے رہو"
+        }
+      }
+    },
+    {
+      "arabic": "ومن يرد فيه بإلحاد بظلم نذقه من عذاب أليم.",
+      "surah": 22,
+      "ayah": 25,
+      "ayah_end": 25,
+      "verses": {
+        "25": {
+          "span": [
+            16,
+            24
+          ],
+          "en": "and [also] whoever intends [a deed] therein of deviation [in religion] or wrongdoing - We will make him taste of a painful punishment",
+          "ur": "جو بھی ظلم کے ساتھ وہاں الحاد کا اراده کرے ہم اسے درد ناک عذاب چکھائیں گے"
+        }
+      }
+    },
+    {
+      "arabic": "ربنا آتنا في الدنيا حسنة وفي الآخرة حسنة وقنا عذاب النار",
+      "surah": 2,
+      "ayah": 201,
+      "ayah_end": 201,
+      "verses": {
+        "201": {
+          "span": [
+            3,
+            13
+          ],
+          "en": "Our Lord, give us in this world [that which is] good and in the Hereafter [that which is] good and protect us from the punishment of the Fire",
+          "ur": "اے ہمارے رب! ہمیں دنیا میں نیکی دے اور آخرت میں بھی بھلائی عطا فرما اور ہمیں عذاب جہنم سے نجات دے"
+        }
+      }
+    }
+  ]
 }
