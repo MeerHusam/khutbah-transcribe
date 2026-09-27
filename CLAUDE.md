@@ -242,6 +242,7 @@ All functions except `main()` are exported for use by `reanalyze.js`.
 | 31 | Published swaps inserted wrong clauses (Ashura, Laylat al-Qadr) | Exact planned swaps (`quote_swaps.js`) or "our translation" label; `check_english.js` |
 | 32 | Sudais English one block off from chunk 59 | Translations re-paired; length-ratio pairing check |
 | 33 | Second khutbah's first word timed in the sitting pause | Pause-aware `interpolateAnchors`; `settleLoneWords` |
+| 34 | Hadith carded from a collection the imam didn't name ("رواه الامام البخاري", "الشيخان") | `imamAttributionSlug` skips "الامام"/"في"; "الشيخان"/"الصحيحين" = Bukhari |
 
 ---
 

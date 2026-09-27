@@ -1308,7 +1308,8 @@ async function fetchSunnahNarrator(slug, number) {
 // always say where a hadith is from, and that is more reliable than Claude's recollection:
 // a matn found in several collections was carded as Ibn Majah while the imam said Muslim.
 const IMAM_ATTRIBUTION = [
-  [/^البخاري|^متفق عليه/, 'bukhari'], [/^مسلم/, 'muslim'], [/^الترمذي/, 'tirmidhi'],
+  // "الشيخان" (the two Shaykhs) and "الصحيحين" (the two Sahihs) mean Bukhari and Muslim.
+  [/^البخاري|^متفق عليه|^الشيخان|^الصحيحين/, 'bukhari'], [/^مسلم/, 'muslim'], [/^الترمذي/, 'tirmidhi'],
   [/^ابو داود/, 'abudawud'], [/^النسائي/, 'nasai'], [/^ابن ماج/, 'ibnmajah'],
   [/^الامام احمد|^احمد/, 'ahmad'], [/^مالك/, 'malik'],
 ];
@@ -1323,7 +1324,9 @@ function imamAttributionSlug(transcript, detectedText) {
     const after = tNorm.slice(at + tail.length).trim().split(/\s+/).slice(0, 6).join(' ');
     const m = after.match(/^(?:\S+\s+){0,2}?(?:رواه|اخرجه|خرجه)\s+(.*)$|^(متفق عليه)/);
     if (!m) return null;
-    const name = (m[1] ?? m[2]).trim();
+    // "رواه الامام البخاري ومسلم", "أخرجه في الصحيحين": a title or "in" can come before the
+    // name (11 Sep's and Sudais's "each of you is a shepherd" were carded as Claude's Abu Dawud).
+    const name = (m[1] ?? m[2]).trim().replace(/^(?:الامام|في)\s+/, '');
     for (const [re, slug] of IMAM_ATTRIBUTION) if (re.test(name)) return slug;
     return null;
   }

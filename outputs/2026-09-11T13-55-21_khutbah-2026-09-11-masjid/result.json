@@ -471,22 +471,22 @@
     },
     {
       "detected_text": "كلكم راع وكلكم مسؤول عن رعيته",
-      "narrator": "'Abdullah bin 'Umar",
-      "collection": "Sunan Abu Dawud",
-      "hadith_number": "2928",
-      "link": "https://sunnah.com/abudawud:2928",
+      "narrator": "`Abdullah bin `Umar",
+      "collection": "Sahih al-Bukhari",
+      "hadith_number": "7138",
+      "link": "https://sunnah.com/bukhari:7138",
       "confidence": 0.65,
       "detection_method": "signal_phrase",
       "note": "Link verified via sunnah.com search",
       "verification": "sunnah_search",
-      "translation": "The Messenger of Allah (ﷺ) as saying: Each of you is a shepherd and each of you is responsible for his flock. The amir (ruler) who is over the people is a shepherd and is responsible for his flock; a man is a shepherd in charge of the inhabitants of his household and he is responsible for his flock; a woman is a shepherdess in charge of her husband's house and children and she is responsible for them; and a man's slave is a shepherd in charge of his master's property and he is responsible for it. So each of you is a shepherd and each of you is responsible for his flock.",
+      "translation": "Allah's Messenger (ﷺ) said, \"Surely! Everyone of you is a guardian and is responsible for his charges: The Imam (ruler) of the people is a guardian and is responsible for his subjects; a man is the guardian of his family (household) and is responsible for his subjects; a woman is the guardian of her husband's home and of his children and is responsible for them; and the slave of a man is a guardian of his master's property and is responsible for it. Surely, everyone of you is a guardian and responsible for his charges.\"",
       "narrator_claude": "Abdullah ibn Umar",
-      "published_arabic": "أَلاَ كُلُّكُمْ رَاعٍ وَكُلُّكُمْ مَسْئُولٌ عَنْ رَعِيَّتِهِ فَالأَمِيرُ الَّذِي عَلَى النَّاسِ رَاعٍ عَلَيْهِمْ وَهُوَ مَسْئُولٌ عَنْهُمْ وَالرَّجُلُ رَاعٍ عَلَى أَهْلِ بَيْتِهِ وَهُوَ مَسْئُولٌ عَنْهُمْ وَالْمَرْأَةُ رَاعِيَةٌ عَلَى بَيْتِ بَعْلِهَا وَوَلَدِهِ وَهِيَ مَسْئُولَةٌ عَنْهُمْ وَالَعَبْدُ رَاعٍ عَلَى مَالِ سَيِّدِهِ وَهُوَ مَسْئُولٌ عَنْهُ فَكُلُّكُمْ رَاعٍ وَكُلُّكُمْ مَسْئُولٌ عَنْ رَعِيَّتِهِ \" .",
+      "published_arabic": "أَلاَ كُلُّكُمْ رَاعٍ، وَكُلُّكُمْ مَسْئُولٌ عَنْ رَعِيَّتِهِ، فَالإِمَامُ الَّذِي عَلَى النَّاسِ رَاعٍ وَهْوَ مَسْئُولٌ عَنْ رَعِيَّتِهِ، وَالرَّجُلُ رَاعٍ عَلَى أَهْلِ بَيْتِهِ وَهْوَ مَسْئُولٌ عَنْ رَعِيَّتِهِ، وَالْمَرْأَةُ رَاعِيَةٌ عَلَى أَهْلِ بَيْتِ زَوْجِهَا وَوَلَدِهِ وَهِيَ مَسْئُولَةٌ عَنْهُمْ، وَعَبْدُ الرَّجُلِ رَاعٍ عَلَى مَالِ سَيِّدِهِ وَهْوَ مَسْئُولٌ عَنْهُ، أَلاَ فَكُلُّكُمْ رَاعٍ وَكُلُّكُمْ مَسْئُولٌ عَنْ رَعِيَّتِهِ \".",
       "english_swap": {
         "status": "published",
         "ours": "Each of you is a guardian and each of you is responsible for his flock.",
-        "published": "Each of you is a shepherd and each of you is responsible for his flock.",
-        "hash": "8d9f3cd316381ee5",
+        "published": "Everyone of you is a guardian and is responsible for his charges",
+        "hash": "a4d38a56480c3568",
         "model": "claude-sonnet-5"
       }
     }
@@ -5978,6 +5978,16 @@
     "quran_references_matched": 11,
     "quran_references_by_scan": 2,
     "hadith_references_found": 3,
-    "hadith_references_by_scan": 2
+    "hadith_references_by_scan": 2,
+    "english_swaps": {
+      "calls": 1,
+      "cached": 3,
+      "input_tokens": 1742,
+      "output_tokens": 67,
+      "cost_usd": 0.004154,
+      "published": 2,
+      "ours": 2,
+      "model": "claude-sonnet-5"
+    }
   }
 }

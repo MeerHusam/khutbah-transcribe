@@ -251,3 +251,12 @@ Full root-cause analyses and implementation notes for every fix. New fixes go he
 **Root cause:** Unanchored words were spread evenly between anchors, including across the pause.
 
 **Fix:** `interpolateAnchors` packs a run at speaking pace against the anchor it belongs to (split at the last sentence end) when its gap is too long for speech; `settleLoneWords` repairs saved runs (via `reanalyze.js`).
+
+---
+
+### 34. Hadith carded from a collection the imam didn't name
+**Symptom:** 11 Sep and Sudais both carded "كلكم راع وكلكم مسؤول عن رعيته" as Abu Dawud 2928, though the imams said "رواه الامام البخاري ومسلم" and "أخرجه في الصحيحين"; Sudais's "من صامه وقامه… خرجه الشيخان" was Nasa'i 2202.
+
+**Root cause:** `imamAttributionSlug` expected the collection name straight after رواه/أخرجه. A title or "in" before it ("الامام", "في") hid the name, and "الشيخان"/"الصحيحين" (Bukhari and Muslim) had no mapping, so the lookup fell back to Claude's guess.
+
+**Fix:** Skip a leading "الامام"/"في"; map "الشيخان" and "الصحيحين" to Bukhari. 11 Sep and Sudais now link Bukhari 7138 and Bukhari 1901.
