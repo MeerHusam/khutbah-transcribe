@@ -241,7 +241,7 @@
   ],
   "second_khutbah": {
     "word_index": 442,
-    "time": 316.4,
+    "time": 325.9,
     "marker_text": "الحمد لله الذي شرع لنا من المناسك ما",
     "via": "claude",
     "validated": false
@@ -2318,7 +2318,7 @@
     },
     {
       "word": "الحمد",
-      "start": 313.13
+      "start": 325.86
     },
     {
       "word": "لله",

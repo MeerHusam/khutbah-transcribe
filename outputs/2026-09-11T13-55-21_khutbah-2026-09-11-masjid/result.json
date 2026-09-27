@@ -289,7 +289,7 @@
   ],
   "second_khutbah": {
     "word_index": 675,
-    "time": 472.3,
+    "time": 488.3,
     "marker_text": "الحمد لله على احسانه والشكر له على توفيقه",
     "via": "claude",
     "validated": true
@@ -3511,7 +3511,7 @@
     },
     {
       "word": "الحمد",
-      "start": 472.3
+      "start": 488.29
     },
     {
       "word": "لله",
