@@ -1243,8 +1243,39 @@
   }
 
   const QUOTE_RE = /["\u201C]([^"\u201C\u201D]+)["\u201D]|(?<![A-Za-z])['\u2018](.+?)['\u2019](?=[\s.,;:!?)]|$)/g;
-  function markQuotes(text, kinds) {
-    const quotes = [...text.matchAll(QUOTE_RE)];
+  const HOLE = '\uE000';
+  // `spans` are the exact English of the hadith quoted in this block (hadithSpansIn). Each is
+  // marked whole, with its quote marks, even where the translation has none around it (11 Sep:
+  // "Anas said: The Prophet \u2026 used to perform Wudu\u2026") or breaks it with narration ("Sa'd
+  // said:", "He replied:" inside the Sa'd hadith). Quote marks mark the rest, as before.
+  function markQuotes(text, kinds, spans = []) {
+    const regions = [];
+    for (const s of spans) {
+      let a = text.indexOf(s);
+      if (a < 0) continue;
+      let b = a + s.length;
+      if (/["\u201C'\u2018]/.test(text[a - 1] ?? '')) a--;
+      if (/["\u201D'\u2019]/.test(text[b] ?? '')) b++;
+      if (!regions.some(([x, y]) => a < y && b > x)) regions.push([a, b]);
+    }
+    if (!regions.length) return markQuoted(text, kinds);
+    regions.sort((x, y) => x[0] - y[0]);
+    const rest = kinds.slice();
+    for (const _ of regions) { const i = rest.indexOf('hadith'); if (i >= 0) rest.splice(i, 1); }
+    let holed = '', last = 0;
+    for (const [a, b] of regions) { holed += text.slice(last, a) + HOLE; last = b; }
+    let n = 0;
+    return markQuoted(holed + text.slice(last), rest).replace(new RegExp(HOLE, 'g'), () => {
+      const [a, b] = regions[n++];
+      // Inside the quote, straight double quotes alternate close/open around the narration.
+      let open = false;
+      const inner = text.slice(a, b).replace(/^["\u201C'\u2018]|["\u201D'\u2019]$/g, '')
+        .replace(/"/g, () => ((open = !open) ? '\u201D' : '\u201C'));
+      return '<span class="inline-hadith-en">\u201C' + escHtml(inner) + '\u201D</span>';
+    });
+  }
+  function markQuoted(text, kinds) {
+    const quotes = [...text.matchAll(QUOTE_RE)].filter(m => !m[0].includes(HOLE));
     if (!quotes.length || !kinds.length) return escWithSources(text);
     const single = new Set(kinds).size === 1 ? kinds[0] : null;
     if (quotes.length !== kinds.length && !single) return escWithSources(text);
@@ -1280,9 +1311,26 @@
   };
   const hadithKeyOf = h => { const m = (h.link || '').match(/sunnah\.com\/([a-z]+):(\d+)/); return m ? `${m[1]}:${m[2]}` : null; };
 
+  // The English of each hadith badged in this block, exactly as it appears in the translation:
+  // the published excerpt swapped in, or the part of our own translation that renders the
+  // hadith (both planned and checked by quote_swaps.js).
+  function hadithSpansIn(english) {
+    const used = new Set(), spans = [];
+    for (const part of english.split(/\n\n+/)) {
+      const h = hadithRefForBadge(part.trim(), used);
+      if (!h) continue;
+      used.add(h);
+      const sw = h.english_swap;
+      const span = sw && (sw.status === 'published' ? sw.published : sw.ours);
+      if (span) spans.push(span);
+    }
+    return spans;
+  }
+
   // `lang` 'ur' renders the badges in Urdu (the reader's Urdu section).
   function renderEnglishParts(english, kinds = [], lang = 'en') {
     const ur = lang === 'ur' && result && result.urdu;
+    const spans = lang === 'en' ? hadithSpansIn(english) : [];
     return english.split(/\n\n+/).map(part => {
       part = part.trim();
       if (!part) return '';
@@ -1313,7 +1361,7 @@
           : `<div class="chunk-hadith-cite">${escHtml(text)}</div>`)
           + (h && h.english_swap && h.english_swap.status === 'ours' ? oursLabel('sunnah.com') : '');
       }
-      return `<div class="chunk-english">${markQuotes(part, kinds)}</div>`;
+      return `<div class="chunk-english">${markQuotes(part, kinds, spans)}</div>`;
     }).join('');
   }
 
