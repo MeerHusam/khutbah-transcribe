@@ -12,6 +12,8 @@
 //  - Hadith: the Urdu of fawazahmed0/hadith-api (urd-* editions). Its numbering is the local
 //    ara-* corpus's, not sunnah.com's (Sahih Muslim differs), so the hadith is found by its
 //    Arabic text.
+//  - In Short, Summary, and the narrators' names in Urdu, and each Urdu hadith cut to start at
+//    the Companion (its published text opens with the whole chain of narrators); one call.
 // Writes result.urdu and reader_ur.txt (the reader with Urdu in place of English).
 //
 // Usage: node translate_urdu.js outputs/<folder> [--batch 12] [--retranslate] [--dry-run]
@@ -23,6 +25,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { buildReaderView, normalizeArabic } from './pipeline.js';
+
 
 const MODEL = 'claude-sonnet-5';
 const PRICE_IN = 2 / 1e6, PRICE_OUT = 10 / 1e6; // USD per token, claude-sonnet-5
@@ -45,6 +48,7 @@ const result = JSON.parse(readFileSync(join(folder, 'result.json'), 'utf8'));
 const transcript = readFileSync(join(folder, 'transcript.txt'), 'utf8').trim();
 const words = transcript.split(/\s+/).filter(Boolean);
 const chunks = (result.prose_chunk_map ?? []).map(c => words.slice(c.wordStart, c.wordEnd).join(' '));
+const quran = JSON.parse(readFileSync(new URL('./node_modules/quran-json/dist/quran.json', import.meta.url), 'utf8'));
 
 const SYSTEM = `You translate an Arabic Friday khutbah (sermon) into Urdu for worshippers in Pakistan and India who do not understand Arabic. The text comes in numbered chunks, cut at pauses, so a chunk can start or end in the middle of a sentence.
 
@@ -130,37 +134,117 @@ for (const q of result.quran_references ?? []) {
 }
 
 // ── Hadith (fawazahmed0 Urdu, found by Arabic text) ──────────────────────────
+// Candidates come from the local ara-* corpus (same numbering as urd-*). A collection that is
+// not downloaded (Tirmidhi) is tried by number on the same CDN: the number and its
+// neighbours, since the two numberings rarely differ by much there.
 const pairs = t => { const w = normalizeArabic(t ?? '').split(/\s+/).filter(Boolean); return new Set(w.slice(1).map((x, i) => w[i] + ' ' + x)); };
+const overlap = (want, text) => { const have = pairs(text); return [...want].filter(p => have.has(p)).length / Math.max(want.size, 1); };
 const corpora = {};
 const hadith = {};
 for (const h of result.hadith_references ?? []) {
   const m = (h.link ?? '').match(/sunnah\.com\/([a-z]+):(\d+)/);
-  if (!m || !existsSync(join('hadith_data', `ara-${m[1]}.json`))) continue;
+  if (!m) continue;
   const [, slug, num] = m;
-  corpora[slug] ??= JSON.parse(readFileSync(join('hadith_data', `ara-${slug}.json`), 'utf8')).hadiths;
-  // Candidates: the same number in either numbering; otherwise the whole collection.
-  let cands = corpora[slug].filter(x => String(x.hadithnumber) === num || String(x.arabicnumber ?? '').split('.')[0] === num);
-  if (!cands.length) cands = corpora[slug];
   const want = pairs(h.published_arabic || h.detected_text);
   let best = null;
-  for (const c of cands) {
-    const have = pairs(c.text);
-    const score = [...want].filter(p => have.has(p)).length / Math.max(want.size, 1);
-    if (!best || score > best.score) best = { c, score };
+  if (existsSync(join('hadith_data', `ara-${slug}.json`))) {
+    corpora[slug] ??= JSON.parse(readFileSync(join('hadith_data', `ara-${slug}.json`), 'utf8')).hadiths;
+    // Candidates: the same number in either numbering; otherwise the whole collection.
+    let cands = corpora[slug].filter(x => String(x.hadithnumber) === num || String(x.arabicnumber ?? '').split('.')[0] === num);
+    if (!cands.length) cands = corpora[slug];
+    for (const c of cands) {
+      const score = overlap(want, c.text);
+      if (!best || score > best.score) best = { number: c.hadithnumber, score };
+    }
+  } else {
+    for (const n of [0, 1, -1, 2, -2, 3, -3].map(d => +num + d).filter(n => n > 0)) {
+      try {
+        const d = await getJson(`https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/ara-${slug}/${n}.json`);
+        const score = overlap(want, d.hadiths?.[0]?.text);
+        if (!best || score > best.score) best = { number: n, score };
+        if (score >= 0.5) break;
+      } catch { /* no such number */ }
+    }
   }
-  if (!best || best.score < 0.5) { console.log(`  ⚠ ${slug}:${num}: no Arabic match in ara-${slug} (${best?.score.toFixed(2)})`); continue; }
+  if (!best || best.score < 0.5) { console.log(`  ⚠ ${slug}:${num}: no Arabic match (${best?.score.toFixed(2)})`); continue; }
   try {
-    const d = await getJson(`https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/urd-${slug}/${best.c.hadithnumber}.json`);
-    hadith[`${slug}:${num}`] = { text: d.hadiths?.[0]?.text?.normalize('NFKC') ?? null, edition: `urd-${slug}`, number: best.c.hadithnumber, match: +best.score.toFixed(2) };
+    const d = await getJson(`https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/urd-${slug}/${best.number}.json`);
+    hadith[`${slug}:${num}`] = { text: d.hadiths?.[0]?.text?.normalize('NFKC') ?? null, edition: `urd-${slug}`, number: best.number, match: +best.score.toFixed(2) };
   } catch (e) { console.log(`  ⚠ ${slug}:${num}: ${e.message}`); }
 }
 
+// ── In Short, Summary, narrator names, and each hadith without its chain ──────
+// One call. The published Urdu hadith opens with the whole chain of narrators ("ہمیں حدیث
+// بیان کی یعقوب بن ابراہیم نے، ان کو…"); the card starts at the Companion instead, cut from the
+// published text itself: accepted only as an exact substring, else the full text stays.
+const EXTRAS_SCHEMA = {
+  type: 'object',
+  properties: {
+    share_summary: { type: 'string' },
+    summary: { type: 'string' },
+    hadith: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { key: { type: 'string' }, narrator: { type: 'string' }, from_companion: { type: 'string' } },
+        required: ['key', 'narrator', 'from_companion'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['share_summary', 'summary', 'hadith'],
+  additionalProperties: false,
+};
+let extras = !args.includes('--retranslate') && result.urdu?.summary ? {
+  share_summary: result.urdu.share_summary, summary: result.urdu.summary,
+  narrators: result.urdu.narrators ?? {},
+} : null;
+if (!extras) {
+  const hadithList = (result.hadith_references ?? []).map(h => {
+    const m = (h.link ?? '').match(/sunnah\.com\/([a-z]+):(\d+)/);
+    const key = m ? `${m[1]}:${m[2]}` : null;
+    return { key, narrator: h.narrator, collection: h.collection, urdu: key && hadith[key]?.text };
+  }).filter(h => h.key);
+  const response = await anthropic.messages.create({
+    model: MODEL, max_tokens: 16000,
+    system: 'You prepare the Urdu edition of a khutbah reader for worshippers in Pakistan and India. Reply with JSON only.',
+    output_config: { effort: 'medium', format: { type: 'json_schema', schema: EXTRAS_SCHEMA } },
+    messages: [{ role: 'user', content: [
+      `Translate into natural, formal religious Urdu (اللہ تعالیٰ، نبی کریم صلی اللہ علیہ وسلم، رضی اللہ عنہ):\n"share_summary" (a two-sentence WhatsApp message): ${result.share_summary ?? ''}\n"summary": ${result.summary ?? ''}`,
+      `For each hadith below, give "narrator": the Companion's name as Urdu readers know it, with رضی اللہ عنہ / عنہا (for a family chain such as "Amr ibn Shu'ayb from his father from his grandfather", write that chain in Urdu). And give "from_companion": copied character for character from its Urdu text, the part that starts where the Companion (or the Prophet ﷺ, if the Companion is not named) is first mentioned, leaving out the chain of narrators before; the whole text if it already starts there, "" if it has no Urdu text.`,
+      JSON.stringify(hadithList, null, 1),
+    ].join('\n\n') }],
+  });
+  usage.calls++;
+  usage.input_tokens += response.usage.input_tokens;
+  usage.output_tokens += response.usage.output_tokens;
+  const out = JSON.parse(response.content.find(b => b.type === 'text')?.text ?? '{}');
+  extras = { share_summary: out.share_summary, summary: out.summary, narrators: {} };
+  for (const x of out.hadith ?? []) {
+    extras.narrators[x.key] = x.narrator;
+    const full = hadith[x.key]?.text;
+    const cut = (x.from_companion ?? '').trim();
+    if (full && cut && full.includes(cut) && cut.length > 20) hadith[x.key].from_companion = cut;
+  }
+}
+for (const [key, h] of Object.entries(hadith)) { // a re-fetch keeps the earlier cut when it still fits
+  const old = result.urdu?.hadith?.[key]?.from_companion;
+  if (!h.from_companion && old && h.text?.includes(old)) h.from_companion = old;
+}
+
+// Surah names for the Urdu verse badges (the Arabic names Urdu readers use).
+const surahs = {};
+for (const q of result.quran_references ?? []) if (q.matched) surahs[q.surah_number] = quran[q.surah_number - 1]?.name;
+
+const prevCost = reuse ? (result.urdu.usage?.cost_usd ?? 0) : 0;
 result.urdu = {
   model: MODEL, created_at: reuse ? result.urdu.created_at : new Date().toISOString(),
   chunk_translations: urdu,
+  share_summary: extras.share_summary, summary: extras.summary, narrators: extras.narrators, surahs,
   verses, verse_source: QURAN_UR,
   hadith, hadith_source: 'fawazahmed0/hadith-api (urd-*)',
-  usage: reuse ? result.urdu.usage : { ...usage, cost_usd: Math.round((usage.input_tokens * PRICE_IN + usage.output_tokens * PRICE_OUT) * 10000) / 10000 },
+  usage: { calls: usage.calls + (reuse ? result.urdu.usage?.calls ?? 0 : 0),
+    cost_usd: Math.round((prevCost + usage.input_tokens * PRICE_IN + usage.output_tokens * PRICE_OUT) * 10000) / 10000 },
 };
 
 // The Urdu reader: the same blocks, Urdu in place of English. Published English excerpts
@@ -171,10 +255,12 @@ const urResult = {
   quran_references: (result.quran_references ?? []).map(({ english_swap, ...r }) => r),
   hadith_references: (result.hadith_references ?? []).map(({ english_swap, ...r }) => {
     const m = (r.link ?? '').match(/sunnah\.com\/([a-z]+):(\d+)/);
-    return { ...r, translation: (m && hadith[`${m[1]}:${m[2]}`]?.text) || null };
+    const ur = m && hadith[`${m[1]}:${m[2]}`];
+    return { ...r, translation: (ur && (ur.from_companion || ur.text)) || null };
   }),
 };
 writeFileSync(join(folder, 'reader_ur.txt'), buildReaderView(transcript, urResult, { untranslated: '(ترجمہ دستیاب نہیں)' }), 'utf8');
 writeFileSync(join(folder, 'result.json'), JSON.stringify(result, null, 2), 'utf8');
 console.log(`✓ ${urdu.length} blocks, ${Object.keys(verses).length} verses, ${Object.keys(hadith).length} hadith in Urdu — ` +
-  `${usage.calls} ${MODEL} call(s), ${usage.input_tokens} in / ${usage.output_tokens} out tokens, $${result.urdu.usage.cost_usd}`);
+  `${usage.calls} ${MODEL} call(s) this run, ${usage.input_tokens} in / ${usage.output_tokens} out tokens, ` +
+  `$${Math.round((usage.input_tokens * PRICE_IN + usage.output_tokens * PRICE_OUT) * 10000) / 10000} (total $${result.urdu.usage.cost_usd})`);

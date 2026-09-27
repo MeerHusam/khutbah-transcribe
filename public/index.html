@@ -303,10 +303,15 @@
       font-family: 'Noto Nastaliq Urdu', serif; font-size: 16px; line-height: 2.5; font-style: normal;
     }
     .chunk-ur .trans-ours { display: none; }
-    .chunk-ur .chunk-quran-cite, .chunk-ur .chunk-hadith-cite { direction: ltr; }
-    .lang-switch { float: right; display: inline-flex; gap: 2px; text-transform: none; letter-spacing: 0; }
+    .chunk-ur .chunk-quran-cite, .chunk-ur .chunk-hadith-cite { font-family: 'Noto Nastaliq Urdu', var(--font-ui); line-height: 2; }
+    .lang-row { display: flex; justify-content: flex-end; margin: -4px 0 14px; }
+    .lang-switch { display: inline-flex; gap: 4px; }
+    .ur-inline { display: none; }
+    body.lang-ur .ur-inline { display: inline; font-family: 'Noto Nastaliq Urdu', serif; letter-spacing: 0; text-transform: none; font-size: 14px; }
+    body.lang-ur .en-inline { display: none; }
+    .share-text.chunk-ur { font-family: 'Noto Nastaliq Urdu', serif; font-size: 16px; line-height: 2.4; }
     .lang-switch button {
-      font-family: var(--font-ui); font-size: 12px; color: var(--text-dim); background: none; cursor: pointer;
+      font-family: var(--font-ui); font-size: 13px; color: var(--text-dim); background: none; cursor: pointer;
       border: 1px solid var(--border); border-radius: 7px; padding: 2px 9px;
     }
     .lang-switch button.on { color: var(--bg); background: var(--gold); border-color: var(--gold); }
@@ -845,6 +850,9 @@
   }
 
   function renderResults(r) {
+    const ur = r.urdu || {};
+    // A heading in both languages; the language switch shows one.
+    const bi = (en, urText) => r.urdu ? `<span class="en-inline">${en}</span><span class="ur-inline" lang="ur">${urText}</span>` : en;
     const qRefs = r.quran_references || [];
     const hadithRefs = r.hadith_references || [];
     const matched = qRefs.filter(q => q.matched).length;
@@ -871,22 +879,27 @@
           </div>
         </div>` : ''}
 
+        ${(r.reader_chunks || []).some(c => c.urdu) ? `<div class="lang-row">
+          <span class="lang-switch" role="group" aria-label="Translation language">
+            <button data-lang="en" class="on" onclick="setLang('en')">English</button><button data-lang="ur" lang="ur" onclick="setLang('ur')">اردو</button>
+          </span>
+        </div>` : ''}
+
         <div class="share-card">
-          <div class="share-label">In Short</div>
-          <p class="share-text">${escHtml(r.share_summary || r.summary || '')}</p>
-          <button class="copy-btn" onclick="copyShare()">Copy for WhatsApp</button>
+          <div class="share-label">${bi('In Short', 'مختصر')}</div>
+          <p class="share-text${ur.share_summary ? ' chunk-en' : ''}">${escHtml(r.share_summary || r.summary || '')}</p>
+          ${ur.share_summary ? `<p class="share-text chunk-ur" lang="ur">${escHtml(ur.share_summary)}</p>` : ''}
+          <button class="copy-btn" onclick="copyShare()">${bi('Copy for WhatsApp', 'واٹس ایپ کے لیے کاپی کریں')}</button>
         </div>
 
         <div class="share-card">
-          <div class="share-label">Summary</div>
-          <p class="share-text">${escHtml(r.summary || 'No summary available.')}</p>
+          <div class="share-label">${bi('Summary', 'خلاصہ')}</div>
+          <p class="share-text${ur.summary ? ' chunk-en' : ''}">${escHtml(r.summary || 'No summary available.')}</p>
+          ${ur.summary ? `<p class="share-text chunk-ur" lang="ur">${escHtml(ur.summary)}</p>` : ''}
         </div>
 
         <div class="share-card" style="padding-bottom: 8px;">
-          <div class="share-label">Full Translation${(r.reader_chunks || []).some(c => c.urdu) ? `
-            <span class="lang-switch" role="group" aria-label="Translation language">
-              <button data-lang="en" class="on" onclick="setLang('en')">English</button><button data-lang="ur" lang="ur" onclick="setLang('ur')">اردو</button>
-            </span>` : ''}</div>
+          <div class="share-label">${bi('Full Translation', 'مکمل ترجمہ')}</div>
           ${renderTranslation(r)}
         </div>
 
@@ -1160,7 +1173,7 @@
       </div>
       <div class="hadith-arabic">${escHtml(h.detected_text || h.arabic || '')}</div>
       ${h.translation ? `<p class="hadith-english${urduOf(h) ? ' chunk-en' : ''}">${escHtml(h.translation.charAt(0).toUpperCase() + h.translation.slice(1))} <span class="ref-en-source">sunnah.com</span></p>` : ''}
-      ${urduOf(h) ? `<p class="hadith-english chunk-ur" lang="ur">${escHtml(urduOf(h).text)} <span class="ur-source">${escHtml(urduOf(h).edition)} ${escHtml(String(urduOf(h).number))}</span></p>` : ''}
+      ${urduOf(h) ? `<p class="hadith-english chunk-ur" lang="ur">${escHtml(urduOf(h).from_companion || urduOf(h).text)} <span class="ur-source">${escHtml(urduOf(h).edition)} ${escHtml(String(urduOf(h).number))}</span></p>` : ''}
       ${link ? `<a class="ref-link hadith-link" href="${escAttr(link)}" target="_blank" rel="noopener">View on sunnah.com ↗</a>` : ''}
     </div>`;
   }
@@ -1213,7 +1226,17 @@
     return `<span class="trans-ours" title="${escAttr(tip)}">our translation</span>`;
   }
 
-  function renderEnglishParts(english, kinds = []) {
+  // Collection names as Urdu readers know them.
+  const COLLECTION_UR = {
+    'Sahih al-Bukhari': 'صحیح بخاری', 'Sahih Muslim': 'صحیح مسلم', 'Jami` at-Tirmidhi': 'جامع ترمذی',
+    'Sunan Abu Dawud': 'سنن ابو داؤد', "Sunan an-Nasa'i": 'سنن نسائی', 'Sunan Ibn Majah': 'سنن ابن ماجہ',
+    'ahmad': 'مسند احمد', 'Musnad Ahmad': 'مسند احمد', 'Muwatta Malik': 'موطا امام مالک',
+  };
+  const hadithKeyOf = h => { const m = (h.link || '').match(/sunnah\.com\/([a-z]+):(\d+)/); return m ? `${m[1]}:${m[2]}` : null; };
+
+  // `lang` 'ur' renders the badges in Urdu (the reader's Urdu section).
+  function renderEnglishParts(english, kinds = [], lang = 'en') {
+    const ur = lang === 'ur' && result && result.urdu;
     return english.split(/\n\n+/).map(part => {
       part = part.trim();
       if (!part) return '';
@@ -1226,16 +1249,22 @@
         const [, label, url, s, a] = quranMatch;
         const q = part.startsWith('📑')
           && (quranRefs || []).find(r => +r.surah_number === +s && +r.ayah_number === +a && r.english_swap);
-        return `<a class="chunk-quran-cite" href="${escAttr(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">۞ <strong>${escHtml(label)}</strong> ↗</a>`
-          + (q && q.english_swap.status === 'ours' ? oursLabel('Sahih International') : '');
+        const shown = ur && ur.surahs && ur.surahs[s]
+          ? `${ur.surahs[s]} ${label.slice(label.lastIndexOf(' ') + 1)}` : label;
+        return `<a class="chunk-quran-cite" href="${escAttr(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">۞ <strong>${escHtml(shown)}</strong> ↗</a>`
+          + (!ur && q && q.english_swap.status === 'ours' ? oursLabel('Sahih International') : '');
       } else if (hadithTransMatch) {
         return `<div class="chunk-hadith-trans">${escHtml(hadithTransMatch[1])}</div>`;
       } else if (hadithMatch) {
         // Link the badge to the hadith on sunnah.com, as the verse badge links to quran.com.
         const h = hadithRefForBadge(part.trim());
+        const nUr = ur && h && ur.narrators && ur.narrators[hadithKeyOf(h)];
+        const cUr = ur && h && COLLECTION_UR[h.collection];
+        const text = ur && h && (nUr || cUr)
+          ? [nUr, cUr || h.collection].filter(Boolean).join('  ·  ') : hadithMatch[1];
         return (h && h.link
-          ? `<a class="chunk-hadith-cite" href="${escAttr(h.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${escHtml(hadithMatch[1])} ↗</a>`
-          : `<div class="chunk-hadith-cite">${escHtml(hadithMatch[1])}</div>`)
+          ? `<a class="chunk-hadith-cite" href="${escAttr(h.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${escHtml(text)} ↗</a>`
+          : `<div class="chunk-hadith-cite">${escHtml(text)}</div>`)
           + (h && h.english_swap && h.english_swap.status === 'ours' ? oursLabel('sunnah.com') : '');
       }
       return `<div class="chunk-english">${markQuotes(part, kinds)}</div>`;
@@ -1432,7 +1461,7 @@
         <div class="reader-chunk" ${startAttr}>
           <div class="chunk-arabic" ${arabicAttrs}>${marked.html}</div>
           <div class="chunk-en">${renderEnglishParts(c.english, marked.kinds)}</div>
-          ${c.urdu ? `<div class="chunk-ur" lang="ur">${renderEnglishParts(c.urdu, marked.kinds)}</div>` : ''}
+          ${c.urdu ? `<div class="chunk-ur" lang="ur">${renderEnglishParts(c.urdu, marked.kinds, 'ur')}</div>` : ''}
         </div>`;
       }).join('');
     }
@@ -1503,11 +1532,13 @@
   }
 
   function copyShare() {
-    const text = result?.share_summary || result?.summary || '';
+    const urdu = document.body.classList.contains('lang-ur') && result?.urdu?.share_summary;
+    const text = urdu || result?.share_summary || result?.summary || '';
     navigator.clipboard.writeText(text).then(() => {
       const btn = document.querySelector('.copy-btn');
-      btn.textContent = '✓ Copied!';
-      setTimeout(() => btn.textContent = 'Copy for WhatsApp', 2000);
+      const label = btn.innerHTML;
+      btn.textContent = urdu ? '✓ کاپی ہو گیا' : '✓ Copied!';
+      setTimeout(() => btn.innerHTML = label, 2000);
     });
   }
 
