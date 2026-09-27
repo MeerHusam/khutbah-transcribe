@@ -2630,7 +2630,7 @@ async function transcribeWithGroqWindowed(audioPath) {
 // Uses Needleman-Wunsch global alignment so repeated common tokens stay positionally constrained.
 function alignWordTimestamps(displayWords, timedWords) {
   if (!displayWords.length || !timedWords.length) return null;
-  return interpolateAnchors(anchorTimes(displayWords, timedWords));
+  return interpolateAnchors(anchorTimes(displayWords, timedWords), displayWords);
 }
 
 function alignAnchors(A, B, timedWords, n, m, W, tb) {
@@ -2691,11 +2691,20 @@ function combineTimings(displayWords, sources) {
   });
   const keep = new Set();
   for (let p = tailAt[tails.length - 1]; p >= 0; p = prev[p]) keep.add(idx[p]);
-  return interpolateAnchors(merged.map((t, k) => keep.has(k) ? t : null));
+  return interpolateAnchors(merged.map((t, k) => keep.has(k) ? t : null), displayWords);
 }
 
 // Fill unanchored words by linear interpolation between neighbouring anchors.
-function interpolateAnchors(times) {
+// Not across a pause, though: when a run's gap is far longer than its words take to say, the
+// gap holds a silence, and spreading the words evenly put them in it. The first word of the
+// second khutbah ("الحمد") was timed 15 s into the sitting pause (11 Sep, 22 May, 21 Aug), so
+// the highlight moved while the imam was still seated. There the words are packed at speaking
+// pace against the anchor they belong to: those up to the run's last sentence end after the
+// previous anchor, the rest before the next one. `words` (the display words) gives the
+// sentence ends; without it the old even spread is used.
+const SPEECH_SEC_PER_WORD = 0.45;
+const ENDS_SENTENCE = /[.؟!?:]$/;
+function interpolateAnchors(times, words = null) {
   const n = times.length;
   const anchors = [];
   for (let k = 0; k < n; k++) if (times[k] !== null) anchors.push(k);
@@ -2707,10 +2716,39 @@ function interpolateAnchors(times) {
   for (let a = 0; a < anchors.length - 1; a++) {
     const p = anchors[a], q = anchors[a + 1];
     const tp = times[p], tq = times[q];
-    for (let k = p + 1; k < q; k++) times[k] = tp + (tq - tp) * (k - p) / (q - p);
+    let split = null;
+    if (words && tq - tp > (q - p) * 1.5) {
+      split = p;
+      for (let k = q - 1; k > p; k--) if (ENDS_SENTENCE.test(words[k] ?? '')) { split = k; break; }
+      if (split === p && !ENDS_SENTENCE.test(words[p] ?? '')) split = null; // no sentence end: pause unknown
+    }
+    for (let k = p + 1; k < q; k++) {
+      times[k] = split === null ? tp + (tq - tp) * (k - p) / (q - p)
+        : k <= split ? tp + (k - p) * SPEECH_SEC_PER_WORD : tq - (q - k) * SPEECH_SEC_PER_WORD;
+    }
   }
   times.anchored = anchored; // which times are real audio anchors vs interpolated
   return times;
+}
+
+// The same repair for a run already saved, whose anchors are no longer known: a word timed
+// alone in a silence (over 5 s from both neighbours) moves next to the word it belongs to, by
+// the sentence end on its side. Returns how many words moved; keeps second_khutbah.time in step.
+function settleLoneWords(result) {
+  const tw = result.transcript_words ?? [];
+  let moved = 0;
+  for (let i = 1; i < tw.length - 1; i++) {
+    const before = tw[i].start - tw[i - 1].start, after = tw[i + 1].start - tw[i].start;
+    if (before <= 5 || after <= 5) continue;
+    let t = null;
+    if (ENDS_SENTENCE.test(tw[i - 1].word)) t = tw[i + 1].start - SPEECH_SEC_PER_WORD;
+    else if (ENDS_SENTENCE.test(tw[i].word)) t = tw[i - 1].start + SPEECH_SEC_PER_WORD;
+    if (t === null) continue;
+    tw[i].start = Math.round(t * 1000) / 1000;
+    if (result.second_khutbah?.word_index === i) result.second_khutbah.time = Math.round(t * 10) / 10;
+    moved++;
+  }
+  return moved;
 }
 
 // Safety net behind the windowed timing: a long run of display words with no Whisper anchor
@@ -3381,5 +3419,7 @@ export {
   alignWordTimestamps,
   combineTimings,
   retimeUnanchoredGaps,
+  interpolateAnchors,
+  settleLoneWords,
   buildSegmentsFromWordTimes,
 };

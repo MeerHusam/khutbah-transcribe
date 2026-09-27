@@ -25,6 +25,7 @@ import {
   deduplicateHadithRefs,
   resolveSunnahLinksForRefs,
   yieldTailToLaterRefs,
+  settleLoneWords,
 } from './pipeline.js';
 import { planQuoteSwaps } from './quote_swaps.js';
 
@@ -135,6 +136,11 @@ if (!process.argv.includes('--no-swaps')) {
     `${usage.input_tokens} in / ${usage.output_tokens} out tokens, $${usage.cost_usd.toFixed(4)}`);
   if (usage.calls) result.metadata.english_swaps = usage;
 }
+
+// Words interpolated into a pause (the first word of the second khutbah, timed while the
+// imam was still seated) move next to the words they belong to.
+const settled = settleLoneWords(result);
+if (settled) console.log(`  ${settled} word(s) timed alone in a pause moved next to their sentence`);
 
 // Update metadata
 const matchedCount = allQuranRefs.filter(r => r.matched).length;
