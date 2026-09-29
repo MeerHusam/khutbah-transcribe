@@ -167,6 +167,7 @@
       text-align: center;
     }
     .speed-btn:hover { background: var(--gold-light); }
+    .voice-btn.on { color: var(--bg); background: var(--gold); border-color: var(--gold); }
 
     .audio-time {
       font-size: 12px;
@@ -713,6 +714,7 @@
     <input class="audio-scrubber" id="scrubber" type="range" min="0" max="100" value="0" step="0.1">
     <span class="audio-time" id="audioTime">0:00 / 0:00</span>
     <button class="speed-btn" id="speedBtn" onclick="cycleSpeed()" title="Playback speed">1×</button>
+    <button class="speed-btn voice-btn" id="voiceBtn" onclick="toggleVoice()" title="Switch between the imam and an English voice" hidden>English</button>
   </div>
 
   <div class="header-right">
@@ -1531,7 +1533,8 @@
             break;
           }
         }
-        const startAttr = c.start_time != null ? `data-start="${c.start_time}"` : '';
+        const startAttr = (c.start_time != null ? `data-start="${c.start_time}"` : '')
+          + (c.tts_start != null ? ` data-tts="${c.tts_start}"` : '');
         const marked = arabicAttrs
           ? { html: escHtml(c.arabic), kinds: [] }
           : renderChunkArabic(c.arabic, [...inlineAyahRefs(c.english), ...inlineHadithRefs(c.english)]);
@@ -1627,6 +1630,39 @@
   let audio = null;
   const SPEEDS = [1, 1.5, 2];
   let speedIdx = 0;
+  let activeChunk = null;
+  // Which track plays: the imam's recording, or the English voice (tts.js). Each block
+  // holds its start in both (data-start, data-tts), so highlighting and tapping a block
+  // follow whichever is playing.
+  let voice = 'imam';
+  const timeKey = () => (voice === 'en' ? 'tts' : 'start');
+  const timedChunks = () => document.querySelectorAll(`.reader-chunk[data-${timeKey()}]`);
+  // A block's start in the playing track; a block the English voice skips starts at the next one.
+  function chunkTime(el) {
+    for (let e = el; e; e = e.nextElementSibling) {
+      if (e.classList.contains('reader-chunk') && e.dataset[timeKey()] != null) return parseFloat(e.dataset[timeKey()]);
+    }
+    return null;
+  }
+
+  function toggleVoice() {
+    if (!audio || !result.tts_en) return;
+    const wasPlaying = !audio.paused;
+    const at = activeChunk;
+    voice = voice === 'en' ? 'imam' : 'en';
+    audio.pause();
+    audio.src = voice === 'en' ? result.tts_en.url : result.audio_url;
+    audio.addEventListener('loadedmetadata', () => {
+      audio.currentTime = (at && chunkTime(at)) || 0;
+      audio.playbackRate = SPEEDS[speedIdx];
+      if (wasPlaying) audio.play();
+    }, { once: true });
+    const btn = document.getElementById('voiceBtn');
+    btn.classList.toggle('on', voice === 'en');
+    btn.textContent = voice === 'en' ? 'Imam' : 'English';
+    btn.title = voice === 'en' ? 'Back to the imam' : 'Listen to an English voice';
+    setPlayIcon(!wasPlaying);
+  }
 
   function skip(sec) {
     if (!audio) return;
@@ -1648,19 +1684,19 @@
     const scrubber = document.getElementById('scrubber');
     const timeEl = document.getElementById('audioTime');
     player.style.display = 'flex';
+    if (result.tts_en) document.getElementById('voiceBtn').hidden = false;
 
-    let activeChunk = null;
     audio.addEventListener('timeupdate', () => {
       if (!audio.duration) return;
       scrubber.value = (audio.currentTime / audio.duration) * 100;
       timeEl.textContent = `${fmt(audio.currentTime)} / ${fmt(audio.duration)}`;
 
       const t = audio.currentTime;
-      const chunks = document.querySelectorAll('.reader-chunk[data-start]');
+      const chunks = timedChunks();
       if (!chunks.length) return;
       let best = chunks[0];
       for (const el of chunks) {
-        if (parseFloat(el.dataset.start) <= t) best = el;
+        if (parseFloat(el.dataset[timeKey()]) <= t) best = el;
         else break;
       }
       if (best !== activeChunk) {
@@ -1673,10 +1709,12 @@
 
     audio.addEventListener('ended', () => { setPlayIcon(true); });
 
-    document.querySelectorAll('.reader-chunk[data-start]').forEach(el => {
+    document.querySelectorAll('.reader-chunk').forEach(el => {
       el.addEventListener('click', e => {
         if (e.target.closest('a')) return;
-        audio.currentTime = parseFloat(el.dataset.start);
+        const t = chunkTime(el);
+        if (t == null) return;
+        audio.currentTime = t;
         audio.play();
         setPlayIcon(false);
       });

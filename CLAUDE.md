@@ -37,6 +37,7 @@ Takes an Arabic Friday Khutbah (sermon) audio file and produces:
 | `review_blocks.js` | Stage C: second-model review of every reader block (claude-sonnet-5, ~$0.07/khutbah). Writes `review.json` flags; changes nothing. |
 | `publish.js` | One command from recording to publishable: remux/trim (faststart checked), pipeline, verify_reader, test entry, PUBLIC_KHUTBAHS + .gitignore. Never commits or pushes. |
 | `translate_urdu.js` | Urdu groundwork: Arabic→Urdu per chunk (claude-sonnet-5), Junagarhi verses (PLACEHOLDER), fawazahmed0 urd-* hadith; writes `result.urdu` + `reader_ur.txt`. Page shows an English/اردو switch. |
+| `tts.js` | English voice (first try, 30 Sep 2026): speaks each reader block's English with Kokoro-82M (free, local, `tts_kokoro.py` in `.venv`, model in `models/kokoro/`), writes `tts_en.mp3` + `tts_en.json` (each block's start in the track). Page shows an Imam/English switch in the player when present. Verses: English meaning only, never synthesized Arabic. |
 | `retime.js` | Redoes only the word timings of an existing run (windowed Groq + gap re-timing), keeping segment boundaries so stored translations stay paired. No Claude call. Follow with `reanalyze.js`. |
 | `server.js` | Express + WebSocket server. Accepts audio uploads, spawns `pipeline.js` as child process, streams progress, serves `public/`. |
 | `transcribe_local.py` | Python script for local transcription via faster-whisper or mlx-whisper. Called by `pipeline.js --local`. |

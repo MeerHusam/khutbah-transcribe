@@ -294,6 +294,28 @@ function findAudioUrl(folder) {
   return null;
 }
 
+// The English voice (tts.js): its track and each block's place in it. Attached only while the
+// manifest still names the reader's blocks, so a rebuilt reader never plays stale times.
+function attachTts(folder, result) {
+  try {
+    const dir = join(__dirname, 'outputs', folder);
+    const m = JSON.parse(readFileSync(join(dir, 'tts_en.json'), 'utf8'));
+    if (!existsSync(join(dir, m.audio))) return;
+    const chunks = result.reader_chunks || [];
+    const head = c => c.arabic.split(/\s+/).filter(Boolean).slice(0, 6).join(' ');
+    if (!m.blocks.every(b => chunks[b.i] && head(chunks[b.i]) === b.arabic_head)) return;
+    for (const b of m.blocks) chunks[b.i].tts_start = b.start;
+    result.tts_en = { url: `/tts/${encodeURIComponent(folder)}/en.mp3`, voice: m.voice, engine: m.engine };
+  } catch {}
+}
+
+app.get('/tts/:folder/en.mp3', (req, res) => {
+  if (!ALLOWED_FOLDERS.has(req.params.folder)) return res.status(404).end();
+  res.sendFile(join(__dirname, 'outputs', req.params.folder, 'tts_en.mp3'), err => {
+    if (err && !res.headersSent) res.status(404).end();
+  });
+});
+
 
 // One home-page card. Shared by the route and the startup cache warm-up: they were two
 // copies, and the warm-up one lost masjid and date, so the cards never showed them.
@@ -337,6 +359,7 @@ app.get('/api/results/:folder', (req, res) => {
     const folder = `outputs/${req.params.folder}`;
     const result = loadResult(folder);
     result.audio_url = findAudioUrl(req.params.folder);
+    attachTts(req.params.folder, result);
     const meta = PUBLIC_KHUTBAHS.find(k => k.folder === req.params.folder);
     result.title = meta?.title || '';
     result.speaker = meta?.speaker || '';
@@ -513,6 +536,7 @@ server.listen(PORT, () => {
     try {
       const result = loadResult(`outputs/${k.folder}`);
       result.audio_url = findAudioUrl(k.folder);
+      attachTts(k.folder, result);
       result.title = k.title;
       result.speaker = k.speaker || '';
       result.masjid = k.masjid || '';
