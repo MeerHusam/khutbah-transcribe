@@ -96,6 +96,16 @@ const PUBLIC_KHUTBAHS = [
     date: '25 September 2026',
     featured: true,
   },
+  {
+    folder: '2026-09-27T16-37-16_makkah_dosari_2026-09-25',
+    slug: 'makkah-2026-09-25',
+    title: 'Lofty Aspiration',
+    speaker: 'Sheikh Yasser al-Dosari',
+    masjid: 'Masjid al-Haram, Makkah',
+    masjid_ar: 'المسجد الحرام',
+    maps_url: 'https://www.google.com/maps/search/?api=1&query=Masjid+al-Haram+Makkah',
+    date: '25 September 2026',
+  },
   // ── Arafah khutbah (single continuous khutbah — processed with `--single`) ──
   {
     folder: '2026-09-11T15-48-51_arafah_khutbah_2026',
@@ -137,6 +147,16 @@ const PUBLIC_KHUTBAHS = [
     masjid_ar: 'جامع إسكان المعذر',
     maps_url: 'https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6',
     date: '11 September 2026',
+  },
+  {
+    folder: '2026-09-26T11-57-40_khutbah-2026-08-21-masjid',
+    slug: '2026-08-21',
+    title: 'True Love for the Prophet ﷺ',
+    speaker: 'Friday Khutbah',
+    masjid: 'Askan AlMaather Mosque',
+    masjid_ar: 'جامع إسكان المعذر',
+    maps_url: 'https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6',
+    date: '21 August 2026',
   },
   {
     folder: '2026-05-22T21-05-05_makkah_sudais_ramadan_ummah',
