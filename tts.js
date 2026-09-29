@@ -10,6 +10,7 @@
 //  - A verse card: the verse's English (Sahih International), cut to the part the imam recited
 //    when the card shows only that part (verse_excerpts), as the page does.
 //  - The Quran itself is never synthesised: only its English meaning is spoken.
+//  - Arabic names and terms are said as in Arabic, from tts_lexicon.txt.
 // Writes tts_en.mp3 (the track) and tts_en.json (voice, and each block's start/end in the
 // track, with its opening Arabic words so a rebuilt reader cannot be paired with stale times).
 //
@@ -160,6 +161,7 @@ const py = spawnSync(PYTHON, [join(ROOT, 'tts_kokoro.py')], {
     voice, speed,
     lang: voice.startsWith('b') ? 'en-gb' : 'en-us',
     block_pause: 0.7, sentence_pause: 0.2,
+    lexicon: join(ROOT, 'tts_lexicon.txt'),
     out: resolve(wav),
     blocks: blocks.map(({ i, text }) => ({ i, text })),
   }),
