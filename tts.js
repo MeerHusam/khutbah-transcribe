@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 // tts.js — An English voice for a khutbah (first try, 30 Sep 2026). Reads each reader block's
-// English aloud with Kokoro-82M, a free open-weights model that runs locally (tts_kokoro.py),
-// and writes one audio track the page can play in place of the imam's.
+// English aloud with a free model that runs locally, and writes one audio track the page can
+// play in place of the imam's. Two engines:
+//  - kokoro (default, tts_kokoro.py): Kokoro-82M, stock voices, fast (~4x real time).
+//  - chatterbox (tts_chatterbox.py): Chatterbox in the voice of a reference clip (--ref),
+//    which also carries the speaker's accent; slower.
 //
 //  - Blocks are the page's blocks (reader_chunks.js), so the English track and the reader
 //    highlight line up block for block.
@@ -10,15 +13,21 @@
 //  - A verse card: the verse's English (Sahih International), cut to the part the imam recited
 //    when the card shows only that part (verse_excerpts), as the page does.
 //  - The Quran itself is never synthesised: only its English meaning is spoken.
-//  - Arabic names and terms are said as in Arabic, from tts_lexicon.txt.
+//  - Arabic names and terms are said as in Arabic: from tts_lexicon.txt (kokoro), or from the
+//    reference speaker's own way of saying them (chatterbox).
 // Writes tts_en.mp3 (the track) and tts_en.json (voice, and each block's start/end in the
 // track, with its opening Arabic words so a rebuilt reader cannot be paired with stale times).
 //
-// Usage: node tts.js outputs/<folder> [--voice am_michael] [--speed 1] [--dry-run]
+// Usage: node tts.js outputs/<folder> [--engine kokoro|chatterbox] [--limit N] [--dry-run]
+//   kokoro:     [--voice am_michael] [--speed 1]
+//   chatterbox: --ref audio_files/voice_ref/<clip>.wav [--exaggeration 0.5] [--cfg 0.5]
+//   --limit N speaks only the first N blocks into tts_en_preview_<engine>.mp3, to listen to;
+//     the page's track (tts_en.mp3, tts_en.json) is left as it is.
 //   --dry-run prints the text of every block and makes no audio.
-// Needs: ./.venv/bin/pip install kokoro-onnx soundfile, and in models/kokoro/ the files
-//   kokoro-v1.0.onnx and voices-v1.0.bin from
+// Needs: kokoro: ./.venv/bin/pip install kokoro-onnx soundfile, and in models/kokoro/ the
+//   files kokoro-v1.0.onnx and voices-v1.0.bin from
 //   https://github.com/thewh1teagle/kokoro-onnx/releases/tag/model-files-v1.0
+//   chatterbox: see the header of tts_chatterbox.py (.venv-tts).
 
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs';
 import { join, dirname, resolve } from 'path';
@@ -30,16 +39,22 @@ import './public/recited.js';
 const { recitedSpans } = globalThis.KTRecited;
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const MODEL_DIR = join(ROOT, 'models', 'kokoro');
-const PYTHON = join(ROOT, '.venv', 'bin', 'python');
 
 const args = process.argv.slice(2);
 const folder = args[0];
 const opt = (name, dflt) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : dflt; };
+const engine = opt('--engine', 'kokoro');
 const voice = opt('--voice', 'am_michael');
 const speed = +opt('--speed', '1');
+const ref = opt('--ref', null);
+const exaggeration = +opt('--exaggeration', '0.5');
+const cfgWeight = +opt('--cfg', '0.5');
+const limit = +opt('--limit', '0');
 const dryRun = args.includes('--dry-run');
-if (!folder || !existsSync(join(folder, 'result.json'))) {
-  console.error('Usage: node tts.js outputs/<folder> [--voice am_michael] [--speed 1] [--dry-run]');
+if (!folder || !existsSync(join(folder, 'result.json')) || !['kokoro', 'chatterbox'].includes(engine)
+    || (engine === 'chatterbox' && !dryRun && !(ref && existsSync(ref)))) {
+  console.error('Usage: node tts.js outputs/<folder> [--engine kokoro|chatterbox] [--limit N] [--dry-run]\n'
+    + '  kokoro: [--voice am_michael] [--speed 1]   chatterbox: --ref <clip.wav> [--exaggeration 0.5] [--cfg 0.5]');
   process.exit(1);
 }
 
@@ -140,7 +155,8 @@ if (!chunks.length) { console.error(`No reader blocks in ${folder}`); process.ex
 const excerpts = result.verse_excerpts ?? [];
 const blocks = chunks
   .map((c, i) => ({ i, arabic_head: words(c.arabic).slice(0, 6).join(' '), text: blockSpeech(c, excerpts) }))
-  .filter(b => b.text);
+  .filter(b => b.text)
+  .slice(0, limit || undefined);
 
 if (dryRun) {
   for (const b of blocks) console.log(`[${b.i}] ${b.text}\n`);
@@ -148,40 +164,61 @@ if (dryRun) {
   process.exit(0);
 }
 
-for (const f of ['kokoro-v1.0.onnx', 'voices-v1.0.bin']) {
-  if (!existsSync(join(MODEL_DIR, f))) { console.error(`Missing ${join('models/kokoro', f)} — see the header of tts.js`); process.exit(1); }
+if (engine === 'kokoro') {
+  for (const f of ['kokoro-v1.0.onnx', 'voices-v1.0.bin']) {
+    if (!existsSync(join(MODEL_DIR, f))) { console.error(`Missing ${join('models/kokoro', f)} — see the header of tts.js`); process.exit(1); }
+  }
 }
 
-const wav = join(folder, 'tts_en.wav');
-console.log(`Speaking ${blocks.length} blocks with Kokoro (${voice}, speed ${speed})...`);
-const py = spawnSync(PYTHON, [join(ROOT, 'tts_kokoro.py')], {
-  input: JSON.stringify({
+const base = limit ? `tts_en_preview_${engine}` : 'tts_en';
+const wav = join(folder, `${base}.wav`);
+const job = {
+  block_pause: 0.7, sentence_pause: 0.2,
+  out: resolve(wav),
+  blocks: blocks.map(({ i, text }) => ({ i, text })),
+  ...(engine === 'kokoro' ? {
     model: join(MODEL_DIR, 'kokoro-v1.0.onnx'),
     voices: join(MODEL_DIR, 'voices-v1.0.bin'),
     voice, speed,
     lang: voice.startsWith('b') ? 'en-gb' : 'en-us',
-    block_pause: 0.7, sentence_pause: 0.2,
     lexicon: join(ROOT, 'tts_lexicon.txt'),
-    out: resolve(wav),
-    blocks: blocks.map(({ i, text }) => ({ i, text })),
+  } : {
+    ref: resolve(ref), exaggeration, cfg_weight: cfgWeight,
   }),
+};
+const [python, script] = engine === 'kokoro'
+  ? [join(ROOT, '.venv', 'bin', 'python'), 'tts_kokoro.py']
+  : [join(ROOT, '.venv-tts', 'bin', 'python'), 'tts_chatterbox.py'];
+console.log(`Speaking ${blocks.length} blocks with ${engine === 'kokoro' ? `Kokoro (${voice}, speed ${speed})` : `Chatterbox (voice of ${ref})`}...`);
+const began = Date.now();
+const py = spawnSync(python, [join(ROOT, script)], {
+  cwd: ROOT, input: JSON.stringify(job),
   encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['pipe', 'pipe', 'inherit'],
 });
-if (py.status !== 0) { console.error('tts_kokoro.py failed'); process.exit(1); }
-const times = new Map(JSON.parse(py.stdout).map(t => [t.i, t]));
+if (py.status !== 0) { console.error(`${script} failed`); process.exit(1); }
+// The times are the last line: libraries print their own lines on stdout too (Chatterbox's
+// watermarker says "loaded PerthNet …").
+const times = new Map(JSON.parse(py.stdout.trim().split('\n').at(-1)).map(t => [t.i, t]));
 
-const mp3 = join(folder, 'tts_en.mp3');
+const mp3 = join(folder, `${base}.mp3`);
 const ff = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', wav, '-ac', '1', '-b:a', '48k', mp3], { stdio: 'inherit' });
 if (ff.status !== 0) { console.error('ffmpeg failed'); process.exit(1); }
 unlinkSync(wav);
+const took = ((Date.now() - began) / 60000).toFixed(1);
+
+if (limit) {
+  const end = times.get(blocks.at(-1).i)?.end ?? 0;
+  console.log(`Wrote ${mp3}: first ${blocks.length} blocks, ${(end / 60).toFixed(1)} min of audio in ${took} min`);
+  process.exit(0);
+}
 
 const manifest = {
-  engine: 'kokoro-82m-v1.0',
-  voice, speed,
+  engine: engine === 'kokoro' ? 'kokoro-82m-v1.0' : 'chatterbox',
+  ...(engine === 'kokoro' ? { voice, speed } : { voice: ref.split('/').pop(), exaggeration, cfg_weight: cfgWeight }),
   created: new Date().toISOString(),
   audio: 'tts_en.mp3',
   blocks: blocks.map(b => ({ ...b, start: times.get(b.i)?.start, end: times.get(b.i)?.end })),
 };
 writeFileSync(join(folder, 'tts_en.json'), JSON.stringify(manifest, null, 1));
 const last = manifest.blocks.at(-1);
-console.log(`Wrote ${mp3} (${(last.end / 60).toFixed(1)} min) and tts_en.json`);
+console.log(`Wrote ${mp3} (${(last.end / 60).toFixed(1)} min of audio in ${took} min) and tts_en.json`);
