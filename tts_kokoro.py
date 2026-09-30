@@ -14,45 +14,7 @@ import sys
 
 from kokoro_onnx import Kokoro
 
-from tts_common import read_job, run
-
-
-SUN_LETTERS = ('th', 'dh', 'sh', 't', 'd', 'r', 'z', 's', 'n', 'l')
-WORD = re.compile(r"[A-Za-z][A-Za-z'’]*(?:-[A-Za-z][A-Za-z'’]*)*")
-
-
-def load_lexicon(path, vocab):
-    lex = {}
-    for n, line in enumerate(open(path, encoding='utf-8'), 1):
-        line = line.split('#', 1)[0].strip()
-        if not line:
-            continue
-        word, sounds = line.split(None, 1)
-        bad = [c for c in sounds.strip() if c not in vocab]
-        if bad:
-            print(f'  tts_lexicon.txt:{n} {word}: the voice has no sound {"".join(bad)!r}', file=sys.stderr)
-        lex[word.lower()] = sounds.strip()
-    return lex
-
-
-def lookup(lex, word):
-    w = word.replace('’', "'").lower()
-    if w in lex:
-        return lex[w]
-    if w.endswith("'s") and w[:-2] in lex:
-        return lex[w[:-2]] + 'z'
-    if w.startswith('al-'):
-        rest = lookup(lex, w[3:])
-        if rest is None:
-            return None
-        # al- before a sun letter is said as a doubled letter: al-Tirmidhi → at-Tirmidhi.
-        body = rest.lstrip('ˈˌ')
-        sun = next((c for c in SUN_LETTERS if w[3:].startswith(c)), None)
-        return ('ɑ' + body[0] if sun else 'ɑl') + rest
-    if '-' in w:
-        parts = [lookup(lex, p) for p in w.split('-')]
-        return ''.join(parts) if all(parts) else None
-    return None
+from tts_common import WORD, load_lexicon, lookup, read_job, run
 
 
 def phonemes(kokoro, lex, text, lang):

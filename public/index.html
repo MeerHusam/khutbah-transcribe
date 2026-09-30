@@ -1297,6 +1297,11 @@
     document.body.classList.toggle('lang-ur', lang === 'ur');
     for (const b of document.querySelectorAll('.lang-switch button')) b.classList.toggle('on', b.dataset.lang === lang);
     if (remember) { try { localStorage.setItem('kt-lang', lang); } catch {} }
+    pageLang = lang;
+    // A voice reading the translation follows the language: on to the other language's voice
+    // at the same block, or back to the imam if that language has none.
+    if (audio && voice !== 'imam' && voice !== lang) switchTrack(result['tts_' + lang] ? lang : 'imam');
+    updateVoiceBtn();
   }
 
   // Marks a quote whose English above is our own translation rather than the published one.
@@ -1534,7 +1539,8 @@
           }
         }
         const startAttr = (c.start_time != null ? `data-start="${c.start_time}"` : '')
-          + (c.tts_start != null ? ` data-tts="${c.tts_start}"` : '');
+          + (c.tts_start != null ? ` data-tts="${c.tts_start}"` : '')
+          + (c.tts_ur_start != null ? ` data-tts-ur="${c.tts_ur_start}"` : '');
         const marked = arabicAttrs
           ? { html: escHtml(c.arabic), kinds: [] }
           : renderChunkArabic(c.arabic, [...inlineAyahRefs(c.english), ...inlineHadithRefs(c.english)]);
@@ -1631,13 +1637,15 @@
   const SPEEDS = [1, 1.5, 2];
   let speedIdx = 0;
   let activeChunk = null;
-  // Which track plays: the imam's recording, or the English voice (tts.js). Each block
-  // holds its start in both (data-start, data-tts), so highlighting and tapping a block
-  // follow whichever is playing.
+  let pageLang = 'en';
+  // Which track plays: the imam's recording ('imam'), or a voice reading the translation
+  // ('en', 'ur'; tts.js). Each block holds its start in every track (data-start, data-tts,
+  // data-tts-ur), so highlighting and tapping a block follow whichever is playing.
   let voice = 'imam';
-  const timeKey = () => (voice === 'en' ? 'tts' : 'start');
-  const timedChunks = () => document.querySelectorAll(`.reader-chunk[data-${timeKey()}]`);
-  // A block's start in the playing track; a block the English voice skips starts at the next one.
+  const TIME_ATTR = { imam: 'start', en: 'tts', ur: 'tts-ur' };
+  const timeKey = () => TIME_ATTR[voice].replace(/-(\w)/g, (_, c) => c.toUpperCase());
+  const timedChunks = () => document.querySelectorAll(`.reader-chunk[data-${TIME_ATTR[voice]}]`);
+  // A block's start in the playing track; a block the voice skips starts at the next one.
   function chunkTime(el) {
     for (let e = el; e; e = e.nextElementSibling) {
       if (e.classList.contains('reader-chunk') && e.dataset[timeKey()] != null) return parseFloat(e.dataset[timeKey()]);
@@ -1645,23 +1653,35 @@
     return null;
   }
 
-  function toggleVoice() {
-    if (!audio || !result.tts_en) return;
+  function switchTrack(to) {
     const wasPlaying = !audio.paused;
     const at = activeChunk;
-    voice = voice === 'en' ? 'imam' : 'en';
+    voice = to;
     audio.pause();
-    audio.src = voice === 'en' ? result.tts_en.url : result.audio_url;
+    audio.src = to === 'imam' ? result.audio_url : result['tts_' + to].url;
     audio.addEventListener('loadedmetadata', () => {
       audio.currentTime = (at && chunkTime(at)) || 0;
       audio.playbackRate = SPEEDS[speedIdx];
       if (wasPlaying) audio.play();
     }, { once: true });
-    const btn = document.getElementById('voiceBtn');
-    btn.classList.toggle('on', voice === 'en');
-    btn.textContent = voice === 'en' ? 'Imam' : 'English';
-    btn.title = voice === 'en' ? 'Back to the imam' : 'Listen to an English voice';
     setPlayIcon(!wasPlaying);
+    updateVoiceBtn();
+  }
+
+  function toggleVoice() {
+    if (!audio) return;
+    if (voice !== 'imam') switchTrack('imam');
+    else if (result['tts_' + pageLang]) switchTrack(pageLang);
+  }
+
+  // The button offers the voice of the language on screen, or the way back to the imam.
+  function updateVoiceBtn() {
+    const btn = document.getElementById('voiceBtn');
+    if (!btn || !audio) return;
+    btn.hidden = voice === 'imam' && !result['tts_' + pageLang];
+    btn.classList.toggle('on', voice !== 'imam');
+    btn.textContent = voice !== 'imam' ? 'Imam' : pageLang === 'ur' ? 'اردو' : 'English';
+    btn.title = voice !== 'imam' ? 'Back to the imam' : pageLang === 'ur' ? 'Listen to an Urdu voice' : 'Listen to an English voice';
   }
 
   function skip(sec) {
@@ -1684,7 +1704,7 @@
     const scrubber = document.getElementById('scrubber');
     const timeEl = document.getElementById('audioTime');
     player.style.display = 'flex';
-    if (result.tts_en) document.getElementById('voiceBtn').hidden = false;
+    updateVoiceBtn();
 
     audio.addEventListener('timeupdate', () => {
       if (!audio.duration) return;
