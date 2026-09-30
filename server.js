@@ -64,7 +64,9 @@ const PUBLIC_KHUTBAHS = [
     masjid_ar: 'جامع إسكان المعذر',
     maps_url: 'https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6',
     date: '25 September 2026',
-    audio: 'khutbah-2026-09-25-masjid.m4a', // the imam's recording, shared with the entry above
+    // The imam's recording with the hall's reverb and echo taken out (clean_audio.py); same
+    // timeline as the original the English entry above plays, so every time still holds.
+    audio: 'khutbah-2026-09-25-masjid-clean.m4a',
     page: 'reader-ur.html',
   },
   // ── Arafah khutbah (single continuous khutbah — processed with `--single`) ──

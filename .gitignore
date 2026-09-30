@@ -33,6 +33,7 @@ hadith_data/
 !audio_files/eid_khutbah_2026.m4a
 !audio_files/khutbah-2026-09-11-masjid.m4a
 !audio_files/khutbah-2026-09-25-masjid.m4a
+!audio_files/khutbah-2026-09-25-masjid-clean.m4a
 
 # ── Pipeline output runs ──────────────────────────────────────────────────────
 # Ignore all runs, then bundle ONLY the two published khutbahs. Each folder is
