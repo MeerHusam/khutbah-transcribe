@@ -289,9 +289,26 @@ function attachTts(folder, result) {
       if (!m.blocks.every(b => chunks[b.i] && head(chunks[b.i]) === b.arabic_head)) continue;
       for (const b of m.blocks) chunks[b.i][lang === 'en' ? 'tts_start' : `tts_${lang}_start`] = b.start;
       result[`tts_${lang}`] = { url: `/tts/${encodeURIComponent(folder)}/${lang}.mp3`, voice: m.voice, engine: m.engine };
+      // When each word is spoken (align_words.py), fetched by the page only when it plays this voice.
+      if (m.blocks.every(b => Array.isArray(b.words))) result[`tts_${lang}`].words_url = `/tts/${encodeURIComponent(folder)}/${lang}.words.json`;
     } catch {}
   }
 }
+
+// A voice track's word times, block by block: { blocks: { <block>: [[word, start, end], ...] } }.
+const ttsWords = new Map();
+app.get('/tts/:folder/:lang.words.json', (req, res) => {
+  const { folder, lang } = req.params;
+  if (!ALLOWED_FOLDERS.has(folder) || !TTS_LANGS.includes(lang)) return res.status(404).end();
+  const key = `${folder}/${lang}`;
+  if (!ttsWords.has(key)) {
+    try {
+      const m = JSON.parse(readFileSync(join(__dirname, 'outputs', folder, `tts_${lang}.json`), 'utf8'));
+      ttsWords.set(key, JSON.stringify({ blocks: Object.fromEntries(m.blocks.filter(b => b.words).map(b => [b.i, b.words])) }));
+    } catch { return res.status(404).end(); }
+  }
+  res.type('json').set('Cache-Control', 'public, max-age=3600').send(ttsWords.get(key));
+});
 
 app.get('/tts/:folder/:lang.mp3', (req, res) => {
   if (!ALLOWED_FOLDERS.has(req.params.folder) || !TTS_LANGS.includes(req.params.lang)) return res.status(404).end();

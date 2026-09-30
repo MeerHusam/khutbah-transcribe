@@ -403,6 +403,8 @@
     }
     .reader-chunk:last-child { border-image: none; border-bottom: none; margin-bottom: 0; padding-bottom: 16px; }
     .reader-chunk[data-start] { cursor: pointer; }
+    /* The word the voice is saying (CSS Custom Highlight API: no markup added to the text). */
+    ::highlight(kt-word) { background-color: rgba(217, 184, 106, 0.32); color: #fff7e0; }
     .reader-chunk[data-start]:hover { background: var(--surface-2); }
     .reader-chunk.chunk-active {
       background: var(--surface-3);
@@ -1257,6 +1259,9 @@
         }
       } catch {}
     }
+    // The verse cards change the text on screen: match words again against what they show.
+    wordMaps.clear();
+    paintWord();
   }
 
   // ── Recited part of a verse card ──
@@ -1428,6 +1433,7 @@
     }
     if (remember) { try { localStorage.setItem('kt-lang', lang); } catch {} }
     pageLang = lang;
+    paintWord();
   }
 
   // Marks a quote whose English above is our own translation rather than the published one.
@@ -1652,7 +1658,7 @@
 
   function renderTranslation(r) {
     if (r.reader_chunks && r.reader_chunks.length > 0) {
-      return r.reader_chunks.map(c => {
+      return r.reader_chunks.map((c, ci) => {
         let arabicAttrs = '';
         for (const part of c.english.split(/\n\n+/)) {
           const qm = part.match(/^📖\s+.+?\s+—\s+https:\/\/quran\.com\/([\d]+)\/([\d]+)/);
@@ -1674,7 +1680,7 @@
           ? `<div class="khutbah-divider"><span>۞ الخطبة الثانية · Second Khutbah ۞</span></div>`
           : '';
         return `${divider}
-        <div class="reader-chunk" ${startAttr}>
+        <div class="reader-chunk" data-i="${ci}" ${startAttr}>
           <div class="chunk-arabic" ${arabicAttrs}>${marked.html}</div>
           <div class="chunk-en">${renderEnglishParts(c.english, marked.kinds)}</div>
           ${c.urdu ? `<div class="chunk-ur" lang="ur">${renderEnglishParts(c.urdu, marked.kinds, 'ur')}</div>` : ''}
@@ -1808,6 +1814,7 @@
     const wasPlaying = !audio.paused;
     const at = activeChunk;
     voice = to;
+    loadWordTimes(to);
     audio.pause();
     audio.src = to === 'imam' ? result.audio_url : result['tts_' + to].url;
     audio.addEventListener('loadedmetadata', () => {
@@ -1852,6 +1859,124 @@
       b.setAttribute('aria-pressed', on);
     }
     group.hidden = !voices;
+  }
+
+  // ── Word by word ──
+  // While the voice reading a translation plays and the page shows that same translation,
+  // the word it is saying is lit, and a tap on a word plays from it. The times come from
+  // align_words.py (Meta's MMS aligner, run offline on the voice track), fetched once per
+  // voice. They are matched to the words on screen, which differ a little from what the
+  // voice read: "Allah says:" lead-ins, ﷺ read out in full, verse numbers.
+  const wordTimes = {};        // lang -> { <block>: [[word, start, end], ...] }, once loaded
+  const wordMaps = new Map();  // `${lang}:${block}:${full verse?}` -> [{ range, start }] in reading order
+  let litRange = null, wordRaf = 0;
+
+  async function loadWordTimes(lang) {
+    const t = result && result['tts_' + lang];
+    if (!t || !t.words_url || lang in wordTimes) return;
+    wordTimes[lang] = null;
+    try { wordTimes[lang] = (await (await fetch(t.words_url)).json()).blocks; }
+    catch { delete wordTimes[lang]; }
+    paintWord();
+  }
+
+  // A word as compared: no diacritics, no punctuation, lower case.
+  const wordKey = w => w.normalize('NFC').replace(/[ً-ٰٟۖ-ۭ]/g, '')
+    .replace(/[^\p{L}\p{N}]/gu, '').toLowerCase();
+
+  // The words block `el` shows in `lang`, as ranges in reading order: the verse translation
+  // (only the version on screen, recited part or whole verse), then the prose.
+  function shownWords(el, lang) {
+    const out = [];
+    const parts = el.querySelectorAll(lang === 'ur'
+      ? '.chunk-quran-translation.chunk-ur, .chunk-ur .chunk-english, .chunk-ur .chunk-hadith-trans'
+      : '.chunk-quran-translation:not(.chunk-ur), .chunk-en .chunk-english, .chunk-en .chunk-hadith-trans');
+    for (const part of parts) {
+      const walker = document.createTreeWalker(part, NodeFilter.SHOW_TEXT);
+      for (let n; (n = walker.nextNode());) {
+        const p = n.parentElement;
+        if (p.closest('.ur-source, .ref-en-source, .trans-ours') || !p.getClientRects().length) continue;
+        for (const m of n.data.matchAll(/\S+/g)) {
+          const key = wordKey(m[0]);
+          if (!key) continue;
+          const range = document.createRange();
+          range.setStart(n, m.index);
+          range.setEnd(n, m.index + m[0].length);
+          out.push({ key, range });
+        }
+      }
+    }
+    return out;
+  }
+
+  // Pairs the words on screen with the words spoken (longest common sequence), so each shown
+  // word takes the start of the spoken word it matches; the rest are never lit on their own.
+  function matchWords(shown, spoken) {
+    const a = shown.map(w => w.key), b = spoken.map(w => wordKey(w[0]));
+    const n = a.length, m = b.length;
+    const dp = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+    for (let i = n - 1; i >= 0; i--) {
+      for (let j = m - 1; j >= 0; j--) dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    }
+    const out = [];
+    for (let i = 0, j = 0; i < n && j < m;) {
+      if (a[i] === b[j]) { out.push({ range: shown[i].range, start: spoken[j][1] }); i++; j++; }
+      else if (dp[i + 1][j] >= dp[i][j + 1]) i++;
+      else j++;
+    }
+    return out;
+  }
+
+  // The shown words of block `el` with their times, or null when words are not followed:
+  // the imam is playing, the page shows another language, or the times are not loaded yet.
+  function wordsOf(el) {
+    if (!el || voice === 'imam' || voice !== pageLang || !wordTimes[voice]) return null;
+    const spoken = wordTimes[voice][el.dataset.i];
+    if (!spoken) return null;
+    const key = `${voice}:${el.dataset.i}:${el.classList.contains('show-full-verse')}`;
+    if (!wordMaps.has(key)) wordMaps.set(key, matchWords(shownWords(el, voice), spoken));
+    return wordMaps.get(key);
+  }
+
+  function paintWord() {
+    if (!audio || !window.CSS || !CSS.highlights) return;
+    const words = wordsOf(activeChunk);
+    let target = null;
+    if (words && words.length) {
+      const t = audio.currentTime + 0.03;
+      let lo = 0, hi = words.length - 1, k = -1;
+      while (lo <= hi) { const mid = (lo + hi) >> 1; if (words[mid].start <= t) { k = mid; lo = mid + 1; } else hi = mid - 1; }
+      if (k >= 0) target = words[k].range;
+    }
+    if (target === litRange) return;
+    litRange = target;
+    if (target) CSS.highlights.set('kt-word', new Highlight(target));
+    else CSS.highlights.delete('kt-word');
+  }
+
+  // Every frame while playing: timeupdate comes only about four times a second.
+  function wordTick() {
+    wordRaf = 0;
+    if (!audio || audio.paused) return;
+    paintWord();
+    wordRaf = requestAnimationFrame(wordTick);
+  }
+
+  // The start of the word under a tap in block `el`, if words are followed there.
+  function wordTimeAt(el, x, y) {
+    const words = wordsOf(el);
+    if (!words) return null;
+    let node, offset;
+    if (document.caretPositionFromPoint) {
+      const p = document.caretPositionFromPoint(x, y);
+      if (p) ({ offsetNode: node, offset } = p);
+    } else if (document.caretRangeFromPoint) {
+      const r = document.caretRangeFromPoint(x, y);
+      if (r) ({ startContainer: node, startOffset: offset } = r);
+    }
+    if (!node) return null;
+    const w = words.find(w => w.range.startContainer === node && offset >= w.range.startOffset && offset <= w.range.endOffset);
+    return w ? w.start : null;
   }
 
   function skip(sec) {
@@ -1920,6 +2045,7 @@
       const t = audio.currentTime;
       const chunks = timedChunks();
       if (!chunks.length) return;
+      paintWord();
       let best = chunks[0];
       for (const el of chunks) {
         if (parseFloat(el.dataset[timeKey()]) <= t) best = el;
@@ -1936,10 +2062,14 @@
     audio.addEventListener('ended', () => { setPlayIcon(true); sendEngage(true); });
     audio.addEventListener('pause', () => sendEngage(true));
     audio.addEventListener('seeking', () => { lastT = null; });
+    audio.addEventListener('play', () => { if (!wordRaf) wordRaf = requestAnimationFrame(wordTick); });
+    audio.addEventListener('seeked', paintWord);
 
     document.querySelectorAll('.reader-chunk').forEach(el => {
       el.addEventListener('click', e => {
         if (e.target.closest('a')) return;
+        const w = wordTimeAt(el, e.clientX, e.clientY);
+        if (w != null) { audio.currentTime = w; audio.play(); setPlayIcon(false); return; }
         const t = chunkTime(el);
         if (t == null) return;
         audio.currentTime = t;
