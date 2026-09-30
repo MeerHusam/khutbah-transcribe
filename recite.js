@@ -6,6 +6,9 @@
 //
 //   node recite.js outputs/<folder> ur audio_files/<recording> [--lift 2]     (or en)
 //
+// A verse quoted inside a prose block (📑) gets the same: his recitation goes in just before
+// the verse's translation, which the voice reads in quotation marks.
+//
 // Rewrites tts_<lang>.mp3 and tts_<lang>.json in place, with every block start and word time
 // moved to the new timeline (and the imam's words of each verse, as `arabic_words`), and marks the manifest `recited` so it is never spliced twice
 // (tts.js rebuilds the plain track from its cache for nothing). Needs the words in
@@ -39,11 +42,37 @@ if (!manifest.blocks.every(b => Array.isArray(b.words))) { console.error('run al
 const imam = JSON.parse(readFileSync(join(folder, 'words_imam.json'), 'utf8')).blocks;
 
 // The verse blocks: a block whose English is only a verse card (📖) is the imam reciting.
-const chunks = loadResult(folder).reader_chunks ?? [];
+const loaded = loadResult(folder);
+const chunks = loaded.reader_chunks ?? [];
+const refs = loaded.quran_references ?? [];
 const isVerse = i => {
   const parts = (chunks[i]?.english ?? '').split(/\n\n+/).map(p => p.trim()).filter(Boolean);
   return parts.some(p => p.startsWith('📖')) && parts.every(p => /^[📖📑📚]/u.test(p));
 };
+
+// An Arabic word as compared: no diacritics, tatweel, alif or hamza (as the page compares them).
+const arKey = w => w.normalize('NFC').replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g, '')
+  .replace(/[\u0671\u0623\u0625\u0622\u0627\u0621]/g, '').replace(/\u0649/g, '\u064A').replace(/\u0629/g, '\u0647')
+  .replace(/\u0624/g, '\u0648').replace(/\u0626/g, '\u064A').replace(/[^\p{L}\p{N}]/gu, '');
+
+// The verses quoted inside block i's prose (📑), as spans of the imam's words there: where the
+// words the reference detected in his speech run in the block.
+function inlineVerses(i, words) {
+  const out = [];
+  const have = words.map(w => arKey(w[0]));
+  for (const m of (chunks[i]?.english ?? '').matchAll(/^📑\s+.+?\s+(\d+):(\d+)/gmu)) {
+    const q = refs.find(r => r.surah_number === +m[1] && r.ayah_number === +m[2] && r.detected_text);
+    if (!q) continue;
+    const want = q.detected_text.split(/\s+/).map(arKey).filter(Boolean);
+    let best = null;
+    for (let s = 0; s + want.length <= have.length; s++) {
+      const hits = want.filter((w, k) => have[s + k] === w).length;
+      if (!best || hits > best.hits) best = { from: s, to: s + want.length - 1, hits, ref: `${m[1]}:${m[2]}` };
+    }
+    if (best && best.hits >= Math.ceil(want.length * 0.6)) out.push(best);
+  }
+  return out.sort((x, y) => x.from - y.from);
+}
 
 const decode = path => {
   const r = spawnSync('ffmpeg', ['-loglevel', 'error', '-i', path, '-ac', '1', '-ar', String(SR), '-f', 'f32le', '-'], { maxBuffer: 1 << 30 });
@@ -67,11 +96,11 @@ const lufs = x => {
 };
 const trackLufs = lufs(track);
 
-// The imam's recitation of block `ib`, from just before his first word to just after his last
-// (never into the next block's first word), cleaned up, `lift` dB above the voice, with short fades.
-function recitation(ib, next) {
-  const a = ib.words[0][1] - 0.15;
-  const b = Math.min(ib.words.at(-1)[2] + 0.35, next ? next.words[0][1] - 0.05 : Infinity);
+// The imam saying `words`, from just before the first to just after the last (never into the
+// word that follows, at `nextStart`), cleaned up, `lift` dB above the voice, with short fades.
+function recitation(words, nextStart) {
+  const a = words[0][1] - 0.15;
+  const b = Math.min(words.at(-1)[2] + 0.35, nextStart - 0.05);
   const clean = filter(voice.slice(at(a), at(b)), CLEAN);
   const gain = trackLufs + lift - lufs(clean);
   const clip = filter(clean, `volume=${gain.toFixed(2)}dB,alimiter=limit=0.95:attack=5:release=50:level=disabled`);
@@ -95,12 +124,47 @@ for (const b of blocks) {
   const [oldStart, oldEnd] = [b.start, b.end];
   copy(cursor, oldStart); // the pause before the block, as it was
   const start = now();
-  const ib = isVerse(b.i) && imam.find(x => x.i === b.i);
-  if (!ib || !ib.words?.length) {
+  const ib = imam.find(x => x.i === b.i && x.words?.length);
+  const next = ib && imam.find(x => x.i > ib.i && x.words?.length);
+  const nextStart = next ? next.words[0][1] : Infinity;
+  const inline = ib && !isVerse(b.i) ? inlineVerses(b.i, ib.words) : [];
+  if (inline.length) {
+    // Each verse's translation starts at an opening quotation mark: the one whose place in the
+    // block is nearest the verse's place in the Arabic (a block can quote a hadith too).
+    const quotes = b.words.map((w, k) => (/^[“"«]/u.test(w[0]) ? k : -1)).filter(k => k >= 0);
+    const cuts = [];
+    for (const v of inline) {
+      const r = v.from / ib.words.length;
+      const q = quotes.filter(k => !cuts.length || k > cuts.at(-1).k)
+        .sort((x, y) => Math.abs(x / b.words.length - r) - Math.abs(y / b.words.length - r))[0];
+      if (q != null) cuts.push({ k: q, v });
+      else console.error(`  block ${b.i}: no quotation mark for ${v.ref} in the ${lang} text; left without recitation`);
+    }
+    let from = oldStart, k0 = 0;
+    const words = [], arabic = [];
+    for (const { k, v } of cuts) {
+      const cut = b.words[k][1] - 0.06;
+      const segAt = now();
+      copy(from, cut);
+      words.push(...b.words.slice(k0, k).map(w => moved(w, from, segAt)));
+      quiet(BEFORE);
+      const said = ib.words.slice(v.from, v.to + 1);
+      const clipAt = now();
+      const { clip, from: src } = recitation(said, ib.words[v.to + 1]?.[1] ?? nextStart);
+      put(clip);
+      arabic.push(...said.map(w => moved(w, src, clipAt)));
+      quiet(AFTER);
+      [from, k0] = [cut, k];
+    }
+    const segAt = now();
+    copy(from, oldEnd);
+    words.push(...b.words.slice(k0).map(w => moved(w, from, segAt)));
+    b.words = words;
+    if (arabic.length) { b.arabic_words = arabic; recited.push(b.i); }
+  } else if (!ib || !isVerse(b.i)) {
     copy(oldStart, oldEnd);
     b.words = b.words.map(w => moved(w, oldStart, start));
   } else {
-    const next = imam.find(x => x.i > ib.i && x.words?.length);
     const n = b.text.startsWith(VERSE_INTRO[lang]) ? VERSE_INTRO[lang].split(/\s+/).length : 0;
     const lead = b.words.slice(0, n), rest = b.words.slice(n);
     let restFrom = oldStart;
@@ -110,7 +174,7 @@ for (const b of blocks) {
       restFrom = rest[0][1] - 0.06;
     }
     const clipAt = now();
-    const { clip, from } = recitation(ib, next);
+    const { clip, from } = recitation(ib.words, nextStart);
     put(clip);
     const clipEnd = now();
     quiet(AFTER);
@@ -139,4 +203,4 @@ manifest.recited = { from: basename(recording), blocks: recited };
 const head = { ...manifest }; delete head.blocks;
 const lines = manifest.blocks.map(b => JSON.stringify(b));
 writeFileSync(manifestPath, JSON.stringify(head, null, 1).slice(0, -2) + `,\n "blocks": [\n  ${lines.join(',\n  ')}\n ]\n}\n`);
-console.log(`Recitation of ${recited.length} verse block(s) (${recited.join(', ')}) put into ${mp3}: ${(track.length / SR / 60).toFixed(1)} -> ${(len / SR / 60).toFixed(1)} min`);
+console.log(`Recitation in ${recited.length} block(s) (${recited.join(', ')}) put into ${mp3}: ${(track.length / SR / 60).toFixed(1)} -> ${(len / SR / 60).toFixed(1)} min`);
