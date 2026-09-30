@@ -172,18 +172,25 @@
     }
     .speed-btn:hover { background: var(--gold-light); }
     .audio-player.ready { display: flex; }
+    .ap-handle, .ap-cur, .ap-dur { display: none; }
+    .ap-switches { order: 5; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .ap-transport { order: 1; } .audio-scrubber { order: 2; } .audio-time { order: 3; } .speed-btn { order: 4; }
     .ap-transport { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-    /* Imam or the voice reading the translation: both shown, the one playing lit. (One
-       button naming the other option read as the current state: "Imam" while the AI played.) */
-    .voice-switch { display: inline-flex; flex-shrink: 0; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: 99px; }
-    .voice-switch[hidden] { display: none; }
-    .voice-switch button {
+    /* Two switches, each named for what it controls: Read (the translation on screen) and
+       Hear (the imam, or an AI voice reading that translation). Both options show, the chosen
+       one lit. (One button naming the other option read as the current state: "Imam" while
+       the AI played; one three-way switch left "Imam" with no say over the text.) */
+    .ap-group { display: inline-flex; align-items: center; gap: 6px; }
+    .ap-group[hidden] { display: none; }
+    .ap-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); }
+    .seg { display: inline-flex; flex-shrink: 0; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: 99px; }
+    .seg button {
       background: transparent; border: 0; border-radius: 99px; cursor: pointer; white-space: nowrap;
       color: var(--text-muted); font-family: inherit; font-size: 11px; font-weight: 600; padding: 5px 10px;
+      line-height: 16px; /* Nastaliq's tall line would otherwise make the اردو side a circle */
     }
-    .voice-switch button.on { color: var(--bg); background: var(--gold); }
-    .voice-switch small { font-size: 9px; letter-spacing: 0.04em; opacity: 0.85; }
-    #voiceAiLabel:lang(ur) { font-family: 'Noto Nastaliq Urdu', serif; }
+    .seg button.on { color: var(--bg); background: var(--gold); }
+    .seg button[lang="ur"] { font-family: 'Noto Nastaliq Urdu', serif; font-size: 12px; }
 
     .audio-time {
       font-size: 12px;
@@ -195,7 +202,7 @@
 
     .audio-scrubber {
       flex: 1;
-      min-width: 60px;
+      min-width: 120px;
       height: 4px;
       accent-color: var(--gold);
       cursor: pointer;
@@ -332,18 +339,10 @@
       border: 1px solid rgba(217,184,106,0.35); border-radius: 7px; padding: 3px 10px; cursor: pointer;
     }
     .verse-toggle:hover { background: rgba(217,184,106,0.1); }
-    .lang-row { display: flex; justify-content: flex-end; margin: -4px 0 14px; }
-    .lang-switch { display: inline-flex; gap: 4px; }
     .ur-inline { display: none; }
     body.lang-ur .ur-inline { display: inline; font-family: 'Noto Nastaliq Urdu', serif; letter-spacing: 0; text-transform: none; font-size: 14px; }
     body.lang-ur .en-inline { display: none; }
     .share-text.chunk-ur { font-family: 'Noto Nastaliq Urdu', serif; font-size: 16px; line-height: 2.4; }
-    .lang-switch button {
-      font-family: var(--font-ui); font-size: 13px; color: var(--text-dim); background: none; cursor: pointer;
-      border: 1px solid var(--border); border-radius: 7px; padding: 2px 9px;
-    }
-    .lang-switch button.on { color: var(--bg); background: var(--gold); border-color: var(--gold); }
-    .lang-switch button[data-lang="ur"] { font-family: 'Noto Nastaliq Urdu', serif; }
     .ur-source { font-family: var(--font-ui); font-size: 11px; color: var(--text-dim); margin-right: 4px; white-space: nowrap; }
     .share-label {
       font-family: var(--font-kufi);
@@ -668,6 +667,16 @@
     .fb-status { font-size: 13px; margin-top: 10px; min-height: 18px; }
 
     /* ── Mobile ───────────────────────────────────────────────────── */
+    /* Wider screens: with its two named switches the player no longer fits beside the brand
+       and picker, so it takes a row of its own under them; on tablets the switches drop to a
+       second line inside it. */
+    @media (max-width: 1320px) and (min-width: 601px) {
+      .audio-player { flex-basis: 100%; }
+    }
+    @media (max-width: 860px) and (min-width: 601px) {
+      .audio-player.ready { flex-wrap: wrap; row-gap: 8px; border-radius: 22px; padding: 8px 16px 8px 8px; }
+      .ap-switches { flex-basis: 100%; justify-content: center; gap: 18px; }
+    }
     @media (max-width: 860px) {
       .layout { grid-template-columns: 1fr; gap: 16px; padding: 20px 14px 90px; }
       .sidebar { order: 2; }   /* stats below the reader on phones */
@@ -675,35 +684,71 @@
     @media (max-width: 600px) {
       header { padding: 10px 14px; gap: 8px 12px; }
       header h1 { font-size: 15px; }
-      /* The player floats at the bottom, in thumb reach, as in a music app:
-           [━━━━━━━━●━━━━━━━━━━━]  0:28 / 15:59  [1×]
-           [Imam | اردو AI]              ↺10   ▶   ↻10
-         Controls are at least 40-54px, and it clears the iPhone home bar. */
+      /* The player floats at the bottom, in thumb reach, laid out like a music app's
+         (YouTube Music): the switches on their own row, a full-width bar with the times
+         under its ends, and play centred between its skips.
+                    ────  (tap to shrink)
+           READ                      HEAR
+           [English | اردو]          [Imam | AI voice]
+           ━━━━━━━━━●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+           0:28                                15:59
+           1×          ↺10    ( ▶ )    ↻10
+         Shrunk (.mini) it is one slim row while reading: ( ▶ ) ━━━━●━━━━ 0:28 / 15:59
+         Controls are 40-54px, and it clears the iPhone home bar. */
       .audio-player.ready {
         display: grid;
-        grid-template-columns: 1fr auto auto;
-        grid-template-areas: "bar time speed" "voice transport transport";
+        grid-template-columns: 1fr auto auto auto 1fr;
+        grid-template-areas:
+          "handle handle handle handle handle"
+          "sw sw sw sw sw"
+          "bar bar bar bar bar"
+          "cur cur . dur dur"
+          "speed back play fwd .";
         align-items: center;
-        gap: 2px 10px;
+        gap: 0 8px;
         position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
         min-width: 0; margin: 0;
-        padding: 8px 14px calc(10px + env(safe-area-inset-bottom));
+        padding: 0 16px calc(10px + env(safe-area-inset-bottom));
         border-radius: 20px 20px 0 0; border-bottom: none;
         background: rgba(10, 22, 17, 0.96);
         -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
         box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.45);
       }
-      .audio-scrubber { grid-area: bar; width: 100%; min-width: 0; height: 28px; }
-      .audio-time { grid-area: time; justify-self: end; font-size: 12px; }
-      .voice-switch { grid-area: voice; justify-self: start; }
-      .voice-switch button { min-height: 40px; padding: 0 11px; font-size: 13px; }
-      .voice-switch small { font-size: 10px; }
-      .ap-transport { grid-area: transport; justify-self: end; gap: 6px; }
-      .play-btn { width: 54px; height: 54px; }
-      .play-btn svg { width: 20px; height: 20px; }
-      .skip-btn { min-width: 44px; min-height: 44px; font-size: 20px; }
-      .speed-btn { grid-area: speed; justify-self: end; min-height: 36px; min-width: 46px; font-size: 13px; }
-      .layout { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
+      .ap-handle {
+        grid-area: handle; display: flex; justify-content: center; align-items: center;
+        height: 22px; margin: 0 -16px; background: none; border: 0; cursor: pointer;
+      }
+      .ap-handle span { width: 38px; height: 4px; border-radius: 4px; background: var(--border); }
+      /* Each switch with its name above it:  READ [English | اردو]    HEAR [Imam | AI voice] */
+      .ap-switches { grid-area: sw; display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; margin-bottom: 6px; }
+      .ap-group { flex-direction: column; align-items: flex-start; gap: 3px; }
+      .ap-label { padding-left: 4px; }
+      .seg button { min-height: 40px; padding: 0 12px; font-size: 13px; }
+      .seg button[lang="ur"] { font-size: 14px; }
+      .audio-scrubber { grid-area: bar; width: 100%; min-width: 0; height: 26px; }
+      .audio-time { display: none; }
+      .ap-cur, .ap-dur { display: block; font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; margin-top: -2px; }
+      .ap-cur { grid-area: cur; justify-self: start; }
+      .ap-dur { grid-area: dur; justify-self: end; }
+      .ap-transport { display: contents; }
+      .skip-back { grid-area: back; } .skip-fwd { grid-area: fwd; }
+      .play-btn { grid-area: play; width: 58px; height: 58px; margin: 2px 10px 0; }
+      .play-btn svg { width: 22px; height: 22px; }
+      .skip-btn { min-width: 48px; min-height: 48px; font-size: 21px; }
+      .speed-btn { grid-area: speed; justify-self: start; min-height: 38px; min-width: 50px; font-size: 13px; }
+      /* Shrunk: one slim row. */
+      .audio-player.ready.mini {
+        grid-template-columns: auto 1fr auto;
+        grid-template-areas: "handle handle handle" "play bar time";
+        gap: 0 12px;
+      }
+      .audio-player.mini .ap-switches, .audio-player.mini .ap-cur, .audio-player.mini .ap-dur,
+      .audio-player.mini .skip-btn, .audio-player.mini .speed-btn { display: none; }
+      .audio-player.mini .audio-time { display: block; grid-area: time; font-size: 12px; }
+      .audio-player.mini .play-btn { width: 44px; height: 44px; margin: 0; }
+      .audio-player.mini .play-btn svg { width: 16px; height: 16px; }
+      body.player-mini .layout { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+      .layout { padding-bottom: calc(250px + env(safe-area-inset-bottom)); }
       /* A blurred ancestor becomes the box a position:fixed child is placed in, which would
          pin the player to the header's bottom instead of the screen's. */
       header { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(10, 22, 17, 0.97); }
@@ -736,10 +781,9 @@
     }
     /* The smallest phones (320px): the bottom row tightens so every control stays on screen. */
     @media (max-width: 340px) {
-      .voice-switch button { padding: 0 8px; font-size: 12px; }
-      .ap-transport { gap: 0; }
-      .skip-btn { min-width: 38px; font-size: 18px; }
-      .play-btn { width: 48px; height: 48px; }
+      .seg button { padding: 0 8px; font-size: 12px; }
+      .skip-btn { min-width: 40px; font-size: 19px; }
+      .play-btn { width: 52px; height: 52px; margin: 2px 6px 0; }
     }
     /* Hidden while traffic is still small; the server keeps counting. Delete this
        rule (and .badge-extra in home.html) to show unique + visits again. */
@@ -755,20 +799,33 @@
   </a>
 
   <div class="audio-player" id="audioPlayer">
+    <button type="button" class="ap-handle" id="apHandle" onclick="togglePlayerSize()" aria-label="Shrink or expand the player" aria-expanded="true"><span></span></button>
+    <div class="ap-switches">
+      <div class="ap-group" id="readGroup" role="group" aria-labelledby="readLabel">
+        <span class="ap-label" id="readLabel">Read</span>
+        <span class="seg" id="readSwitch">
+          <button type="button" data-lang="en" aria-pressed="false" onclick="setLang('en')" title="The English translation on screen">English</button><button type="button" data-lang="ur" lang="ur" aria-pressed="false" onclick="setLang('ur')" title="The Urdu translation on screen">اردو</button>
+        </span>
+      </div>
+      <div class="ap-group" id="hearGroup" role="group" aria-labelledby="hearLabel" hidden>
+        <span class="ap-label" id="hearLabel">Hear</span>
+        <span class="seg" id="voiceSwitch">
+          <button type="button" data-voice="imam" class="on" aria-pressed="true" onclick="pickVoice('imam')" title="The imam's recording, in Arabic">Imam</button><button type="button" data-voice="ai" aria-pressed="false" onclick="pickVoice('ai')" title="The translation you are reading, read aloud by an AI voice">AI voice</button>
+        </span>
+      </div>
+    </div>
     <div class="ap-transport">
-      <button class="skip-btn" onclick="skip(-10)" title="Back 10 seconds" aria-label="Back 10 seconds">↺<small>10</small></button>
+      <button class="skip-btn skip-back" onclick="skip(-10)" title="Back 10 seconds" aria-label="Back 10 seconds">↺<small>10</small></button>
       <button class="play-btn" id="playBtn" onclick="togglePlay()" aria-label="Play or pause">
         <svg id="playIcon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg>
         <svg id="pauseIcon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="display:none"><rect x="5" y="4" width="4" height="16"/><rect x="15" y="4" width="4" height="16"/></svg>
       </button>
-      <button class="skip-btn" onclick="skip(10)" title="Forward 10 seconds" aria-label="Forward 10 seconds">↻<small>10</small></button>
+      <button class="skip-btn skip-fwd" onclick="skip(10)" title="Forward 10 seconds" aria-label="Forward 10 seconds">↻<small>10</small></button>
     </div>
-    <input class="audio-scrubber" id="scrubber" type="range" min="0" max="100" value="0" step="0.1">
+    <input class="audio-scrubber" id="scrubber" type="range" min="0" max="100" value="0" step="0.1" aria-label="Position">
     <span class="audio-time" id="audioTime">0:00 / 0:00</span>
+    <span class="ap-cur" id="apCur">0:00</span><span class="ap-dur" id="apDur">0:00</span>
     <button class="speed-btn" id="speedBtn" onclick="cycleSpeed()" title="Playback speed">1×</button>
-    <div class="voice-switch" id="voiceSwitch" role="group" aria-label="Listen to" hidden>
-      <button type="button" data-voice="imam" class="on" aria-pressed="true" onclick="pickVoice('imam')" title="The imam's recording">Imam</button><button type="button" data-voice="ai" aria-pressed="false" onclick="pickVoice('ai')" title="The translation, read by an AI voice"><span id="voiceAiLabel" lang="ur">اردو</span> <small>AI</small></button>
-    </div>
   </div>
 
   <div class="header-right">
@@ -872,7 +929,10 @@
     // ?lang=ur in a shared link opens the Urdu; otherwise the reader's last choice.
     let lang = new URLSearchParams(location.search).get('lang');
     if (!lang) lang = 'ur'; // reader-ur.html is the Urdu edition: Urdu unless the link says ?lang=en
-    setLang(document.querySelector('.lang-switch') ? lang : 'en', false);
+    // The language switch lives in the player only; it shows when the khutbah has Urdu.
+    const hasUrdu = (result.reader_chunks || []).some(c => c.urdu);
+    document.getElementById('readGroup').hidden = !hasUrdu;
+    setLang(hasUrdu ? lang : 'en', false);
     enhanceQuranRefs(quranRefs);
     if (result.audio_url) initAudio(result.audio_url);
   }
@@ -961,11 +1021,6 @@
           </div>
         </div>` : ''}
 
-        ${(r.reader_chunks || []).some(c => c.urdu) ? `<div class="lang-row">
-          <span class="lang-switch" role="group" aria-label="Translation language">
-            <button data-lang="en" class="on" onclick="setLang('en')">English</button><button data-lang="ur" lang="ur" onclick="setLang('ur')">اردو</button>
-          </span>
-        </div>` : ''}
 
         <div class="share-card">
           <div class="share-label">${bi('In Short', 'مختصر')}</div>
@@ -1362,7 +1417,11 @@
   // Translation language for the reader blocks (English, or Urdu where the khutbah has it).
   function setLang(lang, remember = true) {
     document.body.classList.toggle('lang-ur', lang === 'ur');
-    for (const b of document.querySelectorAll('.lang-switch button')) b.classList.toggle('on', b.dataset.lang === lang);
+    for (const b of document.querySelectorAll('#readSwitch button')) {
+      const on = b.dataset.lang === lang;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', on);
+    }
     if (remember) { try { localStorage.setItem('kt-lang', lang); } catch {} }
     pageLang = lang;
     // A voice reading the translation follows the language: on to the other language's voice
@@ -1760,26 +1819,33 @@
     updateVoiceBtn();
   }
 
+  // Phones: the player shrinks to one slim row while reading, and remembers the choice.
+  function togglePlayerSize(mini) {
+    const player = document.getElementById('audioPlayer');
+    mini = mini ?? !player.classList.contains('mini');
+    player.classList.toggle('mini', mini);
+    document.body.classList.toggle('player-mini', mini);
+    document.getElementById('apHandle').setAttribute('aria-expanded', String(!mini));
+    try { localStorage.setItem('kt-player-mini', mini ? '1' : '0'); } catch {}
+  }
+
   function pickVoice(which) {
     if (!audio) return;
     if (which === 'imam') { if (voice !== 'imam') switchTrack('imam'); }
     else if (result['tts_' + pageLang] && voice !== pageLang) switchTrack(pageLang);
   }
 
-  // The switch shows both sources with the playing one lit. Its AI side is the voice of the
-  // language on screen; it hides when that language has no voice and the imam is playing.
+  // The Hear switch shows both sources with the playing one lit. Its AI side is the voice of
+  // the language set under Read; it hides when that language has no voice and the imam plays.
   function updateVoiceBtn() {
-    const sw = document.getElementById('voiceSwitch');
-    if (!sw || !audio) return;
-    sw.hidden = voice === 'imam' && !result['tts_' + pageLang];
-    for (const b of sw.querySelectorAll('button')) {
+    const group = document.getElementById('hearGroup');
+    if (!group || !audio) return;
+    group.hidden = voice === 'imam' && !result['tts_' + pageLang];
+    for (const b of document.querySelectorAll('#voiceSwitch button')) {
       const on = (b.dataset.voice === 'imam') === (voice === 'imam');
       b.classList.toggle('on', on);
       b.setAttribute('aria-pressed', on);
     }
-    const label = document.getElementById('voiceAiLabel');
-    label.textContent = pageLang === 'ur' ? 'اردو' : 'English';
-    label.lang = pageLang;
   }
 
   function skip(sec) {
@@ -1802,7 +1868,19 @@
     const scrubber = document.getElementById('scrubber');
     const timeEl = document.getElementById('audioTime');
     player.classList.add('ready');
+    let mini = false;
+    try { mini = localStorage.getItem('kt-player-mini') === '1'; } catch {}
+    togglePlayerSize(mini);
     updateVoiceBtn();
+
+    // The time shows as "0:28 / 15:59" in the row, and as two ends under the phone's bar.
+    const showTime = () => {
+      if (!audio.duration) return;
+      timeEl.textContent = `${fmt(audio.currentTime)} / ${fmt(audio.duration)}`;
+      document.getElementById('apCur').textContent = fmt(audio.currentTime);
+      document.getElementById('apDur').textContent = fmt(audio.duration);
+    };
+    audio.addEventListener('loadedmetadata', showTime);
 
     let lastT = null;
     audio.addEventListener('timeupdate', () => {
@@ -1813,7 +1891,7 @@
       engage.maxPos = Math.max(engage.maxPos, audio.currentTime);
       if (!audio.duration) return;
       scrubber.value = (audio.currentTime / audio.duration) * 100;
-      timeEl.textContent = `${fmt(audio.currentTime)} / ${fmt(audio.duration)}`;
+      showTime();
 
       const t = audio.currentTime;
       const chunks = timedChunks();
