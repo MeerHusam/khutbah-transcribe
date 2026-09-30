@@ -105,19 +105,21 @@
       color: var(--cream); letter-spacing: 0.2px;
     }
 
-    /* Audio player: grows to fill, wraps to its own row on narrow screens */
+    /* Audio player: a bar along the bottom of the screen, as in music apps (Spotify, YouTube
+       Music), lined up with the reading column. Phones get a fuller layout further down.
+         ↺10 ( ▶ ) ↻10   0:28 ━━━━━━●━━━━━━━━━━ 15:41   1×   READ [English|اردو]  HEAR [Imam|English|اردو] */
     .audio-player {
       display: none;
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
       align-items: center;
-      gap: 10px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 99px;
-      padding: 6px 16px 6px 8px;
-      flex: 1 1 260px;
-      min-width: 200px;
-      order: 3;
+      gap: 14px;
+      padding: 10px max(24px, calc(50vw - 526px)) calc(10px + env(safe-area-inset-bottom));
+      background: rgba(10, 22, 17, 0.96);
+      -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border);
+      box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.35);
     }
+    .audio-player .play-btn { width: 40px; height: 40px; }
 
     .play-btn {
       width: 34px;
@@ -172,9 +174,10 @@
     }
     .speed-btn:hover { background: var(--gold-light); }
     .audio-player.ready { display: flex; }
-    .ap-handle, .ap-cur, .ap-dur { display: none; }
-    .ap-switches { order: 5; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-    .ap-transport { order: 1; } .audio-scrubber { order: 2; } .audio-time { order: 3; } .speed-btn { order: 4; }
+    .ap-handle, .ap-min, .audio-time { display: none; }
+    .ap-cur, .ap-dur { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+    .ap-switches { order: 6; display: flex; align-items: center; gap: 14px; flex-shrink: 0; margin-left: 6px; }
+    .ap-transport { order: 1; } .ap-cur { order: 2; } .audio-scrubber { order: 3; } .ap-dur { order: 4; } .speed-btn { order: 5; }
     .ap-transport { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
     /* Two switches, each named for what it controls: Read (the translation on screen) and
        Hear (the imam, or an AI voice in English or Urdu), set apart so any text goes with any
@@ -203,7 +206,7 @@
 
     .audio-scrubber {
       flex: 1;
-      min-width: 120px;
+      min-width: 160px;
       height: 4px;
       accent-color: var(--gold);
       cursor: pointer;
@@ -270,7 +273,7 @@
     .layout {
       max-width: 1100px;
       margin: 0 auto;
-      padding: 32px 24px 80px;
+      padding: 32px 24px 120px; /* clears the player bar */
       display: grid;
       grid-template-columns: 1fr 320px;
       gap: 24px;
@@ -668,19 +671,15 @@
     .fb-status { font-size: 13px; margin-top: 10px; min-height: 18px; }
 
     /* ── Mobile ───────────────────────────────────────────────────── */
-    /* Wider screens: the player never squeezes its switches; when it does not fit beside the
-       brand and picker it wraps to a row of its own under them. On tablets the switches drop
-       to a second line inside it. */
-    @media (min-width: 861px) {
-      .audio-player.ready { min-width: max-content; }
-    }
-    @media (max-width: 860px) and (min-width: 601px) {
-      .audio-player.ready { flex-basis: 100%; flex-wrap: wrap; row-gap: 8px; border-radius: 22px; padding: 8px 16px 8px 8px; }
-      .ap-switches { flex-basis: 100%; justify-content: center; gap: 18px; }
-    }
     @media (max-width: 860px) {
       .layout { grid-template-columns: 1fr; gap: 16px; padding: 20px 14px 90px; }
       .sidebar { order: 2; }   /* stats below the reader on phones */
+    }
+    /* Tablets and small laptops: the switches take a second line inside the bar. */
+    @media (max-width: 920px) and (min-width: 601px) {
+      .audio-player.ready { flex-wrap: wrap; row-gap: 10px; }
+      .ap-switches { flex-basis: 100%; justify-content: center; gap: 18px; margin-left: 0; }
+      .layout { padding-bottom: 170px; }
     }
     @media (max-width: 600px) {
       header { padding: 10px 14px; gap: 8px 12px; }
@@ -688,13 +687,14 @@
       /* The player floats at the bottom, in thumb reach, laid out like a music app's
          (YouTube Music): the switches on their own row, a full-width bar with the times
          under its ends, and play centred between its skips.
-                    ────  (tap to shrink)
+                    ────            ⌄   (⌄, the handle, or a swipe down shrinks it)
            READ                      HEAR
            [English | اردو]          [Imam | English | اردو]
            ━━━━━━━━━●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
            0:28                                15:59
            1×          ↺10    ( ▶ )    ↻10
-         Shrunk (.mini) it is one slim row while reading: ( ▶ ) ━━━━●━━━━ 0:28 / 15:59
+         Shrunk (.mini) it is one slim row while reading: ( ▶ ) ━━━━●━━━━ 0:28 / 15:59  ⌃
+         (⌃, a swipe up, or a tap on the bar opens it again)
          Controls are 40-54px, and it clears the iPhone home bar. */
       .audio-player.ready {
         display: grid;
@@ -710,18 +710,23 @@
         position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
         min-width: 0; margin: 0;
         padding: 0 16px calc(10px + env(safe-area-inset-bottom));
-        border-radius: 20px 20px 0 0; border-bottom: none;
+        border: 1px solid var(--border); border-radius: 20px 20px 0 0; border-bottom: none;
+        touch-action: none; /* a swipe on the player moves the player, not the page behind */
         background: rgba(10, 22, 17, 0.96);
         -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
         box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.45);
       }
       .ap-handle {
         grid-area: handle; display: flex; justify-content: center; align-items: center;
-        height: 22px; margin: 0 -16px; background: none; border: 0; cursor: pointer;
+        height: 26px; margin: 0 -16px; background: none; border: 0; cursor: pointer;
+      }
+      .ap-min {
+        display: flex; align-items: center; justify-content: center; position: absolute; top: 0; right: 6px;
+        width: 44px; height: 40px; background: none; border: 0; color: var(--text-muted); cursor: pointer;
       }
       .ap-handle span { width: 38px; height: 4px; border-radius: 4px; background: var(--border); }
       /* Each switch with its name above it:  READ [English | اردو]    HEAR [Imam | English | اردو] */
-      .ap-switches { grid-area: sw; display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; margin-bottom: 6px; }
+      .ap-switches { grid-area: sw; display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; margin: 0 0 6px; }
       .ap-group { flex-direction: column; align-items: flex-start; gap: 3px; }
       .ap-label { padding-left: 4px; }
       .seg button { min-height: 40px; padding: 0 12px; font-size: 13px; }
@@ -733,16 +738,17 @@
       .ap-dur { grid-area: dur; justify-self: end; }
       .ap-transport { display: contents; }
       .skip-back { grid-area: back; } .skip-fwd { grid-area: fwd; }
-      .play-btn { grid-area: play; width: 58px; height: 58px; margin: 2px 10px 0; }
+      .audio-player .play-btn { grid-area: play; width: 58px; height: 58px; margin: 2px 10px 0; }
       .play-btn svg { width: 22px; height: 22px; }
       .skip-btn { min-width: 48px; min-height: 48px; font-size: 21px; }
       .speed-btn { grid-area: speed; justify-self: start; min-height: 38px; min-width: 50px; font-size: 13px; }
       /* Shrunk: one slim row. */
       .audio-player.ready.mini {
-        grid-template-columns: auto 1fr auto;
-        grid-template-areas: "handle handle handle" "play bar time";
+        grid-template-columns: auto 1fr auto auto;
+        grid-template-areas: "handle handle handle handle" "play bar time min";
         gap: 0 12px;
       }
+      .audio-player.mini .ap-min { position: static; grid-area: min; width: 40px; height: 44px; margin-right: -10px; transform: rotate(180deg); }
       .audio-player.mini .ap-switches, .audio-player.mini .ap-cur, .audio-player.mini .ap-dur,
       .audio-player.mini .skip-btn, .audio-player.mini .speed-btn { display: none; }
       .audio-player.mini .audio-time { display: block; grid-area: time; font-size: 12px; }
@@ -750,13 +756,9 @@
       .audio-player.mini .play-btn svg { width: 16px; height: 16px; }
       body.player-mini .layout { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
       .layout { padding-bottom: calc(250px + env(safe-area-inset-bottom)); }
-      /* A blurred ancestor becomes the box a position:fixed child is placed in, which would
-         pin the player to the header's bottom instead of the screen's. */
-      header { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(10, 22, 17, 0.97); }
       /* Brand and khutbah picker share the top row; the live count tucks under the name:
            [logo] KhutbahTranscribe   [picker]
-                  ● 3 live
-           [player ..................]          */
+                  ● 3 live                    */
       header {
         display: grid;
         grid-template-columns: auto auto minmax(0, 1fr);
@@ -784,7 +786,7 @@
     @media (max-width: 340px) {
       .seg button { padding: 0 8px; font-size: 12px; }
       .skip-btn { min-width: 40px; font-size: 19px; }
-      .play-btn { width: 52px; height: 52px; margin: 2px 6px 0; }
+      .audio-player .play-btn { width: 52px; height: 52px; margin: 2px 6px 0; }
     }
     /* Hidden while traffic is still small; the server keeps counting. Delete this
        rule (and .badge-extra in home.html) to show unique + visits again. */
@@ -799,8 +801,19 @@
     <h1>KhutbahTranscribe</h1>
   </a>
 
+  <div class="header-right">
+    <span class="viewers" id="viewers" title="Live · unique visitors · total visits">
+      <span class="live-dot"></span>
+      <span><b id="liveCount">–</b> live</span>
+      <span class="total-views">· <b id="uniqueCount">–</b> unique · <b id="totalCount">–</b> visits</span>
+    </span>
+    <select class="khutbah-select" id="khutbahSelect" onchange="switchKhutbah(this.value)" aria-label="Choose a khutbah"></select>
+  </div>
+</header>
+
   <div class="audio-player" id="audioPlayer">
     <button type="button" class="ap-handle" id="apHandle" onclick="togglePlayerSize()" aria-label="Shrink or expand the player" aria-expanded="true"><span></span></button>
+    <button type="button" class="ap-min" id="apMin" onclick="togglePlayerSize()" aria-label="Shrink the player" title="Shrink the player"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
     <div class="ap-switches">
       <div class="ap-group" id="readGroup" role="group" aria-labelledby="readLabel">
         <span class="ap-label" id="readLabel">Read</span>
@@ -828,16 +841,6 @@
     <span class="ap-cur" id="apCur">0:00</span><span class="ap-dur" id="apDur">0:00</span>
     <button class="speed-btn" id="speedBtn" onclick="cycleSpeed()" title="Playback speed">1×</button>
   </div>
-
-  <div class="header-right">
-    <span class="viewers" id="viewers" title="Live · unique visitors · total visits">
-      <span class="live-dot"></span>
-      <span><b id="liveCount">–</b> live</span>
-      <span class="total-views">· <b id="uniqueCount">–</b> unique · <b id="totalCount">–</b> visits</span>
-    </span>
-    <select class="khutbah-select" id="khutbahSelect" onchange="switchKhutbah(this.value)" aria-label="Choose a khutbah"></select>
-  </div>
-</header>
 
 <div id="app">
   <div class="state-msg"><h2>Loading…</h2></div>
@@ -1823,6 +1826,9 @@
     player.classList.toggle('mini', mini);
     document.body.classList.toggle('player-mini', mini);
     document.getElementById('apHandle').setAttribute('aria-expanded', String(!mini));
+    const min = document.getElementById('apMin');
+    min.title = mini ? 'Open the player' : 'Shrink the player';
+    min.setAttribute('aria-label', min.title);
     try { localStorage.setItem('kt-player-mini', mini ? '1' : '0'); } catch {}
   }
 
@@ -1872,6 +1878,24 @@
     try { mini = localStorage.getItem('kt-player-mini') === '1'; } catch {}
     togglePlayerSize(mini);
     updateVoiceBtn();
+
+    // Phones: a swipe down on the player shrinks it and a swipe up opens it; a tap on the
+    // shrunk bar outside its controls opens it too.
+    const phone = matchMedia('(max-width: 600px)');
+    let swipeFrom = null;
+    player.addEventListener('touchstart', e => {
+      swipeFrom = phone.matches && !e.target.closest('input') ? e.touches[0].clientY : null;
+    }, { passive: true });
+    player.addEventListener('touchend', e => {
+      if (swipeFrom == null) return;
+      const dy = e.changedTouches[0].clientY - swipeFrom, shrunk = player.classList.contains('mini');
+      swipeFrom = null;
+      if (dy > 30 && !shrunk) togglePlayerSize(true);
+      else if (dy < -30 && shrunk) togglePlayerSize(false);
+    }, { passive: true });
+    player.addEventListener('click', e => {
+      if (phone.matches && player.classList.contains('mini') && !e.target.closest('button, input')) togglePlayerSize(false);
+    });
 
     // The time shows as "0:28 / 15:59" in the row, and as two ends under the phone's bar.
     const showTime = () => {
