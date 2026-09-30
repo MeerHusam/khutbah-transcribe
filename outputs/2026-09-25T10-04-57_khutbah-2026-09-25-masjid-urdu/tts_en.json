@@ -1,0 +1,367 @@
+{
+ "engine": "gemini:gemini-3.8-flash-tts",
+ "voice": "Charon",
+ "lang": "en",
+ "created": "2026-09-30T07:39:21.482Z",
+ "audio": "tts_en.mp3",
+ "tempo": 1.15,
+ "blocks": [
+  {
+   "i": 0,
+   "arabic_head": "الحمد لله الملك المنان واسع الفضل",
+   "text": "All praise is due to Allah, the Sovereign, the Bestower, vast in His grace and benevolence, who made security a tranquility for hearts and a stability for the homeland, and commanded the preservation of lives, the protection of sacred rights and due rights. So we praise Him,",
+   "start": 0,
+   "end": 18.92
+  },
+  {
+   "i": 1,
+   "arabic_head": "سبحانه ونشكره على نعمه التي لا",
+   "text": "Glory be to Him, and we thank Him for His countless blessings and His favors that cannot be fully enumerated. I bear witness that there is no god but Allah alone, with no partner, and I bear witness that Muhammad is His servant and Messenger, may Allah send His peace and blessings upon him, upon his family, his companions, and those who follow them in goodness, and may He grant us their company through His grace and generosity. He is the Most Generous of the generous. Now to proceed.",
+   "start": 19.53,
+   "end": 49.76
+  },
+  {
+   "i": 2,
+   "arabic_head": "فأوصيكم ونفسي بتقوى الله جل وعلا",
+   "text": "I counsel you and myself to have taqwa of Allah, Glorified and Exalted, for it is the counsel of Allah to those of old and those who come after.",
+   "start": 50.37,
+   "end": 61.5
+  },
+  {
+   "i": 3,
+   "arabic_head": "ولقد وصينا الذين أوتوا الكتاب من",
+   "text": "Allah says: And We have instructed those who were given the Scripture before you and yourselves to fear Allah.",
+   "start": 62.1,
+   "end": 69.9
+  },
+  {
+   "i": 4,
+   "arabic_head": "إخوة الإيمان، إن من أجل نعم",
+   "text": "Brothers in faith, among the greatest of Allah's blessings upon His servants is the blessing of security. Through it, souls find rest, hearts find peace, blood and rights are preserved,",
+   "start": 70.5,
+   "end": 84.28
+  },
+  {
+   "i": 5,
+   "arabic_head": "وتستقيم مصالح الدين والدنيا في ظله",
+   "text": "and the interests of both religion and worldly life are set aright in its shade. In its shade, the one who prays worships his Lord, Glorified and Exalted, the student seeks his knowledge, the worker strives for his livelihood, and families sleep in peace, assured of their lives, their children, their possessions, and their honor. And because of the greatness of",
+   "start": 84.89,
+   "end": 108.54
+  },
+  {
+   "i": 6,
+   "arabic_head": "هذه النعمة العظيمة فقد امتن الله",
+   "text": "this tremendous blessing, Allah, Glorified and Exalted, reminded the Quraysh of it as a favor upon them, and He said, Glorified and Exalted: “Let them worship the Lord of this House”,",
+   "start": 109.15,
+   "end": 122.92
+  },
+  {
+   "i": 7,
+   "arabic_head": "الذي أطعمهم من جوع وآمنهم من",
+   "text": "Who has fed them, saving them from hunger and made them safe, saving them from fear.",
+   "start": 123.53,
+   "end": 130.87
+  },
+  {
+   "i": 8,
+   "arabic_head": "فقرن نعمة الأمن بنعمة الطعام لأن",
+   "text": "He thus paired the blessing of security with the blessing of food, because people need sustenance to live by and security to find peace in. Our beloved, and your beloved, the Prophet, peace and blessings be upon him, said: “Whoever among you wakes up in the morning secured in his dwelling, healthy in his body, having his food for the day, then it is as if the world has been gathered for him.” Reported by al-Tirmidhi.",
+   "start": 131.48,
+   "end": 155.9
+  },
+  {
+   "i": 9,
+   "arabic_head": "فتأملوا يا عباد الله رحمني الله",
+   "text": "So reflect, O servants of Allah, may Allah have mercy on me and on you. How many blessings do we grow so accustomed to that we fail to appreciate their true worth. We go out to our work, return to our homes, and gather with our families and relatives, yet we do not truly know the value of security until we remember that its loss disrupts livelihoods, tears families apart, and weighs down hearts with fear and pain.",
+   "start": 156.5,
+   "end": 183.88
+  },
+  {
+   "i": 10,
+   "arabic_head": "فيا أيها المسلمون من أسباب حفظ",
+   "text": "O Muslims, among the means by which security is preserved, by the grace of Allah, Glorified and Exalted, is what the men of our armed forces and defense personnel do, stationed at the frontiers, guarding the borders, defending the land and its people, staying awake while others sleep, and bearing hardship so that people may live safely in their homes.",
+   "start": 184.49,
+   "end": 206.89
+  },
+  {
+   "i": 11,
+   "arabic_head": "وقد قال النبي صلى الله عليه",
+   "text": "The Prophet, peace and blessings be upon him, said: 'Ribat, one day of guarding in the cause of Allah, is better than the world and everything in it.' Reported by al-Bukhari.",
+   "start": 207.5,
+   "end": 219.18
+  },
+  {
+   "i": 12,
+   "arabic_head": "وقال صلى الله عليه وسلم رباط",
+   "text": "And he, peace and blessings be upon him, said: 'One day and night of ribat is better than fasting and standing in prayer for an entire month.' Reported by Muslim. Alongside them, the men of our security forces work to preserve internal security, protect lives and property, combat crime, safeguard rights, and restore what has been wrongfully taken to its rightful owners. And the beloved Prophet, peace and blessings be upon him, said: “There are two eyes that shall not be touched by the Fire: An eye that wept from the fear of Allah, and an eye that spent the night standing on guard in the cause of Allah”. Reported by al-Tirmidhi. May Allah reward them with the best of rewards for all that they give and sacrifice.",
+   "start": 219.79,
+   "end": 264.31
+  },
+  {
+   "i": 13,
+   "arabic_head": "عباد الله وإن من أعظم الحرمات",
+   "text": "O servants of Allah, among the greatest of sanctities that must be honored is the sanctity of the Two Holy Mosques, Makkah al-Mukarramah and al-Madinah al-Munawwarah. In Makkah is the Sacred House, toward which the faces of Muslims turn in their prayers, and to which pilgrims performing Hajj and Umrah come. Al-Madinah is the home to which the Prophet, peace and blessings be upon him, migrated, and in it stands his noble mosque, peace and blessings be upon him.",
+   "start": 264.92,
+   "end": 293.79
+  },
+  {
+   "i": 14,
+   "arabic_head": "وقد قال جل وعلا في شأن",
+   "text": "Allah, Glorified and Exalted, said concerning His Sacred House: “And whoever enters it shall be safe.” And the Prophet, peace and blessings be upon him, said concerning Makkah al-Mukarramah: “Allah has made this town a sanctuary.” Reported by al-Bukhari. And the beloved Prophet, peace and blessings be upon him, said concerning al-Madinah:",
+   "start": 294.4,
+   "end": 317.36
+  },
+  {
+   "i": 15,
+   "arabic_head": "من أراد أهل المدينة بسوء أذابه",
+   "text": "“He who intends to do harm to the people of Medina, Allah would efface him just as water dissolves salt.” Reported by Muslim.",
+   "start": 317.97,
+   "end": 327.53
+  },
+  {
+   "i": 16,
+   "arabic_head": "وتعظيم حرمة الحرمين لا يقف عند",
+   "text": "Honoring the sanctity of the Two Holy Cities does not stop at words alone, but is shown in protecting those who come to them and ensuring the safety of pilgrims performing Hajj, Umrah, and all visitors. Every act of aggression against innocent people, or any threat to the security of the sacred sites and those who seek them, is a violation of this sanctity and an assault on what Allah has commanded to be protected and revered.",
+   "start": 328.14,
+   "end": 356.21
+  },
+  {
+   "i": 17,
+   "arabic_head": "فيا أيها المسلمون إن من أفظع",
+   "text": "O Muslims, among the most heinous and reprehensible crimes is what the enemies of Allah and the enemies of the religion, the Houthis, have dared to do in violating the sanctity of Makkah al-Mukarramah and threatening the security of the Sacred Land of Allah, having launched their missiles and drones toward it. His Eminence, the Grand Mufti of the Kingdom,",
+   "start": 356.82,
+   "end": 381.27
+  },
+  {
+   "i": 18,
+   "arabic_head": "الشيخ صالح الفوزان حفظه الله ورعاه",
+   "text": "Sheikh Salih al-Fawzan, may Allah preserve and protect him, likened this vile act to the act of Abrahah the Abyssinian, and stated that they have repeated the history of Abrahah in his intent to harm Makkah al-Mukarramah.",
+   "start": 381.88,
+   "end": 394.61
+  },
+  {
+   "i": 19,
+   "arabic_head": "فما أعظم الجرأة على حرمات الله",
+   "text": "How immense is this audacity against the sanctities of Allah. They raise the slogans of Islam, then direct their weapons of war toward the Qiblah of the Muslims, the Sacred Land of Allah, and the place to which the hearts of the believers are drawn. What greater contradiction between claim and action could there be than this, and what crime is more abhorrent than terrorizing the innocent and violating the sanctity of the Secure House that Allah has exalted?",
+   "start": 395.22,
+   "end": 421.51
+  },
+  {
+   "i": 20,
+   "arabic_head": "الله وقد خلد الله خبر قوم",
+   "text": "Allah has immortalized the account of those who intended harm against His House and made their fate known, and He said, Glorified and Exalted,",
+   "start": 422.12,
+   "end": 432.83
+  },
+  {
+   "i": 21,
+   "arabic_head": "ألم تر كيف فعل ربك بأصحاب",
+   "text": "Have you not considered, O Muhammad, how your Lord dealt with the companions of the elephant. Did He not make their plan into misguidance. And He sent against them birds in flocks. Striking them with stones of hard clay. And He made them like eaten straw.",
+   "start": 433.44,
+   "end": 452.68
+  },
+  {
+   "i": 22,
+   "arabic_head": "وقد قال سبحانه جل وعلا",
+   "text": "And He, Glorified and Exalted, also said,",
+   "start": 453.29,
+   "end": 456.66
+  },
+  {
+   "i": 23,
+   "arabic_head": "ومن يرد فيه بإلحاد بظلم نذقه",
+   "text": "and also whoever intends a deed therein of deviation in religion or wrongdoing, We will make him taste of a painful punishment.",
+   "start": 457.27,
+   "end": 467.98
+  },
+  {
+   "i": 24,
+   "arabic_head": "فمكة المكرمة حرم الله والكعبة قبلة",
+   "text": "Makkah al-Mukarramah is the sanctuary of Allah, and the Kaaba is the Qiblah of the Muslims. Whoever intends it with harm has dared to violate a sanctity that Allah, Glorified and Exalted, has made great. The crime of these Houthis in threatening its security is not merely an aggression against a land, but an act of audacity against a sacred place to which the hearts of over a billion Muslims in every corner of the earth are attached.",
+   "start": 468.59,
+   "end": 496.77
+  },
+  {
+   "i": 25,
+   "arabic_head": "فيا عباد الله لنشكر الله جل",
+   "text": "O servants of Allah, let us thank Allah, Glorified and Exalted, for the blessing of security and for what this blessed state has done, through its leaders, princes, and security and defense forces,",
+   "start": 497.37,
+   "end": 511.04
+  },
+  {
+   "i": 26,
+   "arabic_head": "على ما يقومون به من جهد",
+   "text": "for all the effort and dedication they pour into preserving the security of these Two Holy Cities, may Allah protect and watch over them, and over their people and residents. And for all that they give and sacrifice by every means available to them in defending these lands.",
+   "start": 511.65,
+   "end": 529.01
+  },
+  {
+   "i": 27,
+   "arabic_head": "فلنشكر الله جل وعلا على نعمة",
+   "text": "So let us thank Allah, Glorified and Exalted, for the blessing of security, and let us fulfill our responsibility in preserving it. Let none of us be a cause of harm, nor an aid to corruption, nor a channel for rumors that disturb the people. O Allah, grant us lasting security and faith, and protect us from every evil and harm.",
+   "start": 529.62,
+   "end": 551.74
+  },
+  {
+   "i": 28,
+   "arabic_head": "أقول ما تسمعون واستغفر الله لي",
+   "text": "I say what you hear and I seek forgiveness from Allah for myself and for you, for our parents, our spouses, our children, our brothers, our relatives, our neighbors, and all Muslims. Seek His forgiveness, for He is the All-Forgiving, the Most Merciful.",
+   "start": 552.35,
+   "end": 571.69
+  },
+  {
+   "i": 29,
+   "arabic_head": "الحمد لله على إحسانه والشكر له",
+   "text": "All praise is due to Allah for His goodness, and thanks be to Him for His guidance and His favors. I bear witness that there is no god but Allah alone, with no partner, in exaltation and reverence of His majesty. And I bear witness that Muhammad is His servant and Messenger, may Allah send blessings upon him, upon his family, his companions, his brethren, and those who follow them in goodness, and may He grant us their company through His grace and generosity. He is the Most Generous of the generous. Now to proceed.",
+   "start": 572.3,
+   "end": 607.43
+  },
+  {
+   "i": 30,
+   "arabic_head": "فالوصية لي ولكم بتقوى الله جل",
+   "text": "My counsel to myself and to you is to have taqwa of Allah, Glorified and Exalted. So be mindful of Allah, that you may receive mercy.",
+   "start": 608.03,
+   "end": 618.75
+  },
+  {
+   "i": 31,
+   "arabic_head": "عباد الله إن شكر نعمة الأمن",
+   "text": "O servants of Allah, gratitude for the blessing of security does not stop at words, but is shown in actions and conduct, in respecting the rights of people, preserving property, cooperating with the security forces in repelling danger, and reporting to the relevant authorities whatever requires their intervention through their official channels.",
+   "start": 619.36,
+   "end": 640.09
+  },
+  {
+   "i": 32,
+   "arabic_head": "فليس من المسؤولية يا عباد الله",
+   "text": "It is not responsible behavior, O servants of Allah, when a security incident occurs, to publish it, photograph it, or circulate its news before verifying it and before the officially authorized body has made its announcement. The safety of lives and the preservation of security take priority over rushing to photograph, publish, and broadcast news.",
+   "start": 640.7,
+   "end": 663.06
+  },
+  {
+   "i": 33,
+   "arabic_head": "فليكن كل منا عونا على الخير",
+   "text": "Let each one of us be an aid to good, a source of reassurance, and a guardian of trust in the position where Allah, Glorified and Exalted, has placed him. Among what deserves to be reminded of, O servants of Allah, is that this country, and all praise and gratitude belong to Allah, is a giving and generous land.",
+   "start": 663.67,
+   "end": 685.41
+  },
+  {
+   "i": 34,
+   "arabic_head": "ولاة أمره يقومون على نصرة قضايا",
+   "text": "Its leaders have stood in support of the causes of Islam and Muslims throughout history, since its founding under its leader King Abd al-Aziz and the fathers before him. So let us praise Allah, Glorified and Exalted, that its constitution is the Quran and the Sunnah, and that the support of Muslim causes in every corner of the east and west of the earth, and their importance as you know,",
+   "start": 686.02,
+   "end": 707.93
+  },
+  {
+   "i": 35,
+   "arabic_head": "قضية فلسطين ونصرة إخوانهم في السودان",
+   "text": "the cause of Palestine, and the support of their brothers in Sudan, Yemen, the Levant, and everywhere, is an important responsibility they carry.",
+   "start": 708.54,
+   "end": 719.36
+  },
+  {
+   "i": 36,
+   "arabic_head": "وقد يقومون بكل غال ونفيس في",
+   "text": "They spare no expense, giving freely of everything precious and valuable for that purpose. Likewise, as you know, this land, and all praise and gratitude belong to Allah, has opened its doors to many people from the east and west. You will not find another land in this inhabited world",
+   "start": 719.97,
+   "end": 738.54
+  },
+  {
+   "i": 37,
+   "arabic_head": "كما تعلمون فتحت و واسبغت على",
+   "text": "that, as you know, has opened up and bestowed so generously upon its residents, indeed treating them as honored guests, whoever they may be. So let us praise Allah, Glorified and Exalted, for this blessing, and let us support one another in preserving its security and stability, and let us thank Allah, Glorified and Exalted, and supplicate for our leaders and security forces, asking for their success, right guidance, protection, and care.",
+   "start": 739.15,
+   "end": 766.17
+  },
+  {
+   "i": 38,
+   "arabic_head": "هذا وصلوا وسلموا رحمني الله وإياكم",
+   "text": "With that, send your prayers and peace, may Allah have mercy on me and on you, upon the one whom Allah has commanded us to honor with prayers and peace, as Allah, Glorified and Exalted, says:",
+   "start": 766.78,
+   "end": 779.69
+  },
+  {
+   "i": 39,
+   "arabic_head": "إن الله وملائكته يصلون على النبي",
+   "text": "Indeed, Allah confers blessing upon the Prophet, and His angels ask Him to do so. O you who have believed, ask Allah to confer blessing upon him and ask Allah to grant him peace.",
+   "start": 780.3,
+   "end": 794.49
+  },
+  {
+   "i": 40,
+   "arabic_head": "وقال صلى الله عليه وسلم من",
+   "text": "And he, peace and blessings be upon him, said: 'Whoever sends one prayer upon me, Allah will send ten prayers upon him in return.'",
+   "start": 795.1,
+   "end": 804.35
+  },
+  {
+   "i": 41,
+   "arabic_head": "فاللهم صل على محمد وعلى آل",
+   "text": "O Allah, send Your prayers upon Muhammad and upon the family of Muhammad, as You sent Your prayers upon Ibrahim and upon the family of Ibrahim. You are indeed Praiseworthy, Glorious. And bless, O Allah,",
+   "start": 804.96,
+   "end": 820.05
+  },
+  {
+   "i": 42,
+   "arabic_head": "على محمد وعلى آل محمد كما",
+   "text": "Muhammad and the family of Muhammad, as You blessed Ibrahim and the family of Ibrahim. You are indeed Praiseworthy, Glorious. And be pleased, O Allah, with the Rightly-Guided Caliphs, the rightly guided Imams: Abu Bakr, Umar, Uthman, and Ali, and with all the companions of Your Prophet, his wives the Mothers of the Believers, and those who follow them in goodness, and grant us their company through Your grace, generosity, and kindness, O Most Generous of the generous.",
+   "start": 820.66,
+   "end": 850.61
+  },
+  {
+   "i": 43,
+   "arabic_head": "اللهم يا عزيز أعز الإسلام والمسلمين",
+   "text": "O Allah, You are the Almighty, so give might to Islam and the Muslims. O Allah, You are the Guardian, so guard Islam, the Muslims, and the lands of the Muslims from every evil and harm, O Lord of all the worlds. O Allah, grant us lasting security and safety, O Lord of all the worlds, and to all the lands of the Muslims. O Allah, grant lasting security and safety to our land and to all the lands of the Muslims. O Allah, be",
+   "start": 851.22,
+   "end": 884.26
+  },
+  {
+   "i": 44,
+   "arabic_head": "لإخواننا المستضعفين في فلسطين اللهم آمن",
+   "text": "with our brothers the oppressed in Palestine. O Allah, grant peace and safety to the people of the Levant, the people of Yemen, Sudan, and every place, O Lord of all the worlds.",
+   "start": 884.87,
+   "end": 897.25
+  },
+  {
+   "i": 45,
+   "arabic_head": "اللهم عليك بمن أراد الإسلام والمسلمين",
+   "text": "O Allah, deal with those who intend harm against Islam and the Muslims. O Allah, You are the Strong, the Almighty, the All-Knowing, the All-Wise. We ask You by this great and blessed day, for You know all things. O Allah, whoever has intended harm against our land, our sacred sites, our leaders, our security forces, our unity, or the terrorizing of the innocent,",
+   "start": 897.86,
+   "end": 924.85
+  },
+  {
+   "i": 46,
+   "arabic_head": "اللهم اجعل تدبيره تدميرا وهلاك عليه",
+   "text": "O Allah, turn his scheming into his own destruction and ruin. O Allah, we place You as a shield against the throats of our enemies, the enemies of Your religion, and the enemies of our land, O All-Knowing, O Almighty.",
+   "start": 925.46,
+   "end": 941.32
+  },
+  {
+   "i": 47,
+   "arabic_head": "اللهم عليك بالحوثيين المعتدين وبالفرس وبالصهاينة",
+   "text": "O Allah, deal with the aggressing Houthis, and with the Persians, and with the aggressing and hateful Zionists, O Strong, O Almighty. O Allah, O Possessor of Majesty and Honor, forgive the Muslim men and Muslim women, the believing men and believing women, and grant special mercy to the fathers and mothers among them. O Allah, set right the husbands and wives, the sons and daughters, O Most Merciful of the merciful.",
+   "start": 941.93,
+   "end": 969.23
+  },
+  {
+   "i": 48,
+   "arabic_head": "اللهم فرج هم المهمومين من المسلمين",
+   "text": "O Allah, relieve the distress of the distressed among the Muslims, settle the debts of us and our Muslim brothers, and heal our sick and the sick of the Muslims.",
+   "start": 969.84,
+   "end": 980.59
+  },
+  {
+   "i": 49,
+   "arabic_head": "ربنا آتنا في الدنيا حسنة وفي",
+   "text": "Our Lord, give us in this world that which is good and in the Hereafter that which is good and protect us from the punishment of the Fire.",
+   "start": 981.2,
+   "end": 990.24
+  },
+  {
+   "i": 50,
+   "arabic_head": "سبحان ربك رب العزة عما يصفون",
+   "text": "Exalted is your Lord, the Lord of might, above what they describe. And peace upon the messengers. And praise to Allah, Lord of the worlds.",
+   "start": 990.85,
+   "end": 1001.67
+  }
+ ]
+}
