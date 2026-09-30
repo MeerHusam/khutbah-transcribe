@@ -21,7 +21,7 @@
 // Usage: node tts.js outputs/<folder> [--engine kokoro|chatterbox] [--limit N] [--dry-run]
 //   kokoro:     [--voice am_michael] [--speed 1]
 //   chatterbox: --ref audio_files/voice_ref/<clip>.wav [--exaggeration 0.5] [--cfg 0.5]
-//   --limit N speaks only the first N blocks into tts_en_preview_<engine>.mp3, to listen to;
+//   --limit N speaks only the first N blocks into tts_en_preview_<voice>.mp3, to listen to;
 //     the page's track (tts_en.mp3, tts_en.json) is left as it is.
 //   --dry-run prints the text of every block and makes no audio.
 // Needs: kokoro: ./.venv/bin/pip install kokoro-onnx soundfile, and in models/kokoro/ the
@@ -30,7 +30,7 @@
 //   chatterbox: see the header of tts_chatterbox.py (.venv-tts).
 
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs';
-import { join, dirname, resolve } from 'path';
+import { join, dirname, resolve, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
 import { loadResult } from './reader_chunks.js';
@@ -170,7 +170,9 @@ if (engine === 'kokoro') {
   }
 }
 
-const base = limit ? `tts_en_preview_${engine}` : 'tts_en';
+// A preview is named after its voice, so previews of different voices sit side by side.
+const voiceName = engine === 'chatterbox' ? basename(ref).replace(/\.[^.]+$/, '') : voice;
+const base = limit ? `tts_en_preview_${voiceName}` : 'tts_en';
 const wav = join(folder, `${base}.wav`);
 const job = {
   block_pause: 0.7, sentence_pause: 0.2,
