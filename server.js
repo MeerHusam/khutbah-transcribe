@@ -293,21 +293,33 @@ function attachTts(folder, result) {
       if (m.blocks.every(b => Array.isArray(b.words))) result[`tts_${lang}`].words_url = `/tts/${encodeURIComponent(folder)}/${lang}.words.json`;
     } catch {}
   }
+  // When each word of the imam's recording is spoken (align_imam.js), for the Arabic.
+  try {
+    const w = JSON.parse(readFileSync(join(dir, 'words_imam.json'), 'utf8'));
+    if (w.blocks.every(b => chunks[b.i] && head(chunks[b.i]) === b.arabic_head)) result.imam_words_url = `/words/${encodeURIComponent(folder)}/imam.json`;
+  } catch {}
 }
 
 // A voice track's word times, block by block: { blocks: { <block>: [[word, start, end], ...] } }.
 const ttsWords = new Map();
-app.get('/tts/:folder/:lang.words.json', (req, res) => {
-  const { folder, lang } = req.params;
-  if (!ALLOWED_FOLDERS.has(folder) || !TTS_LANGS.includes(lang)) return res.status(404).end();
-  const key = `${folder}/${lang}`;
+function sendWords(res, folder, file) {
+  const key = `${folder}/${file}`;
   if (!ttsWords.has(key)) {
     try {
-      const m = JSON.parse(readFileSync(join(__dirname, 'outputs', folder, `tts_${lang}.json`), 'utf8'));
+      const m = JSON.parse(readFileSync(join(__dirname, 'outputs', folder, file), 'utf8'));
       ttsWords.set(key, JSON.stringify({ blocks: Object.fromEntries(m.blocks.filter(b => b.words).map(b => [b.i, b.words])) }));
     } catch { return res.status(404).end(); }
   }
   res.type('json').set('Cache-Control', 'public, max-age=3600').send(ttsWords.get(key));
+}
+app.get('/tts/:folder/:lang.words.json', (req, res) => {
+  const { folder, lang } = req.params;
+  if (!ALLOWED_FOLDERS.has(folder) || !TTS_LANGS.includes(lang)) return res.status(404).end();
+  sendWords(res, folder, `tts_${lang}.json`);
+});
+app.get('/words/:folder/imam.json', (req, res) => {
+  if (!ALLOWED_FOLDERS.has(req.params.folder)) return res.status(404).end();
+  sendWords(res, req.params.folder, 'words_imam.json');
 });
 
 app.get('/tts/:folder/:lang.mp3', (req, res) => {
