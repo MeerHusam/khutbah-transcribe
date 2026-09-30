@@ -48,8 +48,13 @@ const engine = opt('--engine', 'kokoro');
 const lang = opt('--lang', 'en');
 // ElevenLabs stock voices, by name (the API key needs only text-to-speech permission).
 const ELEVEN_VOICES = { daniel: 'onwK4e9ZLuTAKqWW03F9', george: 'JBFqnCBsd6RMkjVDRZzb', brian: 'nPczCjzI2devNBz1zQrb', bill: 'pqHfZKP75CvOlQylNhV4' };
-const model = opt('--model', 'eleven_v3');
-const voice = opt('--voice', engine === 'elevenlabs' ? 'daniel' : 'am_michael');
+const model = opt('--model', engine === 'gemini' ? 'gemini-3.8-flash-tts' : 'eleven_v3');
+const voice = opt('--voice', { elevenlabs: 'daniel', gemini: 'Charon' }[engine] ?? 'am_michael');
+// Gemini's delivery, given as a style note (text in the transcript itself would be spoken).
+const GEMINI_STYLE = {
+  en: 'calm, clear and reverent, at a steady pace, like a translator reading a Friday sermon; Arabic names and Islamic terms (Allah, Muhammad, taqwa, Quraysh, Makkah) pronounced the Arabic way, as a Muslim scholar would',
+  ur: 'calm, clear and reverent, like a scholar reading the Urdu translation of a Friday sermon in standard Pakistani Urdu; Arabic names and Quranic terms pronounced the Arabic way',
+};
 const speed = +opt('--speed', '1');
 const ref = opt('--ref', null);
 const exaggeration = +opt('--exaggeration', '0.5');
@@ -61,8 +66,8 @@ const tempo = +opt('--tempo', '1');
 const maxCredits = +opt('--max-credits', '2000');
 const dryRun = args.includes('--dry-run');
 const elevenKey = process.env.ELEVEN_LABS_API_KEY || process.env.ELEVENLABS_API_KEY;
-if (!folder || !existsSync(join(folder, 'result.json')) || !['kokoro', 'chatterbox', 'elevenlabs', 'omnivoice'].includes(engine)
-    || !['en', 'ur'].includes(lang) || (lang === 'ur' && !['elevenlabs', 'omnivoice'].includes(engine) && !dryRun)
+if (!folder || !existsSync(join(folder, 'result.json')) || !['kokoro', 'chatterbox', 'elevenlabs', 'omnivoice', 'gemini'].includes(engine)
+    || !['en', 'ur'].includes(lang) || (lang === 'ur' && !['elevenlabs', 'omnivoice', 'gemini'].includes(engine) && !dryRun)
     || (['chatterbox', 'omnivoice'].includes(engine) && !dryRun && !(ref && existsSync(ref)))
     || (engine === 'elevenlabs' && !dryRun && !elevenKey)) {
   console.error('Usage: node tts.js outputs/<folder> [--engine kokoro|chatterbox|elevenlabs|omnivoice] [--lang en|ur] [--limit N] [--tempo 1.15] [--dry-run]\n'
@@ -228,7 +233,8 @@ if (engine === 'kokoro') {
 // A preview is named after its voice, so previews of different voices sit side by side.
 const voiceName = engine === 'chatterbox' ? basename(ref).replace(/\.[^.]+$/, '')
   : engine === 'omnivoice' ? `omnivoice_${basename(ref).replace(/\.[^.]+$/, '')}`
-  : engine === 'elevenlabs' ? `${model}_${voice}` : voice;
+  : engine === 'elevenlabs' ? `${model}_${voice}`
+  : engine === 'gemini' ? `gemini_${voice}` : voice;
 const base = limit ? `tts_${lang}_preview_${voiceName}${tempo !== 1 ? `_x${tempo}` : ''}` : `tts_${lang}`;
 const wav = join(folder, `${base}.wav`);
 const job = {
@@ -250,6 +256,7 @@ const job = {
       language: lang,
       ...(lang === 'en' ? { lexicon: join(ROOT, 'tts_lexicon.txt') } : {}),
     },
+    gemini: { model, voice, style: GEMINI_STYLE[lang], concurrency: 4 },
     elevenlabs: {
       model, voice: ELEVEN_VOICES[voice] ?? voice, language_code: lang, max_credits: maxCredits,
       // Whole blocks: the model reads a paragraph with better flow than sentence by sentence.
@@ -264,6 +271,7 @@ const [python, script] = {
   chatterbox: [join(ROOT, '.venv-tts', 'bin', 'python'), 'tts_chatterbox.py'],
   elevenlabs: [join(ROOT, '.venv', 'bin', 'python'), 'tts_elevenlabs.py'],
   omnivoice: [join(ROOT, '.venv-omni', 'bin', 'python'), 'tts_omnivoice.py'],
+  gemini: [process.execPath, 'tts_gemini.mjs'],
 }[engine];
 const chars = blocks.reduce((n, b) => n + b.text.length, 0);
 console.log(`Speaking ${blocks.length} blocks (${chars} characters) with ${{
@@ -271,6 +279,7 @@ console.log(`Speaking ${blocks.length} blocks (${chars} characters) with ${{
   chatterbox: `Chatterbox (voice of ${ref})`,
   elevenlabs: `ElevenLabs ${model} (${voice}, ${lang})`,
   omnivoice: `OmniVoice (voice of ${ref}, ${lang})`,
+  gemini: `Gemini ${model} (${voice}, ${lang})`,
 }[engine]}...`);
 const began = Date.now();
 const py = spawnSync(python, [join(ROOT, script)], {
@@ -297,12 +306,13 @@ if (limit) {
 }
 
 const manifest = {
-  engine: { kokoro: 'kokoro-82m-v1.0', chatterbox: 'chatterbox', elevenlabs: `elevenlabs:${model}`, omnivoice: 'omnivoice' }[engine],
+  engine: { kokoro: 'kokoro-82m-v1.0', chatterbox: 'chatterbox', elevenlabs: `elevenlabs:${model}`, omnivoice: 'omnivoice', gemini: `gemini:${model}` }[engine],
   ...{
     kokoro: { voice, speed },
     chatterbox: { voice: basename(ref ?? ''), exaggeration, cfg_weight: cfgWeight },
     elevenlabs: { voice },
     omnivoice: { voice: basename(ref ?? '') },
+    gemini: { voice },
   }[engine],
   lang,
   created: new Date().toISOString(),
