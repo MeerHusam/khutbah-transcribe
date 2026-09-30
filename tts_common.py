@@ -4,7 +4,8 @@
 # in different environments (.venv and .venv-tts), so this file imports nothing heavy.
 #
 # Job (JSON on stdin, written by tts.js): { block_pause, sentence_pause, out,
-#   blocks: [{ i, text }], whole_blocks?, ...engine options }
+#   blocks: [{ i, text, pause_before? }], whole_blocks?, ...engine options }
+# pause_before (seconds): silence before a block, e.g. between the two khutbahs.
 # Prints [{ i, start, end }] (seconds into the WAV) as JSON, the last line on stdout; progress
 # on stderr.
 
@@ -128,6 +129,10 @@ def run(job, speak, sr):
     blocks = job['blocks']
     began = time.time()
     for n, block in enumerate(blocks):
+        if block.get('pause_before'):
+            gap = np.zeros(int(sr * block['pause_before']), dtype=np.float32)
+            parts.append(gap)
+            t += len(gap) / sr
         start = t
         # An engine that reads whole paragraphs well (whole_blocks: its character limit) gets
         # each block in one piece; the rest get sentences.

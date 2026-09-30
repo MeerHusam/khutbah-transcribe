@@ -93,6 +93,10 @@ const gap = Buffer.alloc(Math.round(SR * (job.block_pause ?? 0.7)) * 2);
 const parts = [], times = [];
 let t = 0;
 blocks.forEach((b, k) => {
+  if (b.pause_before) { // silence before a block, e.g. between the two khutbahs
+    const pause = Buffer.alloc(Math.round(SR * b.pause_before) * 2);
+    parts.push(pause); t += pause.length / 2 / SR;
+  }
   const start = t;
   parts.push(audio[k]); t += audio[k].length / 2 / SR;
   times.push({ i: b.i, start: Math.round(start * 100) / 100, end: Math.round(t * 100) / 100 });

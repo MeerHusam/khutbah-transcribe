@@ -237,10 +237,16 @@ const voiceName = engine === 'chatterbox' ? basename(ref).replace(/\.[^.]+$/, ''
   : engine === 'gemini' ? `gemini_${voice}` : voice;
 const base = limit ? `tts_${lang}_preview_${voiceName}${tempo !== 1 ? `_x${tempo}` : ''}` : `tts_${lang}`;
 const wav = join(folder, `${base}.wav`);
+// A few seconds of quiet where the imam sits between the two khutbahs, so the second one
+// doesn't run straight on from the first (before --tempo, which shortens it a little). It
+// goes before the first spoken block of the second khutbah.
+const KHUTBAH_PAUSE = 4;
+const secondAt = chunks.findIndex(c => c.second_khutbah_start);
+const secondBlock = secondAt < 0 ? null : blocks.find(b => b.i >= secondAt)?.i ?? null;
 const job = {
   block_pause: 0.7, sentence_pause: 0.2,
   out: resolve(wav),
-  blocks: blocks.map(({ i, text }) => ({ i, text })),
+  blocks: blocks.map(({ i, text }) => ({ i, text, ...(i === secondBlock ? { pause_before: KHUTBAH_PAUSE } : {}) })),
   ...{
     kokoro: {
       model: join(MODEL_DIR, 'kokoro-v1.0.onnx'),
