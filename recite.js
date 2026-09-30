@@ -4,10 +4,10 @@
 // Arabic in the imam's voice, then its translation. The recitation is never synthesized and
 // never sped up: it is cut from his recording and played at its own pace.
 //
-//   node recite.js outputs/<folder> ur audio_files/<recording>     (or en)
+//   node recite.js outputs/<folder> ur audio_files/<recording> [--lift 2]     (or en)
 //
 // Rewrites tts_<lang>.mp3 and tts_<lang>.json in place, with every block start and word time
-// moved to the new timeline, and marks the manifest `recited` so it is never spliced twice
+// moved to the new timeline (and the imam's words of each verse, as `arabic_words`), and marks the manifest `recited` so it is never spliced twice
 // (tts.js rebuilds the plain track from its cache for nothing). Needs the words in
 // tts_<lang>.json (align_words.py), to find where a lead-in ends and the translation starts,
 // and words_imam.json (align_imam.js), to find where his recitation starts and ends. No API.
@@ -20,8 +20,14 @@ import { loadResult } from './reader_chunks.js';
 const SR = 24000;
 const VERSE_INTRO = { en: 'Allah says:', ur: 'ارشادِ باری تعالیٰ ہے:' }; // as tts.js
 const BEFORE = 0.35, AFTER = 0.5; // seconds of quiet either side of the recitation
+// The recitation is a room recording: the same measured loudness as the voice sounds farther
+// and quieter (some of it is the echo, it is duller, and it swings more between loud and soft).
+// So it is cleaned up a little (the rumble cut, some presence added, the swings evened out)
+// and set --lift dB above the voice's loudness (LUFS).
+const CLEAN = 'highpass=f=90,equalizer=f=3000:t=q:w=1.2:g=3,acompressor=threshold=0.1:ratio=3:attack=10:release=150';
 
 const [folder, lang, recording] = process.argv.slice(2);
+const lift = process.argv.includes('--lift') ? +process.argv[process.argv.indexOf('--lift') + 1] : 2;
 const manifestPath = join(folder ?? '', `tts_${lang}.json`);
 if (!folder || !VERSE_INTRO[lang] || !recording || !existsSync(manifestPath) || !existsSync(recording)) {
   console.error('usage: node recite.js outputs/<folder> en|ur <recording>');
@@ -48,32 +54,30 @@ const track = decode(join(folder, manifest.audio));
 const voice = decode(recording);
 const at = t => Math.max(0, Math.round(t * SR));
 
-// Loudness of speech (20 ms frames above -50 dBFS), so the recitation sits at the voice's level.
-function speechRms(x) {
-  let sum = 0, n = 0;
-  for (let k = 0; k + 480 <= x.length; k += 480) {
-    let e = 0;
-    for (let j = k; j < k + 480; j++) e += x[j] * x[j];
-    e /= 480;
-    if (e > 1e-5) { sum += e; n++; }
-  }
-  return Math.sqrt(sum / Math.max(1, n));
-}
-const trackLevel = speechRms(track);
+// Samples through an ffmpeg filter, and the integrated loudness (LUFS) of samples.
+const filter = (x, af) => {
+  const r = spawnSync('ffmpeg', ['-loglevel', 'error', '-f', 'f32le', '-ar', String(SR), '-ac', '1', '-i', '-', '-af', af, '-f', 'f32le', '-'],
+    { input: Buffer.from(x.buffer, x.byteOffset, x.byteLength), maxBuffer: 1 << 30 });
+  return new Float32Array(r.stdout.buffer.slice(r.stdout.byteOffset, r.stdout.byteOffset + r.stdout.length));
+};
+const lufs = x => {
+  const r = spawnSync('ffmpeg', ['-hide_banner', '-f', 'f32le', '-ar', String(SR), '-ac', '1', '-i', '-', '-af', 'ebur128', '-f', 'null', '-'],
+    { input: Buffer.from(x.buffer, x.byteOffset, x.byteLength), maxBuffer: 1 << 30 });
+  return parseFloat(r.stderr.toString().split('Summary:').at(-1).match(/I:\s+(-?[\d.]+) LUFS/)[1]);
+};
+const trackLufs = lufs(track);
 
 // The imam's recitation of block `ib`, from just before his first word to just after his last
-// (never into the next block's first word), at the voice's loudness, with short fades.
+// (never into the next block's first word), cleaned up, `lift` dB above the voice, with short fades.
 function recitation(ib, next) {
   const a = ib.words[0][1] - 0.15;
   const b = Math.min(ib.words.at(-1)[2] + 0.35, next ? next.words[0][1] - 0.05 : Infinity);
-  const clip = voice.slice(at(a), at(b));
-  const gain = Math.min(4, Math.max(0.25, trackLevel / (speechRms(clip) || 1)));
-  let peak = 0;
-  for (const s of clip) peak = Math.max(peak, Math.abs(s * gain));
-  const g = peak > 0.98 ? gain * 0.98 / peak : gain;
+  const clean = filter(voice.slice(at(a), at(b)), CLEAN);
+  const gain = trackLufs + lift - lufs(clean);
+  const clip = filter(clean, `volume=${gain.toFixed(2)}dB,alimiter=limit=0.95:attack=5:release=50:level=disabled`);
   const fadeIn = at(0.03), fadeOut = at(0.15);
-  for (let k = 0; k < clip.length; k++) clip[k] *= g * Math.min(1, k / fadeIn, (clip.length - 1 - k) / fadeOut);
-  return clip;
+  for (let k = 0; k < clip.length; k++) clip[k] *= Math.min(1, k / fadeIn, (clip.length - 1 - k) / fadeOut);
+  return { clip, from: a };
 }
 
 const out = [];
@@ -106,13 +110,16 @@ for (const b of blocks) {
       restFrom = rest[0][1] - 0.06;
     }
     const clipAt = now();
-    put(recitation(ib, next));
+    const { clip, from } = recitation(ib, next);
+    put(clip);
     const clipEnd = now();
     quiet(AFTER);
     const restAt = now();
     copy(restFrom, oldEnd);
     b.words = [...lead.map(w => moved(w, oldStart, start)), ...rest.map(w => moved(w, restFrom, restAt))];
     b.recitation = [+clipAt.toFixed(2), +clipEnd.toFixed(2)];
+    // His words on this track's timeline, so the Arabic can follow while he recites.
+    b.arabic_words = ib.words.map(w => moved(w, from, clipAt));
     recited.push(b.i);
   }
   [b.start, b.end] = [+start.toFixed(2), +now().toFixed(2)];
