@@ -1890,8 +1890,12 @@
       : result && result['tts_' + v] && result['tts_' + v].words_url;
     if (!url || v in wordTimes) return;
     wordTimes[v] = null;
-    try { wordTimes[v] = (await (await fetch(url)).json()).blocks; }
-    catch { delete wordTimes[v]; }
+    try {
+      const d = await (await fetch(url)).json();
+      wordTimes[v] = d.blocks;
+      // A voice track with the imam's recitation in it: his words, on the track's timeline.
+      if (d.arabic && Object.keys(d.arabic).length) wordTimes[v + ':ar'] = d.arabic;
+    } catch { delete wordTimes[v]; }
     paintWord();
   }
 
@@ -1950,41 +1954,46 @@
     return out;
   }
 
-  // The language of the text that follows the playing audio: the Arabic for the imam, the
-  // translation for a voice (only while the page shows that translation), else null.
-  const followLang = () => voice === 'imam' ? 'ar' : voice === pageLang ? voice : null;
-
-  // The shown words of block `el` with their times, or null when no text follows the audio
-  // there (another language on screen, or the times not loaded yet).
-  function wordsOf(el) {
-    const lang = followLang();
-    if (!el || !lang || !wordTimes[voice]) return null;
-    const spoken = wordTimes[voice][el.dataset.i];
-    if (!spoken) return null;
-    const key = `${voice}:${el.dataset.i}:${el.classList.contains('show-full-verse')}`;
-    if (!wordMaps.has(key)) wordMaps.set(key, matchWords(shownWords(el, lang), spoken, lang));
-    return wordMaps.get(key);
+  // What follows the audio in block `el`: lists of its shown words with their times. The
+  // Arabic while the imam plays, and while a voice track plays his recitation of a verse (until
+  // the recitation ends); the translation while its voice plays and the page shows it.
+  function followsOf(el) {
+    const out = [];
+    if (!el || !wordTimes[voice]) return out;
+    const i = el.dataset.i, full = el.classList.contains('show-full-verse');
+    const add = (lang, spoken, tag, until) => {
+      if (!spoken || !spoken.length) return;
+      const key = `${tag}:${i}:${full}`;
+      if (!wordMaps.has(key)) wordMaps.set(key, matchWords(shownWords(el, lang), spoken, lang));
+      if (wordMaps.get(key).length) out.push({ lang, words: wordMaps.get(key), until });
+    };
+    if (voice === 'imam') add('ar', wordTimes.imam[i], 'imam', Infinity);
+    else {
+      const recited = wordTimes[voice + ':ar'] && wordTimes[voice + ':ar'][i];
+      add('ar', recited, voice + ':ar', recited ? recited.at(-1)[2] + 0.3 : 0);
+      if (voice === pageLang) add(voice, wordTimes[voice][i], voice, Infinity);
+    }
+    return out;
   }
 
   // In the block being heard: the words said so far bright (kt-said), the one being said gold
   // (kt-word), the rest dim (data-follow on the block; see the ::highlight styles).
   function paintWord() {
     if (!audio || !window.CSS || !CSS.highlights) return;
-    const words = wordsOf(activeChunk);
-    const el = words && words.length ? activeChunk : null;
+    const t = audio.currentTime + 0.03;
+    const f = followsOf(activeChunk).find(f => t < f.until);
+    const el = f ? activeChunk : null;
+    const words = f ? f.words : [];
     let k = -1;
-    if (el) {
-      const t = audio.currentTime + 0.03;
-      let lo = 0, hi = words.length - 1;
-      while (lo <= hi) { const mid = (lo + hi) >> 1; if (words[mid].start <= t) { k = mid; lo = mid + 1; } else hi = mid - 1; }
-    }
-    const key = el ? `${voice}:${el.dataset.i}:${k}:${pageLang}` : null;
+    let lo = 0, hi = words.length - 1;
+    while (lo <= hi) { const mid = (lo + hi) >> 1; if (words[mid].start <= t) { k = mid; lo = mid + 1; } else hi = mid - 1; }
+    const key = el ? `${voice}:${el.dataset.i}:${f.lang}:${k}:${pageLang}` : null;
     if (key === litKey) return;
     litKey = key;
     if (followEl && followEl !== el) delete followEl.dataset.follow;
     followEl = el;
     if (!el) { CSS.highlights.delete('kt-said'); CSS.highlights.delete('kt-word'); return; }
-    el.dataset.follow = followLang();
+    el.dataset.follow = f.lang;
     CSS.highlights.set('kt-said', new Highlight(...words.slice(0, k + 1).map(w => w.range)));
     if (k < 0) { CSS.highlights.delete('kt-word'); return; }
     const now = new Highlight(words[k].range);
@@ -2002,8 +2011,8 @@
 
   // The start of the word under a tap in block `el`, if words are followed there.
   function wordTimeAt(el, x, y) {
-    const words = wordsOf(el);
-    if (!words) return null;
+    const words = followsOf(el).flatMap(f => f.words);
+    if (!words.length) return null;
     let node, offset;
     if (document.caretPositionFromPoint) {
       const p = document.caretPositionFromPoint(x, y);

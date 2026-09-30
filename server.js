@@ -307,7 +307,11 @@ function sendWords(res, folder, file) {
   if (!ttsWords.has(key)) {
     try {
       const m = JSON.parse(readFileSync(join(__dirname, 'outputs', folder, file), 'utf8'));
-      ttsWords.set(key, JSON.stringify({ blocks: Object.fromEntries(m.blocks.filter(b => b.words).map(b => [b.i, b.words])) }));
+      ttsWords.set(key, JSON.stringify({
+        blocks: Object.fromEntries(m.blocks.filter(b => b.words).map(b => [b.i, b.words])),
+        // A voice track with the imam's recitation in it (recite.js): his words, for the Arabic.
+        arabic: Object.fromEntries(m.blocks.filter(b => b.arabic_words).map(b => [b.i, b.arabic_words])),
+      }));
     } catch { return res.status(404).end(); }
   }
   res.type('json').set('Cache-Control', 'public, max-age=3600').send(ttsWords.get(key));
