@@ -171,7 +171,19 @@
       text-align: center;
     }
     .speed-btn:hover { background: var(--gold-light); }
-    .voice-btn.on { color: var(--bg); background: var(--gold); border-color: var(--gold); }
+    .audio-player.ready { display: flex; }
+    .ap-transport { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    /* Imam or the voice reading the translation: both shown, the one playing lit. (One
+       button naming the other option read as the current state: "Imam" while the AI played.) */
+    .voice-switch { display: inline-flex; flex-shrink: 0; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: 99px; }
+    .voice-switch[hidden] { display: none; }
+    .voice-switch button {
+      background: transparent; border: 0; border-radius: 99px; cursor: pointer; white-space: nowrap;
+      color: var(--text-muted); font-family: inherit; font-size: 11px; font-weight: 600; padding: 5px 10px;
+    }
+    .voice-switch button.on { color: var(--bg); background: var(--gold); }
+    .voice-switch small { font-size: 9px; letter-spacing: 0.04em; opacity: 0.85; }
+    #voiceAiLabel:lang(ur) { font-family: 'Noto Nastaliq Urdu', serif; }
 
     .audio-time {
       font-size: 12px;
@@ -663,10 +675,38 @@
     @media (max-width: 600px) {
       header { padding: 10px 14px; gap: 8px 12px; }
       header h1 { font-size: 15px; }
-      .audio-player { order: 3; flex-basis: 100%; gap: 7px; padding: 6px 12px 6px 6px; }
-      .audio-time { font-size: 11px; }
-      .audio-scrubber { min-width: 40px; }
-      .skip-btn { font-size: 15px; }
+      /* The player floats at the bottom, in thumb reach, as in a music app:
+           [━━━━━━━━●━━━━━━━━━━━]  0:28 / 15:59  [1×]
+           [Imam | اردو AI]              ↺10   ▶   ↻10
+         Controls are at least 40-54px, and it clears the iPhone home bar. */
+      .audio-player.ready {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        grid-template-areas: "bar time speed" "voice transport transport";
+        align-items: center;
+        gap: 2px 10px;
+        position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+        min-width: 0; margin: 0;
+        padding: 8px 14px calc(10px + env(safe-area-inset-bottom));
+        border-radius: 20px 20px 0 0; border-bottom: none;
+        background: rgba(10, 22, 17, 0.96);
+        -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+        box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.45);
+      }
+      .audio-scrubber { grid-area: bar; width: 100%; min-width: 0; height: 28px; }
+      .audio-time { grid-area: time; justify-self: end; font-size: 12px; }
+      .voice-switch { grid-area: voice; justify-self: start; }
+      .voice-switch button { min-height: 40px; padding: 0 11px; font-size: 13px; }
+      .voice-switch small { font-size: 10px; }
+      .ap-transport { grid-area: transport; justify-self: end; gap: 6px; }
+      .play-btn { width: 54px; height: 54px; }
+      .play-btn svg { width: 20px; height: 20px; }
+      .skip-btn { min-width: 44px; min-height: 44px; font-size: 20px; }
+      .speed-btn { grid-area: speed; justify-self: end; min-height: 36px; min-width: 46px; font-size: 13px; }
+      .layout { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
+      /* A blurred ancestor becomes the box a position:fixed child is placed in, which would
+         pin the player to the header's bottom instead of the screen's. */
+      header { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(10, 22, 17, 0.97); }
       /* Brand and khutbah picker share the top row; the live count tucks under the name:
            [logo] KhutbahTranscribe   [picker]
                   ● 3 live
@@ -674,7 +714,7 @@
       header {
         display: grid;
         grid-template-columns: auto auto minmax(0, 1fr);
-        grid-template-areas: "logo name pick" "logo live pick" "player player player";
+        grid-template-areas: "logo name pick" "logo live pick";
         align-items: center;
         gap: 0 10px;
       }
@@ -685,7 +725,6 @@
       .viewers .live-dot { width: 6px; height: 6px; }
       /* The name stays whole; the picker takes what is left and truncates its label. */
       .khutbah-select { grid-area: pick; justify-self: end; min-width: 0; max-width: 100%; font-size: 12.5px; padding: 6px 26px 6px 10px; text-overflow: ellipsis; }
-      .audio-player { grid-area: player; margin-top: 10px; }
       .khutbah-heading h2 { font-size: 21px; }
       .share-card { padding: 22px 18px; }
       .section-body { padding: 16px; }
@@ -694,6 +733,13 @@
       .chunk-arabic-quran { font-size: 23px; }
       .popup-overlay { padding: 12px; }
       .popup-arabic { font-size: 21px; padding: 16px; }
+    }
+    /* The smallest phones (320px): the bottom row tightens so every control stays on screen. */
+    @media (max-width: 340px) {
+      .voice-switch button { padding: 0 8px; font-size: 12px; }
+      .ap-transport { gap: 0; }
+      .skip-btn { min-width: 38px; font-size: 18px; }
+      .play-btn { width: 48px; height: 48px; }
     }
     /* Hidden while traffic is still small; the server keeps counting. Delete this
        rule (and .badge-extra in home.html) to show unique + visits again. */
@@ -709,16 +755,20 @@
   </a>
 
   <div class="audio-player" id="audioPlayer">
-    <button class="skip-btn" onclick="skip(-10)" title="Back 10 seconds" aria-label="Back 10 seconds">↺<small>10</small></button>
-    <button class="play-btn" id="playBtn" onclick="togglePlay()">
-      <svg id="playIcon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg>
-      <svg id="pauseIcon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="display:none"><rect x="5" y="4" width="4" height="16"/><rect x="15" y="4" width="4" height="16"/></svg>
-    </button>
-    <button class="skip-btn" onclick="skip(10)" title="Forward 10 seconds" aria-label="Forward 10 seconds">↻<small>10</small></button>
+    <div class="ap-transport">
+      <button class="skip-btn" onclick="skip(-10)" title="Back 10 seconds" aria-label="Back 10 seconds">↺<small>10</small></button>
+      <button class="play-btn" id="playBtn" onclick="togglePlay()" aria-label="Play or pause">
+        <svg id="playIcon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg>
+        <svg id="pauseIcon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="display:none"><rect x="5" y="4" width="4" height="16"/><rect x="15" y="4" width="4" height="16"/></svg>
+      </button>
+      <button class="skip-btn" onclick="skip(10)" title="Forward 10 seconds" aria-label="Forward 10 seconds">↻<small>10</small></button>
+    </div>
     <input class="audio-scrubber" id="scrubber" type="range" min="0" max="100" value="0" step="0.1">
     <span class="audio-time" id="audioTime">0:00 / 0:00</span>
     <button class="speed-btn" id="speedBtn" onclick="cycleSpeed()" title="Playback speed">1×</button>
-    <button class="speed-btn voice-btn" id="voiceBtn" onclick="toggleVoice()" title="Switch between the imam and an English voice" hidden>English</button>
+    <div class="voice-switch" id="voiceSwitch" role="group" aria-label="Listen to" hidden>
+      <button type="button" data-voice="imam" class="on" aria-pressed="true" onclick="pickVoice('imam')" title="The imam's recording">Imam</button><button type="button" data-voice="ai" aria-pressed="false" onclick="pickVoice('ai')" title="The translation, read by an AI voice"><span id="voiceAiLabel" lang="ur">اردو</span> <small>AI</small></button>
+    </div>
   </div>
 
   <div class="header-right">
@@ -1710,20 +1760,26 @@
     updateVoiceBtn();
   }
 
-  function toggleVoice() {
+  function pickVoice(which) {
     if (!audio) return;
-    if (voice !== 'imam') switchTrack('imam');
-    else if (result['tts_' + pageLang]) switchTrack(pageLang);
+    if (which === 'imam') { if (voice !== 'imam') switchTrack('imam'); }
+    else if (result['tts_' + pageLang] && voice !== pageLang) switchTrack(pageLang);
   }
 
-  // The button offers the voice of the language on screen, or the way back to the imam.
+  // The switch shows both sources with the playing one lit. Its AI side is the voice of the
+  // language on screen; it hides when that language has no voice and the imam is playing.
   function updateVoiceBtn() {
-    const btn = document.getElementById('voiceBtn');
-    if (!btn || !audio) return;
-    btn.hidden = voice === 'imam' && !result['tts_' + pageLang];
-    btn.classList.toggle('on', voice !== 'imam');
-    btn.textContent = voice !== 'imam' ? 'Imam' : pageLang === 'ur' ? 'اردو (AI)' : 'English (AI)';
-    btn.title = voice !== 'imam' ? 'Back to the imam' : pageLang === 'ur' ? 'Listen to the Urdu reading, in an AI voice' : 'Listen to the English, in an AI voice';
+    const sw = document.getElementById('voiceSwitch');
+    if (!sw || !audio) return;
+    sw.hidden = voice === 'imam' && !result['tts_' + pageLang];
+    for (const b of sw.querySelectorAll('button')) {
+      const on = (b.dataset.voice === 'imam') === (voice === 'imam');
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', on);
+    }
+    const label = document.getElementById('voiceAiLabel');
+    label.textContent = pageLang === 'ur' ? 'اردو' : 'English';
+    label.lang = pageLang;
   }
 
   function skip(sec) {
@@ -1745,7 +1801,7 @@
     const player = document.getElementById('audioPlayer');
     const scrubber = document.getElementById('scrubber');
     const timeEl = document.getElementById('audioTime');
-    player.style.display = 'flex';
+    player.classList.add('ready');
     updateVoiceBtn();
 
     let lastT = null;
