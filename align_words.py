@@ -2,6 +2,7 @@
 # align_words.py — When each word of a voice track is spoken, for word-by-word follow-along.
 #
 #   .venv-align/bin/python align_words.py outputs/<folder> ur      (or en)
+#   .venv-align/bin/python align_words.py -  < job.json               (align_imam.js: the imam)
 #
 # Reads tts_<lang>.mp3 and tts_<lang>.json (tts.js), and adds to each block of the JSON
 #   "words": [[word, start, end], ...]   seconds into the mp3, one entry per word of its text.
@@ -13,6 +14,11 @@
 # text the voice read, and finds where each word falls. The text is first written in Latin
 # letters with uroman, which is what the model was trained on. Each block is aligned on its
 # own, so an error cannot spread past it.
+#
+# Job mode (stdin): { audio, lang, pad?, blocks: [{ i, start, end, text }] } -> prints
+# [{ i, words }] as the last stdout line. The imam's block times are rougher than a voice
+# track's, so his blocks get more padding and a spare slot at the end as well as the start,
+# where words of the neighbouring blocks can fall without being taken for this block's.
 #
 # Setup (once):
 #   uv venv --python 3.12 .venv-align && VIRTUAL_ENV=.venv-align uv pip install ctc-forced-aligner uroman unidecode
@@ -56,11 +62,11 @@ def spelling(word, iso):
     return ' '.join(latin)
 
 
-def align_block(session, tokenizer, wave, start, end, text, iso):
+def align_block(session, tokenizer, wave, start, end, text, iso, pad=PAD):
     """[[word, start, end], ...] for the words of `text`, spoken in wave[start:end] (seconds)."""
     words = text.split()
-    a = max(0, int((start - PAD) * SR))
-    b = min(len(wave), int((end + PAD) * SR))
+    a = max(0, int((start - pad) * SR))
+    b = min(len(wave), int((end + pad) * SR))
     clip = wave[a:b]
     offset = a / SR
     spelled = [spelling(w, iso) for w in words]
@@ -71,6 +77,8 @@ def align_block(session, tokenizer, wave, start, end, text, iso):
     tokens = []
     for k in keep:
         tokens += ['<star>', spelled[k]]
+    if pad > PAD:
+        tokens.append('<star>')  # the start of the next block, heard in the padding
     segments, scores, blank = get_alignments(emissions, tokens, tokenizer)
     spans = get_spans(tokens, segments, blank)
     times = {}
@@ -102,7 +110,22 @@ def dump(manifest):
     return json.dumps(head, ensure_ascii=False, indent=1)[:-2] + f',\n "blocks": [\n  {blocks}\n ]\n}}\n'
 
 
+def run_job():
+    job = json.load(sys.stdin)
+    wave = load_audio(job['audio'])
+    session = onnxruntime.InferenceSession(str(MODEL), providers=['CPUExecutionProvider'])
+    tokenizer = Tokenizer()
+    iso, pad, blocks, out = ISO[job['lang']], job.get('pad', PAD), job['blocks'], []
+    began = time.time()
+    for n, b in enumerate(blocks):
+        out.append({'i': b['i'], 'words': align_block(session, tokenizer, wave, b['start'], b['end'], b['text'], iso, pad)})
+        print(f'  block {n + 1}/{len(blocks)}  {time.time() - began:.0f} s', file=sys.stderr, flush=True)
+    print('\n' + json.dumps(out, ensure_ascii=False), flush=True)
+
+
 def main():
+    if sys.argv[1:] == ['-']:
+        return run_job()
     if len(sys.argv) != 3 or sys.argv[2] not in ISO:
         sys.exit('usage: align_words.py outputs/<folder> en|ur')
     folder, lang = Path(sys.argv[1]), sys.argv[2]
