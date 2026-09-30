@@ -1954,24 +1954,25 @@
     return out;
   }
 
-  // What follows the audio in block `el`: lists of its shown words with their times. The
-  // Arabic while the imam plays, and while a voice track plays his recitation of a verse (until
-  // the recitation ends); the translation while its voice plays and the page shows it.
+  // What follows the audio in block `el`: lists of its shown words with their times, each for
+  // a stretch of time. The Arabic while the imam plays, and while a voice track plays his
+  // recitation of a verse (a verse block, or one quoted in the middle of the prose); the
+  // translation the rest of the time, while its voice plays and the page shows it.
   function followsOf(el) {
     const out = [];
     if (!el || !wordTimes[voice]) return out;
     const i = el.dataset.i, full = el.classList.contains('show-full-verse');
-    const add = (lang, spoken, tag, until) => {
+    const add = (lang, spoken, tag, from, until) => {
       if (!spoken || !spoken.length) return;
       const key = `${tag}:${i}:${full}`;
       if (!wordMaps.has(key)) wordMaps.set(key, matchWords(shownWords(el, lang), spoken, lang));
-      if (wordMaps.get(key).length) out.push({ lang, words: wordMaps.get(key), until });
+      if (wordMaps.get(key).length) out.push({ lang, words: wordMaps.get(key), from, until });
     };
-    if (voice === 'imam') add('ar', wordTimes.imam[i], 'imam', Infinity);
+    if (voice === 'imam') add('ar', wordTimes.imam[i], 'imam', -Infinity, Infinity);
     else {
       const recited = wordTimes[voice + ':ar'] && wordTimes[voice + ':ar'][i];
-      add('ar', recited, voice + ':ar', recited ? recited.at(-1)[2] + 0.3 : 0);
-      if (voice === pageLang) add(voice, wordTimes[voice][i], voice, Infinity);
+      if (recited) add('ar', recited, voice + ':ar', recited[0][1] - 0.3, recited.at(-1)[2] + 0.3);
+      if (voice === pageLang) add(voice, wordTimes[voice][i], voice, -Infinity, Infinity);
     }
     return out;
   }
@@ -1981,7 +1982,7 @@
   function paintWord() {
     if (!audio || !window.CSS || !CSS.highlights) return;
     const t = audio.currentTime + 0.03;
-    const f = followsOf(activeChunk).find(f => t < f.until);
+    const f = followsOf(activeChunk).find(f => t >= f.from && t < f.until);
     const el = f ? activeChunk : null;
     const words = f ? f.words : [];
     let k = -1;
