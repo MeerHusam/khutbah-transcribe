@@ -177,9 +177,10 @@
     .ap-transport { order: 1; } .audio-scrubber { order: 2; } .audio-time { order: 3; } .speed-btn { order: 4; }
     .ap-transport { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
     /* Two switches, each named for what it controls: Read (the translation on screen) and
-       Hear (the imam, or an AI voice reading that translation). Both options show, the chosen
-       one lit. (One button naming the other option read as the current state: "Imam" while
-       the AI played; one three-way switch left "Imam" with no say over the text.) */
+       Hear (the imam, or an AI voice in English or Urdu), set apart so any text goes with any
+       audio. Every option shows, the chosen one lit. (One button naming the other option read
+       as the current state: "Imam" while the AI played; one switch for both left "Imam" with
+       no say over the text.) */
     .ap-group { display: inline-flex; align-items: center; gap: 6px; }
     .ap-group[hidden] { display: none; }
     .ap-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); }
@@ -667,14 +668,14 @@
     .fb-status { font-size: 13px; margin-top: 10px; min-height: 18px; }
 
     /* ── Mobile ───────────────────────────────────────────────────── */
-    /* Wider screens: with its two named switches the player no longer fits beside the brand
-       and picker, so it takes a row of its own under them; on tablets the switches drop to a
-       second line inside it. */
-    @media (max-width: 1320px) and (min-width: 601px) {
-      .audio-player { flex-basis: 100%; }
+    /* Wider screens: the player never squeezes its switches; when it does not fit beside the
+       brand and picker it wraps to a row of its own under them. On tablets the switches drop
+       to a second line inside it. */
+    @media (min-width: 861px) {
+      .audio-player.ready { min-width: max-content; }
     }
     @media (max-width: 860px) and (min-width: 601px) {
-      .audio-player.ready { flex-wrap: wrap; row-gap: 8px; border-radius: 22px; padding: 8px 16px 8px 8px; }
+      .audio-player.ready { flex-basis: 100%; flex-wrap: wrap; row-gap: 8px; border-radius: 22px; padding: 8px 16px 8px 8px; }
       .ap-switches { flex-basis: 100%; justify-content: center; gap: 18px; }
     }
     @media (max-width: 860px) {
@@ -689,7 +690,7 @@
          under its ends, and play centred between its skips.
                     ────  (tap to shrink)
            READ                      HEAR
-           [English | اردو]          [Imam | AI voice]
+           [English | اردو]          [Imam | English | اردو]
            ━━━━━━━━━●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
            0:28                                15:59
            1×          ↺10    ( ▶ )    ↻10
@@ -719,7 +720,7 @@
         height: 22px; margin: 0 -16px; background: none; border: 0; cursor: pointer;
       }
       .ap-handle span { width: 38px; height: 4px; border-radius: 4px; background: var(--border); }
-      /* Each switch with its name above it:  READ [English | اردو]    HEAR [Imam | AI voice] */
+      /* Each switch with its name above it:  READ [English | اردو]    HEAR [Imam | English | اردو] */
       .ap-switches { grid-area: sw; display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; margin-bottom: 6px; }
       .ap-group { flex-direction: column; align-items: flex-start; gap: 3px; }
       .ap-label { padding-left: 4px; }
@@ -810,7 +811,7 @@
       <div class="ap-group" id="hearGroup" role="group" aria-labelledby="hearLabel" hidden>
         <span class="ap-label" id="hearLabel">Hear</span>
         <span class="seg" id="voiceSwitch">
-          <button type="button" data-voice="imam" class="on" aria-pressed="true" onclick="pickVoice('imam')" title="The imam's recording, in Arabic">Imam</button><button type="button" data-voice="ai" aria-pressed="false" onclick="pickVoice('ai')" title="The translation you are reading, read aloud by an AI voice">AI voice</button>
+          <button type="button" data-voice="imam" class="on" aria-pressed="true" onclick="pickVoice('imam')" title="The imam's recording, in Arabic">Imam</button><button type="button" data-voice="en" aria-pressed="false" onclick="pickVoice('en')" title="The English translation, read aloud by an AI voice" hidden>English</button><button type="button" data-voice="ur" lang="ur" aria-pressed="false" onclick="pickVoice('ur')" title="The Urdu translation, read aloud by an AI voice" hidden>اردو</button>
         </span>
       </div>
     </div>
@@ -1424,10 +1425,6 @@
     }
     if (remember) { try { localStorage.setItem('kt-lang', lang); } catch {} }
     pageLang = lang;
-    // A voice reading the translation follows the language: on to the other language's voice
-    // at the same block, or back to the imam if that language has none.
-    if (audio && voice !== 'imam' && voice !== lang) switchTrack(result['tts_' + lang] ? lang : 'imam');
-    updateVoiceBtn();
   }
 
   // Marks a quote whose English above is our own translation rather than the published one.
@@ -1829,23 +1826,26 @@
     try { localStorage.setItem('kt-player-mini', mini ? '1' : '0'); } catch {}
   }
 
+  // Hear is the audio only; the text stays as Read has it.
   function pickVoice(which) {
-    if (!audio) return;
-    if (which === 'imam') { if (voice !== 'imam') switchTrack('imam'); }
-    else if (result['tts_' + pageLang] && voice !== pageLang) switchTrack(pageLang);
+    if (!audio || which === voice) return;
+    if (which === 'imam' || result['tts_' + which]) switchTrack(which);
   }
 
-  // The Hear switch shows both sources with the playing one lit. Its AI side is the voice of
-  // the language set under Read; it hides when that language has no voice and the imam plays.
+  // The Hear switch shows the imam and each language that has a voice, the playing one lit;
+  // with no voice at all it hides.
   function updateVoiceBtn() {
     const group = document.getElementById('hearGroup');
     if (!group || !audio) return;
-    group.hidden = voice === 'imam' && !result['tts_' + pageLang];
+    let voices = 0;
     for (const b of document.querySelectorAll('#voiceSwitch button')) {
-      const on = (b.dataset.voice === 'imam') === (voice === 'imam');
+      const v = b.dataset.voice, on = v === voice;
+      b.hidden = v !== 'imam' && !result['tts_' + v];
+      if (v !== 'imam' && !b.hidden) voices++;
       b.classList.toggle('on', on);
       b.setAttribute('aria-pressed', on);
     }
+    group.hidden = !voices;
   }
 
   function skip(sec) {
