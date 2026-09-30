@@ -45,3 +45,8 @@ outputs/*
 !outputs/2026-05-27T03-50-41_eid_khutbah_2026/
 !outputs/2026-09-11T13-55-21_khutbah-2026-09-11-masjid/
 !outputs/2026-09-25T10-04-57_khutbah-2026-09-25-masjid/
+# The 25 Sep Urdu edition (its own entry; reader-ur.html), with the Urdu voice track.
+!outputs/2026-09-25T10-04-57_khutbah-2026-09-25-masjid-urdu/
+
+# Voice tracks are mp3, ignored above by *.mp3: ship the Urdu edition's.
+!outputs/2026-09-25T10-04-57_khutbah-2026-09-25-masjid-urdu/tts_ur.mp3

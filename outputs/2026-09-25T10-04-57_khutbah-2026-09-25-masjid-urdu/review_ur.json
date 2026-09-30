@@ -1,0 +1,90 @@
+{
+  "model": "claude-opus-5-5",
+  "reviewed_at": "2026-09-30T06:50:44.559Z",
+  "chunks": 45,
+  "corrected": 1,
+  "usage": {
+    "calls": 5,
+    "input_tokens": 44570,
+    "output_tokens": 8054,
+    "cache_read_input_tokens": 31773,
+    "cost_usd": 0.3521
+  },
+  "log": [
+    {
+      "round": 1,
+      "chunk": 2,
+      "issues": [
+        {
+          "type": "inconsistent",
+          "severity": "low",
+          "problem": "'جل و علا' is spelled with a space here, but most of the khutbah uses 'جل وعلا'."
+        }
+      ],
+      "applied": false,
+      "urdu_before": "پس میں آپ کو اور اپنے آپ کو اللہ جل و علا کے تقویٰ کی وصیت کرتا ہوں، کیونکہ یہی اللہ تعالیٰ کی اگلوں اور پچھلوں سب کے لیے وصیت ہے۔",
+      "urdu_after": null
+    },
+    {
+      "round": 1,
+      "chunk": 4,
+      "issues": [
+        {
+          "type": "inconsistent",
+          "severity": "low",
+          "problem": "'جل و علا' is spelled with a space here, but most of the khutbah uses 'جل وعلا'."
+        }
+      ],
+      "applied": false,
+      "urdu_before": "اور دین و دنیا کی مصلحتیں درست رہتی ہیں۔ اسی کے سائے میں نمازی اپنے رب جل و علا کی عبادت کرتا ہے، طالب علم اپنا علم حاصل کرتا ہے، محنت کش اپنی روزی کے لیے کوشش کرتا ہے، اور گھر والے اپنی جانوں، اپنی اولاد، اپنی املاک اور اپنی عزتوں کے بارے میں مطمئن ہو کر رات گزارتے ہیں، اور چونکہ",
+      "urdu_after": null
+    },
+    {
+      "round": 1,
+      "chunk": 5,
+      "issues": [
+        {
+          "type": "inconsistent",
+          "severity": "low",
+          "problem": "'جل و علا' is spelled with a space here (twice), but most of the khutbah uses 'جل وعلا'."
+        }
+      ],
+      "applied": false,
+      "urdu_before": "یہ نعمت بہت عظیم ہے، اس لیے اللہ جل و علا نے قریش پر اس کا احسان فرمایا، چنانچہ اللہ جل و علا نے فرمایا: “پس انہیں چاہیے کہ اس گھر کے رب کی عبادت کریں۔”",
+      "urdu_after": null
+    },
+    {
+      "round": 1,
+      "chunk": 8,
+      "issues": [
+        {
+          "type": "inconsistent",
+          "severity": "low",
+          "problem": "'جل و علا' is spelled with a space here, but most of the khutbah uses 'جل وعلا'."
+        }
+      ],
+      "applied": false,
+      "urdu_before": "پس اے مسلمانو! امن کی حفاظت کے اسباب میں سے وہ خدمت ہے جو اللہ جل و علا کے فضل سے ہماری مسلح افواج کے جوان اور دفاع کے وہ جوان انجام دیتے ہیں جو سرحدی مورچوں پر ڈٹے ہوئے ہیں، سرحدوں کی نگہبانی کرتے ہیں، ملک اور اہلِ ملک کا دفاع کرتے ہیں، جب دوسرے سوتے ہیں تو وہ جاگتے ہیں، اور مشقت برداشت کرتے ہیں تاکہ لوگ اپنے گھروں میں امن سے رہیں۔",
+      "urdu_after": null
+    },
+    {
+      "round": 1,
+      "chunk": 26,
+      "issues": [
+        {
+          "type": "mistranslation",
+          "severity": "medium",
+          "problem": "«وعنا معهم» means that Allah should be pleased with us along with them, as chunk 1 renders it: «ہم سے بھی راضی ہو جائے». «ہم پر بھی» wrongly makes it a prayer for blessings on us, and the clause is left without a verb."
+        },
+        {
+          "type": "inconsistent",
+          "severity": "low",
+          "problem": "«أكرم الأكرمين» is rendered «سب کریموں سے بڑھ کر کریم» in chunk 1 but «سب سے بڑھ کر کرم فرمانے والا» here. It is harmonised with chunk 1."
+        }
+      ],
+      "applied": true,
+      "urdu_before": "تمام تعریفیں اللہ کے لیے ہیں اس کے احسان پر، اور اسی کا شکر ہے اس کی توفیق اور اس کے انعام پر، اور میں گواہی دیتا ہوں کہ اللہ کے سوا کوئی معبود نہیں، وہ اکیلا ہے، اس کا کوئی شریک نہیں، اس کی شان کی تعظیم و تکریم کرتے ہوئے، اور میں گواہی دیتا ہوں کہ محمد اس کے بندے اور رسول ہیں، اللہ تعالیٰ ان پر، ان کی آل، ان کے اصحاب، ان کے بھائیوں اور بھلائی کے ساتھ ان کی پیروی کرنے والوں پر درود و رحمت نازل فرمائے، اور ان کے ساتھ ہم پر بھی اپنے فضل و کرم سے، بے شک وہ سب سے بڑھ کر کرم فرمانے والا ہے۔ اما بعد!",
+      "urdu_after": "تمام تعریفیں اللہ کے لیے ہیں اس کے احسان پر، اور اسی کا شکر ہے اس کی توفیق اور اس کے انعام پر، اور میں گواہی دیتا ہوں کہ اللہ کے سوا کوئی معبود نہیں، وہ اکیلا ہے، اس کا کوئی شریک نہیں، اس کی شان کی تعظیم و تکریم کرتے ہوئے، اور میں گواہی دیتا ہوں کہ محمد اس کے بندے اور رسول ہیں، اللہ تعالیٰ ان پر، ان کی آل، ان کے اصحاب، ان کے بھائیوں اور بھلائی کے ساتھ ان کی پیروی کرنے والوں پر درود و رحمت نازل فرمائے، اور ان کے ساتھ اپنے فضل و کرم سے ہم سے بھی راضی ہو جائے، بے شک وہ سب کریموں سے بڑھ کر کریم ہے۔ اما بعد!"
+    }
+  ]
+}

@@ -23,7 +23,9 @@ app.use(express.json({ limit: '16kb' }));
 app.get('/', (req, res) => res.sendFile(join(__dirname, 'public', 'home.html')));
 app.get('/:slug', (req, res, next) => {
   if (!SLUG_TO_FOLDER.has(req.params.slug)) return next();
-  res.sendFile(join(__dirname, 'public', 'index.html'));
+  // An entry can name its own page (the Urdu edition's reader-ur.html); the rest use index.html.
+  const page = PUBLIC_KHUTBAHS.find(k => k.slug === req.params.slug)?.page || 'index.html';
+  res.sendFile(join(__dirname, 'public', page));
 });
 app.use(express.static(join(__dirname, 'public')));
 app.use('/audio_files', express.static(join(__dirname, 'audio_files')));
@@ -49,6 +51,21 @@ const PUBLIC_KHUTBAHS = [
     maps_url: 'https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6',
     date: '25 September 2026',
     featured: true,
+  },
+  // ── 25 Sep in Urdu: an entry of its own, so the English page above stays exactly as it is.
+  //    The Urdu reading and the voice reading it (ElevenLabs) were made by the pipeline alone:
+  //    translate_urdu.js + review_urdu.js, no hand edits. Its page is reader-ur.html.
+  {
+    folder: '2026-09-25T10-04-57_khutbah-2026-09-25-masjid-urdu',
+    slug: '2026-09-25-urdu',
+    title: 'The Blessing of Security · اردو',
+    speaker: 'Friday Khutbah',
+    masjid: 'Askan AlMaather Mosque',
+    masjid_ar: 'جامع إسكان المعذر',
+    maps_url: 'https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6',
+    date: '25 September 2026',
+    audio: 'khutbah-2026-09-25-masjid.m4a', // the imam's recording, shared with the entry above
+    page: 'reader-ur.html',
   },
   // ── Arafah khutbah (single continuous khutbah — processed with `--single`) ──
   {
@@ -239,6 +256,9 @@ wss.on('connection', (ws, req) => {
 });
 
 function findAudioUrl(folder) {
+  // An entry whose folder name does not match its recording names the file itself.
+  const named = PUBLIC_KHUTBAHS.find(k => k.folder === folder)?.audio;
+  if (named && existsSync(join(__dirname, 'audio_files', named))) return `/audio_files/${named}`;
   const exts = ['mp3', 'm4a', 'wav', 'mp4', 'ogg', 'flac'];
   // CLI run: basename after timestamp prefix matches audio_files/ filename
   const baseMatch = folder.match(/^\d{4}-\d{2}-\d{2}T[\d-]+_(.+)$/);
@@ -253,6 +273,32 @@ function findAudioUrl(folder) {
   return null;
 }
 
+
+// The voice tracks (tts.js): English (tts_en) and Urdu (tts_ur), each with every block's place
+// in it. A track is attached only while its manifest still names the reader's blocks, so a
+// rebuilt reader never plays stale times. Folders without a tts_*.json are untouched.
+const TTS_LANGS = ['en', 'ur'];
+function attachTts(folder, result) {
+  const dir = join(__dirname, 'outputs', folder);
+  const chunks = result.reader_chunks || [];
+  const head = c => c.arabic.split(/\s+/).filter(Boolean).slice(0, 6).join(' ');
+  for (const lang of TTS_LANGS) {
+    try {
+      const m = JSON.parse(readFileSync(join(dir, `tts_${lang}.json`), 'utf8'));
+      if (!existsSync(join(dir, m.audio))) continue;
+      if (!m.blocks.every(b => chunks[b.i] && head(chunks[b.i]) === b.arabic_head)) continue;
+      for (const b of m.blocks) chunks[b.i][lang === 'en' ? 'tts_start' : `tts_${lang}_start`] = b.start;
+      result[`tts_${lang}`] = { url: `/tts/${encodeURIComponent(folder)}/${lang}.mp3`, voice: m.voice, engine: m.engine };
+    } catch {}
+  }
+}
+
+app.get('/tts/:folder/:lang.mp3', (req, res) => {
+  if (!ALLOWED_FOLDERS.has(req.params.folder) || !TTS_LANGS.includes(req.params.lang)) return res.status(404).end();
+  res.sendFile(join(__dirname, 'outputs', req.params.folder, `tts_${req.params.lang}.mp3`), err => {
+    if (err && !res.headersSent) res.status(404).end();
+  });
+});
 
 // One home-page card. Shared by the route and the startup cache warm-up: they were two
 // copies, and the warm-up one lost masjid and date, so the cards never showed them.
@@ -296,6 +342,7 @@ app.get('/api/results/:folder', (req, res) => {
     const folder = `outputs/${req.params.folder}`;
     const result = loadResult(folder);
     result.audio_url = findAudioUrl(req.params.folder);
+    attachTts(req.params.folder, result);
     const meta = PUBLIC_KHUTBAHS.find(k => k.folder === req.params.folder);
     result.title = meta?.title || '';
     result.speaker = meta?.speaker || '';
@@ -459,6 +506,7 @@ server.listen(PORT, () => {
     try {
       const result = loadResult(`outputs/${k.folder}`);
       result.audio_url = findAudioUrl(k.folder);
+      attachTts(k.folder, result);
       result.title = k.title;
       result.speaker = k.speaker || '';
       result.masjid = k.masjid || '';

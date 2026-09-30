@@ -2,7 +2,7 @@
 // verify_reader.js (the gate). Both must see identical chunks and identical timings, so
 // this lives in one module rather than being duplicated.
 
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -186,7 +186,29 @@ export function loadResult(folder) {
       if (target >= 0) chunks[target].second_khutbah_start = true;
     }
 
+    attachUrdu(join(__dirname, folder), chunks);
     result.reader_chunks = chunks;
   } catch (_) {}
   return result;
+}
+
+// The Urdu reader (translate_urdu.js) has the same blocks as reader.txt with Urdu in place of
+// English. Urdu is written in Arabic script, so its blocks are split by position (the imam's
+// Arabic is always the first paragraph), not by script as above. Each chunk gets its block's
+// Urdu when the Arabic is the same; a chunk without one simply has no Urdu. Folders without a
+// reader_ur.txt (every khutbah published before the 25 Sep Urdu edition) are untouched.
+function attachUrdu(dir, chunks) {
+  const p = join(dir, 'reader_ur.txt');
+  if (!existsSync(p)) return;
+  const blocks = readFileSync(p, 'utf8').split(/─{20,}/)
+    .map(b => b.replace(/^ANNOTATED READER VIEW\s*=+\s*/i, '').trim()).filter(Boolean)
+    .map(b => { const paras = b.split(/\n\n+/).map(x => x.trim()).filter(Boolean); return { arabic: paras[0], urdu: paras.slice(1).join('\n\n') }; })
+    .filter(b => b.arabic && b.urdu);
+  let j = 0;
+  for (const c of chunks) {
+    const k = blocks.slice(j, j + 4).findIndex(b => b.arabic === c.arabic);
+    if (k < 0) continue;
+    c.urdu = blocks[j + k].urdu;
+    j += k + 1;
+  }
 }
