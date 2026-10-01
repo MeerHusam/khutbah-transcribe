@@ -76,7 +76,7 @@ Sudais file is only ~5.9 MB, so if you want it fully playable, add one line to
 then `git add audio_files/makkah_sudais_ramadan_ummah.mp3 && git commit`.
 
 To publish a different/new khutbah, run `node worker/publish.js` (it adds the entry to
-`server/khutbahs.json` and un-ignores its audio + outputs folder in `.gitignore`).
+the site's database through the publish API: no commit, no deploy).
 
 ## Viewer counts
 

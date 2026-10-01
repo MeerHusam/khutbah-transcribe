@@ -8,7 +8,7 @@ This file is auto-loaded by Claude Code at session start. It captures the full i
 
 - **GitHub:** https://github.com/MeerHusam/khutbah-transcribe (branch: `main`)
 - **Render:** https://khutbah-live.onrender.com (Blueprint, **Starter plan**, auto-deploys on push to `main`)
-- **Persistent disk:** 1 GB mounted at `/opt/render/project/src/data` — `views.json`, `visits.jsonl`, `geo_views.jsonl`, `engage.jsonl`, `feedback.jsonl`, `uploads/` persist across restarts/redeploys
+- **Persistent disk:** 1 GB mounted at `/opt/render/project/src/data` — `site.db` (the published khutbahs), `outputs/` + `audio_files/` of khutbahs published through the API, `views.json`, `visits.jsonl`, `geo_views.jsonl`, `engage.jsonl`, `feedback.jsonl`, `uploads/` persist across restarts/redeploys
 - **Admin feedback:** `https://khutbah-live.onrender.com/admin/feedback?key=<ADMIN_TOKEN>` (set in Render Environment tab)
 - **Admin traffic:** `https://khutbah-live.onrender.com/admin/traffic?key=<ADMIN_TOKEN>` — views, places, khutbahs, sources, devices, listening
 - **Upload page:** `https://khutbah-live.onrender.com/admin/upload?key=<ADMIN_TOKEN>` — a recording from the masjid; the Mac's worker publishes it
@@ -29,6 +29,8 @@ Takes an Arabic Friday Khutbah (sermon) audio file and produces:
 ## Key Files
 
 Restructured 2 Oct 2026 (branch `restructure`): `pipeline.js` is only the CLI; everything it runs lives in `core/`.
+Phase 2 started 2 Oct 2026 (branch `phase2-sqlite`, on top of `restructure`): the published khutbahs are in SQLite on
+Render's disk and khutbahs are published through an admin API, so publishing no longer commits or deploys. Node 22.
 Run every script from the repo root (each loads `.env` from the working directory). `npm test` runs all tests.
 
 | File | Role |
@@ -46,16 +48,18 @@ Run every script from the repo root (each loads `.env` from the working director
 | `core/review_blocks.js` | Stage C: second-model review of every reader block (claude-sonnet-5, ~$0.07/khutbah). Writes `review.json` flags; changes nothing. |
 | `core/verse_excerpts.js` | For a verse the imam recited only in part, the matching part of each published translation, so the card (and the voice) shows just that part. |
 | `server/server.js` | The site's wiring only (`npm start`): Express routers, static files, the viewer WebSocket, cache warm-up. |
-| `server/khutbahs.json` | The published khutbahs (folder, slug, title, masjid, date, audio, page, featured, old_slugs/old_folders, note). Written by `worker/publish.js`; was the `PUBLIC_KHUTBAHS` array in server.js. |
-| `server/khutbahs.js` | Reads the list; builds and caches each khutbah's result (reader chunks, audio URL, voice tracks, word times) and the home-page list. |
+| `server/db.js` | The site database (2 Oct 2026, phase 2): SQLite via Node's built-in `node:sqlite` at `DATA_DIR/site.db` (Render's disk). Table `khutbahs` (folder, slug, position, featured, title … old_slugs/old_folders as JSON, note). `publishKhutbah` upserts by folder: a new one goes on top, featured moves, a changed slug is kept as a redirect, unsent old_slugs/old_folders/note are kept; a slug owned by another folder (or its old slug) is a 409. All SQL is here, so a move to Postgres changes this file only. |
+| `server/khutbahs.seed.json` | The khutbahs published before the database; seeds a fresh database once. Not the live list (that is the database): editing it changes nothing on a running site. |
+| `server/khutbahs.js` | The catalog (`catalog()`, rebuilt after each publish) and each khutbah's result (reader chunks, audio URL, voice tracks, word times), cached; `publish()` clears the caches. A khutbah's files: `DATA_DIR/outputs/<folder>/` and `DATA_DIR/audio_files/` if published through the API, else the repo's `outputs/` and `audio_files/`. |
 | `server/routes/pages.js` | `/`, `/<slug>`, the old `/index.html?folder=` address; link-preview tags. |
 | `server/routes/api.js` | `/api/results`, `/api/results/:folder`, `/api/quran`, voice tracks and word times, `/api/feedback`, `/api/engage`. |
-| `server/routes/admin.js` | `/admin/feedback`, `/admin/traffic`, `/admin/upload` and the upload job API the Mac's worker uses (all need `ADMIN_TOKEN`). |
+| `server/routes/admin.js` | `/admin/feedback`, `/admin/traffic`, `/admin/upload` and the upload job API the Mac's worker uses, and the publish API: `PUT /admin/api/files/<folder>/<name>`, `PUT /admin/api/audio/<name>` (raw body, application/octet-stream), `POST /admin/api/khutbahs` (the entry). All need `ADMIN_TOKEN`. |
 | `server/viewers.js` | Live / total / unique viewer counts over the WebSocket and the per-visit log (`data/visits.jsonl`, geo by ip-api.com). |
 | `server/config.js` | ROOT, PORT, ADMIN_TOKEN and the data paths (`DATA_DIR` env for tests; default `<root>/data`, Render's disk). |
 | `server/admin/` | `traffic.js` builds the /admin/traffic page; `upload.html` is the upload page. |
-| `worker/publish.js` | One command from recording to publishable: remux/trim (faststart checked), pipeline, verify_reader, test entry, an entry in `server/khutbahs.json` + .gitignore. Never commits or pushes. |
-| `worker/autopublish.js` | Recording to live page with no one in between (1 Oct 2026): remux, `pipeline.js --gemini`, title (Sonnet 5.5, low), then [Urdu translate + review ‖ imam timing, delivery, cleaned recording], `verse_excerpts.js`, [Urdu voice (Orus, `--direct`; word times come with it) → recitation ‖ English voice (Charon) → `align_words.py` → recitation], `publish.js --keep-audio --page reader-ur.html --audio clean`, commit only its paths, pull --rebase, push main, wait for the page. Our masjid: link `/<date>`, featured; another masjid (`--masjid "Name"`): `/<date>-<masjid>`. `--resume outputs/<folder>` reruns a failed run keeping finished steps; `--no-push` for tests. Logs in `logs/<name>.log`. 3-min clip: 5.7 min. |
+| `worker/publish.js` | One command from recording to a published page: remux/trim (faststart checked), pipeline, verify_reader, test entry, then publish through the site's API to `--site` (default `http://localhost:3000`, to check locally first; prints the exact command for the live site; `--no-site` stops after the checks). Never commits or deploys. |
+| `worker/site.js` | The publish API's client: uploads the files the site reads (`SITE_FILES`: result.json, reader.txt, reader_ur.txt, tts_*.json/mp3, words_imam.json), the recording, then the entry. `siteSlugs()` lists the slugs in use. |
+| `worker/autopublish.js` | Recording to live page with no one in between (1 Oct 2026): remux, `pipeline.js --gemini`, title (Sonnet 5.5, low), then [Urdu translate + review ‖ imam timing, delivery, cleaned recording], `verse_excerpts.js`, [Urdu voice (Orus, `--direct`; word times come with it) → recitation ‖ English voice (Charon) → `align_words.py` → recitation], `publish.js --keep-audio --page reader-ur.html --audio clean --site $SITE_URL` (the publish API: live at once, no commit, no deploy; checked), `--no-push` = everything but publishing. Our masjid: link `/<date>`, featured; another masjid (`--masjid "Name"`): `/<date>-<masjid>`. `--resume outputs/<folder>` reruns a failed run keeping finished steps; `--no-push` for tests. Logs in `logs/<name>.log`. 3-min clip: 5.7 min. |
 | `worker/upload_worker.js` | Runs on the Mac (`caffeinate -is node worker/upload_worker.js`, needs `ADMIN_TOKEN` in `.env`): every 15 s takes the oldest recording sent from the upload page (`/admin/upload?key=<ADMIN_TOKEN>`, stored on the Render disk in `data/uploads/`), downloads it to `audio_files/inbox/`, runs `autopublish.js --job <id>`, which reports each stage back to the page. Only calls out; nothing on the Mac is reachable. |
 | `voice/tts.js` | Voice tracks (30 Sep 2026): speaks each reader block's English (`--lang en`) or Urdu (`--lang ur`). Engines: `gemini` (default; `tts_gemini.mjs`) and `elevenlabs` (paid; `eleven_v3` speaks Urdu well; `tts_elevenlabs.py`, per-block cache in `.tts_cache/`, a `--max-credits` cap, 2000 default, checked before anything is sent). `--tempo 1.15` speeds up without regenerating. Writes `tts_<lang>.mp3` + `.json`; the page's player offers the voice of the language on screen. Verses: meaning only, never synthesized Arabic; a lead-in ("Allah says:" / "ارشادِ باری تعالیٰ ہے:") only where the imam didn't introduce the verse. A 4 s pause goes before the second khutbah. `--direct` (Gemini, 1 Oct 2026): a direction per sentence from `voice_directions.js` and the voice a passage at a time; 25 Sep Urdu in Orus: 13 passages, $0.39 with directions. (Kokoro, Chatterbox and OmniVoice were removed 2 Oct 2026.) |
 | `voice/tts_gemini.mjs` | Gemini TTS engine for `tts.js` (passages, directions, word times from the passage split). |
@@ -71,7 +75,7 @@ Run every script from the repo root (each loads `.env` from the working director
 | `scripts/quran_detect.py` | **Prototype** Quran-detection helper using the `quran-detector` PyPI library (shelled out to by `compare_quran.js`). Reads a transcript, prints detected verse fragments as JSON. NOT yet wired into the production pipeline — used for evaluation only. Needs the project `.venv` (Python ≥3.12). |
 | `scripts/compare_quran.js` | **Eval harness.** Runs the current Quran pipeline (`prescanForQuranZones` + `scanTranscriptForQuran` + `buildZoneRefs`) and `quran_detect.py` on a transcript and prints a side-by-side + surah:ayah delta. Read-only. |
 | `scripts/setup_hadith.js` | Downloads the Hadith collections into `hadith_data/` (skips files already there). |
-| `tests/` | `npm test`: `test_khutbahs.js` (every published khutbah's reader against `khutbahs.json`, on disk and `--rebuild`), `server.test.js` (routes, viewer socket, upload API on a real server with an empty DATA_DIR), `pipeline.test.js` (pipeline.js end to end on 25 Sep's transcript with Claude stubbed by `tests/stubs/`; must pass the gate). Free, offline; GitHub Actions runs it (`.github/workflows/test.yml`, Node 20). |
+| `tests/` | `npm test`: `test_khutbahs.js` (every published khutbah's reader against `khutbahs.json`, on disk and `--rebuild`), `server.test.js` (routes, viewer socket, upload API and publishing through `worker/site.js`, on a real server with an empty DATA_DIR and a fresh database), `pipeline.test.js` (pipeline.js end to end on 25 Sep's transcript with Claude stubbed by `tests/stubs/`; must pass the gate). Free, offline; GitHub Actions runs it (`.github/workflows/test.yml`, Node 22). |
 | `requirements/` | Pinned Python deps for `.venv` (base.txt: ElevenLabs engine, quran-detector), `.venv-align` (align.txt: MMS aligner, imam_delivery) and `.venv-clean` (clean.txt). |
 | `public/` | The pages: `home.html` (landing), `index.html` (reader), `reader-ur.html` (reader with Urdu and voices; entries name it with `page`), `recited.js` (shared with the voice scripts), `results.html` (old-link redirect). |
 | `docs/` | ARCHITECTURE (scalability proposal), FIXES (root causes of every fix), DEPLOY, STREAMING (removed mode, record only), recordings. |
@@ -317,7 +321,7 @@ site**. The offline pipeline (`pipeline.js`, `reanalyze.js`, CLI) is unchanged �
   via `ip-api.com` (free, no key, 3s timeout, skips private IPs) — appends
   `{ts, city, region, country, countryCode}` to `data/geo_views.jsonl`. Admin endpoints:
   `/admin/feedback`, `/admin/traffic`, `/admin/upload` (all `?key=` = `ADMIN_TOKEN`).
-  A curated allowlist, `server/khutbahs.json` (folder + friendly title + featured flag), replaces
+  A curated allowlist, the `khutbahs` table in `server/db.js` (folder + friendly title + featured flag), replaces
   the dump-all-folders listing; `/api/results` returns `{ featured, items[] }`,
   `/api/results/:folder` is allowlist-gated (404 otherwise). `PORT` env honored.
 - **`public/home.html`**: the **landing page**, served at `/` (`app.get('/')`). It has no
@@ -358,7 +362,7 @@ site**. The offline pipeline (`pipeline.js`, `reanalyze.js`, CLI) is unchanged �
 ## Environment / Setup
 
 ```bash
-npm install                    # Node deps (includes quran-json corpus)
+npm install                    # Node 22.13+ (node:sqlite); deps include the quran-json corpus
 cp .env.example .env           # ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY (+ ADMIN_TOKEN, ELEVEN_LABS_API_KEY; see the file)
 node scripts/setup_hadith.js   # Downloads Hadith collections to hadith_data/
 npm start                      # the site at http://localhost:3000

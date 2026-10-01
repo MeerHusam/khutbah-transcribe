@@ -19,7 +19,7 @@ recording
                           it missed; hadith matched to a local corpus, then to sunnah.com
   → reader                outputs/<run>/reader.txt + result.json: Arabic block, English, cards
   → Urdu, voices          translation and review (Claude), Gemini voices, offline word alignment
-  → site                  the khutbah is added to server/khutbahs.json and served by the site
+  → site                  published through the site's API: live at once, no commit, no deploy
 ```
 
 From the masjid, the whole chain is one upload: the upload page stores the recording on the
@@ -46,19 +46,20 @@ voice/                 voice tracks (Gemini, ElevenLabs), word alignment, the im
                        echo removal (Node + Python)
 worker/                publish.js (one khutbah to publishable), autopublish.js (recording to
                        live page), upload_worker.js (runs autopublish for each upload)
-server/                the website: Express routes, viewer counts, admin and upload pages;
-                       khutbahs.json is the list of published khutbahs
+server/                the website: Express routes, viewer counts, admin, upload and publish
+                       API; the published khutbahs are in SQLite (db.js) on Render's disk
 public/                the pages (home, reader)
 scripts/               maintenance: reanalyze an old run, set up the hadith corpus, evaluations
 tests/                 npm test: reader checks per khutbah, server, pipeline end to end
 requirements/          the Python environments
 docs/                  architecture proposal, fix history, deployment, recordings
-outputs/, audio_files/ the published runs and recordings (others are ignored by git)
+outputs/, audio_files/ pipeline runs and recordings (in git only those published before the
+                       publish API; new ones go to the site's disk)
 ```
 
 ## Setup
 
-Needs Node 20+, ffmpeg, and for the voice steps Python 3.12 and [uv](https://docs.astral.sh/uv/).
+Needs Node 22.13+ (the site uses Node's built-in SQLite), ffmpeg, and for the voice steps Python 3.12 and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 npm install
@@ -88,16 +89,18 @@ node urdu/translate_urdu.js outputs/<run>             # then urdu/review_urdu.js
 node voice/tts.js outputs/<run> --lang ur --direct    # a voice track (Gemini)
 
 # Publishing
-node worker/publish.js <recording> --slug 2026-10-02 --title "…" --date "2 October 2026"
-node worker/autopublish.js <recording> [--masjid "Name"] [--no-push]   # everything, then push
+node worker/publish.js <recording> --slug 2026-10-02 --title "…" --date "2 October 2026"   # to your local site
+node worker/autopublish.js <recording> [--masjid "Name"] [--no-push]   # everything, then the live site
 caffeinate -is node worker/upload_worker.js           # on the Mac: picks up uploads
 
 # The site
 npm start                                             # http://localhost:3000
 ```
 
-Each script prints its options when run without arguments. `publish.js` never commits or
-pushes; `autopublish.js` commits only its own files and pushes `main`, which Render deploys.
+Each script prints its options when run without arguments. Publishing goes through the site's
+admin API (`worker/site.js`, needs `ADMIN_TOKEN`): `publish.js` publishes to `--site` (your local
+server by default, so you check it there first), `autopublish.js` to the live site. Nothing is
+committed and nothing is deployed; the page is live at once.
 
 ## Tests
 
@@ -107,8 +110,8 @@ npm test
 
 - `tests/test_khutbahs.js`: every published khutbah's reader against its expected verse and
   hadith cards (`tests/khutbahs.json`), as on disk and rebuilt with the current code.
-- `tests/server.test.js`: the site's pages, API, viewer socket, feedback and upload API, on
-  a real server with an empty data folder.
+- `tests/server.test.js`: the site's pages, API, viewer socket, feedback, upload API and
+  publishing a khutbah, on a real server with an empty data folder and a fresh database.
 - `tests/pipeline.test.js`: `pipeline.js` end to end on a published transcript with Claude
   stubbed out; the reader it writes must pass the publish gate.
 
@@ -116,8 +119,10 @@ All free and offline (no API key needed). GitHub Actions runs them on every push
 
 ## Deployment
 
-Render (`render.yaml`, Starter plan) deploys `main` and runs `node server/server.js`. A
-persistent disk at `data/` keeps viewer counts, feedback and uploads across deploys. Admin
+Render (`render.yaml`, Starter plan, Node 22) deploys `main` and runs `node server/server.js`.
+A persistent disk at `data/` holds the database (`site.db`: the published khutbahs), the files of
+khutbahs published through the API, viewer counts, feedback and uploads. Code changes deploy;
+publishing a khutbah does not. Admin
 pages: `/admin/traffic`, `/admin/feedback` and `/admin/upload`, each with `?key=<ADMIN_TOKEN>`.
 See [docs/DEPLOY.md](docs/DEPLOY.md).
 
