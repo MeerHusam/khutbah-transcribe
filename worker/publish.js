@@ -9,7 +9,7 @@
 //   3. gate: verify_reader.js must pass
 //   4. test set: the khutbah is added to tests/khutbahs.json with its current cards, marked
 //      unconfirmed, and test_khutbahs.js --rebuild must pass for every khutbah
-//   5. site: a PUBLIC_KHUTBAHS entry in server/server.js (featured unless --no-feature) and the
+//   5. site: an entry in server/khutbahs.json (featured unless --no-feature) and the
 //      .gitignore allowlist lines for its audio and output folder
 // Then it prints what to check and the git commands. It never commits or pushes.
 //
@@ -51,8 +51,9 @@ const trimStart = +opt('--trim-start', 0), trimEnd = +opt('--trim-end', 0);
 const fromFolder = opt('--from-folder');
 const dryRun = flag('--dry-run');
 
-const serverJs = readFileSync(join(ROOT, 'server', 'server.js'), 'utf8');
-if (serverJs.includes(`slug: '${slug}'`)) die(`slug "${slug}" is already in PUBLIC_KHUTBAHS`);
+const KHUTBAHS = join(ROOT, 'server', 'khutbahs.json');
+const khutbahs = JSON.parse(readFileSync(KHUTBAHS, 'utf8'));
+if (khutbahs.some(k => k.slug === slug)) die(`slug "${slug}" is already in server/khutbahs.json`);
 
 const run = (cmd, args) => {
   console.log(`  $ ${cmd} ${args.join(' ')}`);
@@ -154,21 +155,18 @@ if (!spec.khutbahs.some(k => k.slug === slug)) {
 run('node', ['test_khutbahs.js', '--rebuild']);
 
 // ── 5. Site ───────────────────────────────────────────────────────────────────
-step('5. PUBLIC_KHUTBAHS and .gitignore');
+step('5. server/khutbahs.json and .gitignore');
 const feature = !flag('--no-feature');
-const q = s => `'${String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 const fields = [
   ['folder', runName], ['slug', slug], ['title', title], ['speaker', opt('--speaker', 'Friday Khutbah')],
   ['masjid', opt('--masjid')], ['masjid_ar', opt('--masjid-ar')], ['maps_url', opt('--maps-url')], ['date', date],
   ['audio', opt('--audio')], ['page', opt('--page')],
 ].filter(([, val]) => val);
-const entry = `  {\n${fields.map(([k, val]) => `    ${k}: ${q(val)},`).join('\n')}${feature ? '\n    featured: true,' : ''}\n  },\n`;
-let js = serverJs;
-if (feature) js = js.replace(/\n    featured: true,/g, '');
-js = js.replace('const PUBLIC_KHUTBAHS = [\n', `const PUBLIC_KHUTBAHS = [\n${entry}`);
-if (js === serverJs) die('could not find "const PUBLIC_KHUTBAHS = [" in server/server.js');
-writeFileSync(join(ROOT, 'server', 'server.js'), js);
-console.log(`  + PUBLIC_KHUTBAHS: ${slug}${feature ? ' (featured)' : ''}`);
+// The newest entry goes first; a featured one takes the home page from the one before it.
+if (feature) for (const k of khutbahs) delete k.featured;
+khutbahs.unshift({ ...Object.fromEntries(fields), ...(feature ? { featured: true } : {}) });
+writeFileSync(KHUTBAHS, JSON.stringify(khutbahs, null, 2) + '\n');
+console.log(`  + server/khutbahs.json: ${slug}${feature ? ' (featured)' : ''}`);
 
 let gi = readFileSync(join(ROOT, '.gitignore'), 'utf8');
 const addAfterLast = (text, prefix, line) => {
@@ -192,6 +190,6 @@ console.log(`
   1. node server/server.js, then open http://localhost:3000/${slug} in Safari or Chrome (not VS Code's
      browser: it cannot play .m4a) and read it through; play the audio and follow the highlight.
   2. Confirm the cards in tests/khutbahs.json (entry "${slug}", "confirmed": false).
-  3. git add ${audioOut} ${folder} server/server.js .gitignore tests/khutbahs.json
+  3. git add ${audioOut} ${folder} server/khutbahs.json .gitignore tests/khutbahs.json
      git commit -m "Publish ${title} (${date})"
   4. Push when traffic is low: git push origin main   (Render deploys main in about a minute)`);

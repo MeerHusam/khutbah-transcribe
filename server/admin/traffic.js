@@ -1,4 +1,4 @@
-// admin_traffic.js — the /admin/traffic page: views over time, where viewers are, which
+// admin/traffic.js — the /admin/traffic page: views over time, where viewers are, which
 // khutbahs they read, how they got there, their devices, when they come and how long they
 // stay. Built from the append-only logs in data/:
 //   visits.jsonl  one line per page view (since 11 Sep 2026; khutbah/source/device/place since
