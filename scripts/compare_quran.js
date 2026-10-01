@@ -6,7 +6,7 @@
  *
  * Read-only / prototype — does NOT modify the production pipeline.
  *
- * Usage:  node compare_quran.js outputs/<folder>
+ * Usage:  node scripts/compare_quran.js outputs/<folder>
  */
 import { readFileSync } from 'fs';
 import { execFileSync } from 'child_process';
@@ -17,7 +17,7 @@ import {
   prescanForQuranZones,
   scanTranscriptForQuran,
   buildZoneRefs,
-} from './pipeline.js';
+} from '../pipeline.js';
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -31,8 +31,8 @@ for (const s of quranData) {
 }
 
 const folder = process.argv[2];
-if (!folder) { console.error('Usage: node compare_quran.js outputs/<folder>'); process.exit(1); }
-const dir = path.resolve(__dirname, folder);
+if (!folder) { console.error('Usage: node scripts/compare_quran.js outputs/<folder>'); process.exit(1); }
+const dir = path.resolve(__dirname, '..', folder);
 const transcript = readFileSync(path.join(dir, 'transcript.txt'), 'utf8').trim();
 const words = transcript.split(/\s+/).filter(Boolean);
 
@@ -58,7 +58,7 @@ console.log(`\n-- buildZoneRefs (n-gram fallback): ${zoneRefs.length} refs --`);
 for (const r of zoneRefs) console.log(`  ${r.surah_number}:${r.ayah_number}  «${trunc(r.detected_text)}»`);
 
 // ---- quran-detector library -------------------------------------------------
-const py = path.join(__dirname, '.venv', 'bin', 'python');
+const py = path.join(__dirname, '..', '.venv', 'bin', 'python');
 let detected;
 try {
   const raw = execFileSync(py, [path.join(__dirname, 'quran_detect.py'), path.join(dir, 'transcript.txt')], { encoding: 'utf8' });

@@ -2,7 +2,7 @@
 /**
  * One-time setup: downloads major Hadith collections as local JSON files.
  * Run once before using the pipeline's Hadith scan feature:
- *   node setup_hadith.js
+ *   node scripts/setup_hadith.js
  *
  * Downloads ~35 MB total to hadith_data/. Safe to re-run — skips existing files.
  */

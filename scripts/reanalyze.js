@@ -2,7 +2,7 @@
 // reanalyze.js — Rebuild reader.txt from existing result.json + transcript.txt
 // using the improved canonical-span alignment. No API calls needed.
 //
-// Usage: node reanalyze.js outputs/<folder> [--keep-chunks] [--no-swaps]
+// Usage: node scripts/reanalyze.js outputs/<folder> [--keep-chunks] [--no-swaps]
 //
 // --keep-chunks reuses the stored prose chunks and Quran refs exactly as they are and only
 // re-applies the hadith filters and rebuilds the reader. For runs translated under older
@@ -26,12 +26,12 @@ import {
   resolveSunnahLinksForRefs,
   yieldTailToLaterRefs,
   settleLoneWords,
-} from './pipeline.js';
-import { planQuoteSwaps } from './core/quote_swaps.js';
+} from '../pipeline.js';
+import { planQuoteSwaps } from '../core/quote_swaps.js';
 
 const folder = process.argv[2];
 if (!folder || !existsSync(folder)) {
-  console.error('Usage: node reanalyze.js outputs/<folder>');
+  console.error('Usage: node scripts/reanalyze.js outputs/<folder>');
   process.exit(1);
 }
 

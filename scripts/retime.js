@@ -6,18 +6,18 @@
 // boundaries.
 // Run reanalyze.js afterwards to rebuild reader.txt from the new timings.
 //
-//   node retime.js outputs/<folder> audio_files/<audio>
+//   node scripts/retime.js outputs/<folder> audio_files/<audio>
 
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import {
   preprocessAudio, SILENCE_PREPEND_SEC, transcribeWithGroq, transcribeWithGroqWindowed,
   combineTimings, retimeUnanchoredGaps,
-} from './pipeline.js';
+} from '../pipeline.js';
 
 const [folder, audio] = process.argv.slice(2);
 if (!folder || !audio || !existsSync(join(folder, 'result.json')) || !existsSync(audio)) {
-  console.error('Usage: node retime.js outputs/<folder> audio_files/<audio>');
+  console.error('Usage: node scripts/retime.js outputs/<folder> audio_files/<audio>');
   process.exit(1);
 }
 
@@ -57,7 +57,7 @@ try {
     end: i + 1 < segs.length ? newStart(firstWord[i + 1]) : newStart(words.length - 1) + 2,
   }));
   writeFileSync(resultPath, JSON.stringify(result, null, 2), 'utf8');
-  console.log(`✓ Saved new timings to ${resultPath} — now run: node reanalyze.js ${folder}`);
+  console.log(`✓ Saved new timings to ${resultPath} — now run: node scripts/reanalyze.js ${folder}`);
 } finally {
   if (pre !== audio) try { unlinkSync(pre); } catch {}
 }

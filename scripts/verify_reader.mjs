@@ -2,10 +2,10 @@
 //  1. Duplicate adjacent Quran cards (same surah:ayah back-to-back)
 //  2. Spillover: a PROSE block whose Arabic actually contains a Quran ayah (>=5 matched words)
 //  3. Repeated-ayah cards (same surah:ayah carded more than once anywhere)
-// Usage: node verify_reader.mjs outputs/<folder>
+// Usage: node scripts/verify_reader.mjs outputs/<folder>
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { prescanForQuranZones } from './pipeline.js';
+import { prescanForQuranZones } from '../pipeline.js';
 
 const folder = process.argv[2];
 const txt = readFileSync(join(folder, 'reader.txt'), 'utf8');

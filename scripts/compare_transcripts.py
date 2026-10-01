@@ -2,8 +2,8 @@
 """
 Compare our pipeline's transcript against a YouTube reference transcript.
 Usage:
-    python3 compare_transcripts.py <our_transcript.txt> <yt_reference.txt>
-    python3 compare_transcripts.py outputs/<folder>/transcript.txt references/sudais_ashura_muharram_yt.txt
+    python3 scripts/compare_transcripts.py <our_transcript.txt> <yt_reference.txt>
+    python3 scripts/compare_transcripts.py outputs/<folder>/transcript.txt references/sudais_ashura_muharram_yt.txt
 """
 
 import sys
@@ -63,7 +63,7 @@ def sequence_similarity(ours, ref):
 
 def main():
     if len(sys.argv) < 3:
-        print("Usage: python3 compare_transcripts.py <our_transcript> <yt_reference>")
+        print("Usage: python3 scripts/compare_transcripts.py <our_transcript> <yt_reference>")
         sys.exit(1)
 
     our_path = sys.argv[1]

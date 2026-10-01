@@ -6,8 +6,8 @@ Runs the `quran-detector` library (github.com/SElBeltagy/Quran_Detector) over a
 transcript and prints detected verse fragments as JSON to stdout.
 
 Usage:
-    python quran_detect.py <transcript.txt>
-    echo "<arabic text>" | python quran_detect.py -
+    python scripts/quran_detect.py <transcript.txt>
+    echo "<arabic text>" | python scripts/quran_detect.py -
 
 Output (stdout): JSON array of
     {
