@@ -192,7 +192,9 @@ async function speakPassage(blocks, n) {
 }
 
 // Where each block starts inside its passage: the aligner finds every word of the passage, and
-// a block starts just before its first word (at most 0.2 s, or half the pause, before it).
+// a block starts just before its first word (at most 0.2 s, or half the pause, before it). Each
+// block also keeps its words' times ([word, start, end] in the track), so tts.js can write them
+// and align_words.py need not align the track again.
 function splitPassages(spans) {
   const counts = spans.map(s => s.blocks.map(b => b.text.split(/\s+/).filter(Boolean).length));
   let words = null;
@@ -213,15 +215,16 @@ function splitPassages(spans) {
     let at = s.start, seen = 0, chars = 0;
     s.blocks.forEach((b, j) => {
       let end = s.end;
+      const first = seen;
+      seen += counts[k][j]; chars += b.text.length;
       if (j < s.blocks.length - 1) {
-        seen += counts[k][j]; chars += b.text.length;
         if (ok) {
           const [prevEnd, nextStart] = [w[seen - 1][2], w[seen][1]];
           const gap = nextStart - prevEnd;
           end = gap > 0 ? nextStart - Math.min(0.2, gap / 2) : nextStart;
         } else end = s.start + (s.end - s.start) * chars / total;
       }
-      times.push({ i: b.i, start: round2(at), end: round2(end) });
+      times.push({ i: b.i, start: round2(at), end: round2(end), ...(ok ? { words: w.slice(first, seen) } : {}) });
       at = end;
     });
   });

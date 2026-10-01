@@ -346,7 +346,12 @@ const manifest = {
   created: new Date().toISOString(),
   audio: `${base}.mp3`,
   tempo,
-  blocks: blocks.map(b => ({ ...b, start: at(times.get(b.i)?.start), end: at(times.get(b.i)?.end) })),
+  // Word times come with a passage-voiced track (the aligner already ran to split it).
+  ...(blocks.every(b => times.get(b.i)?.words) ? { words_by: 'mms_fa (passages)' } : {}),
+  blocks: blocks.map(b => {
+    const t = times.get(b.i);
+    return { ...b, start: at(t?.start), end: at(t?.end), ...(t?.words ? { words: t.words.map(([w, s, e]) => [w, at(s), at(e)]) } : {}) };
+  }),
 };
 writeFileSync(join(folder, `${base}.json`), JSON.stringify(manifest, null, 1));
 const last = manifest.blocks.at(-1);
