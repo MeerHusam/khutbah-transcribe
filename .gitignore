@@ -10,6 +10,8 @@ data/
 
 # faster-whisper / HuggingFace model cache
 models/
+# Paid TTS audio kept per block (tts_elevenlabs.py), so no block is paid for twice.
+.tts_cache/
 *.bin
 *.safetensors
 

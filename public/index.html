@@ -167,6 +167,7 @@
       text-align: center;
     }
     .speed-btn:hover { background: var(--gold-light); }
+    .voice-btn.on { color: var(--bg); background: var(--gold); border-color: var(--gold); }
 
     .audio-time {
       font-size: 12px;
@@ -713,6 +714,7 @@
     <input class="audio-scrubber" id="scrubber" type="range" min="0" max="100" value="0" step="0.1">
     <span class="audio-time" id="audioTime">0:00 / 0:00</span>
     <button class="speed-btn" id="speedBtn" onclick="cycleSpeed()" title="Playback speed">1×</button>
+    <button class="speed-btn voice-btn" id="voiceBtn" onclick="toggleVoice()" title="Switch between the imam and an English voice" hidden>English</button>
   </div>
 
   <div class="header-right">
@@ -1308,6 +1310,11 @@
     document.body.classList.toggle('lang-ur', lang === 'ur');
     for (const b of document.querySelectorAll('.lang-switch button')) b.classList.toggle('on', b.dataset.lang === lang);
     if (remember) { try { localStorage.setItem('kt-lang', lang); } catch {} }
+    pageLang = lang;
+    // A voice reading the translation follows the language: on to the other language's voice
+    // at the same block, or back to the imam if that language has none.
+    if (audio && voice !== 'imam' && voice !== lang) switchTrack(result['tts_' + lang] ? lang : 'imam');
+    updateVoiceBtn();
   }
 
   // Marks a quote whose English above is our own translation rather than the published one.
@@ -1544,7 +1551,9 @@
             break;
           }
         }
-        const startAttr = c.start_time != null ? `data-start="${c.start_time}"` : '';
+        const startAttr = (c.start_time != null ? `data-start="${c.start_time}"` : '')
+          + (c.tts_start != null ? ` data-tts="${c.tts_start}"` : '')
+          + (c.tts_ur_start != null ? ` data-tts-ur="${c.tts_ur_start}"` : '');
         const marked = arabicAttrs
           ? { html: escHtml(c.arabic), kinds: [] }
           : renderChunkArabic(c.arabic, [...inlineAyahRefs(c.english), ...inlineHadithRefs(c.english)]);
@@ -1665,6 +1674,53 @@
   let audio = null;
   const SPEEDS = [1, 1.5, 2];
   let speedIdx = 0;
+  let activeChunk = null;
+  let pageLang = 'en';
+  // Which track plays: the imam's recording ('imam'), or a voice reading the translation
+  // ('en', 'ur'; tts.js). Each block holds its start in every track (data-start, data-tts,
+  // data-tts-ur), so highlighting and tapping a block follow whichever is playing.
+  let voice = 'imam';
+  const TIME_ATTR = { imam: 'start', en: 'tts', ur: 'tts-ur' };
+  const timeKey = () => TIME_ATTR[voice].replace(/-(\w)/g, (_, c) => c.toUpperCase());
+  const timedChunks = () => document.querySelectorAll(`.reader-chunk[data-${TIME_ATTR[voice]}]`);
+  // A block's start in the playing track; a block the voice skips starts at the next one.
+  function chunkTime(el) {
+    for (let e = el; e; e = e.nextElementSibling) {
+      if (e.classList.contains('reader-chunk') && e.dataset[timeKey()] != null) return parseFloat(e.dataset[timeKey()]);
+    }
+    return null;
+  }
+
+  function switchTrack(to) {
+    const wasPlaying = !audio.paused;
+    const at = activeChunk;
+    voice = to;
+    audio.pause();
+    audio.src = to === 'imam' ? result.audio_url : result['tts_' + to].url;
+    audio.addEventListener('loadedmetadata', () => {
+      audio.currentTime = (at && chunkTime(at)) || 0;
+      audio.playbackRate = SPEEDS[speedIdx];
+      if (wasPlaying) audio.play();
+    }, { once: true });
+    setPlayIcon(!wasPlaying);
+    updateVoiceBtn();
+  }
+
+  function toggleVoice() {
+    if (!audio) return;
+    if (voice !== 'imam') switchTrack('imam');
+    else if (result['tts_' + pageLang]) switchTrack(pageLang);
+  }
+
+  // The button offers the voice of the language on screen, or the way back to the imam.
+  function updateVoiceBtn() {
+    const btn = document.getElementById('voiceBtn');
+    if (!btn || !audio) return;
+    btn.hidden = voice === 'imam' && !result['tts_' + pageLang];
+    btn.classList.toggle('on', voice !== 'imam');
+    btn.textContent = voice !== 'imam' ? 'Imam' : pageLang === 'ur' ? 'اردو' : 'English';
+    btn.title = voice !== 'imam' ? 'Back to the imam' : pageLang === 'ur' ? 'Listen to an Urdu voice' : 'Listen to an English voice';
+  }
 
   function skip(sec) {
     if (!audio) return;
@@ -1686,8 +1742,9 @@
     const scrubber = document.getElementById('scrubber');
     const timeEl = document.getElementById('audioTime');
     player.style.display = 'flex';
+    updateVoiceBtn();
 
-    let activeChunk = null, lastT = null;
+    let lastT = null; // activeChunk is shared with the voice switch, declared above
     audio.addEventListener('timeupdate', () => {
       // Count audio actually played: small forward steps while playing, not seeks.
       const step = audio.currentTime - (lastT ?? audio.currentTime);
@@ -1699,11 +1756,11 @@
       timeEl.textContent = `${fmt(audio.currentTime)} / ${fmt(audio.duration)}`;
 
       const t = audio.currentTime;
-      const chunks = document.querySelectorAll('.reader-chunk[data-start]');
+      const chunks = timedChunks();
       if (!chunks.length) return;
       let best = chunks[0];
       for (const el of chunks) {
-        if (parseFloat(el.dataset.start) <= t) best = el;
+        if (parseFloat(el.dataset[timeKey()]) <= t) best = el;
         else break;
       }
       if (best !== activeChunk) {
@@ -1718,10 +1775,12 @@
     audio.addEventListener('pause', () => sendEngage(true));
     audio.addEventListener('seeking', () => { lastT = null; });
 
-    document.querySelectorAll('.reader-chunk[data-start]').forEach(el => {
+    document.querySelectorAll('.reader-chunk').forEach(el => {
       el.addEventListener('click', e => {
         if (e.target.closest('a')) return;
-        audio.currentTime = parseFloat(el.dataset.start);
+        const t = chunkTime(el);
+        if (t == null) return;
+        audio.currentTime = t;
         audio.play();
         setPlayIcon(false);
       });

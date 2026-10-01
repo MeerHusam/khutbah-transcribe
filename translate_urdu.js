@@ -27,8 +27,13 @@ import { join } from 'path';
 import { buildReaderView, normalizeArabic } from './pipeline.js';
 
 
-const MODEL = 'claude-sonnet-5';
-const PRICE_IN = 2 / 1e6, PRICE_OUT = 10 / 1e6; // USD per token, claude-sonnet-5
+// Opus 5.5 at high: on the hard parts of 25 Sep (1 Oct 2026) its first draft needed the fewest
+// fixes; Sonnet 5.5 cost the same in practice (twice the output, more review rounds) and slipped.
+const MODEL = 'claude-opus-5-5';
+const PRICE_IN = 4 / 1e6, PRICE_OUT = 20 / 1e6; // USD per token, claude-opus-5-5
+// A request the model declines (the du'a names enemies: Houthis, Zionists) is re-run on the
+// fallback model the API picks for that kind of refusal, instead of leaving blocks untranslated.
+const FALLBACK = { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' };
 export const QURAN_UR = {
   edition: 'urd-muhammadjunagar', // editions.json lists it as urd_muhammadjunagar; paths use '-'
   name: 'Muhammad Junagarhi',
@@ -54,9 +59,18 @@ const SYSTEM = `You translate an Arabic Friday khutbah (sermon) into Urdu for wo
 
 - Translate every chunk completely and faithfully: every command, phrase, name and condition the imam says ("اتقوا الله" must appear as its Urdu). Do not summarise, explain or add.
 - Translate exactly the words of each chunk, so that the chunks read on from one another; never move words into a neighbouring chunk.
-- Use the formal religious Urdu of Urdu khutbahs and translations: اللہ تعالیٰ، نبی کریم صلی اللہ علیہ وسلم، رضی اللہ عنہ، تقویٰ، نماز، زکوٰۃ.
+- Write the Urdu a good khateeb in Pakistan speaks from the minbar: respectful and religious, but in the words ordinary worshippers use at home and in the bazaar, so that someone with no schooling in Arabic or Persian follows every sentence when it is read aloud. Keep the religious terms and honorifics everyone knows (اللہ تعالیٰ، نبی کریم صلی اللہ علیہ وسلم، رضی اللہ عنہ، تقویٰ، نماز، زکوٰۃ). For everything else choose the everyday word over the bookish Arabic or Persian one: ایمان والے بھائیو (not ایمانی بھائیو) for إخوة الإيمان, جائیداد (not املاک) for property, دین و دنیا کے کام (not مصلحتیں) for مصالح الدين والدنيا. It stays a khutbah: dignified, never slang, and no English word where an Urdu one is common.
 - Put a Quran verse or a hadith that the imam quotes in quotation marks “…”, translated faithfully.
 - The transcript may have speech-recognition slips; translate the evident meaning.
+
+Chunks are cut at the imam's pauses, so one sentence often runs across two chunks. You are shown the chunks before and after as context: read them to see where each sentence really ends, and make the Urdu of neighbouring chunks join into one grammatical sentence when read in order. Never end a chunk with a full stop (۔) or begin it as a new sentence when the Arabic sentence carries on into the next chunk; a question that spans chunks keeps its question mark at its true end. Keep natural Urdu word order across the join: never invert a clause to fit the cut ("اور چونکہ یہ / نعمت بہت عظیم ہے", not "اور چونکہ بہت بڑی ہے / یہ عظیم نعمت").
+
+Register and wording, as in a published Urdu khutbah:
+- Allah is spoken of in the singular: "جو بادشاہ ہے، احسان فرمانے والا ہے" (not "ہیں"). His favours are "احسان فرمایا" (never "احسان جتلایا", which sounds like taunting).
+- The Prophet ﷺ, Companions and scholars in the respectful plural, with the honorific once: do not add رضی اللہ عنہم where a du'a already asks Allah to be pleased with them ("…سے راضی ہو جا").
+- Prefer words an ordinary Urdu reader knows over rare Arabic loans: حکمران for ولاة الأمر, عمرہ کرنے والے for المعتمرون, جسارت for an audacious crime (جرأت is courage), مقدس مقامات for المقدسات.
+- Keep one spelling for a word throughout (e.g. سیکیورٹی).
+- When the imam repeats a phrase while speaking (a restart, "ليأمن الناس في بيوتهم ليأمن الناس في بيوتهم"), translate it once.
 Return one Urdu translation per chunk number given, and nothing for the context chunks.`;
 
 const SCHEMA = {
@@ -83,12 +97,17 @@ async function translate(indices, urdu) {
   const first = indices[0];
   const context = [first - 2, first - 1].filter(i => i >= 0)
     .map(i => `(${i}, context only) ${chunks[i]}${urdu[i] ? `\n   Urdu: ${urdu[i]}` : ''}`).join('\n');
+  // What comes next, so a sentence cut at the last chunk's pause is not closed too early.
+  const last = indices.at(-1);
+  const after = [last + 1, last + 2].filter(i => i < chunks.length)
+    .map(i => `(${i}, context only) ${chunks[i]}`).join('\n');
   const content = (context ? `Context, already translated:\n${context}\n\n` : '') +
-    `Translate chunks ${indices.join(', ')}:\n` + indices.map(i => `(${i}) ${chunks[i]}`).join('\n');
+    `Translate chunks ${indices.join(', ')}:\n` + indices.map(i => `(${i}) ${chunks[i]}`).join('\n') +
+    (after ? `\n\nWhat follows, for context only (do not translate):\n${after}` : '');
   if (dryRun) { console.log(content.slice(0, 1500)); return {}; }
-  const response = await anthropic.messages.create({
-    model: MODEL, max_tokens: 16000, system: SYSTEM,
-    output_config: { effort: 'medium', format: { type: 'json_schema', schema: SCHEMA } },
+  const response = await anthropic.beta.messages.create({
+    model: MODEL, max_tokens: 16000, system: SYSTEM, ...FALLBACK,
+    output_config: { effort: 'high', format: { type: 'json_schema', schema: SCHEMA } },
     messages: [{ role: 'user', content }],
   });
   usage.calls++;
@@ -205,12 +224,12 @@ if (!extras) {
     const key = m ? `${m[1]}:${m[2]}` : null;
     return { key, narrator: h.narrator, collection: h.collection, urdu: key && hadith[key]?.text };
   }).filter(h => h.key);
-  const response = await anthropic.messages.create({
-    model: MODEL, max_tokens: 16000,
+  const response = await anthropic.beta.messages.create({
+    model: MODEL, max_tokens: 16000, ...FALLBACK,
     system: 'You prepare the Urdu edition of a khutbah reader for worshippers in Pakistan and India. Reply with JSON only.',
-    output_config: { effort: 'medium', format: { type: 'json_schema', schema: EXTRAS_SCHEMA } },
+    output_config: { effort: 'high', format: { type: 'json_schema', schema: EXTRAS_SCHEMA } },
     messages: [{ role: 'user', content: [
-      `Translate into natural, formal religious Urdu (اللہ تعالیٰ، نبی کریم صلی اللہ علیہ وسلم، رضی اللہ عنہ):\n"share_summary" (a two-sentence WhatsApp message): ${result.share_summary ?? ''}\n"summary": ${result.summary ?? ''}`,
+      `Translate into the everyday, respectful Urdu a khateeb in Pakistan speaks: the religious terms and honorifics everyone knows (اللہ تعالیٰ، نبی کریم صلی اللہ علیہ وسلم، رضی اللہ عنہ), otherwise the words ordinary worshippers use, not bookish Urdu:\n"share_summary" (a two-sentence WhatsApp message): ${result.share_summary ?? ''}\n"summary": ${result.summary ?? ''}`,
       `For each hadith below, give "narrator": the Companion's name as Urdu readers know it, with رضی اللہ عنہ / عنہا (for a family chain such as "Amr ibn Shu'ayb from his father from his grandfather", write that chain in Urdu). And give "from_companion": copied character for character from its Urdu text, the part that starts where the Companion (or the Prophet ﷺ, if the Companion is not named) is first mentioned, leaving out the chain of narrators before; the whole text if it already starts there, "" if it has no Urdu text.`,
       JSON.stringify(hadithList, null, 1),
     ].join('\n\n') }],
@@ -230,6 +249,12 @@ if (!extras) {
 for (const [key, h] of Object.entries(hadith)) { // a re-fetch keeps the earlier cut when it still fits
   const old = result.urdu?.hadith?.[key]?.from_companion;
   if (!h.from_companion && old && h.text?.includes(old)) h.from_companion = old;
+  // Jami' at-Tirmidhi's Urdu edition follows each hadith with the Imam's grading and notes
+  // ("۱؎ … امام ترمذی کہتے ہیں: یہ حدیث حسن غریب ہے"); the card shows the hadith only. The cut
+  // stays an exact prefix of the published text.
+  const shown = h.from_companion || h.text;
+  const end = shown?.search(/\s*۱؎|\s*امام ترمذی کہتے ہیں/) ?? -1;
+  if (end > 20) h.from_companion = shown.slice(0, end);
 }
 
 // Surah names for the Urdu verse badges (the Arabic names Urdu readers use).
@@ -244,6 +269,10 @@ result.urdu = {
   verses, verse_source: QURAN_UR,
   hadith, hadith_source: 'fawazahmed0/hadith-api (urd-*)',
   usage: { calls: usage.calls + (reuse ? result.urdu.usage?.calls ?? 0 : 0),
+    input_tokens: usage.input_tokens + (reuse ? result.urdu.usage?.input_tokens ?? 0 : 0),
+    output_tokens: usage.output_tokens + (reuse ? result.urdu.usage?.output_tokens ?? 0 : 0),
+    input_usd: Math.round(usage.input_tokens * PRICE_IN * 10000) / 10000,
+    output_usd: Math.round(usage.output_tokens * PRICE_OUT * 10000) / 10000,
     cost_usd: Math.round((prevCost + usage.input_tokens * PRICE_IN + usage.output_tokens * PRICE_OUT) * 10000) / 10000 },
 };
 

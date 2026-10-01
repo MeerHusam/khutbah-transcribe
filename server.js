@@ -321,6 +321,32 @@ function findAudioUrl(folder) {
   return null;
 }
 
+// The voice tracks (tts.js): English (tts_en) and Urdu (tts_ur), each with every block's place
+// in it. A track is attached only while its manifest still names the reader's blocks, so a
+// rebuilt reader never plays stale times.
+const TTS_LANGS = ['en', 'ur'];
+function attachTts(folder, result) {
+  const dir = join(__dirname, 'outputs', folder);
+  const chunks = result.reader_chunks || [];
+  const head = c => c.arabic.split(/\s+/).filter(Boolean).slice(0, 6).join(' ');
+  for (const lang of TTS_LANGS) {
+    try {
+      const m = JSON.parse(readFileSync(join(dir, `tts_${lang}.json`), 'utf8'));
+      if (!existsSync(join(dir, m.audio))) continue;
+      if (!m.blocks.every(b => chunks[b.i] && head(chunks[b.i]) === b.arabic_head)) continue;
+      for (const b of m.blocks) chunks[b.i][lang === 'en' ? 'tts_start' : `tts_${lang}_start`] = b.start;
+      result[`tts_${lang}`] = { url: `/tts/${encodeURIComponent(folder)}/${lang}.mp3`, voice: m.voice, engine: m.engine };
+    } catch {}
+  }
+}
+
+app.get('/tts/:folder/:lang.mp3', (req, res) => {
+  if (!ALLOWED_FOLDERS.has(req.params.folder) || !TTS_LANGS.includes(req.params.lang)) return res.status(404).end();
+  res.sendFile(join(__dirname, 'outputs', req.params.folder, `tts_${req.params.lang}.mp3`), err => {
+    if (err && !res.headersSent) res.status(404).end();
+  });
+});
+
 
 // The voice tracks (tts.js): English (tts_en) and Urdu (tts_ur), each with every block's place
 // in it. A track is attached only while its manifest still names the reader's blocks, so a
