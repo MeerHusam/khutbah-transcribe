@@ -214,7 +214,7 @@ All functions except `main()` are exported for use by `reanalyze.js`.
 
 ## Issues Fixed
 
-> Full root-cause analyses live in **[FIXES.md](FIXES.md)**. Add new fixes there with a one-line summary here.
+> Full root-cause analyses live in **[docs/FIXES.md](docs/FIXES.md)**. Add new fixes there with a one-line summary here.
 
 | # | Fix | Key change |
 |---|-----|-----------|

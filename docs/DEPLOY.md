@@ -33,7 +33,7 @@ a `Dockerfile` is included for those.
    ```
 2. In the [Render dashboard](https://dashboard.render.com): **New + → Blueprint**,
    pick the repo. Render reads `render.yaml` and provisions the web service.
-   (Or **New + → Web Service** manually: Build `npm install`, Start `node server.js`.)
+   (Or **New + → Web Service** manually: Build `npm install`, Start `node server/server.js`.)
 3. Wait for the build, then open the `*.onrender.com` URL. The featured masjid
    khutbah loads by default; the dropdown switches khutbahs.
 
@@ -76,7 +76,7 @@ Sudais file is only ~5.9 MB, so if you want it fully playable, add one line to
 then `git add audio_files/makkah_sudais_ramadan_ummah.mp3 && git commit`.
 
 To publish a different/new khutbah, add its entry to `PUBLIC_KHUTBAHS` in
-`server.js` and make sure its audio + outputs folder are un-ignored in `.gitignore`.
+`server/server.js` and make sure its audio + outputs folder are un-ignored in `.gitignore`.
 
 ## Viewer counts
 
@@ -91,5 +91,5 @@ deploy/restart (the live count is unaffected). To persist the total, use the
 
 ```bash
 npm install
-node server.js          # → http://localhost:3000
+node server/server.js   # → http://localhost:3000
 ```
