@@ -156,8 +156,8 @@ async function main() {
   let cleanAudio = null;
   await Promise.all([
     (async () => {
-      await step(() => result.urdu, 'Urdu translation', 'node', ['translate_urdu.js', F]);
-      await step(() => has('review_ur.json'), 'Urdu review', 'node', ['review_urdu.js', F]);
+      await step(() => result.urdu, 'Urdu translation', 'node', ['urdu/translate_urdu.js', F]);
+      await step(() => has('review_ur.json'), 'Urdu review', 'node', ['urdu/review_urdu.js', F]);
     })(),
     (async () => {
       await step(() => has('words_imam.json'), 'imam word timing', 'node', ['voice/align_imam.js', F, audioOut]);

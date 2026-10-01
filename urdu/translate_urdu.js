@@ -16,7 +16,7 @@
 //    the Companion (its published text opens with the whole chain of narrators); one call.
 // Writes result.urdu and reader_ur.txt (the reader with Urdu in place of English).
 //
-// Usage: node translate_urdu.js outputs/<folder> [--batch 12] [--retranslate] [--dry-run]
+// Usage: node urdu/translate_urdu.js outputs/<folder> [--batch 12] [--retranslate] [--dry-run]
 //   Block translations already in result.urdu are kept unless --retranslate; verses and hadith
 //   are always fetched again (free).
 
@@ -24,7 +24,7 @@ import 'dotenv/config';
 import Anthropic from '@anthropic-ai/sdk';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
-import { buildReaderView, normalizeArabic } from './pipeline.js';
+import { buildReaderView, normalizeArabic } from '../pipeline.js';
 
 
 // Opus 5.5 at high: on the hard parts of 25 Sep (1 Oct 2026) its first draft needed the fewest
@@ -43,7 +43,7 @@ export const QURAN_UR = {
 const args = process.argv.slice(2);
 const folder = args[0];
 if (!folder || !existsSync(join(folder, 'result.json'))) {
-  console.error('Usage: node translate_urdu.js outputs/<folder> [--batch 12] [--dry-run]');
+  console.error('Usage: node urdu/translate_urdu.js outputs/<folder> [--batch 12] [--dry-run]');
   process.exit(1);
 }
 const BATCH = args.includes('--batch') ? +args[args.indexOf('--batch') + 1] : 12;
@@ -53,7 +53,7 @@ const result = JSON.parse(readFileSync(join(folder, 'result.json'), 'utf8'));
 const transcript = readFileSync(join(folder, 'transcript.txt'), 'utf8').trim();
 const words = transcript.split(/\s+/).filter(Boolean);
 const chunks = (result.prose_chunk_map ?? []).map(c => words.slice(c.wordStart, c.wordEnd).join(' '));
-const quran = JSON.parse(readFileSync(new URL('./node_modules/quran-json/dist/quran.json', import.meta.url), 'utf8'));
+const quran = JSON.parse(readFileSync(new URL('../node_modules/quran-json/dist/quran.json', import.meta.url), 'utf8'));
 
 const SYSTEM = `You translate an Arabic Friday khutbah (sermon) into Urdu for worshippers in Pakistan and India who do not understand Arabic. The text comes in numbered chunks, cut at pauses, so a chunk can start or end in the middle of a sentence.
 

@@ -15,7 +15,7 @@
 // block's Urdu before and after), then rebuilds reader_ur.txt with translate_urdu.js (which
 // makes no model call when the translations are already there).
 //
-// Usage: node review_urdu.js outputs/<folder> [--batch 12] [--rounds 2] [--dry-run]
+// Usage: node urdu/review_urdu.js outputs/<folder> [--batch 12] [--rounds 2] [--dry-run]
 //   Run after translate_urdu.js. --dry-run prints the first request and makes no call.
 
 import 'dotenv/config';
@@ -33,7 +33,7 @@ const FALLBACK = { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'defau
 const args = process.argv.slice(2);
 const folder = args[0];
 if (!folder || !existsSync(join(folder, 'result.json'))) {
-  console.error('Usage: node review_urdu.js outputs/<folder> [--batch 12] [--rounds 2] [--dry-run]');
+  console.error('Usage: node urdu/review_urdu.js outputs/<folder> [--batch 12] [--rounds 2] [--dry-run]');
   process.exit(1);
 }
 const opt = (name, dflt) => { const i = args.indexOf(name); return i >= 0 ? +args[i + 1] : dflt; };
@@ -177,5 +177,5 @@ console.log(`\n${corrected} of ${urdu.length} chunks corrected (${count('high')}
   `${usage.calls} ${MODEL} call(s), $${usage.cost_usd}. Written to ${join(folder, 'review_ur.json')}`);
 
 // The reader shows reader_ur.txt: rebuild it from the corrected blocks (no model call).
-const rebuild = spawnSync(process.execPath, ['translate_urdu.js', folder], { stdio: 'inherit' });
+const rebuild = spawnSync(process.execPath, ['urdu/translate_urdu.js', folder], { stdio: 'inherit' });
 process.exit(rebuild.status ?? 1);
