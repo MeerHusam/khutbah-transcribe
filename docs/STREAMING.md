@@ -1,5 +1,8 @@
 # Streaming Live Mode — Progress & Handoff
 
+> **Removed on 2 Oct 2026** (server/live/, public/stream.html): it never worked well enough to use,
+> and real time will be rebuilt fresh. Kept as a record of what was tried; the code is in git history.
+
 Real-time khutbah transcription + translation with **sub-2s latency**, built on Speechmatics
 realtime ASR. This is the third mode, kept **fully separate** from the two existing ones:
 

@@ -1,121 +1,134 @@
 # KhutbahTranscribe
 
-A Node.js pipeline that takes an Arabic Khutbah (Friday sermon) audio file and produces:
+Turns a recording of an Arabic Friday khutbah into a page people can read and listen to:
+the imam's Arabic word by word, an English and an Urdu translation, every Quran verse and
+hadith he cites as a card with its source (quran.com, sunnah.com), and voice tracks that read
+the translation aloud with the imam's own recitation before each verse.
 
-- A full Arabic transcript
-- An English translation
-- A topic summary
-- Identified Quranic Ayahs with matched Surah/Ayah numbers and quran.com links
-- Identified Hadith references with narrator and collection notes
+Live site: **https://khutbah-live.onrender.com**
 
 ## How it works
 
 ```
-Audio file → Whisper (transcription) → Claude Sonnet (analysis) → quran-json (Ayah matching) → output files
+recording
+  → transcribe            Gemini 2.5 Flash for the text + Groq Whisper for word timings
+  → Quran zones           4-gram index over the Quran finds recited passages, even partial ones
+  → prose chunks          the rest, cut at the imam's pauses
+  → Claude                translates each chunk, names the verses and hadith it hears
+  → references            Claude's verses checked against the Quran corpus; scans find the ones
+                          it missed; hadith matched to a local corpus, then to sunnah.com
+  → reader                outputs/<run>/reader.txt + result.json: Arabic block, English, cards
+  → Urdu, voices          translation and review (Claude), Gemini voices, offline word alignment
+  → site                  the khutbah is added to server/khutbahs.json and served by the site
 ```
 
-1. **OpenAI Whisper** transcribes the Arabic audio to text
-2. **Claude Sonnet** translates the transcript, summarises the Khutbah, and detects signal phrases that introduce Quranic Ayahs and Hadith
-3. **quran-json** (local corpus — no extra API call) matches the extracted Arabic snippets to specific Ayahs using diacritic-normalised containment and word-overlap scoring
+From the masjid, the whole chain is one upload: the upload page stores the recording on the
+site, a worker on a Mac picks it up and runs `worker/autopublish.js`, and the page goes live.
+
+## Repository layout
+
+```
+pipeline.js            the command line: a recording (or a transcript) → outputs/<time>_<name>/
+core/                  the pipeline library
+  arabic.js              Arabic normalisation, Quran corpus and n-gram index, zones, verse matching
+  hadith.js              hadith corpus and matching, sunnah.com links and narrators
+  analyze.js             the Claude analysis prompt, the second-khutbah split
+  transcribe.js          audio preprocessing, Gemini + Groq transcription, word timing
+  reader.js              reader.txt and readable.txt
+  reader_chunks.js       the reader's blocks, as the site serves them
+  quote_swaps.js         published translations for quoted verses and hadith
+  verse_excerpts.js      the recited part of a partly recited verse
+  verify_reader.js       the publish gate: checks what the reader really renders
+  check_english.js       English checks used by the gate
+  review_blocks.js       a second model reviews every block and flags problems
+urdu/                  the Urdu translation and its review
+voice/                 voice tracks (Gemini, ElevenLabs), word alignment, the imam's recitation,
+                       echo removal (Node + Python)
+worker/                publish.js (one khutbah to publishable), autopublish.js (recording to
+                       live page), upload_worker.js (runs autopublish for each upload)
+server/                the website: Express routes, viewer counts, admin and upload pages;
+                       khutbahs.json is the list of published khutbahs
+public/                the pages (home, reader)
+scripts/               maintenance: reanalyze an old run, set up the hadith corpus, evaluations
+tests/                 npm test: reader checks per khutbah, server, pipeline end to end
+requirements/          the Python environments
+docs/                  architecture proposal, fix history, deployment, recordings
+outputs/, audio_files/ the published runs and recordings (others are ignored by git)
+```
 
 ## Setup
 
-### 1. Install dependencies
+Needs Node 20+, ffmpeg, and for the voice steps Python 3.12 and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 npm install
+cp .env.example .env              # add the API keys (see the file)
+node scripts/setup_hadith.js      # the hadith collections, into hadith_data/ (~35 MB)
 ```
 
-### 2. Add your API keys
+Python environments, only for the voice and audio steps (each file has its setup line):
 
-Edit `.env` and fill in both keys:
+| Environment | For | Requirements |
+|---|---|---|
+| `.venv-align` | word timings (`voice/align_words.py`, `voice/align_imam.js`), the imam's delivery | `requirements/align.txt` + the MMS model in `models/mms_fa/` |
+| `.venv-clean` | echo removal (`voice/clean_audio.py`) | `requirements/clean.txt` |
+| `.venv` | the ElevenLabs engine, the quran-detector evaluation | `requirements/base.txt` |
 
-```
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
-```
+Run every command from the repo root: scripts read `.env` and `outputs/…` from there.
 
-- Get an OpenAI key at https://platform.openai.com/api-keys
-- Get an Anthropic key at https://console.anthropic.com/settings/keys
+## Usage
 
-### 3. Run the pipeline
-
-**API mode** (OpenAI Whisper — easy, costs ~$0.25/run, 25 MB file limit):
 ```bash
-node pipeline.js path/to/khutbah.mp3
+# One khutbah, step by step
+node pipeline.js audio_files/khutbah.m4a              # Gemini text + Groq timing (best)
+node pipeline.js audio_files/khutbah.m4a --groq       # Groq only (free, rougher text)
+node pipeline.js audio_files/eid.m4a --type eid       # also: --type arafah, --single
+node core/verify_reader.js outputs/<run>              # the publish gate
+node urdu/translate_urdu.js outputs/<run>             # then urdu/review_urdu.js
+node voice/tts.js outputs/<run> --lang ur --direct    # a voice track (Gemini)
+
+# Publishing
+node worker/publish.js <recording> --slug 2026-10-02 --title "…" --date "2 October 2026"
+node worker/autopublish.js <recording> [--masjid "Name"] [--no-push]   # everything, then push
+caffeinate -is node worker/upload_worker.js           # on the Mac: picks up uploads
+
+# The site
+npm start                                             # http://localhost:3000
 ```
 
-**Local mode** (faster-whisper — free after download, no size limit, better Arabic accuracy):
+Each script prints its options when run without arguments. `publish.js` never commits or
+pushes; `autopublish.js` commits only its own files and pushes `main`, which Render deploys.
+
+## Tests
+
 ```bash
-# Install faster-whisper once
-pip install faster-whisper
-
-# Run with default model (Byne/whisper-large-v3-arabic, ~3 GB download on first run)
-node pipeline.js path/to/khutbah.mp3 --local
-
-# Or specify a different HuggingFace model
-node pipeline.js path/to/khutbah.mp3 --local --model mboushaba/whisper-large-v3-turbo-arabic
+npm test
 ```
 
-The 25 MB limit only applies to API mode. Local mode handles any file size.
+- `tests/test_khutbahs.js`: every published khutbah's reader against its expected verse and
+  hadith cards (`tests/khutbahs.json`), as on disk and rebuilt with the current code.
+- `tests/server.test.js`: the site's pages, API, viewer socket, feedback and upload API, on
+  a real server with an empty data folder.
+- `tests/pipeline.test.js`: `pipeline.js` end to end on a published transcript with Claude
+  stubbed out; the reader it writes must pass the publish gate.
 
-If you're in API mode and your file is over 25 MB, compress it first:
-```bash
-ffmpeg -i khutbah.mp3 -ac 1 -b:a 32k khutbah_compressed.mp3
-```
+All free and offline (no API key needed). GitHub Actions runs them on every push.
 
-**Getting a test Khutbah** (Internet Archive — free, public domain):
-```bash
-# Install yt-dlp if needed: brew install yt-dlp
-yt-dlp -x --audio-format mp3 "https://archive.org/details/MadinahFridayKhutbah_100"
-```
+## Deployment
 
-Supported formats: `mp3`, `m4a`, `ogg`, `wav`, `webm`, `mp4`, `mpeg`, `mpga`
+Render (`render.yaml`, Starter plan) deploys `main` and runs `node server/server.js`. A
+persistent disk at `data/` keeps viewer counts, feedback and uploads across deploys. Admin
+pages: `/admin/traffic`, `/admin/feedback` and `/admin/upload`, each with `?key=<ADMIN_TOKEN>`.
+See [docs/DEPLOY.md](docs/DEPLOY.md).
 
-## Output files
+## Cost
 
-| File | Contents |
-|------|----------|
-| `output_transcript.txt` | Raw Arabic transcript from Whisper |
-| `output_result.json` | Full structured result (summary, translation, references, metadata) |
-| `output_readable.txt` | Human-readable formatted version of the result |
-| `output_claude_raw.txt` | Only written on error — Claude's raw response if JSON parsing fails |
+About $2.25 per khutbah through `autopublish.js` (Claude about $1.60, Gemini about $0.65);
+Groq timing is on the free tier. The site itself has no per-visit cost.
 
-## Approximate cost per run
+## More
 
-**API mode** — 30-minute Khutbah:
-
-| Step | Model | Cost |
-|------|-------|------|
-| Transcription | OpenAI `whisper-1` | ~$0.18 ($0.006/min) |
-| Analysis | Claude Sonnet 4 | ~$0.06 (~9k tokens in/out) |
-| Quran matching | Local `quran-json` | Free |
-| **Total** | | **~$0.25** |
-
-**Local mode** — after the one-time model download (~3 GB):
-
-| Step | Cost |
-|------|------|
-| Transcription | Free (runs on your CPU/GPU) |
-| Analysis | ~$0.06 (Claude API still used) |
-| **Total** | **~$0.06** |
-
-Local mode also tends to produce **better Arabic transcripts** for Khutbahs — the `Byne/whisper-large-v3-arabic` model is fine-tuned on MSA data and handles Quranic vocabulary and classical signal phrases more reliably than the generic `whisper-1` API endpoint.
-
-## Example console output
-
-```
-Transcribing khutbah.mp3 (7.2 MB)…
-✓ Transcription complete — 3847 words
-Analysing with Claude…
-✓ Translation complete
-✓ 6 Quranic references detected, 5 matched
-✓ 3 Hadith references detected
-✓ Results saved to output_result.json and output_readable.txt
-```
-
-## Notes
-
-- Hadith matching is detection only — the pipeline identifies signal phrases but **does not verify the Hadith chain or text** against a corpus. Each entry includes a `"note": "Manual verification recommended"` field.
-- Quran matching uses a similarity threshold of 0.4. Recited Ayahs often have slight pronunciation variations captured by Whisper; the diacritic-normalised word-overlap approach handles most of these gracefully.
-- API keys are never logged or written to any output file.
+- [CLAUDE.md](CLAUDE.md): working notes on every part of the pipeline and the fixes behind it
+- [docs/FIXES.md](docs/FIXES.md): root causes of each fix
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): the scalability proposal (content out of git,
+  multi-language data model)
