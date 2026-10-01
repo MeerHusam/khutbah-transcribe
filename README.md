@@ -19,7 +19,8 @@ recording
                           it missed; hadith matched to a local corpus, then to sunnah.com
   → reader                outputs/<run>/reader.txt + result.json: Arabic block, English, cards
   → Urdu, voices          translation and review (Claude), Gemini voices, offline word alignment
-  → site                  published through the site's API: live at once, no commit, no deploy
+  → site                  published through the site's API: live at once, no commit, no deploy;
+                          the audio goes to Cloudflare R2 when it is set up
 ```
 
 From the masjid, the whole chain is one upload: the upload page stores the recording on the
@@ -98,7 +99,8 @@ npm start                                             # http://localhost:3000
 ```
 
 Each script prints its options when run without arguments. Publishing goes through the site's
-admin API (`worker/site.js`, needs `ADMIN_TOKEN`): `publish.js` publishes to `--site` (your local
+admin API (`worker/site.js`, needs `ADMIN_TOKEN`; with the `R2_*` settings in `.env`, the
+recording and voice tracks go to Cloudflare R2 instead of the site's disk): `publish.js` publishes to `--site` (your local
 server by default, so you check it there first), `autopublish.js` to the live site. Nothing is
 committed and nothing is deployed; the page is live at once.
 
