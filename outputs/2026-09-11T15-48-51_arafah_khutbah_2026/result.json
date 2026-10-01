@@ -335,7 +335,14 @@
       "quran_link": "https://quran.com/22/36",
       "confidence": 0.95,
       "verification": "claude+algorithm",
-      "detection_method": "signal_phrase"
+      "detection_method": "signal_phrase",
+      "english_swap": {
+        "status": "published",
+        "ours": "Thus have We subjected them to you so that you may be grateful.",
+        "published": "Thus have We subjected them to you that you may be grateful",
+        "hash": "094b81526f4861d6",
+        "model": "claude-sonnet-5"
+      }
     },
     {
       "detected_text": "ان الله يدافع عن الذين امنوا ان الله لا يحب كل خوان كفور",
@@ -368,7 +375,15 @@
       "quran_link": "https://quran.com/22/45",
       "confidence": 0.85,
       "verification": "claude_only",
-      "detection_method": "signal_phrase"
+      "detection_method": "signal_phrase",
+      "english_swap": {
+        "status": "ours",
+        "reason": "the published excerpt is not a verbatim part of the published text",
+        "ours": "How many a town have We destroyed while it was doing wrong, so that it lies in ruins, with its wells abandoned and its lofty castles empty.",
+        "published": "How many a city did We destroy while it was committing wrong - so it is [now] fallen into ruin - and [how many] an abandoned well and [how many] a lofty palace",
+        "hash": "14af4ec2f675997b",
+        "model": "claude-sonnet-5"
+      }
     },
     {
       "detected_text": "واذن في الناس بالحج ياتوك رجالا وعلى كل ضامر ياتين من كل فج عميق ليشهدوا منافع لهم ويذكروا اسم الله في ايام معلومات على ما رزقهم من بهيمه الانعام",
@@ -646,19 +661,17 @@
       "detection_method": "signal_phrase",
       "note": "Link verified via sunnah.com search",
       "verification": "sunnah_search",
-      "translation": "“The best of supplication is the supplication of the Day of `Arafah. And the best of what I and the Prophets before me have said is: None has the right to be worshipped but Allah, Alone, without partner, to Him belongs all that exists, and to Him belongs the Praise, and He is powerful over all things. (Lā ilāha illallāh, waḥdahu lā sharīka lahu, lahul-mulku wa lahul-ḥamdu, wa huwa `alā kulli shai’in qadīr).’”"
-    },
-    {
-      "detected_text": "وشهاده ان لا اله الا الله وان محمدا رسول الله",
-      "collection": "Sahih al-Bukhari",
-      "hadith_number": "2157",
-      "link": "https://sunnah.com/bukhari:2157",
-      "confidence": 0.73,
-      "detection_method": "scan",
-      "verification": "sunnah_search",
-      "note": "Link verified via sunnah.com search",
-      "narrator": "Jarir",
-      "translation": "I have given a pledge of allegiance to Allah's Messenger (ﷺ) for to testify that None has the right to be worshipped but Allah, and Muhammad is His Apostle, to offer prayers perfectly, to pay Zakat, to listen to and obey (Allah's and His Prophet's orders), and to give good advice to every Muslim."
+      "translation": "“The best of supplication is the supplication of the Day of `Arafah. And the best of what I and the Prophets before me have said is: None has the right to be worshipped but Allah, Alone, without partner, to Him belongs all that exists, and to Him belongs the Praise, and He is powerful over all things. (Lā ilāha illallāh, waḥdahu lā sharīka lahu, lahul-mulku wa lahul-ḥamdu, wa huwa `alā kulli shai’in qadīr).’”",
+      "narrator_claude": "Abdullah ibn Amr",
+      "published_arabic": "\" خَيْرُ الدُّعَاءِ دُعَاءُ يَوْمِ عَرَفَةَ وَخَيْرُ مَا قُلْتُ أَنَا وَالنَّبِيُّونَ مِنْ قَبْلِي لاَ إِلَهَ إِلاَّ اللَّهُ وَحْدَهُ لاَ شَرِيكَ لَهُ لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ \"  . قَالَ هَذَا حَدِيثٌ حَسَنٌ غَرِيبٌ مِنْ هَذَا الْوَجْهِ . وَحَمَّادُ بْنُ أَبِي حُمَيْدٍ هُوَ مُحَمَّدُ بْنُ أَبِي حُمَيْدٍ وَهُوَ أَبُو إِبْرَاهِيمَ الأَنْصَارِيُّ الْمَدَنِيُّ وَلَيْسَ هُوَ بِالْقَوِيِّ عِنْدَ أَهْلِ الْحَدِيثِ .",
+      "english_swap": {
+        "status": "ours",
+        "reason": "the excerpt comes from a text without the imam's \"افضل\"",
+        "ours": "the best supplication is the supplication of the Day of Arafah, and the best that I and the Prophets before me have said on the Day of Arafah is: There is no god but Allah, alone, with no partner, to Him belongs all dominion and all praise, and He has power over all things.",
+        "published": "The best of supplication is the supplication of the Day of `Arafah. And the best of what I and the Prophets before me have said is: None has the right to be worshipped but Allah, Alone, without partner, to Him belongs all that exists, and to Him belongs the Praise, and He is powerful over all things.",
+        "hash": "cd1eba9265485790",
+        "model": "claude-sonnet-5"
+      }
     }
   ],
   "transcript_segments": [
@@ -5496,7 +5509,7 @@
     "quran_references_found": 34,
     "quran_references_matched": 34,
     "quran_references_by_scan": 3,
-    "hadith_references_found": 2,
+    "hadith_references_found": 1,
     "hadith_references_by_scan": 1
   }
 }

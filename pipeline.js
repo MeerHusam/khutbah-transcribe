@@ -1063,6 +1063,10 @@ const SLUG_DISPLAY = {
   bukhari: 'Sahih al-Bukhari', muslim: 'Sahih Muslim', abudawud: 'Sunan Abu Dawud',
   nasai: "Sunan an-Nasa'i", ibnmajah: 'Sunan Ibn Majah', tirmidhi: 'Jami` at-Tirmidhi',
   malik: 'Muwatta Malik', ahmad: 'Musnad Ahmad',
+  // Not on sunnah.com: named by the imam ("أخرجه الطبراني", "رواه الحاكم") and returned by
+  // Claude as a bare slug, which the badge showed as-is ("Collection: tabarani").
+  tabarani: 'At-Tabarani', hakim: 'Al-Mustadrak (al-Hakim)', bayhaqi: 'Al-Bayhaqi',
+  darimi: 'Sunan ad-Darimi', ibnhibban: 'Sahih Ibn Hibban',
 };
 const slugToDisplay = slug => SLUG_DISPLAY[slug] ?? slug;
 
@@ -1155,27 +1159,36 @@ async function resolveSunnahLink(detectedText, preferredSlug = null) {
   return resolved;
 }
 
-// Fetch the narrator from a resolved sunnah.com hadith page (cached). Scan-detected
-// hadiths have no narrator (only Claude's signal-phrase path fills one); sunnah.com
-// states it on the page ("Narrated Abu Bakr:"), so we can backfill it from the lookup.
-// Fetch the canonical English translation of a resolved hadith from sunnah.com.
-// Without this the English shown under a Hadith card is whatever Claude produced while
-// translating the surrounding prose — a paraphrase of the imam's recitation rather than
-// the published translation of the hadith itself.
+// Fetch a resolved hadith's sunnah.com page once and keep what the pipeline reads from it:
+// the narrator line, the published English and the Arabic matn (cached as `page::`).
+//  - English: without it the English under a Hadith card is whatever Claude produced while
+//    translating the surrounding prose — a paraphrase of the imam's recitation rather than
+//    the published translation of the hadith itself.
+//  - Arabic: tells which of the imam's words the published hadith actually contains, so a
+//    swap never replaces his words with a version that lacks some of them (Muslim 1141a has
+//    no "وذكر لله", which the imam said).
 //
-// Page shape (see fetchSunnahNarrator for the sibling parse):
+// Page shape:
 //   <div class="english_hadith_full">
 //     <div class=hadith_narrated><p>Anas said:</div>
 //     <div class=text_details>The Apostle of Allah (ﷺ) performed ablution ...</div>
+//   </div> … <span class="arabic_text_details arabic">…</span>
 // The `english_hadith_full` block is isolated first because `arabic_text_details` would
 // otherwise match the same `text_details` suffix and return the Arabic.
-async function fetchSunnahTranslation(slug, number) {
+const decodeEntities = t => t
+  .replace(/<[^>]+>/g, '')        // drop stray inline tags (<b>, <a>, unclosed </b>)
+  .replace(/&quot;/g, '"').replace(/&#039;|&apos;/g, "'")
+  .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+  .replace(/&nbsp;/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim();
+async function fetchSunnahPage(slug, number) {
   if (!slug || !number) return null;
   const cache = loadSunnahCache();
-  const key = `translation::${slug}:${number}`;
+  const key = `page::${slug}:${number}`;
   if (Object.prototype.hasOwnProperty.call(cache, key)) return cache[key];
 
-  let translation = null, gotResponse = false;
+  let page = null, gotResponse = false;
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 12_000);
@@ -1187,66 +1200,108 @@ async function fetchSunnahTranslation(slug, number) {
     if (res.ok) {
       gotResponse = true;
       const html = await res.text();
-      const block = html.match(/class=["']?english_hadith_full["']?[^>]*>([\s\S]*?)<div class=["']?clear/i);
-      const scope = block ? block[1] : '';
-      const m = scope.match(/class=["']?text_details["']?[^>]*>([\s\S]*?)<\/div>/i);
-      if (m) {
-        const txt = m[1]
-          .replace(/<[^>]+>/g, '')        // drop stray inline tags (<b>, <a>, unclosed </b>)
-          .replace(/&quot;/g, '"').replace(/&#039;|&apos;/g, "'")
-          .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-          .replace(/&nbsp;/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim();
-        translation = txt || null;
-      }
+      const scope = html.match(/class=["']?english_hadith_full["']?[^>]*>([\s\S]*?)<div class=["']?clear/i)?.[1] ?? '';
+      const narrated = scope.match(/class=["']?hadith_narrated[^>]*>\s*(?:<p>)?\s*([^<]+)/i)?.[1];
+      const english = scope.match(/class=["']?text_details["']?[^>]*>([\s\S]*?)<\/div>/i)?.[1];
+      const arabic = html.match(/class=["']?arabic_text_details[^>]*>([\s\S]*?)<\/span>\s*<\/div>/i)?.[1];
+      page = {
+        narrated: narrated ? decodeEntities(narrated) : null,
+        english: english ? decodeEntities(english) || null : null,
+        // The span can run on into the page's grade and reference lines; the matn ends at
+        // the first Latin word.
+        arabic: arabic ? decodeEntities(arabic).replace(/[\u200f\u200e]/g, '').split(/[A-Za-z]{3,}/)[0].trim() || null : null,
+      };
     }
   } catch { /* network/timeout — leave null, do not cache */ }
 
-  if (gotResponse) { cache[key] = translation; try { writeFileSync(SUNNAH_CACHE_FILE, JSON.stringify(cache, null, 2), 'utf8'); } catch {} }
-  return translation;
+  if (gotResponse) { cache[key] = page; try { writeFileSync(SUNNAH_CACHE_FILE, JSON.stringify(cache, null, 2), 'utf8'); } catch {} }
+  return page;
+}
+
+// The cached page only, for offline checks (check_english.js); null when never fetched.
+function cachedSunnahPage(slug, number) {
+  return loadSunnahCache()[`page::${slug}:${number}`] ?? null;
+}
+
+async function fetchSunnahTranslation(slug, number) {
+  return (await fetchSunnahPage(slug, number))?.english ?? null;
+}
+
+// Fetch the narrator from a resolved sunnah.com hadith page (cached). Scan-detected
+// hadiths have no narrator (only Claude's signal-phrase path fills one); sunnah.com
+// states it on the page ("Narrated Abu Bakr:"), so we can backfill it from the lookup.
+//
+// Parse sunnah.com's narrator line ("Narrated X:", "X reported …") and the start of the
+// English text into the name to show. Pure, so the rules can change without refetching.
+// Returns { narrator, companion, successor }: `successor` is true when the first-named
+// narrator is a later link in the chain who reports FROM a Companion — Tirmidhi 2910 is
+// "Narrated Muhammad bin Ka'b Al-Qurazi: I heard 'Abdullah bin Mas'ud saying…" (a Tabi'i
+// hearing Ibn Mas'ud), and Tirmidhi 3585 is "`Amr bin Shu`aib narrated from his father, from
+// his grandfather". Showing the first name made the card credit the successor.
+function parseSunnahNarrator(narrated, lead = '') {
+  let txt = (narrated ?? '').replace(/\s+/g, ' ').trim();
+  if (!txt) return { narrator: null, companion: null, successor: false };
+  // Strip leading narration framing: "Narrated X:", "It was narrated that X said:",
+  // "It has been narrated on the authority of X who …", "On the authority of X ...".
+  txt = txt.replace(/^it (?:is|was|has been) narrated(?: on the authority of| from)?(?: that)?\s*/i, '');
+  txt = txt.replace(/^(?:it was )?narrated\s*/i, '');
+  txt = txt.replace(/^on the authority of\s*/i, '');
+  const cut = s => s.split(/\s+(?:who|reported|narrated|said|says|relates|relating|that|as saying)\b|\s*[:(]/i)[0]
+    .replace(/[\s,:]+$/, '').trim();
+  // "`Amr bin Shu`aib narrated from his father, from his grandfather" — the family isnad is
+  // known by that whole phrase; the Companion is the grandfather, whom the page never names.
+  const chain = txt.match(/^(.+?) (?:narrated|reported) from his father,? (?:from|on the authority of) his grandfather/i);
+  if (chain) {
+    const name = cut(chain[1]);
+    return { narrator: `${name} from his father, from his grandfather`, companion: null, successor: true };
+  }
+  // "Salamah bin 'Ubaidullah … narrated from his father -and he was a Companion-" — the
+  // Companion is the father, named inside the son's name.
+  const fromFather = txt.match(/^\S+ (?:bin|ibn|b\.) (.+?) (?:narrated|reported) from his father/i);
+  if (fromFather) return { narrator: cut(fromFather[1]), companion: cut(fromFather[1]), successor: false };
+  // Cut at the reporting clause: "Sa'd b. Abu Waqqas reported Allah's Messenger (ﷺ) as
+  // saying" and "Salman who" were shown whole as the narrator's name.
+  const first = cut(txt) || null;
+  // "Narrated Thabit: that he heard Anas saying" / "Narrated X: I heard Y saying" — Y is the
+  // Companion, unless Y is the Prophet himself.
+  const heard = (lead ?? '').replace(/<[^>]+>/g, '').replace(/^[\s"'“‘]+/, '')
+    .match(/^(?:that )?(?:he |she )?(?:I )?heard (.+?) (?:saying|say|said|narrate|narrating|reporting)\b/i);
+  if (heard && !/messenger|prophet|apostle|allah\b/i.test(heard[1])) {
+    return { narrator: first, companion: cut(heard[1].replace(/^[\s"'“‘]+/, '')), successor: true };
+  }
+  return { narrator: first, companion: first, successor: false };
+}
+
+// Distinctive name tokens, reduced to consonants so transliterations compare equal
+// ("Shu`aib" = "Shu'ayb", "Mas'ud" = "Masud", "Hurayrah" = "Huraira"). Kinship words and the ubiquitous
+// "Abdullah" are ignored: they say nothing about which person is meant.
+const NAME_STOP = new Set(['bin', 'ibn', 'b', 'bint', 'abu', 'abi', 'al', 'from', 'his', 'her', 'father',
+  'grandfather', 'and', 'abd', 'abdullah', 'abdallah', 'allah', 'umm', 'the', 'ummul', 'muminin']);
+const nameKeys = s => new Set((s ?? '').toLowerCase().replace(/[^a-z\s-]/g, '').split(/[\s-]+/)
+  .filter(w => w && !NAME_STOP.has(w))
+  .map(w => w.replace(/^al/, '').replace(/o/g, 'u').replace(/e/g, 'i'))
+  // A leading vowel is kept: 'Umar and 'Amr differ only there.
+  .map(w => w[0] + w.slice(1).replace(/[aeiouyw]/g, '').replace(/(.)\1+/g, '$1').replace(/(.)h$/, '$1'))
+  .filter(k => k.length >= 2));
+const sameName = (a, b) => { const B = nameKeys(b); return [...nameKeys(a)].some(k => B.has(k)); };
+
+// Which narrator a card shows, given the page's parse and Claude's narrator (from memory,
+// which the imam usually says aloud: "عن ابن مسعود"). The page is the authority for who
+// narrated THAT hadith — Claude named Salman for Bukhari's ribat hadith, which is Sahl ibn
+// Sa'd's. But when the page's first name is a successor, Claude's Companion is the right
+// name to show, as long as it is one of the people on that chain.
+function chooseNarrator(page, claudeNarrator) {
+  if (!page?.narrator) return claudeNarrator ?? null;
+  if (!page.successor) return page.narrator;
+  if (claudeNarrator && (sameName(claudeNarrator, page.companion) || sameName(claudeNarrator, page.narrator))) {
+    return claudeNarrator;
+  }
+  return page.companion ?? page.narrator;
 }
 
 async function fetchSunnahNarrator(slug, number) {
-  if (!slug || !number) return null;
-  const cache = loadSunnahCache();
-  const key = `narrator2::${slug}:${number}`; // 2: reporting clause trimmed
-  if (Object.prototype.hasOwnProperty.call(cache, key)) return cache[key];
-
-  let narrator = null, gotResponse = false;
-  try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 12_000);
-    const res = await fetch(`https://sunnah.com/${slug}:${number}`, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15)', 'Accept': 'text/html' },
-      signal: ctrl.signal,
-    });
-    clearTimeout(timer);
-    if (res.ok) {
-      gotResponse = true;
-      const html = await res.text();
-      const m = html.match(/class=["']?hadith_narrated[^>]*>\s*(?:<p>)?\s*([^<]+)/i);
-      if (m) {
-        let txt = m[1].replace(/\s+/g, ' ').trim();
-        // Strip leading narration framing: "Narrated X:", "It was narrated that X said:",
-        // "It has been narrated on the authority of X who …", "On the authority of X ...".
-        txt = txt.replace(/^it (?:is|was|has been) narrated(?: on the authority of| from)?(?: that)?\s*/i, '');
-        txt = txt.replace(/^(?:it was )?narrated\s*/i, '');
-        txt = txt.replace(/^on the authority of\s*/i, '');
-        // "Salamah bin 'Ubaidullah … narrated from his father" — the Companion is the father.
-        const fromFather = txt.match(/^\S+ (?:bin|ibn|b\.) (.+?) (?:narrated|reported) from his father/i);
-        if (fromFather) txt = fromFather[1];
-        // Cut at the reporting clause: "Sa'd b. Abu Waqqas reported Allah's Messenger (ﷺ) as
-        // saying" and "Salman who" were shown whole as the narrator's name.
-        txt = txt.split(/\s+(?:who|reported|narrated|said|says|relates|relating|that|as saying)\b|\s*[:(]/i)[0];
-        txt = txt.replace(/[\s,:]+$/, '').trim();
-        narrator = txt || null;
-      }
-    }
-  } catch { /* network/timeout — leave null, do not cache */ }
-
-  if (gotResponse) { cache[key] = narrator; try { writeFileSync(SUNNAH_CACHE_FILE, JSON.stringify(cache, null, 2), 'utf8'); } catch {} }
-  return narrator;
+  const page = await fetchSunnahPage(slug, number);
+  return page?.narrated ? parseSunnahNarrator(page.narrated, (page.english ?? '').slice(0, 200)) : null;
 }
 
 // Replace each hadith ref's collection/number/link with the canonical sunnah.com
@@ -1257,7 +1312,8 @@ async function fetchSunnahNarrator(slug, number) {
 // always say where a hadith is from, and that is more reliable than Claude's recollection:
 // a matn found in several collections was carded as Ibn Majah while the imam said Muslim.
 const IMAM_ATTRIBUTION = [
-  [/^البخاري|^متفق عليه/, 'bukhari'], [/^مسلم/, 'muslim'], [/^الترمذي/, 'tirmidhi'],
+  // "الشيخان" (the two Shaykhs) and "الصحيحين" (the two Sahihs) mean Bukhari and Muslim.
+  [/^البخاري|^متفق عليه|^الشيخان|^الصحيحين/, 'bukhari'], [/^مسلم/, 'muslim'], [/^الترمذي/, 'tirmidhi'],
   [/^ابو داود/, 'abudawud'], [/^النسائي/, 'nasai'], [/^ابن ماج/, 'ibnmajah'],
   [/^الامام احمد|^احمد/, 'ahmad'], [/^مالك/, 'malik'],
 ];
@@ -1272,7 +1328,9 @@ function imamAttributionSlug(transcript, detectedText) {
     const after = tNorm.slice(at + tail.length).trim().split(/\s+/).slice(0, 6).join(' ');
     const m = after.match(/^(?:\S+\s+){0,2}?(?:رواه|اخرجه|خرجه)\s+(.*)$|^(متفق عليه)/);
     if (!m) return null;
-    const name = (m[1] ?? m[2]).trim();
+    // "رواه الامام البخاري ومسلم", "أخرجه في الصحيحين": a title or "in" can come before the
+    // name (11 Sep's and Sudais's "each of you is a shepherd" were carded as Claude's Abu Dawud).
+    const name = (m[1] ?? m[2]).trim().replace(/^(?:الامام|في)\s+/, '');
     for (const [re, slug] of IMAM_ATTRIBUTION) if (re.test(name)) return slug;
     return null;
   }
@@ -1286,20 +1344,32 @@ async function resolveSunnahLinksForRefs(refs, transcript = null) {
     let sunnah = null;
     if (imamSlug) sunnah = await resolveSunnahLink(ref.detected_text, imamSlug);
     if (!sunnah) sunnah = await resolveSunnahLink(ref.detected_text, claudeSlug);
+    // A link confirmed on an earlier run stays when today's search finds nothing: search
+    // results drift, and three published links (Ibn Majah 425, 1642, Tirmidhi 3585) no
+    // longer come back although their pages carry the imam's words. Their narrator and
+    // English are still read from that page.
+    const kept = !sunnah && ref.verification === 'sunnah_search'
+      && (ref.link ?? '').match(/sunnah\.com\/([a-z]+):(\w+)$/);
+    if (kept) sunnah = { collection_slug: kept[1], hadith_number: kept[2], link: ref.link };
+    if (!sunnah && SLUG_DISPLAY[(ref.collection ?? '').trim().toLowerCase()]) {
+      ref.collection = SLUG_DISPLAY[ref.collection.trim().toLowerCase()];
+    }
     if (sunnah) {
       ref.collection = slugToDisplay(sunnah.collection_slug);
       ref.hadith_number = sunnah.hadith_number;
       ref.link = sunnah.link;
       ref.verification = 'sunnah_search';
       ref.note = 'Link verified via sunnah.com search';
-      // The resolved page states the narrator of THAT hadith; Claude's narrator is from
-      // memory and was wrong for Bukhari's ribat hadith (Sahl ibn Sa'd, not Salman). Keep
-      // Claude's only when the page cannot be read.
-      const narr = await fetchSunnahNarrator(sunnah.collection_slug, sunnah.hadith_number);
+      // The resolved page states the narrator of THAT hadith (see chooseNarrator). Claude's
+      // own narrator is kept in narrator_claude, so a re-run still has it to compare with
+      // after ref.narrator has been overwritten.
+      if (!('narrator_claude' in ref)) ref.narrator_claude = ref.narrator ?? null;
+      const narr = chooseNarrator(await fetchSunnahNarrator(sunnah.collection_slug, sunnah.hadith_number), ref.narrator_claude);
       if (narr) ref.narrator = narr;
       // Always prefer the published translation over Claude's paraphrase of the prose.
-      const trans = await fetchSunnahTranslation(sunnah.collection_slug, sunnah.hadith_number);
-      if (trans) ref.translation = trans;
+      const page = await fetchSunnahPage(sunnah.collection_slug, sunnah.hadith_number);
+      if (page?.english) ref.translation = page.english;
+      if (page?.arabic) ref.published_arabic = page.arabic;
     }
   }
   return refs;
@@ -1582,6 +1652,14 @@ function isLiturgicalFormula(text) {
 function deduplicateHadithRefs(refs) {
   const kept = [];
   for (const ref of refs) {
+    // Only hadith the imam introduces become cards. Every hadith found solely by the corpus
+    // scan across the seven test khutbahs was wrong: the imam's own sentences matched corpus
+    // fragments on "النبي صلى الله عليه وسلم" (21 Aug), his dhikr and Eid takbir matched the
+    // hadith containing them (Eid), a verse matched a hadith quoting it (Sudais 2:185 as Abu
+    // Dawud 2316), and a paraphrase of the pillars of Islam got an unrelated Bukhari link
+    // (Arafah). The scan's finds are kept in result.json as hadith_scan_suggestions.
+    if (ref.detection_method === 'scan') continue;
+
     // Ritual closing formulas are matched correctly by the corpus but are not citations.
     if (isLiturgicalFormula(ref.detected_text)) continue;
 
@@ -1740,19 +1818,14 @@ function pushQuranBadge(lines, ref, inline = false) {
   lines.push(`${marker} ${ref.surah_name} ${ref.surah_number}:${ayahLabel}  —  ${ref.quran_link}  (confidence: ${ref.confidence})`);
 }
 
-// The English of a verse quoted inside the imam's prose must be the published translation,
-// the same one the verse cards show (Sahih International, fetched from alquran.cloud), not
-// Claude's rendering of it — Claude translated Quraysh 106:3 as "so let them worship the
-// Lord of this House" while the cards beside it read Sahih International. So locate the
-// verse in the block's translation and swap in the published text:
-//  - the candidates are the translation's quoted runs, or — when Claude quoted nothing —
-//    runs of 1-3 clauses (it rendered 106:3 unquoted, which also left it un-gilded);
-//  - imams quote part of a long verse (Al Imran 3:97 "ومن دخله كان آمنا"), so the
-//    replacement is the run of the verse's published SENTENCES that best matches, not the
-//    whole verse;
-//  - the swap happens only on a clear word match, so a hadith quoted in the same block is
-//    never replaced by a verse.
-// The result is always in double quotes, which is what the web reader gilds.
+// The English of a verse quoted inside the imam's prose should be the published translation,
+// the same one the verse cards show (Sahih International), and a hadith's the sunnah.com
+// one, not Claude's rendering of them. Matching Claude's English against the published
+// English by word overlap put the wrong clause in (Ashura for Arafah in Muslim 1162a) and
+// clauses the imam never said (Laylat al-Qadr in Nasa'i 2202), so the swap is now planned
+// ahead by quote_swaps.js: it stores on each ref the exact text of Claude's rendering and
+// the exact published excerpt that says the same thing (`english_swap`), or why no
+// excerpt does. Rendering only replaces one exact string with the other.
 let _quranEn = null;
 function publishedVerseEnglish(ref) {
   try { _quranEn ??= require('quran-json/dist/quran_en.json'); } catch { return ''; }
@@ -1760,92 +1833,25 @@ function publishedVerseEnglish(ref) {
   const end = ref.ayah_number_end ?? ref.ayah_number;
   return verses.filter(v => v.id >= ref.ayah_number && v.id <= end).map(v => v.translation).join(' ');
 }
-const enWords = t => t.toLowerCase().replace(/[^a-z\s']/g, ' ').split(/\s+/).filter(w => w.length >= 3);
-function wordF1(a, b) {
-  if (!a.length || !b.length) return 0;
-  const bs = new Set(b), as = new Set(a);
-  const p = a.filter(w => bs.has(w)).length / a.length, r = b.filter(w => as.has(w)).length / b.length;
-  return p + r ? 2 * p * r / (p + r) : 0;
-}
-const EN_QUOTE_RE = /["\u201C]([^"\u201C\u201D]+)["\u201D]|(?<![A-Za-z])['\u2018](.+?)['\u2019](?=[\s.,;:!?)]|$)/g;
-// Replace the best-matching run of `text` with the best-matching run of `published`.
-// Candidates in `text` are its quoted runs or, when nothing is quoted, runs of 1-3 clauses;
-// `published` is split into units by `unitRe` and runs of up to `maxRun` units are tried.
-// Returns the new text, or null when nothing matches at least `minF1`. Spans in `locked`
-// (text already replaced for another reference) are never candidates.
-function swapInPublished(text, published, { unitRe, maxRun, minF1, locked }) {
-  const units = published.replace(/["\u201C\u201D]/g, '').split(unitRe).map(u => u.trim()).filter(Boolean);
-  if (!units.length) return null;
-  const free = c => !locked.some(l => c.s < l.e && c.e > l.s);
-  // Quoted runs, plus unquoted runs of 1-4 clauses — always both: a block can quote one
-  // hadith and leave the next unquoted, and whichever was swapped first must not hide the
-  // other. Clause runs never cut into a quote.
-  const quotes = [...text.matchAll(EN_QUOTE_RE)]
-    .map(m => ({ s: m.index, e: m.index + m[0].length, t: m[1] ?? m[2] }));
-  const cands = quotes.filter(free);
-  const clauses = [...text.matchAll(/[^,;:.!?\u201C\u201D"]+/g)].map(m => ({ s: m.index, e: m.index + m[0].length }));
-  for (let i = 0; i < clauses.length; i++) for (let j = i; j < Math.min(i + 4, clauses.length); j++) {
-    const c = { s: clauses[i].s, e: clauses[j].e, t: text.slice(clauses[i].s, clauses[j].e),
-      edges: [enWords(text.slice(clauses[i].s, clauses[i].e)), enWords(text.slice(clauses[j].s, clauses[j].e))] };
-    if (free(c) && !quotes.some(q => c.s < q.e && c.e > q.s)) cands.push(c);
-  }
-  let best = null;
-  for (const c of cands) {
-    const cw = enWords(c.t);
-    if (cw.length < 3) continue;
-    for (let i = 0; i < units.length; i++) for (let j = i; j < Math.min(i + maxRun, units.length); j++) {
-      const run = units.slice(i, j + 1).join(' ');
-      const rw = enWords(run);
-      if (rw.length > cw.length * 2 + 4) break; // never pad a short quote with unquoted text
-      // F1 alone favours the one clause that matches best and swaps in only that clause
-      // (Tirmidhi 1639 became just "and an eye that spent the night…"). Weight by the
-      // candidate's length so the whole quotation wins; extending into unrelated prose
-      // still loses, because every unmatched word lowers F1.
-      // A clause run must start and end on matching words, or it swallows the imam's
-      // framing next to the quote ("Reported by al-Tirmidhi").
-      if (c.edges) {
-        const rs = new Set(rw);
-        // Half the words, not any: common words ("allah", "the", "that") alone let the run
-        // swallow "May Allah reward them…" after Tirmidhi 1639.
-        if (!c.edges.every(ew => ew.length && ew.filter(w => rs.has(w)).length / ew.length >= 0.5)) continue;
-      }
-      const f = wordF1(cw, rw);
-      const score = f * Math.sqrt(cw.length);
-      if (f >= minF1 && (!best || score > best.score)) best = { ...c, run, f, score };
-    }
-  }
-  if (!best) return null;
-  const s = best.s + text.slice(best.s).match(/^\s*/)[0].length;
-  const e = best.e - text.slice(best.s, best.e).match(/\s*$/)[0].length;
-  const run = best.run.replace(/^['\u2018\u2019\s]+|['\u2018\u2019\s]+$/g, '').replace(/[.;,:]+$/, '');
-  // A quote that closed the sentence ('…shall be safe.') must still close it.
-  const stop = /[.!?]$/.test(best.t.trim()) && !/^[.!?]/.test(text.slice(e)) ? best.t.trim().slice(-1) : '';
-  const inserted = '\u201C' + run + '\u201D';
-  locked.push({ s, e: s + inserted.length });
-  for (const l of locked.slice(0, -1)) if (l.s >= e) { l.s += inserted.length + stop.length - (e - s); l.e += inserted.length + stop.length - (e - s); }
-  return text.slice(0, s) + inserted + stop + text.slice(e);
-}
 
-// Verses swap in whole published SENTENCES (an imam quotes part of a long verse; a
-// sentence is the smallest unit that still reads as the verse). Hadith swap in CLAUSES:
-// a sunnah.com entry carries the narrator's framing and often far more than the imam
-// quoted — Bukhari 1587 runs on into the rules about Makkah's thorns and game, while the
-// imam said only "إن هذا البلد حرمه الله" — so only the matching clauses are used. Hadith
-// wording in translation varies more than verse wording ("made this town a sanctuary" vs
-// "this land was made sacred"), hence the lower bar; the swap still requires the match to
-// come from this block's own translation.
-function usePublishedTranslations(english, qrefs = [], hrefs = []) {
+// Put each ref's planned published excerpt in place of Claude's rendering: “excerpt”, with
+// Claude's own quote marks around it dropped. A rendering that is not found exactly once
+// stays as it is.
+const QUOTE_MARKS = /^["'\u2018\u2019\u201C\u201D]$/;
+function applyQuoteSwaps(english, refs) {
   if (!english) return english;
-  let text = english.replace(/,\s*:/g, ':'); // Claude's ",:" artefact
-  const locked = [];
-  for (const ref of qrefs) {
-    const published = publishedVerseEnglish(ref);
-    if (!published) continue;
-    text = swapInPublished(text, published, { unitRe: /(?<=[.;!?])\s+/, maxRun: 99, minF1: 0.5, locked }) ?? text;
-  }
-  for (const ref of hrefs) {
-    if (!ref.translation) continue;
-    text = swapInPublished(text, ref.translation, { unitRe: /(?<=[,;:.!?])\s+/, maxRun: 8, minF1: 0.4, locked }) ?? text;
+  let text = english;
+  for (const ref of refs) {
+    const sw = ref.english_swap;
+    if (sw?.status !== 'published' || !sw.ours || !sw.published) continue;
+    const at = text.indexOf(sw.ours);
+    if (at < 0 || text.indexOf(sw.ours, at + 1) >= 0) continue;
+    let s = at, e = at + sw.ours.length;
+    if (s > 0 && e < text.length && QUOTE_MARKS.test(text[s - 1]) && QUOTE_MARKS.test(text[e])) { s--; e++; }
+    const body = sw.published.trim().replace(/^["'\u2018\u201C]+|["'\u2019\u201D]+$/g, '').replace(/[,;:]+$/, '');
+    // A quote that closed its sentence ("…shall be safe.") must still close it.
+    const stop = /[.!?]$/.test(sw.ours.trim()) && !/[.!?]$/.test(body) && !/^\s*[.!?]/.test(text.slice(e)) ? sw.ours.trim().slice(-1) : '';
+    text = text.slice(0, s) + '\u201C' + body + '\u201D' + stop + text.slice(e);
   }
   return text;
 }
@@ -1862,9 +1868,155 @@ function pushHadithBadge(lines, ref, skipTranslation = false) {
   }
 }
 
+// ---- Reader coverage ----------------------------------------------------------
+// Prose chunks are fixed when a khutbah is translated (they are cut around the pre-scan's
+// Quran zones); cards come from references located afterwards. The two disagree at the edges
+// and whenever a reference cannot be placed — a verse recited twice, a zone whose card was
+// collapsed into another, zones carved out before MIN_ZONE_WORDS applied to chunking — and
+// the words then rendered twice or nowhere. Five of seven published khutbahs lost text this
+// way. reconcileCoverage() makes the final segments render every transcript word once.
+
+function verseWordSet(ref) {
+  const set = new Set();
+  const surah = quranData?.[(ref?.surah_number ?? 0) - 1];
+  if (!surah) return set;
+  const end = ref.ayah_number_end ?? ref.ayah_number;
+  for (const v of surah.verses) {
+    if (v.id < ref.ayah_number || v.id > end) continue;
+    for (const w of normalizeArabicDeep(v.text).split(/\s+/)) if (w) set.add(w);
+  }
+  return set;
+}
+
+// The transcript spells "الصلاة" where the mushaf has "الصلوة": allow one edit.
+function oneEditApart(x, y) {
+  if (Math.abs(x.length - y.length) > 1) return false;
+  let i = 0, j = 0, edits = 0;
+  while (i < x.length && j < y.length) {
+    if (x[i] === y[j]) { i++; j++; continue; }
+    if (++edits > 1) return false;
+    if (x.length > y.length) i++; else if (y.length > x.length) j++; else { i++; j++; }
+  }
+  return edits + (x.length - i) + (y.length - j) <= 1;
+}
+const wordInVerse = (w, set) => set.has(w) || (w.length >= 4 && [...set].some(v => oneEditApart(w, v)));
+
+// Recited, not cited: the isti'adha and basmala match 16:98 and 1:1, and the praise
+// formula "الحمد لله رب العالمين" is all of 1:2, but none of them is the imam citing a verse
+// (the same rule the minimum-word gate enforces for zone refs).
+const RITUAL_RECITATION = /بالله من الشيطان الرجيم|بسم الله الرحمن الرحيم/;
+const RITUAL_WHOLE = new Set(['الحمد لله رب العالمين'].map(p => normalizeArabicDeep(p)));
+// The imam introducing a verse ("كما قال جل وعلا:") versus asking in du'a: the closing du'a
+// borrows Quranic wording ("وجنبهم الفواحش … ما ظهر منها وما بطن", 6:151) without citing it.
+const CITES_VERSE = /(^| )(قال|وقال|فقال|يقول|ويقول|تعالى|وتعالى|وعلا|سبحانه|وجل|قوله|وقوله|لقوله)( |$)/;
+
+// Name the verse a run of uncovered words recites, or null when it is not a citation.
+// `before` is the few transcript words just ahead of the run.
+function identifyRecitation(words, before = []) {
+  if (!quranData) return null;
+  const deep = words.map(w => normalizeArabicDeep(w)).join(' ');
+  if (RITUAL_RECITATION.test(deep) || RITUAL_WHOLE.has(deep.replace(/^و/, ''))) return null;
+  const lead = before.map(w => normalizeArabic(w)).join(' ');
+  const cited = CITES_VERSE.test(lead.split(' ').slice(-4).join(' '));
+  if (!cited && lead.split(' ').slice(-15).includes('اللهم')) return null;
+
+  let best = null;
+  for (const z of prescanForQuranZones(words)) {
+    if (!best || z.end - z.start > best.end - best.start) best = z;
+  }
+  if (!best) return null;
+  const matched = best.end - best.start;
+  // A whole verse counts however short it is ("فلما أسلما وتله للجبين" is all of 37:103).
+  const verse = quranData[best.surah_id - 1]?.verses.find(v => v.id === best.ayah_id);
+  const verseLen = verse ? normalizeArabicDeep(verse.text).split(/\s+/).filter(Boolean).length : Infinity;
+  const whole = verseLen >= 3 && matched >= verseLen;
+  if (!whole && matched < Math.max(MIN_ZONE_WORDS, Math.ceil(words.length * 0.6))) return null;
+
+  const ids = (best.ayah_spans ?? []).filter(s => s.surah_id === best.surah_id).map(s => s.ayah_id).sort((a, b) => a - b);
+  const first = ids[0] ?? best.ayah_id, last = ids[ids.length - 1] ?? best.ayah_id;
+  const surah = quranData[best.surah_id - 1];
+  return {
+    detected_text: words.join(' '),
+    matched: true,
+    surah_name: surah?.transliteration ?? best.surah_name,
+    surah_number: best.surah_id,
+    ayah_number: first,
+    ...(last !== first ? { ayah_number_end: last } : {}),
+    quran_link: `https://quran.com/${best.surah_id}/${first}`,
+    confidence: 0.8,
+    verification: 'reader_gap',
+    detection_method: 'reader_gap',
+  };
+}
+
+function reconcileCoverage(segments, origWords) {
+  const span = s => [s.startWord, s.startWord + s.words.length];
+  const setWords = (s, a, b) => { s.startWord = a; s.words = origWords.slice(a, b); };
+  const isCard = s => s?.type === 'quran';
+  const isProse = s => s?.type === 'prose';
+  const segs = [...segments].sort((a, b) => a.startWord - b.startWord);
+
+  // 1. Words doubled at the edge of a card and the prose next to it. The card shows the
+  //    whole verse anyway, so they leave the prose side ("يا أيها" ended one block and
+  //    began the next verse card). A block nested wholly inside another is an inline case
+  //    handled elsewhere and is left alone.
+  for (let i = 1; i < segs.length; i++) {
+    const prev = segs[i - 1], cur = segs[i];
+    const [ps, pe] = span(prev), [cs, ce] = span(cur);
+    if (cs >= pe || ce <= pe) continue;
+    if (isProse(prev) && isCard(cur) && cs > ps) setWords(prev, ps, cs);
+    else if (isCard(prev) && (isProse(cur) || isCard(cur))) setWords(cur, pe, ce);
+  }
+
+  // 2. Words no block renders.
+  const gaps = [];
+  let cursor = 0;
+  for (const s of segs) {
+    const [a, b] = span(s);
+    if (a > cursor) gaps.push([cursor, a]);
+    cursor = Math.max(cursor, b);
+  }
+  if (cursor < origWords.length) gaps.push([cursor, origWords.length]);
+
+  for (const [gs, ge] of gaps) {
+    const prev = segs.filter(s => span(s)[1] === gs).pop();
+    const next = segs.find(s => span(s)[0] === ge);
+    const gapWords = origWords.slice(gs, ge);
+    const deep = gapWords.map(w => normalizeArabicDeep(w)).filter(Boolean);
+    const partOf = card => {
+      const set = verseWordSet(card.ref);
+      return deep.filter(w => wordInVerse(w, set)).length >= Math.ceil(deep.length * 0.6);
+    };
+    // a. The card ran short of its own verse ("…والله ذو" without "الفضل العظيم").
+    if (isCard(prev) && partOf(prev)) { setWords(prev, span(prev)[0], ge); continue; }
+    if (isCard(next) && partOf(next)) { setWords(next, gs, span(next)[1]); continue; }
+    // b. A recitation with no card: a verse recited a second time, or a zone whose card was
+    //    dropped. A card also gives these words a translation, which they never got: they
+    //    were outside every chunk sent to Claude. Not when it runs straight on from a quoted
+    //    hadith — the Prophet's dhikr "له الملك وله الحمد وهو على كل شيء قدير" matches 64:1
+    //    but is part of the hadith.
+    const afterHadith = prev?.hadithRefs?.length > 0;
+    if (!afterHadith && ge - gs >= 3) {
+      const ref = identifyRecitation(gapWords, origWords.slice(Math.max(0, gs - 15), gs));
+      if (ref) { segs.push({ type: 'quran', words: gapWords, ref, startWord: gs }); continue; }
+    }
+    // c. Otherwise the words stay in the prose where they were spoken.
+    if (isProse(prev)) { setWords(prev, span(prev)[0], ge); continue; }
+    if (isProse(next)) { setWords(next, gs, span(next)[1]); continue; }
+    // d. Between two cards with no prose to join: its own block, marked untranslated.
+    segs.push({ type: 'prose', words: gapWords, startWord: gs, untranslated: true });
+  }
+
+  return segs.filter(s => s.words.length).sort((a, b) => a.startWord - b.startWord);
+}
+
 // Splits the Arabic transcript around detected references and produces an
 // annotated bilingual reader: Arabic chunk -> English chunk -> source badge.
-function buildReaderView(transcript, result) {
+// `opts.quotes`: when an array, every block that quotes a verse or hadith inside its prose is
+// pushed to it ({ arabic, english, quranRefs, hadithRefs }) — quote_swaps.js plans the
+// published-translation swaps from these. `opts.untranslated`: the text for words that were
+// never sent for translation (another language's reader, e.g. Urdu, passes its own).
+function buildReaderView(transcript, result, opts = {}) {
   const { chunk_translations, quran_references, hadith_references } = result;
 
   const origWords = transcript.split(/\s+/).filter(Boolean);
@@ -1873,8 +2025,8 @@ function buildReaderView(transcript, result) {
 
   // Locate each reference in the transcript by matching its first 5 words
   const allRefs = [
-    ...quran_references.map(r => ({ ...r, refType: 'quran' })),
-    ...hadith_references.map(r => ({ ...r, refType: 'hadith' })),
+    ...quran_references.map((r, i) => ({ ...r, refType: 'quran', refIndex: i })),
+    ...hadith_references.map((r, i) => ({ ...r, refType: 'hadith', refIndex: i })),
   ];
 
   const located = [];
@@ -2125,6 +2277,8 @@ function buildReaderView(transcript, result) {
     segments = segments.filter(s => !s._removed);
   }
 
+  segments = reconcileCoverage(segments, origWords);
+
   const lines = ['ANNOTATED READER VIEW', '=====================\n'];
 
   // Insert a divider before the chunk that begins the second khutbah. Rendered as its own
@@ -2153,7 +2307,10 @@ function buildReaderView(transcript, result) {
     }
     const arabic = seg.words.join(' ');
     let english;
-    if (chunkTranslations) {
+    if (seg.untranslated) {
+      // Words between two cards that were never sent for translation (see reconcileCoverage).
+      english = opts.untranslated ?? '(Not translated.)';
+    } else if (chunkTranslations) {
       if (seg.type === 'prose') {
         // Use proseIdx stored on the segment (from prose_chunk_map) when available;
         // fall back to position-based lookup for old results without a map. Merged chunks
@@ -2202,7 +2359,11 @@ function buildReaderView(transcript, result) {
     const skipFetched = new Set();
     if (english) for (const h of (seg.hadithRefs ?? [])) skipFetched.add(h);
 
-    english = usePublishedTranslations(english, seg.quranRefs, seg.hadithRefs);
+    if (english) english = english.replace(/,\s*:/g, ':'); // Claude's ",:" artefact
+    if (opts.quotes && english && (seg.quranRefs?.length || seg.hadithRefs?.length)) {
+      opts.quotes.push({ arabic, english, quranRefs: seg.quranRefs ?? [], hadithRefs: seg.hadithRefs ?? [] });
+    }
+    english = applyQuoteSwaps(english, [...(seg.quranRefs ?? []), ...(seg.hadithRefs ?? [])]);
     lines.push(arabic);
     lines.push('');
     if (english) lines.push(english);
@@ -2480,7 +2641,7 @@ async function transcribeWithGroqWindowed(audioPath) {
 // Uses Needleman-Wunsch global alignment so repeated common tokens stay positionally constrained.
 function alignWordTimestamps(displayWords, timedWords) {
   if (!displayWords.length || !timedWords.length) return null;
-  return interpolateAnchors(anchorTimes(displayWords, timedWords));
+  return interpolateAnchors(anchorTimes(displayWords, timedWords), displayWords);
 }
 
 function alignAnchors(A, B, timedWords, n, m, W, tb) {
@@ -2541,11 +2702,20 @@ function combineTimings(displayWords, sources) {
   });
   const keep = new Set();
   for (let p = tailAt[tails.length - 1]; p >= 0; p = prev[p]) keep.add(idx[p]);
-  return interpolateAnchors(merged.map((t, k) => keep.has(k) ? t : null));
+  return interpolateAnchors(merged.map((t, k) => keep.has(k) ? t : null), displayWords);
 }
 
 // Fill unanchored words by linear interpolation between neighbouring anchors.
-function interpolateAnchors(times) {
+// Not across a pause, though: when a run's gap is far longer than its words take to say, the
+// gap holds a silence, and spreading the words evenly put them in it. The first word of the
+// second khutbah ("الحمد") was timed 15 s into the sitting pause (11 Sep, 22 May, 21 Aug), so
+// the highlight moved while the imam was still seated. There the words are packed at speaking
+// pace against the anchor they belong to: those up to the run's last sentence end after the
+// previous anchor, the rest before the next one. `words` (the display words) gives the
+// sentence ends; without it the old even spread is used.
+const SPEECH_SEC_PER_WORD = 0.45;
+const ENDS_SENTENCE = /[.؟!?:]$/;
+function interpolateAnchors(times, words = null) {
   const n = times.length;
   const anchors = [];
   for (let k = 0; k < n; k++) if (times[k] !== null) anchors.push(k);
@@ -2557,10 +2727,39 @@ function interpolateAnchors(times) {
   for (let a = 0; a < anchors.length - 1; a++) {
     const p = anchors[a], q = anchors[a + 1];
     const tp = times[p], tq = times[q];
-    for (let k = p + 1; k < q; k++) times[k] = tp + (tq - tp) * (k - p) / (q - p);
+    let split = null;
+    if (words && tq - tp > (q - p) * 1.5) {
+      split = p;
+      for (let k = q - 1; k > p; k--) if (ENDS_SENTENCE.test(words[k] ?? '')) { split = k; break; }
+      if (split === p && !ENDS_SENTENCE.test(words[p] ?? '')) split = null; // no sentence end: pause unknown
+    }
+    for (let k = p + 1; k < q; k++) {
+      times[k] = split === null ? tp + (tq - tp) * (k - p) / (q - p)
+        : k <= split ? tp + (k - p) * SPEECH_SEC_PER_WORD : tq - (q - k) * SPEECH_SEC_PER_WORD;
+    }
   }
   times.anchored = anchored; // which times are real audio anchors vs interpolated
   return times;
+}
+
+// The same repair for a run already saved, whose anchors are no longer known: a word timed
+// alone in a silence (over 5 s from both neighbours) moves next to the word it belongs to, by
+// the sentence end on its side. Returns how many words moved; keeps second_khutbah.time in step.
+function settleLoneWords(result) {
+  const tw = result.transcript_words ?? [];
+  let moved = 0;
+  for (let i = 1; i < tw.length - 1; i++) {
+    const before = tw[i].start - tw[i - 1].start, after = tw[i + 1].start - tw[i].start;
+    if (before <= 5 || after <= 5) continue;
+    let t = null;
+    if (ENDS_SENTENCE.test(tw[i - 1].word)) t = tw[i + 1].start - SPEECH_SEC_PER_WORD;
+    else if (ENDS_SENTENCE.test(tw[i].word)) t = tw[i - 1].start + SPEECH_SEC_PER_WORD;
+    if (t === null) continue;
+    tw[i].start = Math.round(t * 1000) / 1000;
+    if (result.second_khutbah?.word_index === i) result.second_khutbah.time = Math.round(t * 10) / 10;
+    moved++;
+  }
+  return moved;
 }
 
 // Safety net behind the windowed timing: a long run of display words with no Whisper anchor
@@ -3145,6 +3344,8 @@ async function main() {
     second_khutbah: secondKhutbah,
     quran_references: allQuranRefs,
     hadith_references: allHadithRefs,
+    // Corpus-scan finds, not shown (see deduplicateHadithRefs); kept for review.
+    hadith_scan_suggestions: hadithScanRefs,
     transcript_segments: transcriptSegments,
     transcript_words: transcriptWordTimes,
     metadata: {
@@ -3159,6 +3360,12 @@ async function main() {
     },
   };
 
+  // Step 9b: Published translations for quotes inside the prose (one model call per quote, see quote_swaps.js).
+  console.log('\nMatching quoted hadith and verses to their published English...');
+  const { planQuoteSwaps } = await import('./quote_swaps.js');
+  result.metadata.english_swaps = await planQuoteSwaps(transcript, result);
+  console.log(` ${result.metadata.english_swaps.published} published, ${result.metadata.english_swaps.ours} ours ($${result.metadata.english_swaps.cost_usd.toFixed(4)})`);
+
   // Step 10: Save JSON result
   writeFileSync(path.join(outDir, 'result.json'), JSON.stringify(result, null, 2), 'utf8');
 
@@ -3170,7 +3377,7 @@ async function main() {
   console.log(`✓ Transcription complete -- ${wordCount} words`);
   console.log('✓ Translation complete');
   console.log(`✓ ${allQuranRefs.length} Quranic references detected (${quranRefs.length} signal-phrase + ${scanRefs.length} scan), ${matchedCount} matched`);
-  console.log(`✓ ${allHadithRefs.length} Hadith references detected (${claudeHadithRefs.length} signal-phrase + ${hadithScanRefs.length} scan)`);
+  console.log(`✓ ${allHadithRefs.length} Hadith references detected (${hadithScanRefs.length} more corpus-scan suggestions not shown)`);
   console.log(`✓ Results saved to outputs/${timestamp}_${audioBasename}/  (transcript.txt, result.json, readable.txt, reader.txt)`);
 }
 
@@ -3205,6 +3412,13 @@ export {
   findMatchingHadith,
   loadHadithCorpus,
   resolveSunnahLinksForRefs,
+  parseSunnahNarrator,
+  chooseNarrator,
+  nameKeys,
+  fetchSunnahPage,
+  cachedSunnahPage,
+  publishedVerseEnglish,
+  applyQuoteSwaps,
   normalizeArabic,
   normalizeArabicDeep,
   getQuranNgramIndex,
@@ -3216,5 +3430,7 @@ export {
   alignWordTimestamps,
   combineTimings,
   retimeUnanchoredGaps,
+  interpolateAnchors,
+  settleLoneWords,
   buildSegmentsFromWordTimes,
 };

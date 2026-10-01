@@ -31,6 +31,12 @@ Takes an Arabic Friday Khutbah (sermon) audio file and produces:
 |------|------|
 | `pipeline.js` | Main pipeline — transcription, Claude analysis, ref matching, output generation. Also exports all shared functions. |
 | `reanalyze.js` | Re-runs Claude analysis on an existing `transcript.txt` without re-transcribing. Imports from `pipeline.js`. |
+| `test_khutbahs.js` | Regression test set: runs every khutbah in `tests/khutbahs.json` through `verify_reader.js` and compares its Quran/Hadith cards to the expected lists. `--rebuild` rebuilds each reader in memory with the current code first. Run before and after every pipeline/reader change. |
+| `check_english.js` | English checks run by `verify_reader.js`: swapped-in quotes (no new proper noun, no doubled framing, no dropped words, verse coverage), chunk/translation pairing by length ratio, planned swaps that drop numbers/names. |
+| `quote_swaps.js` | Plans published-translation swaps for quotes inside prose (one claude-sonnet-5 call per quote, answers cached in `hadith_data/.swap_answers.json`); stores `english_swap` per ref. Run by `reanalyze.js` and the pipeline. |
+| `review_blocks.js` | Stage C: second-model review of every reader block (claude-sonnet-5, ~$0.07/khutbah). Writes `review.json` flags; changes nothing. |
+| `publish.js` | One command from recording to publishable: remux/trim (faststart checked), pipeline, verify_reader, test entry, PUBLIC_KHUTBAHS + .gitignore. Never commits or pushes. |
+| `translate_urdu.js` | Urdu groundwork: Arabic→Urdu per chunk (claude-sonnet-5), Junagarhi verses (PLACEHOLDER), fawazahmed0 urd-* hadith; writes `result.urdu` + `reader_ur.txt`. Page shows an English/اردو switch. |
 | `retime.js` | Redoes only the word timings of an existing run (windowed Groq + gap re-timing), keeping segment boundaries so stored translations stay paired. No Claude call. Follow with `reanalyze.js`. |
 | `server.js` | Express + WebSocket server. Accepts audio uploads, spawns `pipeline.js` as child process, streams progress, serves `public/`. |
 | `transcribe_local.py` | Python script for local transcription via faster-whisper or mlx-whisper. Called by `pipeline.js --local`. |
@@ -232,6 +238,11 @@ All functions except `main()` are exported for use by `reanalyze.js`.
 | 27 | Single-khutbah mode | `--single`/`--no-split` flag skips `locateSecondKhutbah` (Arafah, Eid, lectures) |
 | 28 | Phone-recorded audio won't stream (`moov` at end of file) | Remux on ingest: `ffmpeg -i in.m4a -c copy -movflags +faststart out.m4a` — see "Audio ingest" below |
 | 29 | Reader highlight up to 30 s behind the imam (Whisper dropped ~90 s of a long file) | `--gemini` timing uses 90 s overlapping Groq windows with no prompt (the prompt caused repetition loops) + re-times any long unanchored gap; `retime.js` applies it to old runs; `reanalyze.js` refuses to write if chunk boundaries change |
+| 30 | Narrator showed the successor (Tirmidhi 2910, 3585) | `parseSunnahNarrator` + `chooseNarrator` keep the Companion |
+| 31 | Published swaps inserted wrong clauses (Ashura, Laylat al-Qadr) | Exact planned swaps (`quote_swaps.js`) or "our translation" label; `check_english.js` |
+| 32 | Sudais English one block off from chunk 59 | Translations re-paired; length-ratio pairing check |
+| 33 | Second khutbah's first word timed in the sitting pause | Pause-aware `interpolateAnchors`; `settleLoneWords` |
+| 34 | Hadith carded from a collection the imam didn't name ("رواه الامام البخاري", "الشيخان") | `imamAttributionSlug` skips "الامام"/"في"; "الشيخان"/"الصحيحين" = Bukhari |
 
 ---
 

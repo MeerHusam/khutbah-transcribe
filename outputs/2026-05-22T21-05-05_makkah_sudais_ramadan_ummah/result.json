@@ -61,6 +61,7 @@
     "by reciting the Quran, remembrance of Allah, glorification, declaring His oneness, seeking forgiveness, supplication, giving charity, and doing good. And make it an opportunity for affection, love, righteousness, maintaining family ties, and forgiveness.",
     "Beware of severing ties, enmity, spite, envy, and hatred. Show Allah the good within yourselves. Renew your repentance from your sins and fulfil its conditions, so that Allah may overlook your sins and make you among those shown mercy and freed from the Fire by His grace and generosity.",
     "He is the best One to be asked of and the most generous One to be hoped from.",
+    "for that [to] which He has guided you;",
     "guided. May Allah bless me and you through the two revelations, and benefit me and you through the guidance of the Master of both worlds. I say what I have said and I seek forgiveness from Allah for myself and for all of you and for all Muslims from every sin, so seek His forgiveness, for He is the All-Forgiving, the Most Merciful.",
     "The Most Merciful. All praise is due to Allah, who has guided us to Islam as a favour and blessing from Him, and made fasting a means of drawing close to Him and a shield, and a path leading to His pleasure and to Paradise. I bear witness that there is no god but Allah, alone with no partner, the God of mankind and of Paradise. And I bear witness that our Prophet Muhammad is the servant of Allah and His Messenger, sent with the most complete Shari'ah and the most upright Sunnah,",
     "may Allah send blessings, peace, and benedictions upon him and upon his family and companions, those of lofty resolve and tranquil souls, and upon those who followed them in goodness until the Day of Judgement.",
@@ -73,7 +74,8 @@
     "Know, O brothers in Islam, that just as you welcomed this month, you will soon bid it farewell. You welcomed it with joy, reverence, glorification of Allah, and humility, and you will soon farewell it with sorrow and tears.",
     "For these first ten days are nearly departing, and many people are turning away from obedience to their Lord. Do you know, O servant of Allah, whether you will witness the rest of the month or not complete it? The wise and discerning person is the one who seizes this as an opportunity to take stock of himself, correct his crookedness, and bring himself to obedience to his Lord before death catches him unawares, for nothing will benefit him then except righteous deeds.",
     "And remember, may Allah watch over you, that you are now entering the middle ten days of Ramadan, the ten days of forgiveness, as the Prophet صلى الله عليه وسلم informed us. So take",
-    "the means of forgiveness through repentance, turning back to Allah, and constant adherence to righteous deeds, 'And indeed I am Perpetually Forgiving toward whoever repents and believes and does righteousness and then continues in guidance', and may Allah make us and you among those for whom, in this noble month, mercy, forgiveness, and freedom from the Fire have been written. He is Most Generous and Kind.",
+    "the means of forgiveness through repentance, turning back to Allah, and constant adherence to righteous deeds.",
+    "May Allah make us and you among those for whom, in this noble month, mercy, forgiveness, and freedom from the Fire have been written. He is Most Generous and Kind.",
     "Know, O servants of Allah, that among the best and most elevated of your deeds in your ranks, the purest before your King, and the weightiest in your scales",
     "is your abundant sending of blessings and peace upon the beloved, the chosen Prophet, the leader of those who fast and pray, the master of the earlier and later generations, and the Messenger of the Lord of the worlds, the finest",
     "of those who prayed and fasted, and the best of those who rose at night for Allah in prayer. Your King, the All-Knowing, has commanded you to do so, as He said in noble words:",
@@ -696,36 +698,68 @@
   "hadith_references": [
     {
       "detected_text": "إذا دخل رمضان فتحت أبواب الجنة وغلقت أبواب النار وصفدت الشياطين وينادي مناد يا باغي الخير أقبل ويا باغي الشر أقصر ولله عتقاء من النار وذلك كل ليلة",
-      "narrator": "Abu Hurayrah",
+      "narrator": "Abu Hurairah",
       "collection": "Sunan Ibn Majah",
       "hadith_number": "1642",
       "link": "https://sunnah.com/ibnmajah:1642",
       "confidence": 0.65,
       "detection_method": "signal_phrase",
       "note": "Link verified via sunnah.com search",
-      "verification": "sunnah_search"
+      "verification": "sunnah_search",
+      "narrator_claude": "Abu Hurayrah",
+      "translation": "“When the first night of Ramadan comes, the satans and mischievous jinns are chained up, and the gates of the Fire are closed, and none of its gates are opened. The gates of Paradise are opened and none of its gates are closed. And a caller cries out: ‘O seeker of good, proceed, O seeker of evil, stop.’ And Allah has necks (people) whom He frees (from the Fire), and that happens every day.”",
+      "published_arabic": "\" إِذَا كَانَتْ أَوَّلُ لَيْلَةٍ مِنْ رَمَضَانَ صُفِّدَتِ الشَّيَاطِينُ وَمَرَدَةُ الْجِنِّ وَغُلِّقَتْ أَبْوَابُ النَّارِ فَلَمْ يُفْتَحْ مِنْهَا بَابٌ. وَفُتِحَتْ أَبْوَابُ الْجَنَّةِ فَلَمْ يُغْلَقْ مِنْهَا بَابٌ. وَنَادَى مُنَادٍ: يَا بَاغِيَ الْخَيْرِ أَقْبِلْ. وَيَا بَاغِيَ الشَّرِّ أَقْصِرْ. وَلِلَّهِ عُتَقَاءُ مِنَ النَّارِ. وَذَلِكَ فِي كُلِّ لَيْلَةٍ \" .",
+      "english_swap": {
+        "status": "ours",
+        "reason": "the published translation adds mischievous jinns; adds none of its gates are opened (Fire); adds none of its gates are closed (Paradise); adds every day (instead of night)",
+        "ours": "When Ramadan enters, the gates of Paradise are opened and the gates of Hell are closed, and the devils are chained, and a caller calls out: O seeker of good, come forward! O seeker of evil, hold back! And Allah has those He frees from the Fire, and that is every night.",
+        "published": "When the first night of Ramadan comes, the satans and mischievous jinns are chained up, and the gates of the Fire are closed, and none of its gates are opened. The gates of Paradise are opened and none of its gates are closed. And a caller cries out: ‘O seeker of good, proceed, O seeker of evil, stop.’ And Allah has necks (people) whom He frees (from the Fire), and that happens every day.",
+        "hash": "f5db546db0793cf0",
+        "model": "claude-sonnet-5"
+      }
     },
     {
       "detected_text": "من صامه وقامه إيماناً واحتساباً غفر له ما تقدم من ذنبه",
-      "narrator": "Abu Hurayrah",
-      "collection": "Sunan an-Nasa'i",
-      "hadith_number": "2202",
-      "link": "https://sunnah.com/nasai:2202",
+      "narrator": "Abu Huraira",
+      "collection": "Sahih al-Bukhari",
+      "hadith_number": "1901",
+      "link": "https://sunnah.com/bukhari:1901",
       "confidence": 0.67,
       "detection_method": "signal_phrase",
       "note": "Link verified via sunnah.com search",
-      "verification": "sunnah_search"
+      "verification": "sunnah_search",
+      "narrator_claude": "Abu Hurayrah",
+      "translation": "The Prophet (ﷺ) said, \"Whoever established prayers on the night of Qadr out of sincere faith and hoping for a reward from Allah, then all his previous sins will be forgiven; and whoever fasts in the month of Ramadan out of sincere faith, and hoping for a reward from Allah, then all his previous sins will be forgiven.\"",
+      "published_arabic": "مَنْ قَامَ لَيْلَةَ الْقَدْرِ إِيمَانًا وَاحْتِسَابًا غُفِرَ لَهُ مَا تَقَدَّمَ مِنْ ذَنْبِهِ، وَمَنْ صَامَ رَمَضَانَ إِيمَانًا وَاحْتِسَابًا غُفِرَ لَهُ مَا تَقَدَّمَ مِنْ ذَنْبِهِ \".",
+      "english_swap": {
+        "status": "ours",
+        "reason": "the published translation lacks No exact matching excerpt exists; published text splits the deed into two separate clauses (standing prayer on the night of Qadr, and fasting Ramadan), each with its own forgiveness clause, rather than one combined sentence covering both fasting and standing prayer together as the imam quoted.",
+        "ours": "Whoever fasts it and stands in prayer during it out of faith and seeking reward, his previous sins will be forgiven.",
+        "published": null,
+        "hash": "55314d056ef6a265",
+        "model": "claude-sonnet-5"
+      }
     },
     {
       "detected_text": "كلكم راع وكلكم مسؤول عن رعيته",
-      "narrator": "Ibn Umar",
-      "collection": "Sunan Abu Dawud",
-      "hadith_number": "2928",
-      "link": "https://sunnah.com/abudawud:2928",
+      "narrator": "`Abdullah bin `Umar",
+      "collection": "Sahih al-Bukhari",
+      "hadith_number": "7138",
+      "link": "https://sunnah.com/bukhari:7138",
       "confidence": 0.65,
       "detection_method": "signal_phrase",
       "note": "Link verified via sunnah.com search",
-      "verification": "sunnah_search"
+      "verification": "sunnah_search",
+      "narrator_claude": "Ibn Umar",
+      "translation": "Allah's Messenger (ﷺ) said, \"Surely! Everyone of you is a guardian and is responsible for his charges: The Imam (ruler) of the people is a guardian and is responsible for his subjects; a man is the guardian of his family (household) and is responsible for his subjects; a woman is the guardian of her husband's home and of his children and is responsible for them; and the slave of a man is a guardian of his master's property and is responsible for it. Surely, everyone of you is a guardian and responsible for his charges.\"",
+      "published_arabic": "أَلاَ كُلُّكُمْ رَاعٍ، وَكُلُّكُمْ مَسْئُولٌ عَنْ رَعِيَّتِهِ، فَالإِمَامُ الَّذِي عَلَى النَّاسِ رَاعٍ وَهْوَ مَسْئُولٌ عَنْ رَعِيَّتِهِ، وَالرَّجُلُ رَاعٍ عَلَى أَهْلِ بَيْتِهِ وَهْوَ مَسْئُولٌ عَنْ رَعِيَّتِهِ، وَالْمَرْأَةُ رَاعِيَةٌ عَلَى أَهْلِ بَيْتِ زَوْجِهَا وَوَلَدِهِ وَهِيَ مَسْئُولَةٌ عَنْهُمْ، وَعَبْدُ الرَّجُلِ رَاعٍ عَلَى مَالِ سَيِّدِهِ وَهْوَ مَسْئُولٌ عَنْهُ، أَلاَ فَكُلُّكُمْ رَاعٍ وَكُلُّكُمْ مَسْئُولٌ عَنْ رَعِيَّتِهِ \".",
+      "english_swap": {
+        "status": "published",
+        "ours": "Every one of you is a shepherd, and every one of you is responsible for his flock.",
+        "published": "Everyone of you is a guardian and is responsible for his charges",
+        "hash": "bcddec56c1b42128",
+        "model": "claude-sonnet-5"
+      }
     },
     {
       "detected_text": "من قرأ حرفاً من كتاب الله فله به حسنة والحسنة بعشر أمثالها لا أقول ألف لام ميم حرف ولكن ألف حرف ولام حرف وميم حرف",
@@ -736,17 +770,17 @@
       "confidence": null,
       "detection_method": "signal_phrase",
       "note": "Link verified via sunnah.com search",
-      "verification": "sunnah_search"
-    },
-    {
-      "detected_text": "من الهدى والفرقان فمن شهد منكم الشهر فليصم ومن كان مريضا او على سفر فعدة من ايام اخر",
-      "collection": "Sunan Abu Dawud",
-      "hadith_number": "2316",
-      "link": "https://sunnah.com/abudawud:2316",
-      "confidence": 0.67,
-      "detection_method": "scan",
       "verification": "sunnah_search",
-      "note": "Link verified via sunnah.com search"
+      "narrator_claude": "Ibn Mas'ud",
+      "translation": "\"I heard 'Abdullah bin Mas'ud saying: 'The Messenger of Allah (ﷺ) said: \"[Whoever recites a letter] from Allah's Book, then he receives the reward from it, and the reward of ten the like of it. I do not say that Alif Lam Mim is a letter, but Alif is a letter, Lam is a letter and Mim is a letter.\"",
+      "published_arabic": "\" مَنْ قَرَأَ حَرْفًا مِنْ كِتَابِ اللَّهِ فَلَهُ بِهِ حَسَنَةٌ وَالْحَسَنَةُ بِعَشْرِ أَمْثَالِهَا لاَ أَقُولُ الم حَرْفٌ وَلَكِنْ أَلِفٌ حَرْفٌ وَلاَمٌ حَرْفٌ وَمِيمٌ حَرْفٌ \"  . وَيُرْوَى هَذَا الْحَدِيثُ مِنْ غَيْرِ هَذَا الْوَجْهِ عَنِ ابْنِ مَسْعُودٍ وَرَوَاهُ أَبُو الأَحْوَصِ عَنِ ابْنِ مَسْعُودٍ رَفَعَهُ بَعْضُهُمْ وَوَقَفَهُ بَعْضُهُمْ عَنِ ابْنِ مَسْعُودٍ . قَالَ أَبُو عِيسَى هَذَا حَدِيثٌ حَسَنٌ صَحِيحٌ غَرِيبٌ مِنْ هَذَا الْوَجْهِ . سَمِعْتُ قُتَيْبَةَ بْنَ سَعِيدٍ يَقُولُ بَلَغَنِي أَنَّ مُحَمَّدَ بْنَ كَعْبٍ الْقُرَظِيَّ وُلِدَ فِي حَيَاةِ النَّبِيِّ صلى الله عليه وسلم وَمُحَمَّدُ بْنُ كَعْبٍ يُكْنَى أَبَا حَمْزَةَ .",
+      "english_swap": {
+        "status": "published",
+        "ours": "Whoever reads a single letter from the Book of Allah will receive one good deed, and a good deed is multiplied tenfold. I do not say that Alif Lam Mim is one letter, but rather Alif is a letter, Lam is a letter, and Mim is a letter.",
+        "published": "[Whoever recites a letter] from Allah's Book, then he receives the reward from it, and the reward of ten the like of it. I do not say that Alif Lam Mim is a letter, but Alif is a letter, Lam is a letter and Mim is a letter.",
+        "hash": "4ca9c542d34f846c",
+        "model": "claude-sonnet-5"
+      }
     }
   ],
   "transcript_segments": [
@@ -10288,7 +10322,18 @@
     "quran_references_found": 13,
     "quran_references_matched": 13,
     "quran_references_by_scan": 2,
-    "hadith_references_found": 5,
-    "hadith_references_by_scan": 1
+    "hadith_references_found": 4,
+    "hadith_references_by_scan": 1,
+    "realigned": "2026-09-26: Claude returned 88 translations for 90 chunks (skipped chunk 59, the verse tail \"على ما هداكم\", and merged chunk 73 into 72), so from chunk 59 on every block showed its neighbour's English. Re-paired: chunk 59 gets the Sahih International words for that phrase; translation 71 is split at its sentence boundary, its 20:82 quote left to the verse card.",
+    "english_swaps": {
+      "calls": 2,
+      "cached": 2,
+      "input_tokens": 3238,
+      "output_tokens": 323,
+      "cost_usd": 0.009706,
+      "published": 2,
+      "ours": 2,
+      "model": "claude-sonnet-5"
+    }
   }
 }

@@ -2,7 +2,16 @@
 // reanalyze.js — Rebuild reader.txt from existing result.json + transcript.txt
 // using the improved canonical-span alignment. No API calls needed.
 //
-// Usage: node reanalyze.js outputs/<folder>
+// Usage: node reanalyze.js outputs/<folder> [--keep-chunks] [--no-swaps]
+//
+// --keep-chunks reuses the stored prose chunks and Quran refs exactly as they are and only
+// re-applies the hadith filters and rebuilds the reader. For runs translated under older
+// chunking rules (the May khutbahs), where recomputing the chunks would pair every block
+// with another block's translation.
+//
+// Quotes inside the prose are matched to their published English by quote_swaps.js (one
+// call per quote whose inputs changed, claude-sonnet-5 by default; nothing when they did not).
+// --no-swaps skips that and keeps whatever plan result.json already has.
 
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
@@ -16,7 +25,9 @@ import {
   deduplicateHadithRefs,
   resolveSunnahLinksForRefs,
   yieldTailToLaterRefs,
+  settleLoneWords,
 } from './pipeline.js';
+import { planQuoteSwaps } from './quote_swaps.js';
 
 const folder = process.argv[2];
 if (!folder || !existsSync(folder)) {
@@ -37,59 +48,67 @@ const transcriptWords = transcript.split(/\s+/).filter(Boolean);
 const segments = result.transcript_segments || [];
 
 console.log(`Transcript: ${transcriptWords.length} words`);
+const keepChunks = process.argv.includes('--keep-chunks');
+if (keepChunks) console.log('Keeping the stored prose chunks and Quran refs (--keep-chunks)');
 
-// Step 1: Re-run prescan with improved alignment
-console.log('Pre-scanning Quran zones with canonical-span alignment...');
-const quranZones = prescanForQuranZones(transcriptWords);
-console.log(`  ${quranZones.length} zones detected`);
+const allQuranRefs = keepChunks ? (result.quran_references || []) : recomputeChunksAndZones();
 
-// Step 2: Rebuild prose chunks
-const CHUNK_SIZE = 30;
-const proseChunks = buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, segments);
-console.log(`  ${proseChunks.length} prose chunks`);
+// Steps 1-4: recompute Quran zones, prose chunks and zone refs with the current code.
+function recomputeChunksAndZones() {
+  // Step 1: Re-run prescan with improved alignment
+  console.log('Pre-scanning Quran zones with canonical-span alignment...');
+  const quranZones = prescanForQuranZones(transcriptWords);
+  console.log(`  ${quranZones.length} zones detected`);
 
-// Step 3: Surface zone-only refs
-const existingRefs = result.quran_references || [];
-const zoneRefs = buildZoneRefs(quranZones, transcriptWords, existingRefs);
-if (zoneRefs.length) console.log(`  + ${zoneRefs.length} additional zone refs`);
-const allQuranRefs = yieldTailToLaterRefs([...existingRefs, ...zoneRefs]);
+  // Step 2: Rebuild prose chunks
+  const CHUNK_SIZE = 30;
+  const proseChunks = buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, segments);
+  console.log(`  ${proseChunks.length} prose chunks`);
 
-// Step 4: Update result with new prose map and refs
-result.quran_references = allQuranRefs;
-// Translations are matched to prose chunks by position, so the chunks must be exactly the
-// ones that were translated. A changed boundary pairs every later block with the wrong
-// English — re-timing a run with fresh Whisper segments did exactly that, shifting two
-// boundaries, which the old count-only check (drift <= 2) let through silently.
-const newMap = proseChunks.map(({ wordStart, wordEnd, proseIdx }) => ({ wordStart, wordEnd, proseIdx }));
-if (result.prose_chunk_map && result.chunk_translations &&
-    JSON.stringify(result.prose_chunk_map) !== JSON.stringify(newMap) && !process.argv.includes('--force')) {
-  const at = newMap.findIndex((e, i) => JSON.stringify(e) !== JSON.stringify(result.prose_chunk_map[i]));
-  console.error(`✗ Prose chunk boundaries changed from chunk ${at} on — the stored translations would pair`);
-  console.error('  with the wrong blocks. Nothing written. Re-run the full pipeline for this folder, or pass');
-  console.error('  --force if the translations are known to be regenerated separately.');
-  process.exit(1);
-}
-result.prose_chunk_map = newMap;
+  // Step 3: Surface zone-only refs
+  const existingRefs = result.quran_references || [];
+  const zoneRefs = buildZoneRefs(quranZones, transcriptWords, existingRefs);
+  if (zoneRefs.length) console.log(`  + ${zoneRefs.length} additional zone refs`);
+  const allQuranRefs = yieldTailToLaterRefs([...existingRefs, ...zoneRefs]);
 
-// Ensure chunk_translations length matches prose chunks.
-// If we have more prose chunks than translations (because zone changes shifted boundaries),
-// pad with empty strings so buildReaderView doesn't crash.
-//
-// A large mismatch means the chunking parameters (MIN_CHUNK / MAX_CHUNK / MIN_ZONE_WORDS)
-// changed since this run was translated. Translations are matched to chunks BY INDEX, so
-// padding then silently pairs each chunk with another chunk's English. Warn loudly —
-// the fix is to re-run the full pipeline, not to reanalyze.
-if (result.chunk_translations) {
-  const drift = proseChunks.length - result.chunk_translations.length;
-  if (Math.abs(drift) > 2) {
-    console.warn(`⚠ chunk/translation mismatch: ${proseChunks.length} chunks vs ${result.chunk_translations.length} translations.`);
-    console.warn('  Chunking parameters have changed since this run was translated; translations are');
-    console.warn('  index-matched, so the reader will pair text with the wrong English.');
-    console.warn('  Re-run the full pipeline for this folder instead of reanalyze.');
+  // Step 4: Update result with new prose map and refs
+  result.quran_references = allQuranRefs;
+  // Translations are matched to prose chunks by position, so the chunks must be exactly the
+  // ones that were translated. A changed boundary pairs every later block with the wrong
+  // English — re-timing a run with fresh Whisper segments did exactly that, shifting two
+  // boundaries, which the old count-only check (drift <= 2) let through silently.
+  const newMap = proseChunks.map(({ wordStart, wordEnd, proseIdx }) => ({ wordStart, wordEnd, proseIdx }));
+  if (result.prose_chunk_map && result.chunk_translations &&
+      JSON.stringify(result.prose_chunk_map) !== JSON.stringify(newMap) && !process.argv.includes('--force')) {
+    const at = newMap.findIndex((e, i) => JSON.stringify(e) !== JSON.stringify(result.prose_chunk_map[i]));
+    console.error(`✗ Prose chunk boundaries changed from chunk ${at} on — the stored translations would pair`);
+    console.error('  with the wrong blocks. Nothing written. Re-run the full pipeline for this folder, or pass');
+    console.error('  --force if the translations are known to be regenerated separately.');
+    process.exit(1);
   }
-  while (result.chunk_translations.length < proseChunks.length) {
-    result.chunk_translations.push('');
+  result.prose_chunk_map = newMap;
+
+  // Ensure chunk_translations length matches prose chunks.
+  // If we have more prose chunks than translations (because zone changes shifted boundaries),
+  // pad with empty strings so buildReaderView doesn't crash.
+  //
+  // A large mismatch means the chunking parameters (MIN_CHUNK / MAX_CHUNK / MIN_ZONE_WORDS)
+  // changed since this run was translated. Translations are matched to chunks BY INDEX, so
+  // padding then silently pairs each chunk with another chunk's English. Warn loudly —
+  // the fix is to re-run the full pipeline, not to reanalyze.
+  if (result.chunk_translations) {
+    const drift = proseChunks.length - result.chunk_translations.length;
+    if (Math.abs(drift) > 2) {
+      console.warn(`⚠ chunk/translation mismatch: ${proseChunks.length} chunks vs ${result.chunk_translations.length} translations.`);
+      console.warn('  Chunking parameters have changed since this run was translated; translations are');
+      console.warn('  index-matched, so the reader will pair text with the wrong English.');
+      console.warn('  Re-run the full pipeline for this folder instead of reanalyze.');
+    }
+    while (result.chunk_translations.length < proseChunks.length) {
+      result.chunk_translations.push('');
+    }
   }
+  return allQuranRefs;
 }
 
 // Re-apply the hadith ref filters to the stored refs. Detection needs the corpus and
@@ -109,6 +128,19 @@ if (result.hadith_references.length) {
   const withTrans = result.hadith_references.filter(h => h.translation).length;
   console.log(`  ${withTrans}/${result.hadith_references.length} hadith translations fetched`);
 }
+
+if (!process.argv.includes('--no-swaps')) {
+  console.log('Matching quoted hadith and verses to their published English...');
+  const usage = await planQuoteSwaps(transcript, result);
+  console.log(`  ${usage.published} published, ${usage.ours} ours; ${usage.calls} ${usage.model} call(s), ` +
+    `${usage.input_tokens} in / ${usage.output_tokens} out tokens, $${usage.cost_usd.toFixed(4)}`);
+  if (usage.calls) result.metadata.english_swaps = usage;
+}
+
+// Words interpolated into a pause (the first word of the second khutbah, timed while the
+// imam was still seated) move next to the words they belong to.
+const settled = settleLoneWords(result);
+if (settled) console.log(`  ${settled} word(s) timed alone in a pause moved next to their sentence`);
 
 // Update metadata
 const matchedCount = allQuranRefs.filter(r => r.matched).length;

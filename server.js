@@ -20,12 +20,58 @@ const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
 app.use(express.json({ limit: '16kb' }));
-app.get('/', (req, res) => res.sendFile(join(__dirname, 'public', 'home.html')));
+
+// Link previews (WhatsApp, iMessage, Telegram…): their crawlers read the HTML and run no
+// script, so a shared link showed only "KhutbahTranscribe". Each page is sent with its title,
+// "In Short" summary and share image in <title> and Open Graph tags.
+const escHtml = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+function withShareMeta(file, req, { title, description, path }) {
+  const base = `${req.headers['x-forwarded-proto']?.split(',')[0] || req.protocol}://${req.get('host')}`;
+  const tags = [
+    `<title>${escHtml(title)}</title>`,
+    `<meta name="description" content="${escHtml(description)}">`,
+    `<meta property="og:site_name" content="KhutbahTranscribe">`,
+    `<meta property="og:type" content="website">`,
+    `<meta property="og:title" content="${escHtml(title)}">`,
+    `<meta property="og:description" content="${escHtml(description)}">`,
+    `<meta property="og:url" content="${escHtml(base + path)}">`,
+    `<meta property="og:image" content="${escHtml(base)}/img/og.png">`,
+    `<meta property="og:image:width" content="1200">`,
+    `<meta property="og:image:height" content="630">`,
+    `<meta name="twitter:card" content="summary_large_image">`,
+  ].join('\n  ');
+  return readFileSync(join(__dirname, 'public', file), 'utf8')
+    .replace(/<meta name="description"[^>]*>\s*/, '')
+    .replace(/<title>[^<]*<\/title>/, tags);
+}
+const HOME_DESCRIPTION = 'Arabic Friday Khutbahs with English translation, Quranic references, and Hadith citations.';
+const shareSummaries = new Map(); // folder -> "In Short", read once
+function shareSummary(folder) {
+  if (!shareSummaries.has(folder)) {
+    let text = '';
+    try {
+      const r = JSON.parse(readFileSync(join(__dirname, 'outputs', folder, 'result.json'), 'utf8'));
+      text = r.share_summary || r.summary || '';
+    } catch {}
+    shareSummaries.set(folder, text);
+  }
+  return shareSummaries.get(folder);
+}
+
+app.get('/', (req, res) => res.type('html').send(withShareMeta('home.html', req, {
+  title: 'KhutbahTranscribe', description: HOME_DESCRIPTION, path: '/',
+})));
+// Short share links: /2026-09-25 instead of /index.html?folder=<run folder>.
 app.get('/:slug', (req, res, next) => {
-  if (!SLUG_TO_FOLDER.has(req.params.slug)) return next();
+  const k = PUBLIC_KHUTBAHS.find(x => x.slug && x.slug === req.params.slug);
+  if (!k) return next();
   // An entry can name its own page (the Urdu edition's reader-ur.html); the rest use index.html.
-  const page = PUBLIC_KHUTBAHS.find(k => k.slug === req.params.slug)?.page || 'index.html';
-  res.sendFile(join(__dirname, 'public', page));
+  const where = [k.date, k.masjid].filter(Boolean).join(' · ');
+  res.type('html').send(withShareMeta(k.page || 'index.html', req, {
+    title: `${k.title} · KhutbahTranscribe`,
+    description: [where, shareSummary(k.folder)].filter(Boolean).join(' · ') || HOME_DESCRIPTION,
+    path: `/${k.slug}`,
+  }));
 });
 app.use(express.static(join(__dirname, 'public')));
 app.use('/audio_files', express.static(join(__dirname, 'audio_files')));
