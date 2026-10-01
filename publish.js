@@ -20,6 +20,8 @@
 //        [--speaker "Friday Khutbah"] [--single] [--type friday|arafah|eid]
 //        [--from-folder outputs/<run>]   reuse a finished pipeline run instead of step 2
 //        [--no-feature] [--review]        --review also runs review_blocks.js (about $0.07)
+//        [--keep-audio]                   audio_files/<name>.<ext> is already in place (autopublish.js)
+//        [--page reader-ur.html] [--audio <file in audio_files/>]   the entry's own page and recording
 //        [--dry-run]                      print the plan, change nothing
 
 import { spawnSync } from 'child_process';
@@ -89,13 +91,15 @@ function duration(file) {
 
 // ── 1. Audio ──────────────────────────────────────────────────────────────────
 step(`1. Audio → ${audioOut}`);
-if (existsSync(join(ROOT, audioOut)) && !flag('--overwrite-audio')) die(`${audioOut} exists (pass --overwrite-audio to replace it)`);
+const keepAudio = flag('--keep-audio') && existsSync(join(ROOT, audioOut));
+if (existsSync(join(ROOT, audioOut)) && !flag('--overwrite-audio') && !keepAudio) die(`${audioOut} exists (pass --overwrite-audio to replace it)`);
 const total = duration(input);
 const keep = total - trimStart - trimEnd;
 if (keep <= 60) die(`only ${keep.toFixed(0)} s would remain after trimming ${total.toFixed(0)} s`);
-run('ffmpeg', ['-v', 'error', '-y', ...(trimStart ? ['-ss', String(trimStart)] : []), '-i', input,
+if (keepAudio) console.log(`  keeping ${audioOut} as it is`);
+else run('ffmpeg', ['-v', 'error', '-y', ...(trimStart ? ['-ss', String(trimStart)] : []), '-i', input,
   ...(trimEnd ? ['-t', keep.toFixed(2)] : []), '-c', 'copy', '-movflags', '+faststart', audioOut]);
-if (!dryRun && ['m4a', 'mp4'].includes(ext)) {
+if (!dryRun && !keepAudio && ['m4a', 'mp4'].includes(ext)) {
   if (moovFirst(join(ROOT, audioOut)) !== true) die(`${audioOut}: moov is not before mdat, the player would not stream it`);
   console.log(`  ✓ moov before mdat; ${duration(audioOut).toFixed(0)} s (was ${total.toFixed(0)} s)`);
 }
@@ -156,6 +160,7 @@ const q = s => `'${String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 const fields = [
   ['folder', runName], ['slug', slug], ['title', title], ['speaker', opt('--speaker', 'Friday Khutbah')],
   ['masjid', opt('--masjid')], ['masjid_ar', opt('--masjid-ar')], ['maps_url', opt('--maps-url')], ['date', date],
+  ['audio', opt('--audio')], ['page', opt('--page')],
 ].filter(([, val]) => val);
 const entry = `  {\n${fields.map(([k, val]) => `    ${k}: ${q(val)},`).join('\n')}${feature ? '\n    featured: true,' : ''}\n  },\n`;
 let js = serverJs;

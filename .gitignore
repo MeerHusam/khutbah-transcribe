@@ -4,6 +4,8 @@
 node_modules/
 uploads/
 data/
+# autopublish.js and upload_worker.js logs, on the Mac only
+logs/
 *.log
 .DS_Store
 .venv/
