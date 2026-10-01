@@ -532,43 +532,6 @@ app.get('/admin/feedback', (req, res) => {
     <h1>Feedback (${entries.length})</h1>${cards}`);
 });
 
-app.get('/admin/geo', (req, res) => {
-  if (!ADMIN_TOKEN) return res.status(503).send('Set the ADMIN_TOKEN env var to view geo data.');
-  if (req.query.key !== ADMIN_TOKEN) return res.status(401).send('Unauthorized');
-  let entries = [];
-  try {
-    entries = readFileSync(GEO_FILE, 'utf8').split('\n').filter(Boolean)
-      .map(l => { try { return JSON.parse(l); } catch { return null; } })
-      .filter(Boolean).reverse();
-  } catch {}
-
-  // Summarise by country then city
-  const byCountry = {};
-  for (const e of entries) {
-    const key = `${e.countryCode} ${e.country}`;
-    if (!byCountry[key]) byCountry[key] = { country: e.country, countryCode: e.countryCode, count: 0, cities: {} };
-    byCountry[key].count++;
-    const city = e.city || 'Unknown';
-    byCountry[key].cities[city] = (byCountry[key].cities[city] || 0) + 1;
-  }
-  const rows = Object.values(byCountry).sort((a, b) => b.count - a.count).map(c => {
-    const cities = Object.entries(c.cities).sort((a, b) => b[1] - a[1])
-      .map(([city, n]) => `<span class="city">${city} (${n})</span>`).join(' ');
-    return `<tr><td>${c.countryCode}</td><td>${c.country}</td><td class="n">${c.count}</td><td>${cities}</td></tr>`;
-  }).join('');
-
-  res.send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Viewers by Location (${entries.length})</title>
-    <style>body{font-family:system-ui,sans-serif;max-width:900px;margin:24px auto;padding:0 16px;color:#1a1a1a}
-    h1{font-size:18px;margin-bottom:16px}table{border-collapse:collapse;width:100%}
-    th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:14px}
-    th{background:#f9fafb;font-weight:600}.n{font-weight:700;color:#059669}
-    .city{display:inline-block;background:#f0fdf4;border:1px solid #d1fae5;border-radius:4px;padding:1px 7px;margin:2px;font-size:12px;color:#065f46}</style>
-    <h1>Viewers by Location (${entries.length} total)</h1>
-    <table><thead><tr><th>Code</th><th>Country</th><th>Views</th><th>Cities</th></tr></thead>
-    <tbody>${rows || '<tr><td colspan="4">No geo data yet.</td></tr>'}</tbody></table>`);
-});
-
 // Traffic: views over time, places, khutbahs, sources, devices, time of day, engagement.
 // Built by admin_traffic.js from data/visits.jsonl, geo_views.jsonl and engage.jsonl.
 app.get('/admin/traffic', (req, res) => {
