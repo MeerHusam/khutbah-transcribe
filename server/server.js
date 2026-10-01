@@ -197,7 +197,8 @@ let listCache = null;
 // Viewer counts. Live = concurrent open WebSocket connections. Total = cumulative
 // page loads, persisted to disk so it survives restarts/redeploys.
 // ────────────────────────────────────────────────────────────────────────────
-const DATA_DIR = join(ROOT, 'data');
+// DATA_DIR is for tests (a fresh folder per run); the site uses <root>/data, Render's disk.
+const DATA_DIR = process.env.DATA_DIR || join(ROOT, 'data');
 const VIEWS_FILE = join(DATA_DIR, 'views.json');
 const FEEDBACK_FILE = join(DATA_DIR, 'feedback.jsonl');
 const GEO_FILE = join(DATA_DIR, 'geo_views.jsonl');
