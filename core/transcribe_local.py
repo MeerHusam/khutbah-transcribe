@@ -4,7 +4,7 @@ Local transcription helper for the Khutbah pipeline.
 Called by pipeline.js when --local is passed.
 
 Usage:
-    python3 transcribe_local.py <audio_path> [model_name]
+    python3 core/transcribe_local.py <audio_path> [model_name]
 
 Install dependencies:
     pip install mlx-whisper          # Apple Silicon (fast, recommended on Mac)
@@ -126,7 +126,7 @@ def transcribe_faster_whisper(audio_path, model_name):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python3 transcribe_local.py <audio_path> [model_name]", file=sys.stderr)
+        print("Usage: python3 core/transcribe_local.py <audio_path> [model_name]", file=sys.stderr)
         sys.exit(1)
 
     audio_path = sys.argv[1]
