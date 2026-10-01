@@ -6935,5 +6935,55 @@
       "output_usd": 0,
       "cost_usd": 0.6139
     }
-  }
+  },
+  "verse_excerpts": [
+    {
+      "arabic": "إنما يتقبل الله من المتقين.",
+      "surah": 5,
+      "ayah": 27,
+      "ayah_end": 27,
+      "verses": {
+        "27": {
+          "span": [
+            19,
+            23
+          ],
+          "en": "Indeed, Allah only accepts from the righteous [who fear Him]",
+          "ur": "اللہ تعالیٰ تقویٰ والوں کا ہی عمل قبول کرتا ہے"
+        }
+      }
+    },
+    {
+      "arabic": "والذين جاهدوا فينا لنهدينهم سبلنا.",
+      "surah": 29,
+      "ayah": 69,
+      "ayah_end": 69,
+      "verses": {
+        "69": {
+          "span": [
+            0,
+            4
+          ],
+          "en": "And those who strive for Us - We will surely guide them to Our ways.",
+          "ur": "اور جو لوگ ہماری راه میں مشقتیں برداشت کرتے ہیں ہم انہیں اپنی راہیں ضرور دکھا دیں گے۔"
+        }
+      }
+    },
+    {
+      "arabic": "وابتغ فيما آتاك الله الدار الآخرة ولا تنس نصيبك من الدنيا.",
+      "surah": 28,
+      "ayah": 77,
+      "ayah_end": 77,
+      "verses": {
+        "77": {
+          "span": [
+            0,
+            10
+          ],
+          "en": "But seek, through that which Allah has given you, the home of the Hereafter; and [yet], do not forget your share of the world.",
+          "ur": "اور جو کچھ اللہ تعالی نے تجھے دے رکھا ہے اس میں سے آخرت کے گھر کی تلاش بھی رکھ اور اپنے دنیوی حصے کو بھی نہ بھول"
+        }
+      }
+    }
+  ]
 }

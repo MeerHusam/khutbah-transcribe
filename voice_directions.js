@@ -30,7 +30,7 @@ const system = lang => `You direct a voice actor reading the ${LANGUAGE[lang]} t
 
 For every sentence write one short English direction for a text-to-speech model (its style note): how loud and how high, how urgent or how tender, the pace, which words to lean on, where to slow or pause. Follow the imam and the meaning, and match his intensity rather than holding back:
 - Where he is raised and stirred (a warning, a condemnation, an exclamation, a rhetorical question), the voice is clearly raised, urgent and earnest, not calm or measured; let it land with force.
-- Where the meaning is warm or tender (a blessing, Allah's mercy, gratitude, a du'a), the voice is genuinely warm, gentle or pleading, the emotion audible; in a du'a humble and heartfelt, with longing on the call to Allah.
+- Where the meaning is warm or tender (a blessing, Allah's mercy, gratitude, a du'a), the voice is genuinely warm, gentle or pleading, the emotion audible; in a du'a humble, earnest and hopeful, asking with trust that Allah answers, with longing on the call to Allah: never mournful, tearful or grieving (Meer, 1 Oct: the du'a for the distressed and the indebted sounded too sad).
 - A Quran verse's meaning is read with gravity and awe; the Prophet's ﷺ words with reverence.
 - Plain teaching is earnest and clear, never flat.
 It stays a sermon from the minbar: never flat or newsreader-like, never theatrical, mocking, sing-song, whispery or shouting. One sentence of direction per sentence of text, and nothing of the text itself.`;
