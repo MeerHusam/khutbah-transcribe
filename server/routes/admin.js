@@ -1,11 +1,11 @@
 // The admin pages, all behind ADMIN_TOKEN (?key=… or the x-admin-key header): feedback,
-// traffic, and the upload page with the job API the Mac's upload worker uses.
+// traffic, the upload page with the job API the Mac's upload worker uses, and the publish API.
 import express from 'express';
-import { readFileSync, writeFileSync, existsSync, createWriteStream, readdirSync, unlinkSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, createWriteStream, readdirSync, unlinkSync, mkdirSync, renameSync } from 'fs';
 import { randomBytes } from 'crypto';
 import { join } from 'path';
 import { ROOT, ADMIN_TOKEN, FEEDBACK_FILE, GEO_FILE, VISITS_FILE, ENGAGE_FILE, UPLOAD_DIR } from '../config.js';
-import { PUBLIC_KHUTBAHS } from '../khutbahs.js';
+import { catalog, publish, hasReader, uploadDir, audioUploadDir } from '../khutbahs.js';
 import { viewerTotals } from '../viewers.js';
 import { buildTrafficPage, readJsonl } from '../admin/traffic.js';
 
@@ -44,7 +44,7 @@ router.get('/admin/traffic', (req, res) => {
     geo: readJsonl(GEO_FILE, readFileSync),
     engage: readJsonl(ENGAGE_FILE, readFileSync),
     totals: viewerTotals(),
-    khutbahs: PUBLIC_KHUTBAHS,
+    khutbahs: catalog().list,
   }));
 });
 
@@ -69,6 +69,23 @@ router.get('/admin/upload', (req, res) => {
   res.sendFile(join(ROOT, 'server', 'admin', 'upload.html'));
 });
 
+// Stream a request body (not a form) to `path`, up to `max` bytes. On a problem the file is
+// removed and the error sent; otherwise onDone(bytes, fail) runs once the file is written.
+function streamToFile(req, res, path, max, onDone) {
+  const out = createWriteStream(path);
+  let bytes = 0, failed = false;
+  const fail = (code, msg) => {
+    if (failed) return; failed = true;
+    out.destroy(); try { unlinkSync(path); } catch {}
+    if (!res.headersSent) res.status(code).json({ error: msg });
+  };
+  req.on('data', c => { bytes += c.length; if (bytes > max) { fail(413, 'File too large'); req.destroy(); } });
+  req.on('aborted', () => fail(400, 'Upload interrupted'));
+  out.on('error', () => fail(500, 'Could not save the file'));
+  out.on('finish', () => { if (!failed) onDone(bytes, fail); });
+  req.pipe(out);
+}
+
 // The recording as the request body (not a form): any size up to MAX_UPLOAD, streamed to disk.
 router.post('/admin/upload', (req, res) => {
   if (!isAdmin(req)) return res.status(401).json({ error: 'Unauthorized' });
@@ -76,18 +93,7 @@ router.post('/admin/upload', (req, res) => {
   const ext = (name.match(AUDIO_EXT)?.[1] || 'm4a').toLowerCase();
   const id = `${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}-${randomBytes(3).toString('hex')}`;
   const file = `${id}.${ext}`;
-  const out = createWriteStream(join(UPLOAD_DIR, file));
-  let bytes = 0, failed = false;
-  const fail = (code, msg) => {
-    if (failed) return; failed = true;
-    out.destroy(); try { unlinkSync(join(UPLOAD_DIR, file)); } catch {}
-    if (!res.headersSent) res.status(code).json({ error: msg });
-  };
-  req.on('data', c => { bytes += c.length; if (bytes > MAX_UPLOAD) { fail(413, 'File too large'); req.destroy(); } });
-  req.on('aborted', () => fail(400, 'Upload interrupted'));
-  out.on('error', () => fail(500, 'Could not save the file'));
-  out.on('finish', () => {
-    if (failed) return;
+  streamToFile(req, res, join(UPLOAD_DIR, file), MAX_UPLOAD, (bytes, fail) => {
     if (bytes < 100 * 1024) { fail(400, 'That file is too small to be a khutbah recording'); return; }
     const now = new Date().toISOString();
     const job = {
@@ -99,7 +105,6 @@ router.post('/admin/upload', (req, res) => {
     saveJob(job);
     res.json(publicJob(job));
   });
-  req.pipe(out);
 });
 
 router.get('/admin/uploads', (req, res) => {
@@ -135,6 +140,49 @@ router.post('/admin/uploads/:id/status', (req, res) => {
   // The recording can go once the Mac has it: the site keeps only the job's history.
   if (status === 'downloaded') try { unlinkSync(join(UPLOAD_DIR, job.file)); } catch {}
   res.json(publicJob(job));
+});
+
+// ── Publishing: a khutbah goes live without a commit or a deploy ────────────────────
+// worker/site.js uploads each file the reader needs, then the entry. Files land on the disk
+// (DATA_DIR/outputs/<folder>/, DATA_DIR/audio_files/); the entry goes into the database and
+// the khutbah is served at once. Publishing a folder again updates it in place.
+const SAFE_NAME = /^[\w-][\w.-]{0,199}$/;   // a file or folder name: no slashes, no leading dot
+const MAX_FILE = 200 * 1024 * 1024;
+
+// A file as the request body (application/octet-stream), written under its name once complete.
+function receiveFile(req, res, dir, name) {
+  if (!isAdmin(req)) return res.status(401).json({ error: 'Unauthorized' });
+  if (!SAFE_NAME.test(name)) return res.status(400).json({ error: 'Bad file name' });
+  mkdirSync(dir, { recursive: true });
+  const part = join(dir, `.${name}.part`);
+  streamToFile(req, res, part, MAX_FILE, bytes => {
+    renameSync(part, join(dir, name));
+    res.json({ ok: true, bytes });
+  });
+}
+router.put('/admin/api/files/:folder/:name', (req, res) => {
+  if (!SAFE_NAME.test(req.params.folder)) return res.status(400).json({ error: 'Bad folder name' });
+  receiveFile(req, res, uploadDir(req.params.folder), req.params.name);
+});
+router.put('/admin/api/audio/:name', (req, res) => receiveFile(req, res, audioUploadDir, req.params.name));
+
+const ENTRY_TEXT = ['title', 'speaker', 'masjid', 'masjid_ar', 'maps_url', 'date', 'audio', 'page', 'note'];
+router.post('/admin/api/khutbahs', (req, res) => {
+  if (!isAdmin(req)) return res.status(401).json({ error: 'Unauthorized' });
+  const b = req.body || {};
+  if (!SAFE_NAME.test(b.folder || '') || !/^[a-z0-9-]{1,80}$/.test(b.slug || '') || typeof b.title !== 'string' || !b.title) {
+    return res.status(400).json({ error: 'folder, slug (a-z, 0-9, -) and title are required' });
+  }
+  if (!hasReader(b.folder)) return res.status(400).json({ error: `upload ${b.folder}/result.json and reader.txt first` });
+  const entry = { folder: b.folder, slug: b.slug, featured: b.featured === true };
+  for (const f of ENTRY_TEXT) if (typeof b[f] === 'string' && b[f]) entry[f] = b[f].slice(0, 2000);
+  for (const f of ['old_slugs', 'old_folders']) if (Array.isArray(b[f])) entry[f] = b[f].filter(x => typeof x === 'string').slice(0, 50);
+  try {
+    publish(entry);
+  } catch (e) {
+    return res.status(e.status || 500).json({ error: e.message });
+  }
+  res.json({ ok: true, link: `/${entry.slug}` });
 });
 
 export default router;

@@ -1,6 +1,6 @@
 # Container image for the public listening site. Render's "node" runtime does NOT
 # need this (it uses render.yaml), but Railway / Fly.io / a VPS can build from it.
-FROM node:20-slim
+FROM node:22-slim
 
 WORKDIR /app
 

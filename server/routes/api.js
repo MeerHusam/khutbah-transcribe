@@ -4,7 +4,7 @@ import express from 'express';
 import { readFileSync, appendFileSync } from 'fs';
 import { join } from 'path';
 import { ROOT, FEEDBACK_FILE, ENGAGE_FILE } from '../config.js';
-import { ALLOWED_FOLDERS, TTS_LANGS, entryForFolder, getList, getResult } from '../khutbahs.js';
+import { catalog, TTS_LANGS, entryForFolder, getList, getResult, getWords, ttsPath } from '../khutbahs.js';
 
 const router = express.Router();
 
@@ -13,35 +13,25 @@ const quranData = JSON.parse(readFileSync(join(ROOT, 'node_modules/quran-json/di
 // Sahih International, the same translation the pipeline swaps into quoted verses.
 const quranEn = JSON.parse(readFileSync(join(ROOT, 'node_modules/quran-json/dist/quran_en.json'), 'utf8'));
 
-// A voice track's word times, block by block: { blocks: { <block>: [[word, start, end], ...] } }.
-const ttsWords = new Map();
-function sendWords(res, folder, file) {
-  const key = `${folder}/${file}`;
-  if (!ttsWords.has(key)) {
-    try {
-      const m = JSON.parse(readFileSync(join(ROOT, 'outputs', folder, file), 'utf8'));
-      ttsWords.set(key, JSON.stringify({
-        blocks: Object.fromEntries(m.blocks.filter(b => b.words).map(b => [b.i, b.words])),
-        // A voice track with the imam's recitation in it (recite.js): his words, for the Arabic.
-        arabic: Object.fromEntries(m.blocks.filter(b => b.arabic_words).map(b => [b.i, b.arabic_words])),
-      }));
-    } catch { return res.status(404).end(); }
-  }
-  res.type('json').set('Cache-Control', 'public, max-age=3600').send(ttsWords.get(key));
-}
+// Word times for the page: a voice track's (align_words.py) or the imam's (align_imam.js).
+const sendWords = (res, folder, file) => {
+  const words = getWords(folder, file);
+  if (!words) return res.status(404).end();
+  res.type('json').set('Cache-Control', 'public, max-age=3600').send(words);
+};
 router.get('/tts/:folder/:lang.words.json', (req, res) => {
   const { folder, lang } = req.params;
-  if (!ALLOWED_FOLDERS.has(folder) || !TTS_LANGS.includes(lang)) return res.status(404).end();
+  if (!catalog().allowed.has(folder) || !TTS_LANGS.includes(lang)) return res.status(404).end();
   sendWords(res, folder, `tts_${lang}.json`);
 });
 router.get('/words/:folder/imam.json', (req, res) => {
-  if (!ALLOWED_FOLDERS.has(req.params.folder)) return res.status(404).end();
+  if (!catalog().allowed.has(req.params.folder)) return res.status(404).end();
   sendWords(res, req.params.folder, 'words_imam.json');
 });
 
 router.get('/tts/:folder/:lang.mp3', (req, res) => {
-  if (!ALLOWED_FOLDERS.has(req.params.folder) || !TTS_LANGS.includes(req.params.lang)) return res.status(404).end();
-  res.sendFile(join(ROOT, 'outputs', req.params.folder, `tts_${req.params.lang}.mp3`), err => {
+  if (!catalog().allowed.has(req.params.folder) || !TTS_LANGS.includes(req.params.lang)) return res.status(404).end();
+  res.sendFile(ttsPath(req.params.folder, req.params.lang), err => {
     if (err && !res.headersSent) res.status(404).end();
   });
 });
@@ -53,7 +43,7 @@ router.get('/api/results', (req, res) => res.json(getList()));
 router.get('/api/results/:folder', (req, res) => {
   const moved = entryForFolder(req.params.folder);
   if (moved && moved.folder !== req.params.folder) req.params.folder = moved.folder;
-  if (!ALLOWED_FOLDERS.has(req.params.folder)) {
+  if (!catalog().allowed.has(req.params.folder)) {
     return res.status(404).json({ error: 'Not found' });
   }
   try {

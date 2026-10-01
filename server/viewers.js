@@ -5,7 +5,7 @@
 import { readFileSync, writeFileSync, appendFileSync } from 'fs';
 import { createHash, randomBytes } from 'crypto';
 import { VIEWS_FILE, GEO_FILE, VISITS_FILE } from './config.js';
-import { SLUG_TO_FOLDER, FOLDER_TO_SLUG, FEATURED_FOLDER } from './khutbahs.js';
+import { catalog } from './khutbahs.js';
 import { classifyUA } from './admin/traffic.js';
 
 async function lookupGeo(ip) {
@@ -88,11 +88,12 @@ export function handleViewer(ws, req) {
   // known (at most 3 s), so each line carries its place.
   const page = ['home', 'reader'].includes(params.get('p')) ? params.get('p') : null;
   const k = params.get('k') || '';
+  const { slugToFolder, folderToSlug, featured } = catalog();
   const visit = {
     ts: visitTs, new: isNewVisitor, new_device: isNewDevice,
     id: randomBytes(6).toString('hex'),
     dev: deviceHash, page,
-    k: page === 'reader' ? (SLUG_TO_FOLDER.has(k) ? k : FOLDER_TO_SLUG.get(k) || FOLDER_TO_SLUG.get(FEATURED_FOLDER) || null) : null,
+    k: page === 'reader' ? (slugToFolder.has(k) ? k : folderToSlug.get(k) || folderToSlug.get(featured) || null) : null,
     src: (params.get('s') || '').replace(/[^\w-]/g, '').slice(0, 24) || null,
     ref: /^[a-z0-9.-]{3,80}$/i.test(params.get('r') || '') && params.get('r') !== req.headers.host ? params.get('r').toLowerCase() : null,
     ...classifyUA(req.headers['user-agent'] || ''),

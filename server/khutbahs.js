@@ -1,36 +1,57 @@
 // The published khutbahs and what the site serves for each.
 //
-// server/khutbahs.json is the curated public list (worker/publish.js adds to it). This is a
-// READ-ONLY listening site, so instead of exposing every folder in outputs/ (many dev/test runs)
-// it publishes a hand-picked allowlist with friendly titles; the featured entry (or the first)
-// is the home view. An entry's audio is audio_files/<audio>, or audio_files/<basename>.<ext>
-// where basename is its folder name after the timestamp. old_slugs and old_folders keep earlier
-// links working.
+// The list is in the database (server/db.js), seeded on a fresh database from
+// server/khutbahs.seed.json and added to by the publish API (worker/publish.js). This is a
+// READ-ONLY listening site: only listed khutbahs are served; the featured entry (or the first)
+// is the home view. old_slugs and old_folders keep earlier links working.
+//
+// A khutbah's files are in DATA_DIR/outputs/<folder>/ and DATA_DIR/audio_files/ (Render's disk,
+// written by the publish API) or, for the khutbahs published before the database, in the repo
+// (outputs/, audio_files/). Its recording is audio_files/<audio>, or audio_files/<basename>.<ext>
+// where basename is its folder name after the timestamp.
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { loadResult } from '../core/reader_chunks.js';
-import { ROOT } from './config.js';
+import { ROOT, DATA_DIR } from './config.js';
+import { listKhutbahs, publishKhutbah, seedIfEmpty } from './db.js';
 
-export const PUBLIC_KHUTBAHS = JSON.parse(readFileSync(join(ROOT, 'server', 'khutbahs.json'), 'utf8'));
-export const FEATURED_FOLDER = (PUBLIC_KHUTBAHS.find(k => k.featured) || PUBLIC_KHUTBAHS[0]).folder;
-export const ALLOWED_FOLDERS = new Set(PUBLIC_KHUTBAHS.map(k => k.folder));
+seedIfEmpty(JSON.parse(readFileSync(join(ROOT, 'server', 'khutbahs.seed.json'), 'utf8')));
+
+// The list and its lookups, rebuilt after each publish.
+let snapshot = null;
+export function catalog() {
+  if (!snapshot) {
+    const list = listKhutbahs();
+    snapshot = {
+      list,
+      featured: (list.find(k => k.featured) || list[0])?.folder,
+      allowed: new Set(list.map(k => k.folder)),
+      // Short share links: /2026-09-25 instead of /index.html?folder=<run folder>.
+      slugToFolder: new Map(list.filter(k => k.slug).map(k => [k.slug, k.folder])),
+      folderToSlug: new Map(list.filter(k => k.slug).map(k => [k.folder, k.slug])),
+    };
+  }
+  return snapshot;
+}
 // An entry by its folder, or by a folder it used to have (an old ?folder= link still opens it).
-export const entryForFolder = f => PUBLIC_KHUTBAHS.find(k => k.folder === f || k.old_folders?.includes(f));
-// Short share links: /2026-09-25 instead of /index.html?folder=<run folder>.
-export const SLUG_TO_FOLDER = new Map(PUBLIC_KHUTBAHS.filter(k => k.slug).map(k => [k.slug, k.folder]));
-export const FOLDER_TO_SLUG = new Map(PUBLIC_KHUTBAHS.filter(k => k.slug).map(k => [k.folder, k.slug]));
+export const entryForFolder = f => catalog().list.find(k => k.folder === f || k.old_folders?.includes(f));
+
+// Where a khutbah's files are: on the disk if it was published through the API, else in the repo.
+const contentDir = folder => [DATA_DIR, ROOT].map(r => join(r, 'outputs', folder)).find(existsSync) ?? join(ROOT, 'outputs', folder);
+export const audioRoots = [join(DATA_DIR, 'audio_files'), join(ROOT, 'audio_files')];
+const audioExists = name => audioRoots.some(r => existsSync(join(r, name)));
 
 function findAudioUrl(folder) {
   // An entry whose folder name does not match its recording names the file itself.
-  const named = PUBLIC_KHUTBAHS.find(k => k.folder === folder)?.audio;
-  if (named && existsSync(join(ROOT, 'audio_files', named))) return `/audio_files/${named}`;
+  const named = catalog().list.find(k => k.folder === folder)?.audio;
+  if (named && audioExists(named)) return `/audio_files/${named}`;
   const exts = ['mp3', 'm4a', 'wav', 'mp4', 'ogg', 'flac'];
   // CLI run: basename after timestamp prefix matches audio_files/ filename
   const baseMatch = folder.match(/^\d{4}-\d{2}-\d{2}T[\d-]+_(.+)$/);
   if (baseMatch) {
     const basename = baseMatch[1];
     for (const ext of exts) {
-      if (existsSync(join(ROOT, 'audio_files', `${basename}.${ext}`))) {
+      if (audioExists(`${basename}.${ext}`)) {
         return `/audio_files/${basename}.${ext}`;
       }
     }
@@ -43,7 +64,7 @@ function findAudioUrl(folder) {
 // rebuilt reader never plays stale times. Folders without a tts_*.json are untouched.
 export const TTS_LANGS = ['en', 'ur'];
 function attachTts(folder, result) {
-  const dir = join(ROOT, 'outputs', folder);
+  const dir = contentDir(folder);
   const chunks = result.reader_chunks || [];
   const head = c => c.arabic.split(/\s+/).filter(Boolean).slice(0, 6).join(' ');
   for (const lang of TTS_LANGS) {
@@ -67,7 +88,7 @@ function attachTts(folder, result) {
 // One khutbah as the reader page loads it: the reader's chunks and refs, its audio, voice
 // tracks and word times, and the entry's title and place.
 function buildResult(k) {
-  const result = loadResult(`outputs/${k.folder}`);
+  const result = loadResult(contentDir(k.folder));
   result.audio_url = findAudioUrl(k.folder);
   attachTts(k.folder, result);
   result.title = k.title || '';
@@ -99,31 +120,35 @@ function listItem(k, r) {
   };
 }
 
-// Parsed results are immutable at runtime (files never change), so cache indefinitely.
+// Parsed results only change when a khutbah is published (publish() clears them).
 const resultCache = new Map();
 let listCache = null;
+const shareSummaries = new Map();
+const wordsCache = new Map();
 
 // A published folder's result (throws if its files cannot be read).
 export function getResult(folder) {
-  if (!resultCache.has(folder)) resultCache.set(folder, buildResult(PUBLIC_KHUTBAHS.find(k => k.folder === folder)));
+  if (!resultCache.has(folder)) resultCache.set(folder, buildResult(catalog().list.find(k => k.folder === folder)));
   return resultCache.get(folder);
 }
 
 // The home page's list of published khutbahs (with friendly titles + summary stats).
 export function getList() {
   if (listCache) return listCache;
-  const items = PUBLIC_KHUTBAHS.map(k => {
+  const { list, featured } = catalog();
+  const items = list.map(k => {
     try {
-      return listItem(k, JSON.parse(readFileSync(join(ROOT, 'outputs', k.folder, 'result.json'), 'utf8')));
+      return listItem(k, JSON.parse(readFileSync(join(contentDir(k.folder), 'result.json'), 'utf8')));
     } catch { return null; }
   }).filter(Boolean);
-  listCache = { featured: FEATURED_FOLDER, items };
+  listCache = { featured, items };
   return listCache;
 }
 
 // Pre-warm the cache at startup so the very first visitor never waits on file I/O.
 export function warmCache() {
-  for (const k of PUBLIC_KHUTBAHS) {
+  const { list, featured } = catalog();
+  for (const k of list) {
     try {
       resultCache.set(k.folder, buildResult(k));
     } catch (e) {
@@ -131,25 +156,61 @@ export function warmCache() {
     }
   }
   listCache = {
-    featured: FEATURED_FOLDER,
-    items: PUBLIC_KHUTBAHS.map(k => {
+    featured,
+    items: list.map(k => {
       const r = resultCache.get(k.folder);
       return r ? listItem(k, r) : null;
     }).filter(Boolean),
   };
-  console.log(`Cached ${resultCache.size}/${PUBLIC_KHUTBAHS.length} khutbahs.`);
+  console.log(`Cached ${resultCache.size}/${list.length} khutbahs.`);
 }
 
 // A khutbah's "In Short" for link previews, read once.
-const shareSummaries = new Map();
 export function shareSummary(folder) {
   if (!shareSummaries.has(folder)) {
     let text = '';
     try {
-      const r = JSON.parse(readFileSync(join(ROOT, 'outputs', folder, 'result.json'), 'utf8'));
+      const r = JSON.parse(readFileSync(join(contentDir(folder), 'result.json'), 'utf8'));
       text = r.share_summary || r.summary || '';
     } catch {}
     shareSummaries.set(folder, text);
   }
   return shareSummaries.get(folder);
+}
+
+// A voice track's word times, block by block, as the JSON the page fetches:
+// { blocks: { <block>: [[word, start, end], ...] }, arabic: {...} }. Null if the file is missing.
+export function getWords(folder, file) {
+  const key = `${folder}/${file}`;
+  if (!wordsCache.has(key)) {
+    try {
+      const m = JSON.parse(readFileSync(join(contentDir(folder), file), 'utf8'));
+      wordsCache.set(key, JSON.stringify({
+        blocks: Object.fromEntries(m.blocks.filter(b => b.words).map(b => [b.i, b.words])),
+        // A voice track with the imam's recitation in it (recite.js): his words, for the Arabic.
+        arabic: Object.fromEntries(m.blocks.filter(b => b.arabic_words).map(b => [b.i, b.arabic_words])),
+      }));
+    } catch { return null; }
+  }
+  return wordsCache.get(key);
+}
+
+// A voice track's audio file.
+export const ttsPath = (folder, lang) => join(contentDir(folder), `tts_${lang}.mp3`);
+
+// Whether a folder has what the reader is built from (on the disk or in the repo).
+export const hasReader = folder => ['result.json', 'reader.txt'].every(f => existsSync(join(contentDir(folder), f)));
+
+// Where the publish API writes a khutbah's files.
+export const uploadDir = folder => join(DATA_DIR, 'outputs', folder);
+export const audioUploadDir = join(DATA_DIR, 'audio_files');
+
+// Publish (or update) a khutbah whose files are already uploaded; it is live at once.
+export function publish(entry) {
+  publishKhutbah(entry);
+  snapshot = null;
+  listCache = null;
+  resultCache.delete(entry.folder);
+  shareSummaries.delete(entry.folder);
+  for (const key of wordsCache.keys()) if (key.startsWith(`${entry.folder}/`)) wordsCache.delete(key);
 }

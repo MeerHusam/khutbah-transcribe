@@ -3,7 +3,7 @@ import express from 'express';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { ROOT } from '../config.js';
-import { PUBLIC_KHUTBAHS, entryForFolder, shareSummary } from '../khutbahs.js';
+import { catalog, entryForFolder, shareSummary } from '../khutbahs.js';
 
 const router = express.Router();
 
@@ -37,8 +37,9 @@ router.get('/', (req, res) => res.type('html').send(withShareMeta('home.html', r
 })));
 // Short share links: /2026-09-25 instead of /index.html?folder=<run folder>.
 router.get('/:slug', (req, res, next) => {
-  const k = PUBLIC_KHUTBAHS.find(x => x.slug && x.slug === req.params.slug);
-  const moved = !k && PUBLIC_KHUTBAHS.find(x => x.old_slugs?.includes(req.params.slug));
+  const { list } = catalog();
+  const k = list.find(x => x.slug && x.slug === req.params.slug);
+  const moved = !k && list.find(x => x.old_slugs?.includes(req.params.slug));
   if (moved) return res.redirect(301, `/${moved.slug}`);
   if (!k) return next();
   // An entry can name its own page (the Urdu edition's reader-ur.html); the rest use index.html.

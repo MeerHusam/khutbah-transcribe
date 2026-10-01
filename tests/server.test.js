@@ -1,19 +1,21 @@
 // tests/server.test.js — The site against a real server: pages, khutbah API, viewer socket,
-// feedback, and the admin and upload API. The server runs on its own port with an empty data
-// folder, so nothing touches real visit counts.
+// feedback, the admin and upload API, and publishing a khutbah. The server runs on its own port
+// with an empty data folder (a fresh database, seeded from server/khutbahs.seed.json), so
+// nothing touches real visit counts or the real list.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, copyFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import WebSocket from 'ws';
+import { publishToSite } from '../worker/site.js';
 
 const PORT = 3200 + Math.floor(Math.random() * 600);
 const BASE = `http://localhost:${PORT}`;
 const KEY = 'test-admin-key';
 const DATA = mkdtempSync(join(tmpdir(), 'khutbah-server-test-'));
-const khutbahs = JSON.parse(readFileSync('server/khutbahs.json', 'utf8'));
+const khutbahs = JSON.parse(readFileSync('server/khutbahs.seed.json', 'utf8'));
 let server;
 
 before(async () => {
@@ -113,4 +115,53 @@ test('upload API: upload, claim once, download, and the recording is removed', a
   assert.equal((await status('downloaded')).status, 200);
   assert.equal(existsSync(join(DATA, 'uploads', `${job.id}.m4a`)), false);
   assert.equal((await get(`/admin/uploads/${job.id}/file`, { headers })).status, 404);
+});
+
+test('publishing: a new khutbah is live at once, with its files, recording and voice track', async () => {
+  // A copy of 25 Sep's run under a new folder name, as the Mac would have it.
+  const src = join('outputs', khutbahs[0].folder);
+  const tmp = mkdtempSync(join(tmpdir(), 'khutbah-publish-test-'));
+  const folderPath = join(tmp, '2026-10-02T12-00-00_khutbah-test-publish');
+  mkdirSync(folderPath);
+  for (const f of ['result.json', 'reader.txt', 'reader_ur.txt', 'tts_ur.json', 'tts_ur.mp3', 'words_imam.json']) copyFileSync(join(src, f), join(folderPath, f));
+  const recording = join(tmp, 'khutbah-test-publish.m4a');
+  writeFileSync(recording, Buffer.alloc(1000, 1));
+  const entry = { slug: 'test-publish', title: 'Test Publish', date: '2 October 2026', page: 'reader-ur.html', featured: true };
+  try {
+    await assert.rejects(publishToSite({ site: BASE, key: 'wrong-key', folderPath, recording, entry }), /401/);
+    assert.equal(await publishToSite({ site: BASE, key: KEY, folderPath, recording, entry }), `${BASE}/test-publish`);
+
+    const page = await get('/test-publish');
+    assert.equal(page.status, 200);
+    assert.match(await page.text(), /<title>Test Publish · KhutbahTranscribe<\/title>/);
+    const list = await (await get('/api/results')).json();
+    assert.equal(list.items[0].slug, 'test-publish');
+    assert.equal(list.featured, '2026-10-02T12-00-00_khutbah-test-publish');
+    assert.deepEqual(list.items.filter(i => i.featured).map(i => i.slug), ['test-publish']);
+    const r = await (await get('/api/results/2026-10-02T12-00-00_khutbah-test-publish')).json();
+    assert.equal(r.audio_url, '/audio_files/khutbah-test-publish.m4a');
+    assert.equal((await (await get(r.audio_url)).arrayBuffer()).byteLength, 1000);
+    assert.equal((await get(r.tts_ur.url)).status, 200);
+    assert.ok(existsSync(join(DATA, 'outputs', '2026-10-02T12-00-00_khutbah-test-publish', 'reader.txt')));
+
+    // A slug belongs to one folder; a bad slug is refused.
+    const other = { folderPath: join(tmp, 'x'), recording: null };
+    mkdirSync(other.folderPath);
+    copyFileSync(join(src, 'result.json'), join(other.folderPath, 'result.json'));
+    copyFileSync(join(src, 'reader.txt'), join(other.folderPath, 'reader.txt'));
+    await assert.rejects(publishToSite({ site: BASE, key: KEY, ...other, entry: { slug: 'test-publish', title: 'T' } }), /409/);
+    await assert.rejects(publishToSite({ site: BASE, key: KEY, ...other, entry: { slug: 'Bad Slug', title: 'T' } }), /400/);
+    // Publishing again updates in place: same place in the list, new title.
+    await publishToSite({ site: BASE, key: KEY, folderPath, recording, entry: { ...entry, title: 'Test Publish, corrected' } });
+    const again = await (await get('/api/results')).json();
+    assert.equal(again.items[0].title, 'Test Publish, corrected');
+    assert.equal(again.items.length, list.items.length);
+    // A new slug for the same khutbah: the old link redirects to it.
+    await publishToSite({ site: BASE, key: KEY, folderPath, recording, entry: { ...entry, slug: 'test-publish-2' } });
+    const moved = await get('/test-publish');
+    assert.equal(moved.status, 301);
+    assert.equal(moved.headers.get('location'), '/test-publish-2');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
 });

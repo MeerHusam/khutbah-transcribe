@@ -20,7 +20,7 @@ services:
     healthCheckPath: /api/results
     envVars:
       - key: NODE_VERSION
-        value: "20"
+        value: "22"
       # Secret for reading submitted feedback at /admin/feedback?key=<value>.
       # sync:false → Render prompts you to set it in the dashboard (not stored in git).
       - key: ADMIN_TOKEN
