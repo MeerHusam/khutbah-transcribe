@@ -1,4 +1,4 @@
-# tts_lexicon.txt — How the English voice (tts.js / tts_kokoro.py) says Arabic words.
+# tts_lexicon.txt — How the English voice (tts.js with ElevenLabs eleven_flash_v2) says Arabic words.
 # Without it the voice reads them by English spelling rules: "Allah" as "AL-uh",
 # "Muhammad" as "muh-HAM-id".
 #

@@ -1,7 +1,7 @@
 # tts_common.py — The part of the English voice that does not depend on the model: split each
 # block into sentence-sized pieces, speak them in order, and write one WAV with each block's
-# start and end. tts_kokoro.py and tts_chatterbox.py each supply only `speak(piece)`; they run
-# in different environments (.venv and .venv-tts), so this file imports nothing heavy.
+# start and end. An engine (tts_elevenlabs.py) supplies only `speak(piece)`; this file imports
+# nothing heavy.
 #
 # Job (JSON on stdin, written by tts.js): { block_pause, sentence_pause, out,
 #   blocks: [{ i, text, pause_before? }], whole_blocks?, ...engine options }
@@ -76,45 +76,6 @@ def lookup(lex, word):
         return ''.join(parts) if all(parts) else None
     return None
 
-
-
-# The same sounds in CMU (ARPAbet) codes, for engines that take English phonemes only
-# (OmniVoice: "[AA0 L AA1 HH]"). ARPAbet has no q, kh or doubled letters, so those become
-# their nearest English sound; the stress and full vowels, which carry most of it, stay.
-_ARPA = [('ddʒ', 'JH'), ('dʒ', 'JH'), ('ttʃ', 'CH'), ('tʃ', 'CH'), ('eɪ', 'EY'), ('oʊ', 'OW'),
-         ('aɪ', 'AY'), ('aʊ', 'AW'), ('ɑj', 'AY'), ('ɑw', 'AW'),
-         ('ɑː', 'AA'), ('iː', 'IY'), ('uː', 'UW'), ('ɑ', 'AA'), ('a', 'AA'), ('æ', 'AE'),
-         ('ɪ', 'IH'), ('i', 'IY'), ('ʊ', 'UH'), ('u', 'UW'), ('ə', 'AH'), ('ʌ', 'AH'),
-         ('ɛ', 'EH'), ('ɔ', 'AO'), ('ð', 'DH'), ('θ', 'TH'), ('ʃ', 'SH'), ('ʒ', 'ZH'), ('ŋ', 'NG'),
-         ('ɾ', 'R'), ('ɹ', 'R'), ('r', 'R'), ('j', 'Y'), ('h', 'HH'), ('q', 'K'), ('χ', 'HH'),
-         ('x', 'HH'), ('ɣ', 'G'), ('ɡ', 'G'), ('b', 'B'), ('d', 'D'), ('f', 'F'), ('g', 'G'),
-         ('k', 'K'), ('l', 'L'), ('m', 'M'), ('n', 'N'), ('p', 'P'), ('s', 'S'), ('t', 'T'),
-         ('v', 'V'), ('w', 'W'), ('z', 'Z')]
-_VOWELS = {'AA', 'AE', 'AH', 'AO', 'AW', 'AY', 'EH', 'ER', 'EY', 'IH', 'IY', 'OW', 'OY', 'UH', 'UW'}
-
-
-def ipa_to_arpabet(ipa):
-    out, stress, i = [], '0', 0
-    while i < len(ipa):
-        ch = ipa[i]
-        if ch in 'ˈˌ':
-            stress = '1' if ch == 'ˈ' else '2'
-            i += 1
-            continue
-        if ch in 'ʔː ':
-            i += 1
-            continue
-        for sym, code in _ARPA:
-            if ipa.startswith(sym, i):
-                if code in _VOWELS:
-                    code, stress = code + stress, '0'
-                if not out or out[-1] != code:  # no doubled letters in ARPAbet
-                    out.append(code)
-                i += len(sym)
-                break
-        else:
-            i += 1  # a sound ARPAbet cannot write
-    return ' '.join(out)
 
 
 def read_job():

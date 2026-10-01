@@ -1,40 +1,34 @@
 #!/usr/bin/env node
-// tts.js — An English voice for a khutbah (first try, 30 Sep 2026). Reads each reader block's
-// English aloud with a free model that runs locally, and writes one audio track the page can
-// play in place of the imam's. Two engines:
-//  - kokoro (default, tts_kokoro.py): Kokoro-82M, stock voices, fast (~4x real time).
-//  - chatterbox (tts_chatterbox.py): Chatterbox in the voice of a reference clip (--ref),
-//    which also carries the speaker's accent; slower.
+// tts.js — A voice track for a khutbah (30 Sep 2026): reads each reader block's English
+// (--lang en) or Urdu (--lang ur) aloud and writes one audio track the page can play in place of
+// the imam's. Two engines:
+//  - gemini (default, tts_gemini.mjs): Gemini TTS (gemini-3.8-flash-tts), voice Charon or Orus.
+//  - elevenlabs (tts_elevenlabs.py, paid credits): eleven_v3 (speaks Urdu well) or eleven_flash_v2.
 //
-//  - Blocks are the page's blocks (reader_chunks.js), so the English track and the reader
+//  - Blocks are the page's blocks (reader_chunks.js), so the voice track and the reader
 //    highlight line up block for block.
 //  - Prose: the block's English with the reference badge lines left out. Honorifics the
 //    translation keeps in Arabic (تعالى, صلى الله عليه وسلم …) are spoken in English.
 //  - A verse card: the verse's English (Sahih International), cut to the part the imam recited
 //    when the card shows only that part (verse_excerpts), as the page does.
 //  - The Quran itself is never synthesised: only its English meaning is spoken.
-//  - Arabic names and terms are said as in Arabic: from tts_lexicon.txt (kokoro), or from the
-//    reference speaker's own way of saying them (chatterbox).
-// Writes tts_en.mp3 (the track) and tts_en.json (voice, and each block's start/end in the
+//  - Arabic names and terms: Gemini is told to say them the Arabic way; eleven_flash_v2 takes
+//    them from tts_lexicon.txt.
+// Writes tts_<lang>.mp3 (the track) and tts_<lang>.json (voice, and each block's start/end in the
 // track, with its opening Arabic words so a rebuilt reader cannot be paired with stale times).
 //
-// Usage: node voice/tts.js outputs/<folder> [--engine kokoro|chatterbox] [--limit N] [--dry-run]
-//   kokoro:     [--voice am_michael] [--speed 1]
-//   chatterbox: --ref audio_files/voice_ref/<clip>.wav [--exaggeration 0.5] [--cfg 0.5]
+// Usage: node voice/tts.js outputs/<folder> [--engine gemini|elevenlabs] [--lang en|ur] [--limit N] [--dry-run]
 //   gemini:     [--voice Charon] [--direct]: a direction for every sentence (voice_directions.js,
 //     from delivery_imam.json when imam_delivery.py has run) and the blocks voiced a passage
 //     at a time, then split back into blocks with the word aligner (.venv-align).
-//   --limit N speaks only the first N blocks into tts_en_preview_<voice>.mp3, to listen to;
-//     the page's track (tts_en.mp3, tts_en.json) is left as it is.
+//   elevenlabs: [--model eleven_v3|eleven_flash_v2] [--voice daniel] [--max-credits 2000]
+//   --limit N speaks only the first N blocks into tts_<lang>_preview_<voice>.mp3, to listen to;
+//     the page's track (tts_<lang>.mp3, tts_<lang>.json) is left as it is.
 //   --dry-run prints the text of every block and makes no audio.
-// Needs: kokoro: ./.venv/bin/pip install kokoro-onnx soundfile, and in models/kokoro/ the
-//   files kokoro-v1.0.onnx and voices-v1.0.bin from
-//   https://github.com/thewh1teagle/kokoro-onnx/releases/tag/model-files-v1.0
-//   chatterbox: see the header of tts_chatterbox.py (.venv-tts).
 
 import 'dotenv/config';
 import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs';
-import { join, dirname, resolve, basename } from 'path';
+import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
 import { loadResult } from '../core/reader_chunks.js';
@@ -43,17 +37,16 @@ import '../public/recited.js';
 
 const { recitedSpans } = globalThis.KTRecited;
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const MODEL_DIR = join(ROOT, 'models', 'kokoro');
 
 const args = process.argv.slice(2);
 const folder = args[0];
 const opt = (name, dflt) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : dflt; };
-const engine = opt('--engine', 'kokoro');
+const engine = opt('--engine', 'gemini');
 const lang = opt('--lang', 'en');
 // ElevenLabs stock voices, by name (the API key needs only text-to-speech permission).
 const ELEVEN_VOICES = { daniel: 'onwK4e9ZLuTAKqWW03F9', george: 'JBFqnCBsd6RMkjVDRZzb', brian: 'nPczCjzI2devNBz1zQrb', bill: 'pqHfZKP75CvOlQylNhV4' };
 const model = opt('--model', engine === 'gemini' ? 'gemini-3.8-flash-tts' : 'eleven_v3');
-const voice = opt('--voice', { elevenlabs: 'daniel', gemini: 'Charon' }[engine] ?? 'am_michael');
+const voice = opt('--voice', { elevenlabs: 'daniel', gemini: 'Charon' }[engine]);
 // Gemini's delivery, given as a style note (text in the transcript itself would be spoken).
 const GEMINI_STYLE = {
   en: 'calm, clear and reverent, at a steady pace, like a translator reading a Friday sermon; Arabic names and Islamic terms (Allah, Muhammad, taqwa, Quraysh, Makkah) pronounced the Arabic way, as a Muslim scholar would',
@@ -64,10 +57,6 @@ const GEMINI_BASE = {
   en: 'The English translation of a Friday khutbah, read from the minbar; Arabic names and Islamic terms (Allah, Muhammad, taqwa, Quraysh, Makkah) pronounced the Arabic way, as a Muslim scholar would',
   ur: 'The Urdu translation of a Friday khutbah, read from the minbar in standard Pakistani Urdu; Arabic words and Quranic terms pronounced the Arabic way',
 };
-const speed = +opt('--speed', '1');
-const ref = opt('--ref', null);
-const exaggeration = +opt('--exaggeration', '0.5');
-const cfgWeight = +opt('--cfg', '0.5');
 const limit = +opt('--limit', '0');
 // Faster delivery without re-generating: ffmpeg's atempo keeps the pitch; times scale with it.
 const tempo = +opt('--tempo', '1');
@@ -83,15 +72,11 @@ const directEffort = opt('--direct-effort', 'high');
 // 60% of this, and at 150% wherever it is.
 const PASSAGE_CHARS = 1500;
 const elevenKey = process.env.ELEVEN_LABS_API_KEY || process.env.ELEVENLABS_API_KEY;
-if (!folder || !existsSync(join(folder, 'result.json')) || !['kokoro', 'chatterbox', 'elevenlabs', 'omnivoice', 'gemini'].includes(engine)
-    || !['en', 'ur'].includes(lang) || (lang === 'ur' && !['elevenlabs', 'omnivoice', 'gemini'].includes(engine) && !dryRun)
-    || (['chatterbox', 'omnivoice'].includes(engine) && !dryRun && !(ref && existsSync(ref)))
-    || (engine === 'elevenlabs' && !dryRun && !elevenKey) || (direct && engine !== 'gemini')) {
-  console.error('Usage: node voice/tts.js outputs/<folder> [--engine kokoro|chatterbox|elevenlabs|omnivoice] [--lang en|ur] [--limit N] [--tempo 1.15] [--dry-run]\n'
-    + '  kokoro: [--voice am_michael] [--speed 1]   chatterbox: --ref <clip.wav> [--exaggeration 0.5] [--cfg 0.5]\n'
-    + '  elevenlabs (ELEVEN_LABS_API_KEY in .env): [--model eleven_v3|eleven_flash_v2] [--voice daniel] [--max-credits 2000]\n'
-    + '  omnivoice: --ref <clip.wav> (its words in <clip>.txt)   Urdu: elevenlabs (eleven_v3), gemini or omnivoice\n'
-    + '  gemini: [--voice Charon] [--direct [--direct-effort high]]  (a note per sentence, voiced a passage at a time)');
+if (!folder || !existsSync(join(folder, 'result.json')) || !['elevenlabs', 'gemini'].includes(engine)
+    || !['en', 'ur'].includes(lang) || (engine === 'elevenlabs' && !dryRun && !elevenKey) || (direct && engine !== 'gemini')) {
+  console.error('Usage: node voice/tts.js outputs/<folder> [--engine gemini|elevenlabs] [--lang en|ur] [--limit N] [--tempo 1.15] [--dry-run]\n'
+    + '  gemini (default): [--voice Charon] [--direct [--direct-effort high]]  (a note per sentence, voiced a passage at a time)\n'
+    + '  elevenlabs (ELEVEN_LABS_API_KEY in .env): [--model eleven_v3|eleven_flash_v2] [--voice daniel] [--max-credits 2000]');
   process.exit(1);
 }
 
@@ -242,17 +227,8 @@ if (dryRun) {
   process.exit(0);
 }
 
-if (engine === 'kokoro') {
-  for (const f of ['kokoro-v1.0.onnx', 'voices-v1.0.bin']) {
-    if (!existsSync(join(MODEL_DIR, f))) { console.error(`Missing ${join('models/kokoro', f)} — see the header of tts.js`); process.exit(1); }
-  }
-}
-
 // A preview is named after its voice, so previews of different voices sit side by side.
-const voiceName = engine === 'chatterbox' ? basename(ref).replace(/\.[^.]+$/, '')
-  : engine === 'omnivoice' ? `omnivoice_${basename(ref).replace(/\.[^.]+$/, '')}`
-  : engine === 'elevenlabs' ? `${model}_${voice}`
-  : engine === 'gemini' ? `gemini_${voice}` : voice;
+const voiceName = engine === 'elevenlabs' ? `${model}_${voice}` : `gemini_${voice}`;
 const base = limit ? `tts_${lang}_preview_${voiceName}${tempo !== 1 ? `_x${tempo}` : ''}` : `tts_${lang}`;
 const wav = join(folder, `${base}.wav`);
 // A few seconds of quiet where the imam sits between the two khutbahs, so the second one
@@ -269,20 +245,6 @@ const job = {
   blocks: blocks.map(({ i, text }) => ({ i, text, ...(i === secondBlock ? { pause_before: KHUTBAH_PAUSE } : {}),
     ...(notes ? { parts: notes.get(i) } : {}) })),
   ...{
-    kokoro: {
-      model: join(MODEL_DIR, 'kokoro-v1.0.onnx'),
-      voices: join(MODEL_DIR, 'voices-v1.0.bin'),
-      voice, speed,
-      lang: voice.startsWith('b') ? 'en-gb' : 'en-us',
-      lexicon: join(ROOT, 'voice', 'tts_lexicon.txt'),
-    },
-    chatterbox: { ref: resolve(ref ?? ''), exaggeration, cfg_weight: cfgWeight },
-    omnivoice: {
-      ref: resolve(ref ?? ''),
-      ref_text: existsSync((ref ?? '').replace(/\.[^.]+$/, '.txt')) ? readFileSync(ref.replace(/\.[^.]+$/, '.txt'), 'utf8').trim() : undefined,
-      language: lang,
-      ...(lang === 'en' ? { lexicon: join(ROOT, 'voice', 'tts_lexicon.txt') } : {}),
-    },
     gemini: { model, voice, style: (direct ? GEMINI_BASE : GEMINI_STYLE)[lang], concurrency: 4,
       ...(direct ? { passages: PASSAGE_CHARS, lang } : {}) },
     elevenlabs: {
@@ -295,18 +257,12 @@ const job = {
   }[engine],
 };
 const [python, script] = {
-  kokoro: [join(ROOT, '.venv', 'bin', 'python'), 'tts_kokoro.py'],
-  chatterbox: [join(ROOT, '.venv-tts', 'bin', 'python'), 'tts_chatterbox.py'],
   elevenlabs: [join(ROOT, '.venv', 'bin', 'python'), 'tts_elevenlabs.py'],
-  omnivoice: [join(ROOT, '.venv-omni', 'bin', 'python'), 'tts_omnivoice.py'],
   gemini: [process.execPath, 'tts_gemini.mjs'],
 }[engine];
 const chars = blocks.reduce((n, b) => n + b.text.length, 0);
 console.log(`Speaking ${blocks.length} blocks (${chars} characters) with ${{
-  kokoro: `Kokoro (${voice}, speed ${speed})`,
-  chatterbox: `Chatterbox (voice of ${ref})`,
   elevenlabs: `ElevenLabs ${model} (${voice}, ${lang})`,
-  omnivoice: `OmniVoice (voice of ${ref}, ${lang})`,
   gemini: `Gemini ${model} (${voice}, ${lang})`,
 }[engine]}...`);
 const began = Date.now();
@@ -315,8 +271,7 @@ const py = spawnSync(python, [join(ROOT, 'voice', script)], {
   encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['pipe', 'pipe', 'inherit'],
 });
 if (py.status !== 0) { console.error(`${script} failed`); process.exit(1); }
-// The times are the last line: libraries print their own lines on stdout too (Chatterbox's
-// watermarker says "loaded PerthNet …").
+// The times are the last line: libraries may print their own lines on stdout too.
 const times = new Map(JSON.parse(py.stdout.trim().split('\n').at(-1)).map(t => [t.i, t]));
 
 const mp3 = join(folder, `${base}.mp3`);
@@ -334,12 +289,9 @@ if (limit) {
 }
 
 const manifest = {
-  engine: { kokoro: 'kokoro-82m-v1.0', chatterbox: 'chatterbox', elevenlabs: `elevenlabs:${model}`, omnivoice: 'omnivoice', gemini: `gemini:${model}` }[engine],
+  engine: { elevenlabs: `elevenlabs:${model}`, gemini: `gemini:${model}` }[engine],
   ...{
-    kokoro: { voice, speed },
-    chatterbox: { voice: basename(ref ?? ''), exaggeration, cfg_weight: cfgWeight },
     elevenlabs: { voice },
-    omnivoice: { voice: basename(ref ?? '') },
     gemini: { voice, ...(direct ? { directed: `voice_directions.js (${directEffort})`, passages: PASSAGE_CHARS } : {}) },
   }[engine],
   lang,
