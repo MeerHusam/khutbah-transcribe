@@ -2,9 +2,9 @@
 // autopublish.js — From a khutbah recording to a live page, with no one in between (2 Oct 2026).
 // Run by upload_worker.js for each recording sent from the upload page, or by hand.
 //
-//   node autopublish.js <recording> [--masjid "Masjid Name"] [--single] [--date 2026-10-02]
+//   node worker/autopublish.js <recording> [--masjid "Masjid Name"] [--single] [--date 2026-10-02]
 //        [--job <upload id>] [--no-push]
-//   node autopublish.js --resume outputs/<folder> [--masjid …] [--no-push]
+//   node worker/autopublish.js --resume outputs/<folder> [--masjid …] [--no-push]
 //        after a failed run: the steps already done are kept (the voices come from the cache)
 //
 // Steps, each timed (the slow local ones run beside the API calls):
@@ -30,7 +30,7 @@ import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync, append
 import { join, extname, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
 
-const ROOT = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SITE = process.env.SITE_URL || 'https://khutbah-live.onrender.com';
 const HOME = { masjid: 'Askan AlMaather Mosque', masjid_ar: 'جامع إسكان المعذر', maps_url: 'https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6' };
 const PY_ALIGN = join(ROOT, '.venv-align', 'bin', 'python');
@@ -42,8 +42,8 @@ const flag = f => argv.includes(f);
 const resume = opt('--resume')?.replace(/\/+$/, '');
 const input = resume ?? argv[0];
 if (!input || input.startsWith('--') || !existsSync(input) || (resume && !existsSync(join(resume, 'result.json')))) {
-  console.error('usage: node autopublish.js <recording> [--masjid "Name"] [--single] [--date YYYY-MM-DD] [--job <id>] [--no-push]\n'
-    + '       node autopublish.js --resume outputs/<folder> [--masjid "Name"] [--no-push]');
+  console.error('usage: node worker/autopublish.js <recording> [--masjid "Name"] [--single] [--date YYYY-MM-DD] [--job <id>] [--no-push]\n'
+    + '       node worker/autopublish.js --resume outputs/<folder> [--masjid "Name"] [--no-push]');
   process.exit(1);
 }
 // A resumed run keeps its link and name (outputs/<time>_khutbah-<slug>).
@@ -195,7 +195,7 @@ async function main() {
 
   // 6. Publish: checks, test set, site entry (one page), then commit and push.
   await report('publishing', { message: push ? 'checks, then the site' : 'checks (not pushing: --no-push)' });
-  await run('checks and site entry', 'node', ['publish.js', audioOut, '--from-folder', F, '--keep-audio', '--slug', slug, '--title', title, '--date', dateText,
+  await run('checks and site entry', 'node', ['worker/publish.js', audioOut, '--from-folder', F, '--keep-audio', '--slug', slug, '--title', title, '--date', dateText,
     '--name', name, '--masjid', masjid, ...(home ? ['--masjid-ar', HOME.masjid_ar, '--maps-url', HOME.maps_url] : ['--no-feature']),
     '--page', 'reader-ur.html', ...(cleanAudio ? ['--audio', cleanAudio] : []), ...(single ? ['--single'] : [])]);
   // The page plays the cleaned recording; the original then stays on this Mac only (half the push).

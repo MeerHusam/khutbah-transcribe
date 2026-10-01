@@ -14,7 +14,7 @@
 // Then it prints what to check and the git commands. It never commits or pushes.
 //
 // Usage:
-//   node publish.js <recording> --slug 2026-10-02 --title "…" --date "2 October 2026"
+//   node worker/publish.js <recording> --slug 2026-10-02 --title "…" --date "2 October 2026"
 //        [--name khutbah-2026-10-02-masjid] [--trim-start 17] [--trim-end 35]
 //        [--masjid "Askan AlMaather Mosque" --masjid-ar "جامع إسكان المعذر" --maps-url …]
 //        [--speaker "Friday Khutbah"] [--single] [--type friday|arafah|eid]
@@ -28,9 +28,9 @@ import { spawnSync } from 'child_process';
 import { readFileSync, writeFileSync, existsSync, openSync, readSync, closeSync, readdirSync, statSync } from 'fs';
 import { join, extname, basename, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { verifyReader } from './core/verify_reader.js';
+import { verifyReader } from '../core/verify_reader.js';
 
-const ROOT = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
 const flag = f => argv.includes(f);
 const opt = (f, d = null) => (argv.includes(f) ? argv[argv.indexOf(f) + 1] : d);
@@ -40,7 +40,7 @@ const step = msg => console.log(`\n── ${msg}`);
 const input = argv[0];
 const slug = opt('--slug'), title = opt('--title'), date = opt('--date');
 if (!input || input.startsWith('--') || !slug || !title || !date) {
-  die('usage: node publish.js <recording> --slug <slug> --title "<title>" --date "<d Month yyyy>" [options] (see the header)');
+  die('usage: node worker/publish.js <recording> --slug <slug> --title "<title>" --date "<d Month yyyy>" [options] (see the header)');
 }
 if (!/^[a-z0-9-]+$/.test(slug)) die(`slug "${slug}" must be lowercase letters, digits and dashes`);
 if (!existsSync(input)) die(`recording not found: ${input}`);

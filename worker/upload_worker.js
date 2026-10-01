@@ -4,7 +4,7 @@
 // autopublish.js on it; one at a time, in the order they were sent. It only calls out to the
 // site, so nothing on the Mac is reachable from the internet.
 //
-//   caffeinate -is node upload_worker.js        (caffeinate keeps the Mac awake while it runs)
+//   caffeinate -is node worker/upload_worker.js        (caffeinate keeps the Mac awake while it runs)
 //
 // Needs ADMIN_TOKEN in .env (the same key the site has on Render). SITE_URL defaults to the
 // live site. Extra arguments for autopublish.js (e.g. --no-push for a test) go in
@@ -18,7 +18,7 @@ import { fileURLToPath } from 'url';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 
-const ROOT = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SITE = process.env.SITE_URL || 'https://khutbah-live.onrender.com';
 const KEY = process.env.ADMIN_TOKEN;
 const EXTRA = (process.env.AUTOPUBLISH_ARGS || '').split(/\s+/).filter(Boolean);
@@ -47,7 +47,7 @@ async function next() {
     if (!d.ok) { await status(job.id, 'failed', `download: ${d.status}`); continue; }
     await pipeline(Readable.fromWeb(d.body), createWriteStream(file));
     await status(job.id, 'downloaded', 'on the Mac');
-    const args = ['autopublish.js', file, '--job', job.id, ...(job.masjid ? ['--masjid', job.masjid] : []), ...(job.single ? ['--single'] : []), ...EXTRA];
+    const args = ['worker/autopublish.js', file, '--job', job.id, ...(job.masjid ? ['--masjid', job.masjid] : []), ...(job.single ? ['--single'] : []), ...EXTRA];
     const code = await new Promise(res => spawn('node', args, { cwd: ROOT, stdio: 'inherit', env: process.env }).on('close', res));
     log(`job ${job.id}: autopublish exited ${code}`);
     return true; // ask again straight away
