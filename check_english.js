@@ -214,7 +214,7 @@ export function checkEnglish(blocks, result) {
       const sw = r.english_swap;
       if (sw?.status === 'ours') {
         const tag = kind === 'hadith' ? ((r.link ?? '').split('/').pop() || r.collection || 'hadith') : `${r.surah_number}:${r.ayah_number}`;
-        warnings.push(`${kind} ${tag} shows our translation, labelled on the page: ${sw.reason}`);
+        warnings.push(`${kind} ${tag} shows a direct translation, labelled on the page: ${sw.reason}`);
       }
       if (sw?.status !== 'published') continue;
       const lost = droppedWords(sw.ours, sw.published);

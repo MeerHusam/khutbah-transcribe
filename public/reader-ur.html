@@ -1449,10 +1449,11 @@
     paintWord();
   }
 
-  // Marks a quote whose English above is our own translation rather than the published one.
+  // Marks a quote whose English above is a direct translation of the imam's words rather than
+  // the published one (Meer, 1 Oct: "direct translation" reads better than "our translation").
   function oursLabel(source) {
-    const tip = `The imam's words differ from the ${source} translation, or no part of it could be matched to them exactly, so this quote is in our own translation.`;
-    return `<span class="trans-ours" title="${escAttr(tip)}">our translation</span>`;
+    const tip = `A direct translation of the imam's words: the ${source} translation differs from what he said, or no part of it could be matched to his words exactly.`;
+    return `<span class="trans-ours" title="${escAttr(tip)}">direct translation</span>`;
   }
 
   // Collection names as Urdu readers know them.

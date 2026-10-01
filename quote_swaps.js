@@ -173,7 +173,7 @@ export async function planQuoteSwaps(transcript, result, { client = null, log = 
         usage[swap.status === 'published' ? 'published' : 'ours']++;
         log(`  ${swap.status === 'published' ? '✓' : '·'} ${src.label}: ${swap.status === 'published'
           ? `“${swap.published.slice(0, 70)}${swap.published.length > 70 ? '…' : ''}”`
-          : `our wording kept — ${swap.reason}`}`);
+          : `direct translation kept — ${swap.reason}`}`);
       }
     }
   }
