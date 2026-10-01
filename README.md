@@ -55,7 +55,8 @@ tests/                 npm test: reader checks per khutbah, server, pipeline end
 requirements/          the Python environments
 docs/                  architecture proposal, fix history, deployment, recordings
 outputs/, audio_files/ pipeline runs and recordings (in git only those published before the
-                       publish API; new ones go to the site's disk)
+                       publish API; new ones go to the site's disk, their audio to R2; the
+                       site plays all seven older ones' audio from R2 too)
 ```
 
 ## Setup
