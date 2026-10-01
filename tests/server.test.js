@@ -165,3 +165,19 @@ test('publishing: a new khutbah is live at once, with its files, recording and v
     rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test('a khutbah whose audio is on R2: its recording and voice links point there', async () => {
+  const src = join('outputs', khutbahs[0].folder);
+  const folder = '2026-10-02T13-00-00_khutbah-test-r2';
+  const headers = { 'x-admin-key': KEY, 'content-type': 'application/octet-stream' };
+  for (const f of ['result.json', 'reader.txt', 'tts_ur.json']) {
+    assert.equal((await get(`/admin/api/files/${folder}/${f}`, { method: 'PUT', headers, body: readFileSync(join(src, f)) })).status, 200);
+  }
+  const post = body => get('/admin/api/khutbahs', { method: 'POST', headers: { 'x-admin-key': KEY, 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const entry = { folder, slug: 'test-r2', title: 'On R2', audio: 'recording.m4a' };
+  assert.equal((await post({ ...entry, media_url: 'http://media.example/test-r2/' })).status, 400);
+  assert.equal((await post({ ...entry, media_url: 'https://media.example/test-r2/' })).status, 200);
+  const r = await (await get(`/api/results/${folder}`)).json();
+  assert.equal(r.audio_url, 'https://media.example/test-r2/recording.m4a');
+  assert.equal(r.tts_ur.url, 'https://media.example/test-r2/tts_ur.mp3');
+});

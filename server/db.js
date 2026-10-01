@@ -29,6 +29,8 @@ const MIGRATIONS = [
      note         TEXT,
      published_at TEXT NOT NULL
    )`,
+  // Where a khutbah's audio is when it is not on this server (R2), ending in '/'.
+  'ALTER TABLE khutbahs ADD COLUMN media_url TEXT',
 ];
 const version = db.prepare('PRAGMA user_version').get().user_version;
 for (let v = version; v < MIGRATIONS.length; v++) {
@@ -38,10 +40,11 @@ for (let v = version; v < MIGRATIONS.length; v++) {
   db.exec('COMMIT');
 }
 
-const FIELDS = ['folder', 'slug', 'title', 'speaker', 'masjid', 'masjid_ar', 'maps_url', 'date', 'audio', 'page', 'old_slugs', 'old_folders', 'note'];
+const FIELDS = ['folder', 'slug', 'title', 'speaker', 'masjid', 'masjid_ar', 'maps_url', 'date', 'audio', 'page', 'old_slugs', 'old_folders', 'note', 'media_url'];
 const LISTS = new Set(['old_slugs', 'old_folders']);
-// Kept when publishing again without them (publish.js never sends these).
-const KEPT = new Set(['old_slugs', 'old_folders', 'note']);
+// Kept when publishing again without them (publish.js never sends the first three; media_url
+// stays so a republish from a machine without R2 settings cannot orphan the audio).
+const KEPT = new Set(['old_slugs', 'old_folders', 'note', 'media_url']);
 
 // A row as the entry the server uses: only the fields that are set, lists parsed, featured as true.
 function toEntry(row) {

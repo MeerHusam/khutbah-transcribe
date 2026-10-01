@@ -177,6 +177,11 @@ router.post('/admin/api/khutbahs', (req, res) => {
   const entry = { folder: b.folder, slug: b.slug, featured: b.featured === true };
   for (const f of ENTRY_TEXT) if (typeof b[f] === 'string' && b[f]) entry[f] = b[f].slice(0, 2000);
   for (const f of ['old_slugs', 'old_folders']) if (Array.isArray(b[f])) entry[f] = b[f].filter(x => typeof x === 'string').slice(0, 50);
+  // Where its audio is when not uploaded here (R2): an https URL ending in '/'.
+  if (b.media_url != null) {
+    if (typeof b.media_url !== 'string' || !/^https:\/\/[^\s"'<>]+\/$/.test(b.media_url)) return res.status(400).json({ error: 'media_url must be an https URL ending in /' });
+    entry.media_url = b.media_url;
+  }
   try {
     publish(entry);
   } catch (e) {

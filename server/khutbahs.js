@@ -8,7 +8,8 @@
 // A khutbah's files are in DATA_DIR/outputs/<folder>/ and DATA_DIR/audio_files/ (Render's disk,
 // written by the publish API) or, for the khutbahs published before the database, in the repo
 // (outputs/, audio_files/). Its recording is audio_files/<audio>, or audio_files/<basename>.<ext>
-// where basename is its folder name after the timestamp.
+// where basename is its folder name after the timestamp. A khutbah with a media_url has its
+// recording (<media_url><audio>) and voice tracks (<media_url>tts_<lang>.mp3) there instead (R2).
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { loadResult } from '../core/reader_chunks.js';
@@ -42,8 +43,10 @@ export const audioRoots = [join(DATA_DIR, 'audio_files'), join(ROOT, 'audio_file
 const audioExists = name => audioRoots.some(r => existsSync(join(r, name)));
 
 function findAudioUrl(folder) {
+  const k = catalog().list.find(x => x.folder === folder);
+  if (k?.media_url) return k.audio ? k.media_url + k.audio : null;
   // An entry whose folder name does not match its recording names the file itself.
-  const named = catalog().list.find(k => k.folder === folder)?.audio;
+  const named = k?.audio;
   if (named && audioExists(named)) return `/audio_files/${named}`;
   const exts = ['mp3', 'm4a', 'wav', 'mp4', 'ogg', 'flac'];
   // CLI run: basename after timestamp prefix matches audio_files/ filename
@@ -63,17 +66,19 @@ function findAudioUrl(folder) {
 // in it. A track is attached only while its manifest still names the reader's blocks, so a
 // rebuilt reader never plays stale times. Folders without a tts_*.json are untouched.
 export const TTS_LANGS = ['en', 'ur'];
-function attachTts(folder, result) {
+function attachTts(k, result) {
+  const { folder, media_url } = k;
   const dir = contentDir(folder);
   const chunks = result.reader_chunks || [];
   const head = c => c.arabic.split(/\s+/).filter(Boolean).slice(0, 6).join(' ');
   for (const lang of TTS_LANGS) {
     try {
       const m = JSON.parse(readFileSync(join(dir, `tts_${lang}.json`), 'utf8'));
-      if (!existsSync(join(dir, m.audio))) continue;
+      if (!media_url && !existsSync(join(dir, m.audio))) continue;
       if (!m.blocks.every(b => chunks[b.i] && head(chunks[b.i]) === b.arabic_head)) continue;
       for (const b of m.blocks) chunks[b.i][lang === 'en' ? 'tts_start' : `tts_${lang}_start`] = b.start;
-      result[`tts_${lang}`] = { url: `/tts/${encodeURIComponent(folder)}/${lang}.mp3`, voice: m.voice, engine: m.engine };
+      const url = media_url ? media_url + m.audio : `/tts/${encodeURIComponent(folder)}/${lang}.mp3`;
+      result[`tts_${lang}`] = { url, voice: m.voice, engine: m.engine };
       // When each word is spoken (align_words.py), fetched by the page only when it plays this voice.
       if (m.blocks.every(b => Array.isArray(b.words))) result[`tts_${lang}`].words_url = `/tts/${encodeURIComponent(folder)}/${lang}.words.json`;
     } catch {}
@@ -90,7 +95,7 @@ function attachTts(folder, result) {
 function buildResult(k) {
   const result = loadResult(contentDir(k.folder));
   result.audio_url = findAudioUrl(k.folder);
-  attachTts(k.folder, result);
+  attachTts(k, result);
   result.title = k.title || '';
   result.speaker = k.speaker || '';
   result.masjid = k.masjid || '';
