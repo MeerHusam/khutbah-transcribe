@@ -49,10 +49,8 @@ import {
 } from './core/reader.js';
 import {
   preprocessAudio,
-  transcribeLocal,
   transcribeWithGroq,
   transcribeWithGemini,
-  transcribeWithAPI,
   SILENCE_PREPEND_SEC,
   transcribeWithGroqWindowed,
   alignWordTimestamps,
@@ -82,15 +80,10 @@ let hadithCorpus = null;
 async function main() {
   // Step 1: Parse CLI arguments
   // Usage:
-  //   node pipeline.js audio.mp3                              (OpenAI Whisper API)
-  //   node pipeline.js audio.mp3 --groq                      (Groq whisper-large-v3, free & fast)
-  //   node pipeline.js audio.mp3 --gemini                    (Gemini 2.5 Flash, best quality)
-  //   node pipeline.js audio.mp3 --local                     (mlx-whisper on Apple Silicon, faster-whisper fallback)
-  //   node pipeline.js audio.mp3 --local --model <hf-model>  (custom model, prefix with "mlx" for MLX backend)
+  //   node pipeline.js audio.mp3          (Gemini 2.5 Flash text + Groq timing, best quality; --gemini says the same)
+  //   node pipeline.js audio.mp3 --groq   (Groq whisper-large-v3 alone, free & fast)
   const args = process.argv.slice(2);
-  const useLocal = args.includes('--local');
   const useGroq = args.includes('--groq');
-  const useGemini = args.includes('--gemini');
   // --type <friday|arafah|eid> frames the summary and ref wording (default: friday).
   const typeFlagIdx = args.indexOf('--type');
   const khutbahType = (typeFlagIdx !== -1 && KHUTBAH_TYPES[args[typeFlagIdx + 1]])
@@ -100,15 +93,10 @@ async function main() {
   // isn't a two-part Friday Jumu'ah khutbah. Non-two-part types (arafah, eid) imply it.
   const singleKhutbah = args.includes('--single') || args.includes('--no-split')
     || !KHUTBAH_TYPES[khutbahType].twoPart;
-  const modelFlagIdx = args.indexOf('--model');
-  const localModel = modelFlagIdx !== -1
-    ? args[modelFlagIdx + 1]
-    : 'Systran/faster-whisper-large-v3';
   const transcriptFlagIdx = args.indexOf('--transcript');
   const existingTranscriptPath = transcriptFlagIdx !== -1 ? args[transcriptFlagIdx + 1] : null;
 
   const skipValues = new Set([
-    modelFlagIdx !== -1 ? args[modelFlagIdx + 1] : null,
     typeFlagIdx !== -1 ? args[typeFlagIdx + 1] : null,
     existingTranscriptPath,
   ].filter(Boolean));
@@ -116,7 +104,7 @@ async function main() {
 
   if (!audioPath && !existingTranscriptPath) {
     console.error(
-      'Usage: node pipeline.js path/to/khutbah.mp3 [--groq] [--local] [--single] [--type friday|arafah|eid] [--model <hf-model-id>]\n' +
+      'Usage: node pipeline.js path/to/khutbah.mp3 [--groq] [--single] [--type friday|arafah|eid]\n' +
       '       node pipeline.js --transcript outputs/<run>/transcript.txt'
     );
     process.exit(1);
@@ -170,13 +158,13 @@ async function main() {
     const processedPath = await preprocessAudio(audioPath);
     const usedPath = processedPath;
 
-    // Whisper (Groq/OpenAI) caps uploads at 25 MB. Check the PREPROCESSED file — the raw
-    // input can be far larger and still compress under the limit. --local has no cap.
+    // Groq's Whisper caps uploads at 25 MB. Check the PREPROCESSED file — the raw
+    // input can be far larger and still compress under the limit.
     const processedSizeMB = statSync(usedPath).size / (1024 * 1024);
-    if (!useLocal && processedSizeMB > 25) {
+    if (processedSizeMB > 25) {
       console.error(
         `Error: Even after compression the audio is ${processedSizeMB.toFixed(1)} MB -- over Whisper's 25 MB limit.\n` +
-        'Use --local (no size limit) or split the recording into shorter parts.'
+        'Split the recording into shorter parts.'
       );
       if (usedPath !== audioPath) { const { unlinkSync } = await import('fs'); try { unlinkSync(usedPath); } catch {} }
       process.exit(1);
@@ -184,18 +172,12 @@ async function main() {
 
     let transcriptResult;
     try {
-      if (useLocal) {
-        console.log(`Transcribing locally with ${localModel} (${fileSizeMB.toFixed(1)} MB)...`);
-        transcriptResult = await transcribeLocal(usedPath, localModel);
-      } else if (useGroq) {
+      if (useGroq) {
         console.log(`Transcribing via Groq whisper-large-v3 (${fileSizeMB.toFixed(1)} MB)...`);
         transcriptResult = await transcribeWithGroq(usedPath);
-      } else if (useGemini) {
+      } else {
         console.log(`Transcribing via Gemini 2.5 Flash + Groq timing (${fileSizeMB.toFixed(1)} MB)...`);
         transcriptResult = await transcribeWithGemini(usedPath);
-      } else {
-        console.log(`Transcribing via OpenAI Whisper API (${fileSizeMB.toFixed(1)} MB)...`);
-        transcriptResult = await transcribeWithAPI(usedPath);
       }
     } catch (e) {
       console.error(`Transcription error: ${e.message}`);
@@ -471,7 +453,7 @@ async function main() {
     transcript_words: transcriptWordTimes,
     metadata: {
       processed_at: new Date().toISOString(),
-      transcription_mode: useLocal ? `local:${localModel}` : useGroq ? 'groq:whisper-large-v3' : useGemini ? 'gemini:2.5-flash' : 'openai:whisper-1',
+      transcription_mode: useGroq ? 'groq:whisper-large-v3' : 'gemini:2.5-flash',
       transcript_word_count: wordCount,
       quran_references_found: allQuranRefs.length,
       quran_references_matched: matchedCount,

@@ -1,13 +1,11 @@
-// Transcription (split out of pipeline.js): audio preprocessing, OpenAI / Groq / Gemini / local
-// Whisper, and the word timings.
+// Transcription (split out of pipeline.js): audio preprocessing, Groq Whisper and Gemini, and the
+// word timings.
 
 import 'dotenv/config';
-import { readFileSync, createReadStream, unlinkSync } from 'fs';
+import { readFileSync, unlinkSync } from 'fs';
 import { spawn } from 'child_process';
-import { fileURLToPath } from 'url';
 import path from 'path';
 import os from 'os';
-import OpenAI from 'openai';
 import Groq from 'groq-sdk';
 import { GoogleGenAI } from '@google/genai';
 import { normalizeArabic } from './arabic.js';
@@ -15,11 +13,8 @@ import { normalizeArabic } from './arabic.js';
 // Fallback placeholder keys so importing this module (e.g. server.js live mode)
 // never throws when an optional provider key is absent — the API call itself
 // will fail with a clear auth error if that provider is actually used.
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || 'not-set' });
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || 'not-set' });
 const gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || 'not-set' });
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // ---- Audio preprocessing ----------------------------------------------------
 
@@ -70,15 +65,6 @@ function preprocessAudio(audioPath) {
 }
 
 // ---- Transcription backends -------------------------------------------------
-
-async function transcribeWithAPI(audioPath) {
-  const response = await openai.audio.transcriptions.create({
-    file: createReadStream(audioPath),
-    model: 'whisper-1',
-    language: 'ar',
-  });
-  return response.text;
-}
 
 // Groq hosts whisper-large-v3 for free — typically ~10s for a 20-min file
 // Groq's free tier caps audio-seconds per hour, and a run now makes several timing requests.
@@ -473,49 +459,10 @@ Formatting rules — follow these exactly:
   return { text: geminiText, segments, words: [], groqText };
 }
 
-// Shells out to transcribe_local.py which runs faster-whisper.
-// stdout carries only the transcript; progress goes to stderr (visible in terminal).
-async function transcribeLocal(audioPath, modelName) {
-  const scriptPath = path.join(__dirname, 'transcribe_local.py');
-  return new Promise((resolve, reject) => {
-    const py = spawn('python3', [scriptPath, path.resolve(audioPath), modelName]);
-    let stdout = '';
-    let stderr = '';
-    py.stdout.on('data', d => { stdout += d; });
-    py.stderr.on('data', d => {
-      stderr += d;
-      process.stderr.write(d); // stream model-loading progress to the terminal
-    });
-    py.on('close', code => {
-      if (code !== 0) {
-        reject(new Error(
-          `Local transcription failed (exit ${code}).\n` +
-          'Make sure faster-whisper is installed: pip install faster-whisper'
-        ));
-      } else {
-        try {
-          const parsed = JSON.parse(stdout.trim());
-          resolve({ text: parsed.text, segments: parsed.segments ?? [] });
-        } catch {
-          resolve({ text: stdout.trim(), segments: [] });
-        }
-      }
-    });
-    py.on('error', err => {
-      reject(new Error(
-        `Could not launch python3: ${err.message}\n` +
-        'Make sure python3 is in your PATH.'
-      ));
-    });
-  });
-}
-
 export {
   preprocessAudio,
-  transcribeLocal,
   transcribeWithGroq,
   transcribeWithGemini,
-  transcribeWithAPI,
   SILENCE_PREPEND_SEC,
   transcribeWithGroqWindowed,
   alignWordTimestamps,
