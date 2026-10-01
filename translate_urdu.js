@@ -27,6 +27,8 @@ import { join } from 'path';
 import { buildReaderView, normalizeArabic } from './pipeline.js';
 
 
+// Opus 5.5 at high: on the hard parts of 25 Sep (1 Oct 2026) its first draft needed the fewest
+// fixes; Sonnet 5.5 cost the same in practice (twice the output, more review rounds) and slipped.
 const MODEL = 'claude-opus-5-5';
 const PRICE_IN = 4 / 1e6, PRICE_OUT = 20 / 1e6; // USD per token, claude-opus-5-5
 // A request the model declines (the du'a names enemies: Houthis, Zionists) is re-run on the
@@ -57,11 +59,11 @@ const SYSTEM = `You translate an Arabic Friday khutbah (sermon) into Urdu for wo
 
 - Translate every chunk completely and faithfully: every command, phrase, name and condition the imam says ("اتقوا الله" must appear as its Urdu). Do not summarise, explain or add.
 - Translate exactly the words of each chunk, so that the chunks read on from one another; never move words into a neighbouring chunk.
-- Use the formal religious Urdu of Urdu khutbahs and translations: اللہ تعالیٰ، نبی کریم صلی اللہ علیہ وسلم، رضی اللہ عنہ، تقویٰ، نماز، زکوٰۃ.
+- Write the Urdu a good khateeb in Pakistan speaks from the minbar: respectful and religious, but in the words ordinary worshippers use at home and in the bazaar, so that someone with no schooling in Arabic or Persian follows every sentence when it is read aloud. Keep the religious terms and honorifics everyone knows (اللہ تعالیٰ، نبی کریم صلی اللہ علیہ وسلم، رضی اللہ عنہ، تقویٰ، نماز، زکوٰۃ). For everything else choose the everyday word over the bookish Arabic or Persian one: ایمان والے بھائیو (not ایمانی بھائیو) for إخوة الإيمان, جائیداد (not املاک) for property, دین و دنیا کے کام (not مصلحتیں) for مصالح الدين والدنيا. It stays a khutbah: dignified, never slang, and no English word where an Urdu one is common.
 - Put a Quran verse or a hadith that the imam quotes in quotation marks “…”, translated faithfully.
 - The transcript may have speech-recognition slips; translate the evident meaning.
 
-Chunks are cut at the imam's pauses, so one sentence often runs across two chunks. You are shown the chunks before and after as context: read them to see where each sentence really ends, and make the Urdu of neighbouring chunks join into one grammatical sentence when read in order. Never end a chunk with a full stop (۔) or begin it as a new sentence when the Arabic sentence carries on into the next chunk; a question that spans chunks keeps its question mark at its true end.
+Chunks are cut at the imam's pauses, so one sentence often runs across two chunks. You are shown the chunks before and after as context: read them to see where each sentence really ends, and make the Urdu of neighbouring chunks join into one grammatical sentence when read in order. Never end a chunk with a full stop (۔) or begin it as a new sentence when the Arabic sentence carries on into the next chunk; a question that spans chunks keeps its question mark at its true end. Keep natural Urdu word order across the join: never invert a clause to fit the cut ("اور چونکہ یہ / نعمت بہت عظیم ہے", not "اور چونکہ بہت بڑی ہے / یہ عظیم نعمت").
 
 Register and wording, as in a published Urdu khutbah:
 - Allah is spoken of in the singular: "جو بادشاہ ہے، احسان فرمانے والا ہے" (not "ہیں"). His favours are "احسان فرمایا" (never "احسان جتلایا", which sounds like taunting).
@@ -227,7 +229,7 @@ if (!extras) {
     system: 'You prepare the Urdu edition of a khutbah reader for worshippers in Pakistan and India. Reply with JSON only.',
     output_config: { effort: 'high', format: { type: 'json_schema', schema: EXTRAS_SCHEMA } },
     messages: [{ role: 'user', content: [
-      `Translate into natural, formal religious Urdu (اللہ تعالیٰ، نبی کریم صلی اللہ علیہ وسلم، رضی اللہ عنہ):\n"share_summary" (a two-sentence WhatsApp message): ${result.share_summary ?? ''}\n"summary": ${result.summary ?? ''}`,
+      `Translate into the everyday, respectful Urdu a khateeb in Pakistan speaks: the religious terms and honorifics everyone knows (اللہ تعالیٰ، نبی کریم صلی اللہ علیہ وسلم، رضی اللہ عنہ), otherwise the words ordinary worshippers use, not bookish Urdu:\n"share_summary" (a two-sentence WhatsApp message): ${result.share_summary ?? ''}\n"summary": ${result.summary ?? ''}`,
       `For each hadith below, give "narrator": the Companion's name as Urdu readers know it, with رضی اللہ عنہ / عنہا (for a family chain such as "Amr ibn Shu'ayb from his father from his grandfather", write that chain in Urdu). And give "from_companion": copied character for character from its Urdu text, the part that starts where the Companion (or the Prophet ﷺ, if the Companion is not named) is first mentioned, leaving out the chain of narrators before; the whole text if it already starts there, "" if it has no Urdu text.`,
       JSON.stringify(hadithList, null, 1),
     ].join('\n\n') }],
@@ -267,6 +269,10 @@ result.urdu = {
   verses, verse_source: QURAN_UR,
   hadith, hadith_source: 'fawazahmed0/hadith-api (urd-*)',
   usage: { calls: usage.calls + (reuse ? result.urdu.usage?.calls ?? 0 : 0),
+    input_tokens: usage.input_tokens + (reuse ? result.urdu.usage?.input_tokens ?? 0 : 0),
+    output_tokens: usage.output_tokens + (reuse ? result.urdu.usage?.output_tokens ?? 0 : 0),
+    input_usd: Math.round(usage.input_tokens * PRICE_IN * 10000) / 10000,
+    output_usd: Math.round(usage.output_tokens * PRICE_OUT * 10000) / 10000,
     cost_usd: Math.round((prevCost + usage.input_tokens * PRICE_IN + usage.output_tokens * PRICE_OUT) * 10000) / 10000 },
 };
 

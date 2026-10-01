@@ -3,7 +3,8 @@
 // block against the imam's Arabic, with the English as a second reference, and corrects what a
 // careful bilingual editor would: meaning dropped or added, a sentence broken where the imam's
 // pause cut it into two blocks, the wrong register for Allah or the Prophet ﷺ, wording an Urdu
-// reader would find odd, a term spelled two ways.
+// reader would find odd, a bookish word where people say an everyday one (ایمانی بھائیو for
+// ایمان والے بھائیو), a term spelled two ways.
 //
 // Unlike review_blocks.js, which only reports, this stage applies its corrections, so the Urdu
 // stays autonomous — no person edits it. High and medium issues are rewritten; low ones are
@@ -23,6 +24,8 @@ import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { spawnSync } from 'child_process';
 
+// Opus 5.5 at high: on the hard parts of 25 Sep (1 Oct 2026) its first draft needed the fewest
+// fixes; Sonnet 5.5 cost the same in practice (twice the output, more review rounds) and slipped.
 const MODEL = 'claude-opus-5-5';
 const PRICE_IN = 4 / 1e6, PRICE_OUT = 20 / 1e6; // USD per token, claude-opus-5-5
 const FALLBACK = { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' };
@@ -54,13 +57,14 @@ Correct what a careful bilingual scholar-editor would:
 - omission: meaning in the Arabic that the Urdu leaves out (a word such as "their honour", a phrase, a command, a name).
 - addition: meaning in the Urdu that the Arabic does not have.
 - mistranslation: Urdu that says something different from the Arabic.
-- boundary: read in order, the Urdu of neighbouring chunks does not join into one grammatical sentence where the Arabic sentence runs on (a full stop too early, a lost "جس نے", a question split so that it loses its question mark, a sentence left without its verb).
+- boundary: read in order, the Urdu of neighbouring chunks does not join into one grammatical sentence with natural word order where the Arabic sentence runs on (a full stop too early, a lost "جس نے", a question split so that it loses its question mark, a sentence left without its verb).
 - register: the wrong tone for Allah (He is spoken of in the singular: "جو بادشاہ ہے"; His favour is "احسان فرمایا", never "احسان جتلایا"), for the Prophet ﷺ or the Companions, or an honorific doubled.
 - unnatural: wording an educated Urdu reader would find odd, obscure or misleading (a rare Arabic loan where an everyday word exists; جرأت, courage, for an audacious crime, which is جسارت).
 - inconsistent: one word or name spelled or rendered two ways in the khutbah.
+- bookish: a literary Arabic or Persian word or construction where a khateeb speaking to ordinary worshippers in Pakistan would use an everyday one (ایمانی بھائیو where people say ایمان والے بھائیو; املاک for جائیداد; مصلحتیں where people say دین و دنیا کے کام). The religious terms and honorifics everyone knows (اللہ تعالیٰ، تقویٰ، نماز، صلی اللہ علیہ وسلم) stay. Do not make it casual: a khutbah stays dignified, never slang, and no English word where an Urdu one is common.
 Leave the translator's wording alone where it is correct and natural: change only what is wrong. The transcript can contain speech-recognition slips; do not flag them unless the Urdu follows a slip into a wrong meaning. When the imam repeats a phrase while speaking, rendering it once is correct. Keep quoted verses and hadith in “…”.
 
-Severity: high, the meaning is wrong or missing; medium, a broken sentence, the wrong register, or wording a reader would stumble on; low, a matter of taste.
+Severity: high, the meaning is wrong or missing; medium, a broken sentence, the wrong register, wording a reader would stumble on, or a bookish word a listener would not use; low, a matter of taste.
 
 For each chunk that needs a change, return the chunk number, its issues, and "corrected_urdu": the whole corrected Urdu of that chunk. A correction stays within its chunk, except that it may move the few words needed to make a sentence that runs across two chunks read correctly (then correct both chunks). Most chunks need no change: return only those that do.`;
 
@@ -78,7 +82,7 @@ const SCHEMA = {
             items: {
               type: 'object',
               properties: {
-                type: { type: 'string', enum: ['omission', 'addition', 'mistranslation', 'boundary', 'register', 'unnatural', 'inconsistent', 'other'] },
+                type: { type: 'string', enum: ['omission', 'addition', 'mistranslation', 'boundary', 'register', 'unnatural', 'bookish', 'inconsistent', 'other'] },
                 severity: { type: 'string', enum: ['high', 'medium', 'low'] },
                 problem: { type: 'string' },
               },
@@ -159,8 +163,9 @@ for (let round = 1; round <= ROUNDS && toReview.length; round++) {
   toReview = [...changed].sort((a, b) => a - b);
 }
 
-usage.cost_usd = Math.round((usage.input_tokens * PRICE_IN + usage.cache_read_input_tokens * PRICE_IN * 0.1
-  + usage.output_tokens * PRICE_OUT) * 10000) / 10000;
+usage.input_usd = Math.round((usage.input_tokens * PRICE_IN + usage.cache_read_input_tokens * PRICE_IN * 0.1) * 10000) / 10000;
+usage.output_usd = Math.round(usage.output_tokens * PRICE_OUT * 10000) / 10000;
+usage.cost_usd = Math.round((usage.input_usd + usage.output_usd) * 10000) / 10000;
 const corrected = urdu.filter((u, i) => u !== before[i]).length;
 result.urdu.chunk_translations = urdu;
 result.urdu.review = { model: MODEL, reviewed_at: new Date().toISOString(), rounds: ROUNDS, chunks_corrected: corrected, cost_usd: usage.cost_usd };
