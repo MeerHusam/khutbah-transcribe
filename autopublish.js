@@ -4,6 +4,8 @@
 //
 //   node autopublish.js <recording> [--masjid "Masjid Name"] [--single] [--date 2026-10-02]
 //        [--job <upload id>] [--no-push]
+//   node autopublish.js --resume outputs/<folder> [--masjid …] [--no-push]
+//        after a failed run: the steps already done are kept (the voices come from the cache)
 //
 // Steps, each timed (the slow local ones run beside the API calls):
 //   1. the recording into audio_files/ (streamable), then pipeline.js --gemini: the Arabic,
@@ -13,7 +15,8 @@
 //      times, his delivery and the recording with the hall's echo taken out (clean_audio.py)
 //   4. verse_excerpts.js: a verse he recited only in part shows (and is voiced) only in part
 //   5. the voices, side by side: Urdu (Orus, a direction per sentence, a passage at a time) and
-//      English (Charon); then word timing and his recitation before each verse
+//      English (Charon); each then gets its word times (the Urdu's come with its voice) and his
+//      recitation before each verse
 //   6. publish.js (the checks, the test set, the site entry: one page with English and Urdu),
 //      then commit and push to main; Render deploys it, and the page is checked live.
 // With --job, every stage is reported to the upload page (/admin/uploads/<id>/status).
@@ -36,18 +39,22 @@ const PY_CLEAN = join(ROOT, '.venv-clean', 'bin', 'python');
 const argv = process.argv.slice(2);
 const opt = (f, d = null) => (argv.includes(f) ? argv[argv.indexOf(f) + 1] : d);
 const flag = f => argv.includes(f);
-const input = argv[0];
-if (!input || input.startsWith('--') || !existsSync(input)) {
-  console.error('usage: node autopublish.js <recording> [--masjid "Name"] [--single] [--date YYYY-MM-DD] [--job <id>] [--no-push]');
+const resume = opt('--resume')?.replace(/\/+$/, '');
+const input = resume ?? argv[0];
+if (!input || input.startsWith('--') || !existsSync(input) || (resume && !existsSync(join(resume, 'result.json')))) {
+  console.error('usage: node autopublish.js <recording> [--masjid "Name"] [--single] [--date YYYY-MM-DD] [--job <id>] [--no-push]\n'
+    + '       node autopublish.js --resume outputs/<folder> [--masjid "Name"] [--no-push]');
   process.exit(1);
 }
+// A resumed run keeps its link and name (outputs/<time>_khutbah-<slug>).
+const resumedSlug = resume ? basename(resume).replace(/^[^_]*_khutbah-/, '') : null;
 const jobId = opt('--job');
 const single = flag('--single');
 const push = !flag('--no-push');
 
 // ── Names ──────────────────────────────────────────────────────────────────────
 const riyadhDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-const dateISO = opt('--date', riyadhDate);
+const dateISO = opt('--date', resumedSlug?.slice(0, 10) ?? riyadhDate);
 const dateText = new Date(`${dateISO}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 const masjidIn = (opt('--masjid') || '').trim();
 const home = !masjidIn || /ma'?ather|معذر/i.test(masjidIn);
@@ -55,8 +62,8 @@ const masjid = home ? HOME.masjid : masjidIn;
 const masjidSlug = masjidIn.normalize('NFKD').replace(/[^\x00-\x7f]/g, '').toLowerCase().replace(/\b(masjid|mosque|jami|jamia)\b/g, '')
   .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);
 const serverJs = () => readFileSync(join(ROOT, 'server.js'), 'utf8');
-let slug = home ? dateISO : `${dateISO}-${masjidSlug || 'masjid'}`;
-for (let n = 2; serverJs().includes(`slug: '${slug}'`); n++) slug = `${home ? dateISO : `${dateISO}-${masjidSlug || 'masjid'}`}-${n}`;
+let slug = resumedSlug ?? (home ? dateISO : `${dateISO}-${masjidSlug || 'masjid'}`);
+for (let n = 2; !resume && serverJs().includes(`slug: '${slug}'`); n++) slug = `${home ? dateISO : `${dateISO}-${masjidSlug || 'masjid'}`}-${n}`;
 const name = `khutbah-${slug}`;
 
 // ── Log, report, run ───────────────────────────────────────────────────────────
@@ -102,20 +109,33 @@ function run(label, cmd, args) {
 
 async function main() {
   log(`${input} → /${slug} (${masjid}, ${dateText}${single ? ', one khutbah' : ''})`);
-  await report('transcribing', { slug, message: 'writing down the Arabic' });
+  await report('transcribing', { slug });
+
+  // A step whose output is already there (a resumed run) is not run again.
+  const step = (done, label, cmd, args) => {
+    if (resume && done()) { log(`= ${label} (kept)`); return Promise.resolve(); }
+    return run(label, cmd, args);
+  };
+  const has = file => existsSync(join(ROOT, F ?? '', file));
 
   // 1. The recording, streamable: an mp4/m4a gets its index (moov) first, anything else AAC.
-  const ext = extname(input).slice(1).toLowerCase();
-  const audioName = ['m4a', 'mp4', 'mov', 'mp3'].includes(ext) ? `${name}.${ext === 'mp3' ? 'mp3' : 'm4a'}` : `${name}.m4a`;
+  let audioName, F = resume ?? null;
+  if (resume) {
+    audioName = ['m4a', 'mp3'].map(e => `${name}.${e}`).find(f => existsSync(join(ROOT, 'audio_files', f)));
+    if (!audioName) throw new Error(`audio_files/${name}.m4a is not there to resume from`);
+  } else {
+    const ext = extname(input).slice(1).toLowerCase();
+    audioName = ['m4a', 'mp4', 'mov', 'mp3'].includes(ext) ? `${name}.${ext === 'mp3' ? 'mp3' : 'm4a'}` : `${name}.m4a`;
+    const copy = ['m4a', 'mp4', 'mov', 'mp3'].includes(ext);
+    await run('audio', 'ffmpeg', ['-v', 'error', '-y', '-i', input, ...(copy ? ['-c', 'copy'] : ['-ac', '1', '-c:a', 'aac', '-b:a', '96k']),
+      ...(ext === 'mp3' ? [] : ['-movflags', '+faststart']), join('audio_files', audioName)]);
+    const before = new Set(readdirSync(join(ROOT, 'outputs')));
+    await run('pipeline (Arabic, English, cards)', 'node', ['pipeline.js', join('audio_files', audioName), '--gemini', ...(single ? ['--single'] : [])]);
+    const made = readdirSync(join(ROOT, 'outputs')).filter(f => !before.has(f) && f.endsWith(`_${name}`));
+    if (made.length !== 1) throw new Error(`expected one new outputs/*_${name} folder, found ${made.length}`);
+    F = join('outputs', made[0]);
+  }
   const audioOut = join('audio_files', audioName);
-  const copy = ['m4a', 'mp4', 'mov', 'mp3'].includes(ext);
-  await run('audio', 'ffmpeg', ['-v', 'error', '-y', '-i', input, ...(copy ? ['-c', 'copy'] : ['-ac', '1', '-c:a', 'aac', '-b:a', '96k']),
-    ...(ext === 'mp3' ? [] : ['-movflags', '+faststart']), audioOut]);
-  const before = new Set(readdirSync(join(ROOT, 'outputs')));
-  await run('pipeline (Arabic, English, cards)', 'node', ['pipeline.js', audioOut, '--gemini', ...(single ? ['--single'] : [])]);
-  const made = readdirSync(join(ROOT, 'outputs')).filter(f => !before.has(f) && f.endsWith(`_${name}`));
-  if (made.length !== 1) throw new Error(`expected one new outputs/*_${name} folder, found ${made.length}`);
-  const F = join('outputs', made[0]);
   const result = JSON.parse(readFileSync(join(ROOT, F, 'result.json'), 'utf8'));
 
   // 2. Title.
@@ -132,20 +152,20 @@ async function main() {
   await report('english', { title, message: title });
 
   // 3. Urdu (API) beside the imam's timing and the cleaned recording (local).
-  await report('urdu', { message: 'translating and reviewing' });
+  await report('urdu');
   let cleanAudio = null;
   await Promise.all([
     (async () => {
-      await run('Urdu translation', 'node', ['translate_urdu.js', F]);
-      await run('Urdu review', 'node', ['review_urdu.js', F]);
+      await step(() => result.urdu, 'Urdu translation', 'node', ['translate_urdu.js', F]);
+      await step(() => has('review_ur.json'), 'Urdu review', 'node', ['review_urdu.js', F]);
     })(),
     (async () => {
-      await run('imam word timing', 'node', ['align_imam.js', F, audioOut]);
-      await run('imam delivery', PY_ALIGN, ['imam_delivery.py', F, audioOut]);
+      await step(() => has('words_imam.json'), 'imam word timing', 'node', ['align_imam.js', F, audioOut]);
+      await step(() => has('delivery_imam.json'), 'imam delivery', PY_ALIGN, ['imam_delivery.py', F, audioOut]);
       try {
         const wav = join('audio_files', `${name}-clean.wav`);
-        await run('echo removal', PY_CLEAN, ['clean_audio.py', audioOut, F, wav]);
-        await run('cleaned recording', 'ffmpeg', ['-v', 'error', '-y', '-i', wav, '-af', 'loudnorm=I=-17', '-ac', '1', '-c:a', 'aac', '-b:a', '128k',
+        await step(() => existsSync(join(ROOT, wav)), 'echo removal', PY_CLEAN, ['clean_audio.py', audioOut, F, wav]);
+        await step(() => existsSync(join(ROOT, 'audio_files', `${name}-clean.m4a`)), 'cleaned recording', 'ffmpeg', ['-v', 'error', '-y', '-i', wav, '-af', 'loudnorm=I=-17', '-ac', '1', '-c:a', 'aac', '-b:a', '128k',
           '-movflags', '+faststart', join('audio_files', `${name}-clean.m4a`)]);
         cleanAudio = `${name}-clean.m4a`;
       } catch (e) { log(`echo removal skipped: ${e.message}`); }
@@ -156,30 +176,36 @@ async function main() {
   await run('verse excerpts', 'node', ['verse_excerpts.js', F]);
 
   // 5. Voices, then word timing and the recitation.
+  //    Each language on its own: the Urdu track comes with its word times (from the passage
+  //    split), so while it is still being voiced the English one can already be aligned.
   await report('voices', { message: 'Urdu (Orus) and English (Charon)' });
-  await Promise.all([
-    run('Urdu voice', 'node', ['tts.js', F, '--engine', 'gemini', '--voice', 'Orus', '--lang', 'ur', '--direct', '--tempo', '1.15']),
-    run('English voice', 'node', ['tts.js', F, '--engine', 'gemini', '--lang', 'en', '--tempo', '1.15']),
-  ]);
-  await report('timing', { message: 'word by word' });
   const recitation = cleanAudio ? join('audio_files', `${name}-clean.wav`) : audioOut;
-  for (const lang of ['ur', 'en']) {
+  let voiced = 0;
+  const voice = async (lang, label, args) => {
+    await run(`${label} voice`, 'node', ['tts.js', F, '--engine', 'gemini', '--lang', lang, ...args, '--tempo', '1.15']);
+    if (++voiced === 2) await report('timing');
     const m = JSON.parse(readFileSync(join(ROOT, F, `tts_${lang}.json`), 'utf8'));
     if (!m.blocks.every(b => b.words?.length)) await run(`${lang} word timing`, PY_ALIGN, ['align_words.py', F, lang]);
     await run(`${lang} recitation`, 'node', ['recite.js', F, lang, recitation, '--lift', '2']);
-  }
+  };
+  await Promise.all([
+    voice('ur', 'Urdu', ['--voice', 'Orus', '--direct']),
+    voice('en', 'English', []),
+  ]);
 
   // 6. Publish: checks, test set, site entry (one page), then commit and push.
   await report('publishing', { message: push ? 'checks, then the site' : 'checks (not pushing: --no-push)' });
   await run('checks and site entry', 'node', ['publish.js', audioOut, '--from-folder', F, '--keep-audio', '--slug', slug, '--title', title, '--date', dateText,
     '--name', name, '--masjid', masjid, ...(home ? ['--masjid-ar', HOME.masjid_ar, '--maps-url', HOME.maps_url] : ['--no-feature']),
     '--page', 'reader-ur.html', ...(cleanAudio ? ['--audio', cleanAudio] : []), ...(single ? ['--single'] : [])]);
+  // The page plays the cleaned recording; the original then stays on this Mac only (half the push).
   let gi = readFileSync(join(ROOT, '.gitignore'), 'utf8');
+  if (cleanAudio) gi = gi.split('\n').filter(l => l !== `!audio_files/${audioName}`).join('\n');
   for (const line of [cleanAudio && `!audio_files/${cleanAudio}`, `!${F}/tts_ur.mp3`, `!${F}/tts_en.mp3`].filter(Boolean)) {
     if (!gi.includes(line)) gi = gi.trimEnd() + '\n' + line + '\n';
   }
   writeFileSync(join(ROOT, '.gitignore'), gi);
-  const paths = [audioOut, F, 'server.js', '.gitignore', 'tests/khutbahs.json', ...(cleanAudio ? [join('audio_files', cleanAudio)] : [])];
+  const paths = [cleanAudio ? join('audio_files', cleanAudio) : audioOut, F, 'server.js', '.gitignore', 'tests/khutbahs.json'];
   const link = `${SITE}/${slug}`;
   const summary = times.map(([l, s]) => `${l} ${s}s`).join(', ');
   if (!push) {
