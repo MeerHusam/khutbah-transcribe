@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # align_words.py — When each word of a voice track is spoken, for word-by-word follow-along.
 #
-#   .venv-align/bin/python align_words.py outputs/<folder> ur      (or en)
-#   .venv-align/bin/python align_words.py -  < job.json               (align_imam.js: the imam)
+#   .venv-align/bin/python voice/align_words.py outputs/<folder> ur      (or en)
+#   .venv-align/bin/python voice/align_words.py -  < job.json               (align_imam.js: the imam)
 #
 # Reads tts_<lang>.mp3 and tts_<lang>.json (tts.js), and adds to each block of the JSON
 #   "words": [[word, start, end], ...]   seconds into the mp3, one entry per word of its text.
@@ -37,7 +37,7 @@ import onnxruntime
 import uroman
 from ctc_forced_aligner import Tokenizer, generate_emissions, get_alignments, get_spans, text_normalize
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent
 MODEL = ROOT / 'models' / 'mms_fa' / 'model.onnx'
 SR = 16000
 FRAME = 0.02  # seconds per model frame (wav2vec2: 320 samples at 16 kHz)

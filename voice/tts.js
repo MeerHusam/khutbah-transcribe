@@ -18,7 +18,7 @@
 // Writes tts_en.mp3 (the track) and tts_en.json (voice, and each block's start/end in the
 // track, with its opening Arabic words so a rebuilt reader cannot be paired with stale times).
 //
-// Usage: node tts.js outputs/<folder> [--engine kokoro|chatterbox] [--limit N] [--dry-run]
+// Usage: node voice/tts.js outputs/<folder> [--engine kokoro|chatterbox] [--limit N] [--dry-run]
 //   kokoro:     [--voice am_michael] [--speed 1]
 //   chatterbox: --ref audio_files/voice_ref/<clip>.wav [--exaggeration 0.5] [--cfg 0.5]
 //   gemini:     [--voice Charon] [--direct]: a direction for every sentence (voice_directions.js,
@@ -37,12 +37,12 @@ import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs';
 import { join, dirname, resolve, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
-import { loadResult } from './core/reader_chunks.js';
+import { loadResult } from '../core/reader_chunks.js';
 import { directions } from './voice_directions.js';
-import './public/recited.js';
+import '../public/recited.js';
 
 const { recitedSpans } = globalThis.KTRecited;
-const ROOT = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MODEL_DIR = join(ROOT, 'models', 'kokoro');
 
 const args = process.argv.slice(2);
@@ -87,7 +87,7 @@ if (!folder || !existsSync(join(folder, 'result.json')) || !['kokoro', 'chatterb
     || !['en', 'ur'].includes(lang) || (lang === 'ur' && !['elevenlabs', 'omnivoice', 'gemini'].includes(engine) && !dryRun)
     || (['chatterbox', 'omnivoice'].includes(engine) && !dryRun && !(ref && existsSync(ref)))
     || (engine === 'elevenlabs' && !dryRun && !elevenKey) || (direct && engine !== 'gemini')) {
-  console.error('Usage: node tts.js outputs/<folder> [--engine kokoro|chatterbox|elevenlabs|omnivoice] [--lang en|ur] [--limit N] [--tempo 1.15] [--dry-run]\n'
+  console.error('Usage: node voice/tts.js outputs/<folder> [--engine kokoro|chatterbox|elevenlabs|omnivoice] [--lang en|ur] [--limit N] [--tempo 1.15] [--dry-run]\n'
     + '  kokoro: [--voice am_michael] [--speed 1]   chatterbox: --ref <clip.wav> [--exaggeration 0.5] [--cfg 0.5]\n'
     + '  elevenlabs (ELEVEN_LABS_API_KEY in .env): [--model eleven_v3|eleven_flash_v2] [--voice daniel] [--max-credits 2000]\n'
     + '  omnivoice: --ref <clip.wav> (its words in <clip>.txt)   Urdu: elevenlabs (eleven_v3), gemini or omnivoice\n'
@@ -274,14 +274,14 @@ const job = {
       voices: join(MODEL_DIR, 'voices-v1.0.bin'),
       voice, speed,
       lang: voice.startsWith('b') ? 'en-gb' : 'en-us',
-      lexicon: join(ROOT, 'tts_lexicon.txt'),
+      lexicon: join(ROOT, 'voice', 'tts_lexicon.txt'),
     },
     chatterbox: { ref: resolve(ref ?? ''), exaggeration, cfg_weight: cfgWeight },
     omnivoice: {
       ref: resolve(ref ?? ''),
       ref_text: existsSync((ref ?? '').replace(/\.[^.]+$/, '.txt')) ? readFileSync(ref.replace(/\.[^.]+$/, '.txt'), 'utf8').trim() : undefined,
       language: lang,
-      ...(lang === 'en' ? { lexicon: join(ROOT, 'tts_lexicon.txt') } : {}),
+      ...(lang === 'en' ? { lexicon: join(ROOT, 'voice', 'tts_lexicon.txt') } : {}),
     },
     gemini: { model, voice, style: (direct ? GEMINI_BASE : GEMINI_STYLE)[lang], concurrency: 4,
       ...(direct ? { passages: PASSAGE_CHARS, lang } : {}) },
@@ -290,7 +290,7 @@ const job = {
       // Whole blocks: the model reads a paragraph with better flow than sentence by sentence.
       whole_blocks: 3000,
       // Only Flash v2 honours inline <phoneme> tags; v3 is left to say names its own way.
-      ...(lang === 'en' && model === 'eleven_flash_v2' ? { lexicon: join(ROOT, 'tts_lexicon.txt') } : {}),
+      ...(lang === 'en' && model === 'eleven_flash_v2' ? { lexicon: join(ROOT, 'voice', 'tts_lexicon.txt') } : {}),
     },
   }[engine],
 };
@@ -310,7 +310,7 @@ console.log(`Speaking ${blocks.length} blocks (${chars} characters) with ${{
   gemini: `Gemini ${model} (${voice}, ${lang})`,
 }[engine]}...`);
 const began = Date.now();
-const py = spawnSync(python, [join(ROOT, script)], {
+const py = spawnSync(python, [join(ROOT, 'voice', script)], {
   cwd: ROOT, input: JSON.stringify(job),
   encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['pipe', 'pipe', 'inherit'],
 });

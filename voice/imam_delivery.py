@@ -2,7 +2,7 @@
 # imam_delivery.py — How the imam delivered each block, measured from his recording, so the voice
 # can follow him: where he is raised and stirred, and where he is soft (tts.js --direct).
 #
-#   .venv-align/bin/python imam_delivery.py outputs/<folder> <recording>
+#   .venv-align/bin/python voice/imam_delivery.py outputs/<folder> <recording>
 #
 # Reads words_imam.json (align_imam.js) and writes delivery_imam.json: for each block its
 # loudness (speech frames only), pitch height and pitch movement (semitones) and pace (words a

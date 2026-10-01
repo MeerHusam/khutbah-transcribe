@@ -5,7 +5,7 @@
 # or tail, so the imam's voice itself is left as it was (a neural cleaner, VoiceFixer, took the
 # reverb out too but left him muffled).
 #
-#   .venv-clean/bin/python clean_audio.py <recording> outputs/<folder> <out.wav>
+#   .venv-clean/bin/python voice/clean_audio.py <recording> outputs/<folder> <out.wav>
 #
 # 1. The room, measured in the recording itself: the background (fans, sound system,
 #    congregation) as a spectrum from the longest silence (between the two khutbahs, where the

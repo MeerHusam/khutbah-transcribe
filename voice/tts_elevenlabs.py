@@ -26,7 +26,7 @@ import numpy as np
 from tts_common import WORD, load_lexicon, lookup, read_job, run
 
 URL = 'https://api.elevenlabs.io/v1/text-to-speech/{voice}?output_format=pcm_24000'
-CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.tts_cache', 'elevenlabs')
+CACHE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.tts_cache', 'elevenlabs')
 
 
 def with_phonemes(text, lex):

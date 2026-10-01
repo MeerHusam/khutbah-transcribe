@@ -2,7 +2,7 @@
 // align_imam.js — When each word of the imam's recording is spoken, for word-by-word
 // follow-along in the Arabic while he plays.
 //
-//   node align_imam.js outputs/<folder> audio_files/<recording>.m4a
+//   node voice/align_imam.js outputs/<folder> audio_files/<recording>.m4a
 //
 // Writes words_imam.json in the folder: each reader block's Arabic with [[word, start, end],
 // ...] in seconds of the recording. The aligner is align_words.py (Meta's MMS model, offline,
@@ -14,12 +14,12 @@ import { spawnSync } from 'child_process';
 import { writeFileSync, existsSync } from 'fs';
 import { join, dirname, basename, resolve } from 'path';
 import { fileURLToPath } from 'url';
-import { loadResult } from './core/reader_chunks.js';
+import { loadResult } from '../core/reader_chunks.js';
 
-const ROOT = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const [folder, audio] = process.argv.slice(2);
 if (!folder || !audio || !existsSync(audio)) {
-  console.error('usage: node align_imam.js outputs/<folder> <recording>');
+  console.error('usage: node voice/align_imam.js outputs/<folder> <recording>');
   process.exit(1);
 }
 
@@ -34,7 +34,7 @@ chunks.forEach((c, i) => {
 });
 
 console.log(`Aligning ${blocks.length} blocks of ${basename(audio)} (${(duration / 60).toFixed(1)} min)...`);
-const py = spawnSync(join(ROOT, '.venv-align', 'bin', 'python'), [join(ROOT, 'align_words.py'), '-'], {
+const py = spawnSync(join(ROOT, '.venv-align', 'bin', 'python'), [join(ROOT, 'voice', 'align_words.py'), '-'], {
   input: JSON.stringify({ audio: resolve(audio), lang: 'ar', pad: 0.8, blocks: blocks.map(({ i, start, end, text }) => ({ i, start, end, text })) }),
   encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['pipe', 'pipe', 'inherit'],
 });

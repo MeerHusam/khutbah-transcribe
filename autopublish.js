@@ -160,11 +160,11 @@ async function main() {
       await step(() => has('review_ur.json'), 'Urdu review', 'node', ['review_urdu.js', F]);
     })(),
     (async () => {
-      await step(() => has('words_imam.json'), 'imam word timing', 'node', ['align_imam.js', F, audioOut]);
-      await step(() => has('delivery_imam.json'), 'imam delivery', PY_ALIGN, ['imam_delivery.py', F, audioOut]);
+      await step(() => has('words_imam.json'), 'imam word timing', 'node', ['voice/align_imam.js', F, audioOut]);
+      await step(() => has('delivery_imam.json'), 'imam delivery', PY_ALIGN, ['voice/imam_delivery.py', F, audioOut]);
       try {
         const wav = join('audio_files', `${name}-clean.wav`);
-        await step(() => existsSync(join(ROOT, wav)), 'echo removal', PY_CLEAN, ['clean_audio.py', audioOut, F, wav]);
+        await step(() => existsSync(join(ROOT, wav)), 'echo removal', PY_CLEAN, ['voice/clean_audio.py', audioOut, F, wav]);
         await step(() => existsSync(join(ROOT, 'audio_files', `${name}-clean.m4a`)), 'cleaned recording', 'ffmpeg', ['-v', 'error', '-y', '-i', wav, '-af', 'loudnorm=I=-17', '-ac', '1', '-c:a', 'aac', '-b:a', '128k',
           '-movflags', '+faststart', join('audio_files', `${name}-clean.m4a`)]);
         cleanAudio = `${name}-clean.m4a`;
@@ -182,11 +182,11 @@ async function main() {
   const recitation = cleanAudio ? join('audio_files', `${name}-clean.wav`) : audioOut;
   let voiced = 0;
   const voice = async (lang, label, args) => {
-    await run(`${label} voice`, 'node', ['tts.js', F, '--engine', 'gemini', '--lang', lang, ...args, '--tempo', '1.15']);
+    await run(`${label} voice`, 'node', ['voice/tts.js', F, '--engine', 'gemini', '--lang', lang, ...args, '--tempo', '1.15']);
     if (++voiced === 2) await report('timing');
     const m = JSON.parse(readFileSync(join(ROOT, F, `tts_${lang}.json`), 'utf8'));
-    if (!m.blocks.every(b => b.words?.length)) await run(`${lang} word timing`, PY_ALIGN, ['align_words.py', F, lang]);
-    await run(`${lang} recitation`, 'node', ['recite.js', F, lang, recitation, '--lift', '2']);
+    if (!m.blocks.every(b => b.words?.length)) await run(`${lang} word timing`, PY_ALIGN, ['voice/align_words.py', F, lang]);
+    await run(`${lang} recitation`, 'node', ['voice/recite.js', F, lang, recitation, '--lift', '2']);
   };
   await Promise.all([
     voice('ur', 'Urdu', ['--voice', 'Orus', '--direct']),

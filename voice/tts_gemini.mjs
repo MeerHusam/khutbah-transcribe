@@ -28,7 +28,7 @@ import { fileURLToPath } from 'url';
 import { createHash } from 'crypto';
 import { spawnSync } from 'child_process';
 
-const ROOT = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CACHE = join(ROOT, '.tts_cache', 'gemini');
 const PRICE_IN = 0.5 / 1e6, PRICE_OUT = 9 / 1e6; // USD per token, gemini-3.8-flash-tts, through 2026
 const SR = 24000;
@@ -200,7 +200,7 @@ function splitPassages(spans) {
   let words = null;
   const py = join(ROOT, '.venv-align', 'bin', 'python');
   if (existsSync(py)) {
-    const r = spawnSync(py, [join(ROOT, 'align_words.py'), '-'], {
+    const r = spawnSync(py, [join(ROOT, 'voice', 'align_words.py'), '-'], {
       input: JSON.stringify({ audio: job.out, lang: job.lang ?? 'ur', blocks: spans.map((s, k) => ({ i: k, start: s.start, end: s.end, text: s.blocks.map(b => b.text).join(' ') })) }),
       encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['pipe', 'pipe', 'ignore'],
     });

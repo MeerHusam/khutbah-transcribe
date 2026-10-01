@@ -4,7 +4,7 @@
 // Arabic in the imam's voice, then its translation. The recitation is never synthesized and
 // never sped up: it is cut from his recording and played at its own pace.
 //
-//   node recite.js outputs/<folder> ur audio_files/<recording> [--lift 2]     (or en)
+//   node voice/recite.js outputs/<folder> ur audio_files/<recording> [--lift 2]     (or en)
 //
 // A verse quoted inside a prose block (📑) gets the same: his recitation goes in just before
 // the verse's translation, which the voice reads in quotation marks.
@@ -18,7 +18,7 @@
 import { spawnSync } from 'child_process';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, basename } from 'path';
-import { loadResult } from './core/reader_chunks.js';
+import { loadResult } from '../core/reader_chunks.js';
 
 const SR = 24000;
 const VERSE_INTRO = { en: 'Allah says:', ur: 'ارشادِ باری تعالیٰ ہے:' }; // as tts.js
@@ -33,7 +33,7 @@ const [folder, lang, recording] = process.argv.slice(2);
 const lift = process.argv.includes('--lift') ? +process.argv[process.argv.indexOf('--lift') + 1] : 2;
 const manifestPath = join(folder ?? '', `tts_${lang}.json`);
 if (!folder || !VERSE_INTRO[lang] || !recording || !existsSync(manifestPath) || !existsSync(recording)) {
-  console.error('usage: node recite.js outputs/<folder> en|ur <recording>');
+  console.error('usage: node voice/recite.js outputs/<folder> en|ur <recording>');
   process.exit(1);
 }
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
