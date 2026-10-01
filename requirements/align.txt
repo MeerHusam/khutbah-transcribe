@@ -1,0 +1,11 @@
+# .venv-align — the word aligner (voice/align_words.py, offline MMS model) and the imam's delivery
+# (voice/imam_delivery.py). Python 3.12.
+#   uv venv --python 3.12 .venv-align && VIRTUAL_ENV=.venv-align uv pip install -r requirements/align.txt
+#   curl -L -o models/mms_fa/model.onnx --create-dirs \
+#     https://huggingface.co/deskpai/ctc_forced_aligner/resolve/main/04ac86b67129634da93aea76e0147ef3.onnx
+numpy==2.5.3
+onnxruntime==1.30.0
+ctc-forced-aligner==1.0.2
+uroman==1.3.1.1
+unidecode==1.4.0
+librosa==1.0.0

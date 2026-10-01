@@ -21,7 +21,7 @@
 # where words of the neighbouring blocks can fall without being taken for this block's.
 #
 # Setup (once):
-#   uv venv --python 3.12 .venv-align && VIRTUAL_ENV=.venv-align uv pip install ctc-forced-aligner uroman unidecode
+#   uv venv --python 3.12 .venv-align && VIRTUAL_ENV=.venv-align uv pip install -r requirements/align.txt
 #   curl -L -o models/mms_fa/model.onnx \
 #     https://huggingface.co/deskpai/ctc_forced_aligner/resolve/main/04ac86b67129634da93aea76e0147ef3.onnx
 

@@ -19,7 +19,7 @@
 # 25 Sep: speech stands 18 dB above the gaps between words instead of 10, the echo at 130-190
 # ms falls from 0.24 to 0.02, and Whisper hears the words as well as before; 12 s for 16 min.
 #
-# Setup: uv venv --python 3.12 .venv-clean && VIRTUAL_ENV=.venv-clean uv pip install numpy scipy soundfile
+# Setup: uv venv --python 3.12 .venv-clean && VIRTUAL_ENV=.venv-clean uv pip install -r requirements/clean.txt
 
 import json, subprocess, sys
 from pathlib import Path

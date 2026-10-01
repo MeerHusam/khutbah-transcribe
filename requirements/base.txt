@@ -1,0 +1,6 @@
+# .venv — the ElevenLabs voice engine (voice/tts_elevenlabs.py, voice/tts_common.py) and the
+# quran-detector evaluation (scripts/quran_detect.py). Python 3.12.
+#   uv venv --python 3.12 .venv && VIRTUAL_ENV=.venv uv pip install -r requirements/base.txt
+numpy==2.5.3
+soundfile==0.14.0
+quran-detector==0.0.2

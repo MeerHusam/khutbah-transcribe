@@ -10,7 +10,7 @@
 # clearly louder, higher, wider, faster). A block is measured from its first word to its last,
 # so the pause where he sits between the khutbahs does not count as slow speech.
 # 25 Sep: the condemnation before Surat al-Fil stands out (pitch +1.8), as one hears it.
-# Local, no API; about 20 s for 16 min. Needs librosa (in .venv-align).
+# Local, no API; about 20 s for 16 min. Needs librosa (in .venv-align: requirements/align.txt).
 
 import json, subprocess, sys
 from pathlib import Path
