@@ -120,9 +120,6 @@ function buildAnalysisPrompt(khutbahType = 'friday') {
     .replace('{{SPLIT_INSTRUCTION}}', t.twoPart ? SPLIT_INSTRUCTION_TWO_PART : SPLIT_INSTRUCTION_SINGLE);
 }
 
-// Back-compat: the default (Friday) prompt as a ready-to-use string.
-const ANALYSIS_PROMPT = buildAnalysisPrompt('friday');
-
 // ---- Two-khutbah split ------------------------------------------------------
 
 // Locate the boundary between the first and second khutbah. Primary signal is Claude's
@@ -244,5 +241,4 @@ export {
   buildAnalysisPrompt,
   locateSecondKhutbah,
   splitChunkAtKhutbahBoundary,
-  ANALYSIS_PROMPT,
 };
