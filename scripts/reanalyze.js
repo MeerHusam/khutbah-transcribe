@@ -13,20 +13,20 @@
 // call per quote whose inputs changed, claude-sonnet-5 by default; nothing when they did not).
 // --no-swaps skips that and keeps whatever plan result.json already has.
 
+import 'dotenv/config';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import {
   prescanForQuranZones,
   buildZoneRefs,
   buildProseChunks,
-  buildReaderView,
   scanTranscriptForQuran,
   findMatchingAyah,
-  deduplicateHadithRefs,
-  resolveSunnahLinksForRefs,
   yieldTailToLaterRefs,
-  settleLoneWords,
-} from '../pipeline.js';
+} from '../core/arabic.js';
+import { buildReaderView } from '../core/reader.js';
+import { deduplicateHadithRefs, resolveSunnahLinksForRefs } from '../core/hadith.js';
+import { settleLoneWords } from '../core/transcribe.js';
 import { planQuoteSwaps } from '../core/quote_swaps.js';
 
 const folder = process.argv[2];

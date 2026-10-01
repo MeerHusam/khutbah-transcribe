@@ -8,6 +8,7 @@
 // there). Kept in tts_<lang>_directions.json; a block whose text is unchanged keeps its notes,
 // so a re-voice pays only for blocks that changed. Claude Sonnet 5.5, ~$0.15 for 25 Sep.
 
+import 'dotenv/config';
 import Anthropic from '@anthropic-ai/sdk';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';

@@ -12,7 +12,9 @@
 // Claude's own wording for the block is recovered from result.chunk_translations.
 
 import { readFileSync } from 'fs';
-import { normalizeArabic, publishedVerseEnglish, cachedSunnahPage } from '../pipeline.js';
+import { normalizeArabic } from './arabic.js';
+import { publishedVerseEnglish } from './reader.js';
+import { cachedSunnahPage } from './hadith.js';
 
 const quran = JSON.parse(readFileSync(new URL('../node_modules/quran-json/dist/quran.json', import.meta.url), 'utf8'));
 const verseText = (s, a) => quran.find(x => x.id === s)?.verses?.find(v => v.id === a)?.text ?? '';

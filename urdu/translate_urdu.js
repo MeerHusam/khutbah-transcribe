@@ -24,7 +24,8 @@ import 'dotenv/config';
 import Anthropic from '@anthropic-ai/sdk';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
-import { buildReaderView, normalizeArabic } from '../pipeline.js';
+import { buildReaderView } from '../core/reader.js';
+import { normalizeArabic } from '../core/arabic.js';
 
 
 // Opus 5.5 at high: on the hard parts of 25 Sep (1 Oct 2026) its first draft needed the fewest

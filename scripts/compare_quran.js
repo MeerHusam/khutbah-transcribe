@@ -13,11 +13,7 @@ import { execFileSync } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
-import {
-  prescanForQuranZones,
-  scanTranscriptForQuran,
-  buildZoneRefs,
-} from '../pipeline.js';
+import { prescanForQuranZones, scanTranscriptForQuran, buildZoneRefs } from '../core/arabic.js';
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

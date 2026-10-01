@@ -17,12 +17,14 @@
 // The plan is stored on each ref (`english_swap`) with a hash of its inputs, so re-running
 // costs nothing unless the texts changed; buildReaderView only applies it.
 
+import 'dotenv/config';
 import Anthropic from '@anthropic-ai/sdk';
 import { createHash } from 'crypto';
 import { readFileSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { buildReaderView, publishedVerseEnglish, cachedSunnahPage, applyQuoteSwaps } from '../pipeline.js';
+import { buildReaderView, publishedVerseEnglish, applyQuoteSwaps } from './reader.js';
+import { cachedSunnahPage } from './hadith.js';
 import { quoteProblems, droppedWords, skeletonSet, englishKeys, verseText } from './check_english.js';
 
 // Sonnet 5, not Haiku: on the 7 test khutbahs Haiku (at temperature 0) refused 5 correct

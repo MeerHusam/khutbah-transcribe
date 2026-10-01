@@ -6,64 +6,14 @@ import { writeFileSync, mkdirSync, readFileSync, existsSync, statSync } from 'fs
 import { fileURLToPath } from 'url';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
-import {
-  stripAyahMarkup,
-  prescanForQuranZones,
-  buildProseChunks,
-  findMatchingAyah,
-  getQuranAyahWords,
-  normalizeArabicDeep,
-  scanTranscriptForQuran,
-  buildZoneRefs,
-  annotateRefAyahRange,
-  yieldTailToLaterRefs,
-  normalizeArabic,
-  getQuranNgramIndex,
-} from './core/arabic.js';
-import {
-  loadHadithCorpus,
-  deduplicateHadithRefs,
-  findMatchingHadith,
-  scanTranscriptForHadith,
-  resolveSunnahLinksForRefs,
-  isLiturgicalFormula,
-  parseSunnahNarrator,
-  chooseNarrator,
-  nameKeys,
-  fetchSunnahPage,
-  cachedSunnahPage,
-  extractMatn,
-} from './core/hadith.js';
-import {
-  KHUTBAH_TYPES,
-  buildAnalysisPrompt,
-  locateSecondKhutbah,
-  splitChunkAtKhutbahBoundary,
-  ANALYSIS_PROMPT,
-} from './core/analyze.js';
-import {
-  buildReadableOutput,
-  buildReaderView,
-  publishedVerseEnglish,
-  applyQuoteSwaps,
-} from './core/reader.js';
-import {
-  preprocessAudio,
-  transcribeWithGroq,
-  transcribeWithGemini,
-  SILENCE_PREPEND_SEC,
-  transcribeWithGroqWindowed,
-  alignWordTimestamps,
-  combineTimings,
-  retimeUnanchoredGaps,
-  interpolateAnchors,
-  settleLoneWords,
-  buildSegmentsFromWordTimes,
-} from './core/transcribe.js';
+import { stripAyahMarkup, prescanForQuranZones, buildProseChunks, findMatchingAyah, getQuranAyahWords, normalizeArabicDeep, scanTranscriptForQuran, buildZoneRefs, annotateRefAyahRange, yieldTailToLaterRefs } from './core/arabic.js';
+import { loadHadithCorpus, deduplicateHadithRefs, findMatchingHadith, scanTranscriptForHadith, resolveSunnahLinksForRefs } from './core/hadith.js';
+import { KHUTBAH_TYPES, buildAnalysisPrompt, locateSecondKhutbah, splitChunkAtKhutbahBoundary } from './core/analyze.js';
+import { buildReadableOutput, buildReaderView } from './core/reader.js';
+import { preprocessAudio, transcribeWithGroq, transcribeWithGemini, SILENCE_PREPEND_SEC } from './core/transcribe.js';
+import { planQuoteSwaps } from './core/quote_swaps.js';
 
-// Fallback placeholder keys so importing this module (e.g. server.js live mode)
-// never throws when an optional provider key is absent — the API call itself
-// will fail with a clear auth error if that provider is actually used.
+// A missing key fails at the API call with a clear auth error, not at startup.
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || 'not-set',
   timeout: 120_000,  // 2-minute timeout (large transcripts take a while)
@@ -465,7 +415,6 @@ async function main() {
 
   // Step 9b: Published translations for quotes inside the prose (one model call per quote, see quote_swaps.js).
   console.log('\nMatching quoted hadith and verses to their published English...');
-  const { planQuoteSwaps } = await import('./core/quote_swaps.js');
   result.metadata.english_swaps = await planQuoteSwaps(transcript, result);
   console.log(` ${result.metadata.english_swaps.published} published, ${result.metadata.english_swaps.ours} ours ($${result.metadata.english_swaps.cost_usd.toFixed(4)})`);
 
@@ -484,56 +433,7 @@ async function main() {
   console.log(`✓ Results saved to outputs/${timestamp}_${audioBasename}/  (transcript.txt, result.json, readable.txt, reader.txt)`);
 }
 
-// Only run main() when this file is executed directly (not imported)
-const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url));
-if (isMain) {
-  main().catch(e => {
-    console.error(`Unexpected error: ${e.message}`);
-    process.exit(1);
-  });
-}
-
-export {
-  ANALYSIS_PROMPT,
-  buildAnalysisPrompt,
-  KHUTBAH_TYPES,
-  buildReaderView,
-  buildReadableOutput,
-  buildProseChunks,
-  locateSecondKhutbah,
-  splitChunkAtKhutbahBoundary,
-  prescanForQuranZones,
-  buildZoneRefs,
-  annotateRefAyahRange,
-  yieldTailToLaterRefs,
-  scanTranscriptForQuran,
-  scanTranscriptForHadith,
-  deduplicateHadithRefs,
-  isLiturgicalFormula,
-  stripAyahMarkup,
-  findMatchingAyah,
-  findMatchingHadith,
-  loadHadithCorpus,
-  resolveSunnahLinksForRefs,
-  parseSunnahNarrator,
-  chooseNarrator,
-  nameKeys,
-  fetchSunnahPage,
-  cachedSunnahPage,
-  publishedVerseEnglish,
-  applyQuoteSwaps,
-  normalizeArabic,
-  normalizeArabicDeep,
-  getQuranNgramIndex,
-  extractMatn,
-  transcribeWithGroq,
-  transcribeWithGroqWindowed,
-  preprocessAudio,
-  SILENCE_PREPEND_SEC,
-  alignWordTimestamps,
-  combineTimings,
-  retimeUnanchoredGaps,
-  interpolateAnchors,
-  settleLoneWords,
-  buildSegmentsFromWordTimes,
-};
+main().catch(e => {
+  console.error(`Unexpected error: ${e.message}`);
+  process.exit(1);
+});

@@ -17,7 +17,8 @@
 import { readFileSync, existsSync } from 'fs';
 import { join, resolve } from 'path';
 import { verifyReader } from './core/verify_reader.js';
-import { buildReaderView, deduplicateHadithRefs, nameKeys } from './pipeline.js';
+import { buildReaderView } from './core/reader.js';
+import { deduplicateHadithRefs, nameKeys } from './core/hadith.js';
 
 const args = process.argv.slice(2);
 const rebuild = args.includes('--rebuild');

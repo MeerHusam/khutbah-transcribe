@@ -12,7 +12,7 @@
 import { readFileSync, existsSync } from 'fs';
 import { join, resolve } from 'path';
 import { pathToFileURL } from 'url';
-import { normalizeArabic, normalizeArabicDeep } from '../pipeline.js';
+import { normalizeArabic, normalizeArabicDeep } from './arabic.js';
 import { loadResult } from './reader_chunks.js';
 import { checkEnglish } from './check_english.js';
 

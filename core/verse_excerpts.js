@@ -24,7 +24,7 @@ import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname, resolve } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { parseReaderBlocks } from './verify_reader.js';
-import { publishedVerseEnglish } from '../pipeline.js';
+import { publishedVerseEnglish } from './reader.js';
 import '../public/recited.js';
 
 const { recitedSpans } = globalThis.KTRecited;
