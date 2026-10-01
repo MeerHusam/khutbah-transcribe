@@ -21,6 +21,9 @@
 // Usage: node tts.js outputs/<folder> [--engine kokoro|chatterbox] [--limit N] [--dry-run]
 //   kokoro:     [--voice am_michael] [--speed 1]
 //   chatterbox: --ref audio_files/voice_ref/<clip>.wav [--exaggeration 0.5] [--cfg 0.5]
+//   gemini:     [--voice Charon] [--direct]: a direction for every sentence (voice_directions.js,
+//     from delivery_imam.json when imam_delivery.py has run) and the blocks voiced a passage
+//     at a time, then split back into blocks with the word aligner (.venv-align).
 //   --limit N speaks only the first N blocks into tts_en_preview_<voice>.mp3, to listen to;
 //     the page's track (tts_en.mp3, tts_en.json) is left as it is.
 //   --dry-run prints the text of every block and makes no audio.
@@ -35,6 +38,7 @@ import { join, dirname, resolve, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
 import { loadResult } from './reader_chunks.js';
+import { directions } from './voice_directions.js';
 import './public/recited.js';
 
 const { recitedSpans } = globalThis.KTRecited;
@@ -55,6 +59,11 @@ const GEMINI_STYLE = {
   en: 'calm, clear and reverent, at a steady pace, like a translator reading a Friday sermon; Arabic names and Islamic terms (Allah, Muhammad, taqwa, Quraysh, Makkah) pronounced the Arabic way, as a Muslim scholar would',
   ur: 'calm, clear and reverent, like a scholar reading the Urdu translation of a Friday sermon in standard Pakistani Urdu; Arabic names and Quranic terms pronounced the Arabic way',
 };
+// With --direct each sentence's note follows this ("… For this sentence: raised, indignant…").
+const GEMINI_BASE = {
+  en: 'The English translation of a Friday khutbah, read from the minbar; Arabic names and Islamic terms (Allah, Muhammad, taqwa, Quraysh, Makkah) pronounced the Arabic way, as a Muslim scholar would',
+  ur: 'The Urdu translation of a Friday khutbah, read from the minbar in standard Pakistani Urdu; Arabic words and Quranic terms pronounced the Arabic way',
+};
 const speed = +opt('--speed', '1');
 const ref = opt('--ref', null);
 const exaggeration = +opt('--exaggeration', '0.5');
@@ -65,15 +74,24 @@ const tempo = +opt('--tempo', '1');
 // ElevenLabs spends paid credits: a run that would cost more than this stops before sending.
 const maxCredits = +opt('--max-credits', '2000');
 const dryRun = args.includes('--dry-run');
+// Gemini only: a direction for every sentence (voice_directions.js, from the imam's delivery
+// and the meaning) and the blocks voiced a passage at a time, so the tone carries from one
+// block into the next (Orus, 1 Oct 2026).
+const direct = args.includes('--direct');
+const directEffort = opt('--direct-effort', 'high');
+// Characters a passage aims for (about 2 min of Urdu); it ends at the first sentence end past
+// 60% of this, and at 150% wherever it is.
+const PASSAGE_CHARS = 1500;
 const elevenKey = process.env.ELEVEN_LABS_API_KEY || process.env.ELEVENLABS_API_KEY;
 if (!folder || !existsSync(join(folder, 'result.json')) || !['kokoro', 'chatterbox', 'elevenlabs', 'omnivoice', 'gemini'].includes(engine)
     || !['en', 'ur'].includes(lang) || (lang === 'ur' && !['elevenlabs', 'omnivoice', 'gemini'].includes(engine) && !dryRun)
     || (['chatterbox', 'omnivoice'].includes(engine) && !dryRun && !(ref && existsSync(ref)))
-    || (engine === 'elevenlabs' && !dryRun && !elevenKey)) {
+    || (engine === 'elevenlabs' && !dryRun && !elevenKey) || (direct && engine !== 'gemini')) {
   console.error('Usage: node tts.js outputs/<folder> [--engine kokoro|chatterbox|elevenlabs|omnivoice] [--lang en|ur] [--limit N] [--tempo 1.15] [--dry-run]\n'
     + '  kokoro: [--voice am_michael] [--speed 1]   chatterbox: --ref <clip.wav> [--exaggeration 0.5] [--cfg 0.5]\n'
     + '  elevenlabs (ELEVEN_LABS_API_KEY in .env): [--model eleven_v3|eleven_flash_v2] [--voice daniel] [--max-credits 2000]\n'
-    + '  omnivoice: --ref <clip.wav> (its words in <clip>.txt)   Urdu: elevenlabs (eleven_v3) or omnivoice');
+    + '  omnivoice: --ref <clip.wav> (its words in <clip>.txt)   Urdu: elevenlabs (eleven_v3), gemini or omnivoice\n'
+    + '  gemini: [--voice Charon] [--direct [--direct-effort high]]  (a note per sentence, voiced a passage at a time)');
   process.exit(1);
 }
 
@@ -243,10 +261,13 @@ const wav = join(folder, `${base}.wav`);
 const KHUTBAH_PAUSE = 4;
 const secondAt = chunks.findIndex(c => c.second_khutbah_start);
 const secondBlock = secondAt < 0 ? null : blocks.find(b => b.i >= secondAt)?.i ?? null;
+const notes = direct ? await directions({ folder, lang, blocks, effort: directEffort,
+  arabic: new Map(blocks.map(b => [b.i, chunks[b.i].arabic])) }) : null;
 const job = {
   block_pause: 0.7, sentence_pause: 0.2,
   out: resolve(wav),
-  blocks: blocks.map(({ i, text }) => ({ i, text, ...(i === secondBlock ? { pause_before: KHUTBAH_PAUSE } : {}) })),
+  blocks: blocks.map(({ i, text }) => ({ i, text, ...(i === secondBlock ? { pause_before: KHUTBAH_PAUSE } : {}),
+    ...(notes ? { parts: notes.get(i) } : {}) })),
   ...{
     kokoro: {
       model: join(MODEL_DIR, 'kokoro-v1.0.onnx'),
@@ -262,7 +283,8 @@ const job = {
       language: lang,
       ...(lang === 'en' ? { lexicon: join(ROOT, 'tts_lexicon.txt') } : {}),
     },
-    gemini: { model, voice, style: GEMINI_STYLE[lang], concurrency: 4 },
+    gemini: { model, voice, style: (direct ? GEMINI_BASE : GEMINI_STYLE)[lang], concurrency: 4,
+      ...(direct ? { passages: PASSAGE_CHARS, lang } : {}) },
     elevenlabs: {
       model, voice: ELEVEN_VOICES[voice] ?? voice, language_code: lang, max_credits: maxCredits,
       // Whole blocks: the model reads a paragraph with better flow than sentence by sentence.
@@ -318,7 +340,7 @@ const manifest = {
     chatterbox: { voice: basename(ref ?? ''), exaggeration, cfg_weight: cfgWeight },
     elevenlabs: { voice },
     omnivoice: { voice: basename(ref ?? '') },
-    gemini: { voice },
+    gemini: { voice, ...(direct ? { directed: `voice_directions.js (${directEffort})`, passages: PASSAGE_CHARS } : {}) },
   }[engine],
   lang,
   created: new Date().toISOString(),
