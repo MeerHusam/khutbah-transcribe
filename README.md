@@ -5,7 +5,7 @@ the imam's Arabic word by word, an English and an Urdu translation, every Quran 
 hadith he cites as a card with its source (quran.com, sunnah.com), and voice tracks that read
 the translation aloud with the imam's own recitation before each verse.
 
-Live site: **https://khutbah-live.onrender.com**
+Live site: **https://khutbah.dev** (links to the old khutbah-live.onrender.com address redirect there)
 
 ## How it works
 

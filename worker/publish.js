@@ -22,7 +22,7 @@
 //        [--no-feature] [--review]        --review also runs review_blocks.js (about $0.07)
 //        [--keep-audio]                   audio_files/<name>.<ext> is already in place (autopublish.js)
 //        [--page reader-ur.html] [--audio <file in audio_files/>]   the entry's own page and recording
-//        [--site https://khutbah-live.onrender.com]   where to publish (default http://localhost:3000)
+//        [--site https://khutbah.dev]     where to publish (default http://localhost:3000)
 //        [--no-site]                      stop after the checks and the test set
 //        [--dry-run]                      print the plan, change nothing
 
@@ -182,7 +182,7 @@ if (flag('--review')) { step('Review'); run('node', ['core/review_blocks.js', fo
 // The same run, published to the live site, reusing the folder and the recording made here.
 function liveArgs() {
   const rest = argv.filter((a, i) => !['--site', '--from-folder'].includes(a) && !['--site', '--from-folder'].includes(argv[i - 1]) && a !== '--keep-audio');
-  return [...rest, '--from-folder', folder, '--keep-audio', '--site', 'https://khutbah-live.onrender.com']
+  return [...rest, '--from-folder', folder, '--keep-audio', '--site', 'https://khutbah.dev']
     .map(a => (/[\s"'$]/.test(a) ? JSON.stringify(a) : a)).join(' ');
 }
 console.log(site ? `

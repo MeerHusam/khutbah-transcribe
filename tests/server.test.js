@@ -8,6 +8,7 @@ import { spawn } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, copyFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { request } from 'node:http';
 import WebSocket from 'ws';
 import { publishToSite } from '../worker/site.js';
 
@@ -54,6 +55,19 @@ test('every published khutbah opens at its short link; old links redirect; other
     }
   }
   assert.equal((await get('/no-such-khutbah')).status, 404);
+});
+
+test('the old onrender address sends pages to khutbah.dev, but not /admin or /api', async () => {
+  const onrender = (method, path) => new Promise((resolve, reject) => request(
+    { port: PORT, path, method, headers: { host: 'khutbah-live.onrender.com' } }, r => { r.resume(); resolve(r); },
+  ).on('error', reject).end());
+  const r = await onrender('GET', '/2026-09-25?ref=wa');
+  assert.equal(r.statusCode, 301);
+  assert.equal(r.headers.location, 'https://khutbah.dev/2026-09-25?ref=wa');
+  assert.equal((await onrender('GET', '/api/results')).statusCode, 200);
+  assert.equal((await onrender('GET', '/admin/uploads')).statusCode, 401);
+  assert.equal((await onrender('POST', '/admin/api/khutbahs')).statusCode, 401);
+  assert.equal((await get('/2026-09-25')).status, 200);
 });
 
 test('/api/results lists the published khutbahs, and each one loads', async () => {

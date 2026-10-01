@@ -15,7 +15,7 @@
     "maps_url": "https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6",
     "date": "25 September 2026",
     "audio": "khutbah-2026-09-25-masjid-clean.m4a",
-    "media_url": "https://pub-53d99d7f73fb434b8aa97016c8e982f4.r2.dev/2026-09-25T10-04-57_khutbah-2026-09-25-masjid-urdu/",
+    "media_url": "https://media.khutbah.dev/2026-09-25T10-04-57_khutbah-2026-09-25-masjid-urdu/",
     "page": "reader-ur.html",
     "featured": true,
     "note": "One page with the English and the Urdu (reader-ur.html: Read English|اردو, Hear Imam|English|اردو, word by word). Its folder is the Urdu edition's, which has the voices and the imam's word times; the English folder before it stays in the repo but is not served. The old addresses still open it: /2026-09-25-urdu and ?folder=<the English folder>. The audio is the imam's recording with the hall's reverb and echo taken out (clean_audio.py); same timeline as the original, so every time still holds."
@@ -30,7 +30,7 @@
     "maps_url": "https://www.google.com/maps/search/?api=1&query=Masjid+al-Haram+Makkah",
     "date": "25 September 2026",
     "audio": "makkah_dosari_2026-09-25.m4a",
-    "media_url": "https://pub-53d99d7f73fb434b8aa97016c8e982f4.r2.dev/2026-09-27T16-37-16_makkah_dosari_2026-09-25/",
+    "media_url": "https://media.khutbah.dev/2026-09-27T16-37-16_makkah_dosari_2026-09-25/",
     "page": "reader-ur.html",
     "note": "One page with the English and the Urdu, like 25 Sep above. The Urdu and its voice (Orus, with his own recitation before each verse) were made by the pipeline alone; no hand edits."
   },
@@ -44,7 +44,7 @@
     "maps_url": "https://www.google.com/maps/search/?api=1&query=Masjid+Namirah+Arafat",
     "date": "26 May 2026",
     "audio": "arafah_khutbah_2026.m4a",
-    "media_url": "https://pub-53d99d7f73fb434b8aa97016c8e982f4.r2.dev/2026-09-11T15-48-51_arafah_khutbah_2026/",
+    "media_url": "https://media.khutbah.dev/2026-09-11T15-48-51_arafah_khutbah_2026/",
     "note": "A single continuous khutbah: processed with --single."
   },
   {
@@ -57,7 +57,7 @@
     "maps_url": "https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6",
     "date": "27 May 2026",
     "audio": "eid_khutbah_2026.m4a",
-    "media_url": "https://pub-53d99d7f73fb434b8aa97016c8e982f4.r2.dev/2026-05-27T03-50-41_eid_khutbah_2026/",
+    "media_url": "https://media.khutbah.dev/2026-05-27T03-50-41_eid_khutbah_2026/",
     "note": "A single khutbah: processed with --type eid."
   },
   {
@@ -70,7 +70,7 @@
     "maps_url": "https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6",
     "date": "22 May 2026",
     "audio": "khutbah-2026-05-22-masjid.m4a",
-    "media_url": "https://pub-53d99d7f73fb434b8aa97016c8e982f4.r2.dev/2026-05-22T11-30-04_khutbah-2026-05-22-masjid/"
+    "media_url": "https://media.khutbah.dev/2026-05-22T11-30-04_khutbah-2026-05-22-masjid/"
   },
   {
     "folder": "2026-09-11T13-55-21_khutbah-2026-09-11-masjid",
@@ -82,7 +82,7 @@
     "maps_url": "https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6",
     "date": "11 September 2026",
     "audio": "khutbah-2026-09-11-masjid.m4a",
-    "media_url": "https://pub-53d99d7f73fb434b8aa97016c8e982f4.r2.dev/2026-09-11T13-55-21_khutbah-2026-09-11-masjid/"
+    "media_url": "https://media.khutbah.dev/2026-09-11T13-55-21_khutbah-2026-09-11-masjid/"
   },
   {
     "folder": "2026-05-22T21-05-05_makkah_sudais_ramadan_ummah",
@@ -93,6 +93,6 @@
     "masjid_ar": "المسجد الحرام",
     "maps_url": "https://www.google.com/maps/search/?api=1&query=Masjid+al-Haram+Makkah",
     "audio": "makkah_sudais_ramadan_ummah.mp3",
-    "media_url": "https://pub-53d99d7f73fb434b8aa97016c8e982f4.r2.dev/2026-05-22T21-05-05_makkah_sudais_ramadan_ummah/"
+    "media_url": "https://media.khutbah.dev/2026-05-22T21-05-05_makkah_sudais_ramadan_ummah/"
   }
 ]

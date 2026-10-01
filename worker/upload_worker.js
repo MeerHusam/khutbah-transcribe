@@ -19,7 +19,7 @@ import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const SITE = process.env.SITE_URL || 'https://khutbah-live.onrender.com';
+const SITE = process.env.SITE_URL || 'https://khutbah.dev';
 const KEY = process.env.ADMIN_TOKEN;
 const EXTRA = (process.env.AUTOPUBLISH_ARGS || '').split(/\s+/).filter(Boolean);
 if (!KEY) { console.error('Put ADMIN_TOKEN=<the site\'s admin key> in .env first.'); process.exit(1); }

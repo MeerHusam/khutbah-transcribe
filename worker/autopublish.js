@@ -32,7 +32,7 @@ import { fileURLToPath } from 'url';
 import { siteSlugs } from './site.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const SITE = process.env.SITE_URL || 'https://khutbah-live.onrender.com';
+const SITE = process.env.SITE_URL || 'https://khutbah.dev';
 const HOME = { masjid: 'Askan AlMaather Mosque', masjid_ar: 'جامع إسكان المعذر', maps_url: 'https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6' };
 const PY_ALIGN = join(ROOT, '.venv-align', 'bin', 'python');
 const PY_CLEAN = join(ROOT, '.venv-clean', 'bin', 'python');
