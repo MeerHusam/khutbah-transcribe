@@ -617,7 +617,24 @@ function deduplicateHadithRefs(refs) {
   return kept;
 }
 
+// A hadith Claude named, with its collection and number from the local corpus when the text
+// matches one there.
+function matchClaudeHadithRef(ref, hadithCorpus) {
+  const match = findMatchingHadith(ref.arabic_text ?? '', hadithCorpus);
+  return {
+    detected_text: ref.arabic_text,
+    narrator: ref.narrator ?? null,
+    collection: match ? match.collection : (ref.collection ?? null),
+    hadith_number: match ? match.number : null,
+    link: match ? match.link : null,
+    confidence: match ? match.confidence : null,
+    detection_method: 'signal_phrase',
+    note: match ? 'Matched against local corpus' : 'Manual verification recommended',
+  };
+}
+
 export {
+  matchClaudeHadithRef,
   loadHadithCorpus,
   deduplicateHadithRefs,
   findMatchingHadith,

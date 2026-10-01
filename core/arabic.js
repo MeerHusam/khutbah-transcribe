@@ -923,7 +923,108 @@ function buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSeg
   return proseChunks;
 }
 
+// Step 7: Match each Quranic reference.
+// Claude identifies the surah/ayah from its Quran knowledge (primary).
+// The local algorithm independently scores the extracted text (cross-check).
+// If both agree  → high confidence.
+// If they disagree → flag for manual review (one may have erred).
+// If only algorithm matched → use it, note Claude was uncertain.
+function matchClaudeQuranRef(ref) {
+  const algoMatch = findMatchingAyah(ref.arabic_text ?? '');
+
+  const claudeSurahNum = ref.surah_number ?? null;
+  const claudeAyahNum  = ref.ayah_number  ?? null;
+  const claudeIdentified = claudeSurahNum !== null && claudeAyahNum !== null;
+
+  // Determine agreement
+  const bothAgree = claudeIdentified && algoMatch &&
+    algoMatch.surah_number === claudeSurahNum &&
+    algoMatch.ayah_number  === claudeAyahNum;
+  const disagree = claudeIdentified && algoMatch &&
+    (algoMatch.surah_number !== claudeSurahNum || algoMatch.ayah_number !== claudeAyahNum);
+
+  // On a disagreement, let the detected words themselves break the tie. Claude reads
+  // meaning and is usually right about which passage is being cited, but it mislabels an
+  // adjacent verse when two share a phrase: Al-Hajj 22:36 and 22:37 both contain
+  // "كذلك سخر…ها لكم", and Claude labelled 22:36's closing words as 22:37. Deferring to
+  // Claude unconditionally put the wrong verse on the card. Prefer the algorithm only when
+  // its verse contains clearly more of the detected text, so an ordinary near-tie still
+  // goes to Claude.
+  const ayahCoverage = (sNum, aNum) => {
+    const verse = getQuranAyahWords().get(sNum)?.find(v => v.ayah_id === aNum);
+    if (!verse) return 0;
+    const inVerse = new Set(verse.words);
+    const det = normalizeArabicDeep(ref.arabic_text ?? '').split(/\s+/).filter(Boolean);
+    if (!det.length) return 0;
+    return det.filter(w => inVerse.has(w)).length / det.length;
+  };
+  // Neighbouring verses of the same surah are a different case: a recitation that runs
+  // across both contains words of both, and whole-text coverage then favours whichever
+  // verse is longer — Quraysh 106:3-4 was labelled 106:4 because 106:4 has twice the
+  // words, and the range walk (which only extends forward) could never recover 106:3.
+  // The label must name the verse the recitation STARTS in, so decide on the leading words.
+  const leadCoverage = (sNum, aNum) => {
+    const verse = getQuranAyahWords().get(sNum)?.find(v => v.ayah_id === aNum);
+    if (!verse) return 0;
+    const inVerse = new Set(verse.words);
+    const lead = normalizeArabicDeep(ref.arabic_text ?? '').split(/\s+/).filter(Boolean).slice(0, 3);
+    return lead.filter(w => inVerse.has(w)).length;
+  };
+  const adjacent = disagree && algoMatch.surah_number === claudeSurahNum &&
+    Math.abs(algoMatch.ayah_number - claudeAyahNum) === 1;
+  const preferAlgo = disagree && (adjacent
+    ? leadCoverage(algoMatch.surah_number, algoMatch.ayah_number)
+        > leadCoverage(claudeSurahNum, claudeAyahNum)
+    : ayahCoverage(algoMatch.surah_number, algoMatch.ayah_number)
+        > ayahCoverage(claudeSurahNum, claudeAyahNum) + 0.15);
+
+  // Choose which identification to use:
+  //  - Agreed: either (they match)
+  //  - Claude only: trust Claude, algorithm couldn't confirm
+  //  - Algorithm only: use algorithm, Claude was uncertain
+  //  - Disagreement: whichever verse the words belong to (above), defaulting to Claude
+  const useClaude = claudeIdentified && !preferAlgo;
+  const surahNum  = useClaude ? claudeSurahNum  : (algoMatch?.surah_number ?? null);
+  const ayahNum   = useClaude ? claudeAyahNum   : (algoMatch?.ayah_number  ?? null);
+  const surahName = useClaude ? (ref.surah_name ?? algoMatch?.surah_name ?? null)
+                              : (algoMatch?.surah_name ?? null);
+
+  if (!surahNum || !ayahNum) {
+    return {
+      detected_text: ref.arabic_text,
+      matched: false,
+      surah_name: null, surah_number: null, ayah_number: null,
+      quran_link: null, confidence: 0,
+      verification: 'no_match',
+    };
+  }
+
+  const quranLink = `https://quran.com/${surahNum}/${ayahNum}`;
+  const confidence = bothAgree
+    ? Math.max(algoMatch.confidence, 0.95)   // both agree → high confidence
+    : claudeIdentified && !algoMatch
+      ? 0.85                                  // Claude only
+      : disagree
+        ? 0.75                                // disagreement — flagged
+        : (algoMatch?.confidence ?? 0.7);     // algorithm only
+
+  return {
+    detected_text: ref.arabic_text,
+    matched: true,
+    surah_name: surahName,
+    surah_number: surahNum,
+    ayah_number: ayahNum,
+    quran_link: quranLink,
+    confidence: Math.round(confidence * 100) / 100,
+    verification: bothAgree    ? 'claude+algorithm'
+                : disagree     ? `DISAGREEMENT:claude=${claudeSurahNum}:${claudeAyahNum},algo=${algoMatch.surah_number}:${algoMatch.ayah_number}${preferAlgo ? ',used=algo' : ',used=claude'}`
+                : claudeIdentified ? 'claude_only'
+                : 'algorithm_only',
+  };
+}
+
 export {
+  matchClaudeQuranRef,
   normalizeArabic,
   wordOverlapScore,
   quranData,

@@ -1,13 +1,25 @@
-// Khutbah Processing Pipeline
-// Transcribes Arabic audio -> translates -> extracts Quranic/Hadith references -> matches Ayahs
+// pipeline.js — The command line: one khutbah recording (or an earlier run's transcript) to an
+// outputs/<time>_<name>/ folder with transcript.txt, result.json, reader.txt and readable.txt.
+//
+//   node pipeline.js audio.mp3          Gemini 2.5 Flash text + Groq timing (best quality; --gemini says the same)
+//   node pipeline.js audio.mp3 --groq   Groq whisper-large-v3 alone (free & fast)
+//   node pipeline.js --transcript outputs/<run>/transcript.txt   reuse a transcript and its timings
+//   --type friday|arafah|eid            frames the summary (default friday)
+//   --single (alias --no-split)         one continuous khutbah: no second-khutbah split
+//
+// Stages, in main() below: transcribe → find the Quran zones and cut the prose into chunks →
+// Claude translates the chunks and names the references → Quran references (Claude's, checked
+// against the corpus, plus the ones a scan and the zones find) → hadith references (the same,
+// then sunnah.com links) → where the second khutbah starts → published English for quoted
+// verses and hadith → the files.
 
 import 'dotenv/config';
 import { writeFileSync, mkdirSync, readFileSync, existsSync, statSync } from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
-import { stripAyahMarkup, prescanForQuranZones, buildProseChunks, findMatchingAyah, getQuranAyahWords, normalizeArabicDeep, scanTranscriptForQuran, buildZoneRefs, annotateRefAyahRange, yieldTailToLaterRefs } from './core/arabic.js';
-import { loadHadithCorpus, deduplicateHadithRefs, findMatchingHadith, scanTranscriptForHadith, resolveSunnahLinksForRefs } from './core/hadith.js';
+import { stripAyahMarkup, prescanForQuranZones, buildProseChunks, scanTranscriptForQuran, buildZoneRefs, annotateRefAyahRange, yieldTailToLaterRefs, matchClaudeQuranRef } from './core/arabic.js';
+import { loadHadithCorpus, deduplicateHadithRefs, scanTranscriptForHadith, resolveSunnahLinksForRefs, matchClaudeHadithRef } from './core/hadith.js';
 import { KHUTBAH_TYPES, buildAnalysisPrompt, locateSecondKhutbah, splitChunkAtKhutbahBoundary } from './core/analyze.js';
 import { buildReadableOutput, buildReaderView } from './core/reader.js';
 import { preprocessAudio, transcribeWithGroq, transcribeWithGemini, SILENCE_PREPEND_SEC } from './core/transcribe.js';
@@ -22,17 +34,10 @@ const anthropic = new Anthropic({
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Hadith corpus loaded lazily in main() after normalizeArabic is defined.
-let hadithCorpus = null;
+// ---- Stages ------------------------------------------------------------------
 
-// ---- Main pipeline ----------------------------------------------------------
-
-async function main() {
-  // Step 1: Parse CLI arguments
-  // Usage:
-  //   node pipeline.js audio.mp3          (Gemini 2.5 Flash text + Groq timing, best quality; --gemini says the same)
-  //   node pipeline.js audio.mp3 --groq   (Groq whisper-large-v3 alone, free & fast)
-  const args = process.argv.slice(2);
+// Steps 1-2: the command line, checked.
+function parseArgs(args) {
   const useGroq = args.includes('--groq');
   // --type <friday|arafah|eid> frames the summary and ref wording (default: friday).
   const typeFlagIdx = args.indexOf('--type');
@@ -74,8 +79,11 @@ async function main() {
     // Note: the 25 MB Whisper limit is checked AFTER preprocessing (which compresses to
     // ~48kbps mono MP3), since that — not the raw upload — is what gets sent to the API.
   }
+  return { useGroq, khutbahType, singleKhutbah, existingTranscriptPath, audioPath };
+}
 
-  // Create a timestamped output folder
+// A timestamped output folder: outputs/<time>_<name>/.
+function createOutputFolder({ existingTranscriptPath, audioPath }) {
   const audioBasename = existingTranscriptPath
     ? path.basename(path.dirname(existingTranscriptPath))
         .replace(/^(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}_)+/, '') // strip leading timestamp(s)
@@ -84,8 +92,11 @@ async function main() {
   const outDir = path.join(__dirname, 'outputs', `${timestamp}_${audioBasename}`);
   mkdirSync(outDir, { recursive: true });
   console.log(`Output folder: outputs/${timestamp}_${audioBasename}/`);
+  return { outDir, timestamp, audioBasename };
+}
 
-  // Step 3: Transcribe (or load existing transcript)
+// Step 3: transcribe the recording, or reuse an earlier transcript and its timings.
+async function getTranscript({ existingTranscriptPath, audioPath, useGroq }) {
   let transcript;
   let transcriptSegments = [];
   let transcriptWordTimes = [];
@@ -166,24 +177,11 @@ async function main() {
   transcriptWordTimes = transcriptWordTimes
     .map(w => ({ ...w, word: stripAyahMarkup(w.word ?? '') }))
     .filter(w => w.word);
+  return { transcript, transcriptSegments, transcriptWordTimes, groqText };
+}
 
-  // Step 4: Save raw Arabic transcript
-  writeFileSync(path.join(outDir, 'transcript.txt'), transcript, 'utf8');
-  // In --gemini mode the hybrid also produced a Groq transcript — save it for comparison.
-  if (groqText) {
-    writeFileSync(path.join(outDir, 'transcript_groq.txt'), groqText, 'utf8');
-  }
-  const wordCount = transcript.split(/\s+/).filter(Boolean).length;
-
-  // Step 5: Send transcript to Claude for translation + reference extraction.
-  // Pre-detect Quran zones algorithmically so chunks don't straddle ayah boundaries.
-  const CHUNK_SIZE = 30;
-  const transcriptWords = transcript.split(/\s+/).filter(Boolean);
-  process.stdout.write('Pre-scanning Quran zones...');
-  const quranZones = prescanForQuranZones(transcriptWords);
-  console.log(` ${quranZones.length} zones detected`);
-
-  const proseChunks = buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSegments);
+// Steps 5-6: Claude translates the numbered prose chunks and names the references it hears.
+async function analyzeWithClaude({ transcript, proseChunks, khutbahType, outDir }) {
   const numberedChunks = proseChunks.map((c, i) => `[${i + 1}] ${c.text}`).join('\n');
   const chunkInstruction = `\n\nThe transcript has been divided into ${proseChunks.length} prose chunks below ` +
     `(Quranic verses are excluded and handled separately). ` +
@@ -228,123 +226,13 @@ async function main() {
     );
     process.exit(1);
   }
+  return analysis;
+}
 
-  // Step 7: Match each Quranic reference.
-  // Claude identifies the surah/ayah from its Quran knowledge (primary).
-  // The local algorithm independently scores the extracted text (cross-check).
-  // If both agree  → high confidence.
-  // If they disagree → flag for manual review (one may have erred).
-  // If only algorithm matched → use it, note Claude was uncertain.
-  const quranRefs = (analysis.quran_references ?? []).map(ref => {
-    const algoMatch = findMatchingAyah(ref.arabic_text ?? '');
-
-    const claudeSurahNum = ref.surah_number ?? null;
-    const claudeAyahNum  = ref.ayah_number  ?? null;
-    const claudeIdentified = claudeSurahNum !== null && claudeAyahNum !== null;
-
-    // Determine agreement
-    const bothAgree = claudeIdentified && algoMatch &&
-      algoMatch.surah_number === claudeSurahNum &&
-      algoMatch.ayah_number  === claudeAyahNum;
-    const disagree = claudeIdentified && algoMatch &&
-      (algoMatch.surah_number !== claudeSurahNum || algoMatch.ayah_number !== claudeAyahNum);
-
-    // On a disagreement, let the detected words themselves break the tie. Claude reads
-    // meaning and is usually right about which passage is being cited, but it mislabels an
-    // adjacent verse when two share a phrase: Al-Hajj 22:36 and 22:37 both contain
-    // "كذلك سخر…ها لكم", and Claude labelled 22:36's closing words as 22:37. Deferring to
-    // Claude unconditionally put the wrong verse on the card. Prefer the algorithm only when
-    // its verse contains clearly more of the detected text, so an ordinary near-tie still
-    // goes to Claude.
-    const ayahCoverage = (sNum, aNum) => {
-      const verse = getQuranAyahWords().get(sNum)?.find(v => v.ayah_id === aNum);
-      if (!verse) return 0;
-      const inVerse = new Set(verse.words);
-      const det = normalizeArabicDeep(ref.arabic_text ?? '').split(/\s+/).filter(Boolean);
-      if (!det.length) return 0;
-      return det.filter(w => inVerse.has(w)).length / det.length;
-    };
-    // Neighbouring verses of the same surah are a different case: a recitation that runs
-    // across both contains words of both, and whole-text coverage then favours whichever
-    // verse is longer — Quraysh 106:3-4 was labelled 106:4 because 106:4 has twice the
-    // words, and the range walk (which only extends forward) could never recover 106:3.
-    // The label must name the verse the recitation STARTS in, so decide on the leading words.
-    const leadCoverage = (sNum, aNum) => {
-      const verse = getQuranAyahWords().get(sNum)?.find(v => v.ayah_id === aNum);
-      if (!verse) return 0;
-      const inVerse = new Set(verse.words);
-      const lead = normalizeArabicDeep(ref.arabic_text ?? '').split(/\s+/).filter(Boolean).slice(0, 3);
-      return lead.filter(w => inVerse.has(w)).length;
-    };
-    const adjacent = disagree && algoMatch.surah_number === claudeSurahNum &&
-      Math.abs(algoMatch.ayah_number - claudeAyahNum) === 1;
-    const preferAlgo = disagree && (adjacent
-      ? leadCoverage(algoMatch.surah_number, algoMatch.ayah_number)
-          > leadCoverage(claudeSurahNum, claudeAyahNum)
-      : ayahCoverage(algoMatch.surah_number, algoMatch.ayah_number)
-          > ayahCoverage(claudeSurahNum, claudeAyahNum) + 0.15);
-
-    // Choose which identification to use:
-    //  - Agreed: either (they match)
-    //  - Claude only: trust Claude, algorithm couldn't confirm
-    //  - Algorithm only: use algorithm, Claude was uncertain
-    //  - Disagreement: whichever verse the words belong to (above), defaulting to Claude
-    const useClaude = claudeIdentified && !preferAlgo;
-    const surahNum  = useClaude ? claudeSurahNum  : (algoMatch?.surah_number ?? null);
-    const ayahNum   = useClaude ? claudeAyahNum   : (algoMatch?.ayah_number  ?? null);
-    const surahName = useClaude ? (ref.surah_name ?? algoMatch?.surah_name ?? null)
-                                : (algoMatch?.surah_name ?? null);
-
-    if (!surahNum || !ayahNum) {
-      return {
-        detected_text: ref.arabic_text,
-        matched: false,
-        surah_name: null, surah_number: null, ayah_number: null,
-        quran_link: null, confidence: 0,
-        verification: 'no_match',
-      };
-    }
-
-    const quranLink = `https://quran.com/${surahNum}/${ayahNum}`;
-    const confidence = bothAgree
-      ? Math.max(algoMatch.confidence, 0.95)   // both agree → high confidence
-      : claudeIdentified && !algoMatch
-        ? 0.85                                  // Claude only
-        : disagree
-          ? 0.75                                // disagreement — flagged
-          : (algoMatch?.confidence ?? 0.7);     // algorithm only
-
-    return {
-      detected_text: ref.arabic_text,
-      matched: true,
-      surah_name: surahName,
-      surah_number: surahNum,
-      ayah_number: ayahNum,
-      quran_link: quranLink,
-      confidence: Math.round(confidence * 100) / 100,
-      verification: bothAgree    ? 'claude+algorithm'
-                  : disagree     ? `DISAGREEMENT:claude=${claudeSurahNum}:${claudeAyahNum},algo=${algoMatch.surah_number}:${algoMatch.ayah_number}${preferAlgo ? ',used=algo' : ',used=claude'}`
-                  : claudeIdentified ? 'claude_only'
-                  : 'algorithm_only',
-    };
-  });
-
-  if (!hadithCorpus) hadithCorpus = loadHadithCorpus();
-  const claudeHadithRefs = deduplicateHadithRefs(
-    (analysis.hadith_references ?? []).map(ref => {
-      const match = findMatchingHadith(ref.arabic_text ?? '', hadithCorpus);
-      return {
-        detected_text: ref.arabic_text,
-        narrator: ref.narrator ?? null,
-        collection: match ? match.collection : (ref.collection ?? null),
-        hadith_number: match ? match.number : null,
-        link: match ? match.link : null,
-        confidence: match ? match.confidence : null,
-        detection_method: 'signal_phrase',
-        note: match ? 'Matched against local corpus' : 'Manual verification recommended',
-      };
-    })
-  );
+// Steps 7, 8, 8b: Claude's Quran references checked against the corpus (matchClaudeQuranRef),
+// then the ones a scan of the whole transcript and the n-gram zones find.
+function findQuranRefs({ analysis, transcript, transcriptWords, quranZones }) {
+  const quranRefs = (analysis.quran_references ?? []).map(matchClaudeQuranRef);
 
   // Step 8: Scan full transcript for Quranic references missed by signal-phrase detection
   process.stdout.write('Scanning transcript for Quranic references...');
@@ -364,6 +252,16 @@ async function main() {
   // passage rather than only the verse the detecting layer happened to name.
   allQuranRefs.forEach(annotateRefAyahRange);
   yieldTailToLaterRefs(allQuranRefs);
+  return { quranRefs, scanRefs, allQuranRefs };
+}
+
+// Steps 7, 8c, 8d for hadith: Claude's references matched to the corpus, the ones a scan finds,
+// then sunnah.com links.
+async function findHadithRefs({ analysis, transcript }) {
+  const hadithCorpus = loadHadithCorpus();
+  const claudeHadithRefs = deduplicateHadithRefs(
+    (analysis.hadith_references ?? []).map(ref => matchClaudeHadithRef(ref, hadithCorpus))
+  );
 
   // Step 8c: Scan for Hadith references
   process.stdout.write('Scanning transcript for Hadith references...');
@@ -376,6 +274,37 @@ async function main() {
   process.stdout.write('Resolving sunnah.com links...');
   await resolveSunnahLinksForRefs(allHadithRefs, transcript);
   console.log(` ${allHadithRefs.filter(r => r.verification === 'sunnah_search').length}/${allHadithRefs.length} verified`);
+  return { hadithScanRefs, allHadithRefs };
+}
+
+// ---- Main ----------------------------------------------------------------------
+
+async function main() {
+  const opts = parseArgs(process.argv.slice(2));
+  const { useGroq, khutbahType, singleKhutbah } = opts;
+  const { outDir, timestamp, audioBasename } = createOutputFolder(opts);
+  const { transcript, transcriptSegments, transcriptWordTimes, groqText } = await getTranscript(opts);
+
+  // Step 4: Save raw Arabic transcript
+  writeFileSync(path.join(outDir, 'transcript.txt'), transcript, 'utf8');
+  // In --gemini mode the hybrid also produced a Groq transcript — save it for comparison.
+  if (groqText) {
+    writeFileSync(path.join(outDir, 'transcript_groq.txt'), groqText, 'utf8');
+  }
+  const wordCount = transcript.split(/\s+/).filter(Boolean).length;
+
+  // Step 5: Send transcript to Claude for translation + reference extraction.
+  // Pre-detect Quran zones algorithmically so chunks don't straddle ayah boundaries.
+  const CHUNK_SIZE = 30;
+  const transcriptWords = transcript.split(/\s+/).filter(Boolean);
+  process.stdout.write('Pre-scanning Quran zones...');
+  const quranZones = prescanForQuranZones(transcriptWords);
+  console.log(` ${quranZones.length} zones detected`);
+
+  const proseChunks = buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSegments);
+  const analysis = await analyzeWithClaude({ transcript, proseChunks, khutbahType, outDir });
+  const { quranRefs, scanRefs, allQuranRefs } = findQuranRefs({ analysis, transcript, transcriptWords, quranZones });
+  const { hadithScanRefs, allHadithRefs } = await findHadithRefs({ analysis, transcript });
 
   // Step 9: Assemble final output object
   const matchedCount = allQuranRefs.filter(r => r.matched).length;
