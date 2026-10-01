@@ -21,11 +21,11 @@ import {
   findMatchingHadith,
   loadHadithCorpus,
   resolveSunnahLinksForRefs,
-} from '../pipeline.js';
+} from '../../pipeline.js';
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.join(__dirname, '..');
+const ROOT = path.join(__dirname, '..', '..');
 
 const quranAr = require('quran-json/dist/quran.json');
 const quranEn = require('quran-json/dist/quran_en.json');

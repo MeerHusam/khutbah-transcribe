@@ -61,7 +61,7 @@ const home = !masjidIn || /ma'?ather|معذر/i.test(masjidIn);
 const masjid = home ? HOME.masjid : masjidIn;
 const masjidSlug = masjidIn.normalize('NFKD').replace(/[^\x00-\x7f]/g, '').toLowerCase().replace(/\b(masjid|mosque|jami|jamia)\b/g, '')
   .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);
-const serverJs = () => readFileSync(join(ROOT, 'server.js'), 'utf8');
+const serverJs = () => readFileSync(join(ROOT, 'server', 'server.js'), 'utf8');
 let slug = resumedSlug ?? (home ? dateISO : `${dateISO}-${masjidSlug || 'masjid'}`);
 for (let n = 2; !resume && serverJs().includes(`slug: '${slug}'`); n++) slug = `${home ? dateISO : `${dateISO}-${masjidSlug || 'masjid'}`}-${n}`;
 const name = `khutbah-${slug}`;
@@ -205,7 +205,7 @@ async function main() {
     if (!gi.includes(line)) gi = gi.trimEnd() + '\n' + line + '\n';
   }
   writeFileSync(join(ROOT, '.gitignore'), gi);
-  const paths = [cleanAudio ? join('audio_files', cleanAudio) : audioOut, F, 'server.js', '.gitignore', 'tests/khutbahs.json'];
+  const paths = [cleanAudio ? join('audio_files', cleanAudio) : audioOut, F, 'server/server.js', '.gitignore', 'tests/khutbahs.json'];
   const link = `${SITE}/${slug}`;
   const summary = times.map(([l, s]) => `${l} ${s}s`).join(', ');
   if (!push) {

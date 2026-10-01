@@ -32,7 +32,7 @@ import {
   findMatchingHadith,
   loadHadithCorpus,
   resolveSunnahLinksForRefs,
-} from './pipeline.js';
+} from '../pipeline.js';
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -412,7 +412,7 @@ class LiveSession {
     try {
       if (!this.words.length) return;
       const stamp = this.startedAt.replace(/[:.]/g, '-').slice(0, 19);
-      const dir = path.join(__dirname, 'outputs', `live_${stamp}`);
+      const dir = path.join(__dirname, '..', 'outputs', `live_${stamp}`);
       mkdirSync(dir, { recursive: true });
       writeFileSync(path.join(dir, 'transcript.txt'), this.words.join(' ') + '\n');
       writeFileSync(path.join(dir, 'live_session.json'), JSON.stringify({

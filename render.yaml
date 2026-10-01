@@ -16,7 +16,7 @@ services:
     plan: starter
     region: oregon
     buildCommand: npm install
-    startCommand: node server.js
+    startCommand: node server/server.js
     healthCheckPath: /api/results
     envVars:
       - key: NODE_VERSION

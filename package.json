@@ -5,7 +5,7 @@
   "type": "module",
   "main": "pipeline.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node server/server.js",
     "pipeline": "node pipeline.js"
   },
   "engines": {

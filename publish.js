@@ -9,7 +9,7 @@
 //   3. gate: verify_reader.js must pass
 //   4. test set: the khutbah is added to tests/khutbahs.json with its current cards, marked
 //      unconfirmed, and test_khutbahs.js --rebuild must pass for every khutbah
-//   5. site: a PUBLIC_KHUTBAHS entry in server.js (featured unless --no-feature) and the
+//   5. site: a PUBLIC_KHUTBAHS entry in server/server.js (featured unless --no-feature) and the
 //      .gitignore allowlist lines for its audio and output folder
 // Then it prints what to check and the git commands. It never commits or pushes.
 //
@@ -51,7 +51,7 @@ const trimStart = +opt('--trim-start', 0), trimEnd = +opt('--trim-end', 0);
 const fromFolder = opt('--from-folder');
 const dryRun = flag('--dry-run');
 
-const serverJs = readFileSync(join(ROOT, 'server.js'), 'utf8');
+const serverJs = readFileSync(join(ROOT, 'server', 'server.js'), 'utf8');
 if (serverJs.includes(`slug: '${slug}'`)) die(`slug "${slug}" is already in PUBLIC_KHUTBAHS`);
 
 const run = (cmd, args) => {
@@ -166,8 +166,8 @@ const entry = `  {\n${fields.map(([k, val]) => `    ${k}: ${q(val)},`).join('\n'
 let js = serverJs;
 if (feature) js = js.replace(/\n    featured: true,/g, '');
 js = js.replace('const PUBLIC_KHUTBAHS = [\n', `const PUBLIC_KHUTBAHS = [\n${entry}`);
-if (js === serverJs) die('could not find "const PUBLIC_KHUTBAHS = [" in server.js');
-writeFileSync(join(ROOT, 'server.js'), js);
+if (js === serverJs) die('could not find "const PUBLIC_KHUTBAHS = [" in server/server.js');
+writeFileSync(join(ROOT, 'server', 'server.js'), js);
 console.log(`  + PUBLIC_KHUTBAHS: ${slug}${feature ? ' (featured)' : ''}`);
 
 let gi = readFileSync(join(ROOT, '.gitignore'), 'utf8');
@@ -189,9 +189,9 @@ if (flag('--review')) { step('Review'); run('node', ['core/review_blocks.js', fo
 
 console.log(`
 ✓ Ready to check. Not committed, not pushed.
-  1. node server.js, then open http://localhost:3000/${slug} in Safari or Chrome (not VS Code's
+  1. node server/server.js, then open http://localhost:3000/${slug} in Safari or Chrome (not VS Code's
      browser: it cannot play .m4a) and read it through; play the audio and follow the highlight.
   2. Confirm the cards in tests/khutbahs.json (entry "${slug}", "confirmed": false).
-  3. git add ${audioOut} ${folder} server.js .gitignore tests/khutbahs.json
+  3. git add ${audioOut} ${folder} server/server.js .gitignore tests/khutbahs.json
      git commit -m "Publish ${title} (${date})"
   4. Push when traffic is low: git push origin main   (Render deploys main in about a minute)`);

@@ -4,17 +4,17 @@ import { createServer } from 'http';
 import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync, createWriteStream, readdirSync, unlinkSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { loadResult } from './core/reader_chunks.js';
+import { loadResult } from '../core/reader_chunks.js';
 import { handleLiveConnection, liveStatus } from './live.js';
 import { handleStreamConnection, streamStatus } from './live/index.js';
 import { buildTrafficPage, classifyUA, readJsonl } from './admin_traffic.js';
 
 // Load Quran data once at startup
-const quranData = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'node_modules/quran-json/dist/quran.json'), 'utf8'));
+const quranData = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'node_modules/quran-json/dist/quran.json'), 'utf8'));
 // Sahih International, the same translation the pipeline swaps into quoted verses.
-const quranEn = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'node_modules/quran-json/dist/quran_en.json'), 'utf8'));
+const quranEn = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'node_modules/quran-json/dist/quran_en.json'), 'utf8'));
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
@@ -40,7 +40,7 @@ function withShareMeta(file, req, { title, description, path }) {
     `<meta property="og:image:height" content="630">`,
     `<meta name="twitter:card" content="summary_large_image">`,
   ].join('\n  ');
-  return readFileSync(join(__dirname, 'public', file), 'utf8')
+  return readFileSync(join(ROOT, 'public', file), 'utf8')
     .replace(/<meta name="description"[^>]*>\s*/, '')
     .replace(/<title>[^<]*<\/title>/, tags);
 }
@@ -50,7 +50,7 @@ function shareSummary(folder) {
   if (!shareSummaries.has(folder)) {
     let text = '';
     try {
-      const r = JSON.parse(readFileSync(join(__dirname, 'outputs', folder, 'result.json'), 'utf8'));
+      const r = JSON.parse(readFileSync(join(ROOT, 'outputs', folder, 'result.json'), 'utf8'));
       text = r.share_summary || r.summary || '';
     } catch {}
     shareSummaries.set(folder, text);
@@ -81,8 +81,8 @@ app.get('/index.html', (req, res, next) => {
   if (k && k.slug && (k.folder !== req.query.folder || k.page)) return res.redirect(301, `/${k.slug}`);
   next();
 });
-app.use(express.static(join(__dirname, 'public')));
-app.use('/audio_files', express.static(join(__dirname, 'audio_files')));
+app.use(express.static(join(ROOT, 'public')));
+app.use('/audio_files', express.static(join(ROOT, 'audio_files')));
 
 // Secret for viewing submitted feedback at /admin/feedback?key=… (set in env on deploy)
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
@@ -199,7 +199,7 @@ let listCache = null;
 // Viewer counts. Live = concurrent open WebSocket connections. Total = cumulative
 // page loads, persisted to disk so it survives restarts/redeploys.
 // ────────────────────────────────────────────────────────────────────────────
-const DATA_DIR = join(__dirname, 'data');
+const DATA_DIR = join(ROOT, 'data');
 const VIEWS_FILE = join(DATA_DIR, 'views.json');
 const FEEDBACK_FILE = join(DATA_DIR, 'feedback.jsonl');
 const GEO_FILE = join(DATA_DIR, 'geo_views.jsonl');
@@ -324,14 +324,14 @@ wss.on('connection', (ws, req) => {
 function findAudioUrl(folder) {
   // An entry whose folder name does not match its recording names the file itself.
   const named = PUBLIC_KHUTBAHS.find(k => k.folder === folder)?.audio;
-  if (named && existsSync(join(__dirname, 'audio_files', named))) return `/audio_files/${named}`;
+  if (named && existsSync(join(ROOT, 'audio_files', named))) return `/audio_files/${named}`;
   const exts = ['mp3', 'm4a', 'wav', 'mp4', 'ogg', 'flac'];
   // CLI run: basename after timestamp prefix matches audio_files/ filename
   const baseMatch = folder.match(/^\d{4}-\d{2}-\d{2}T[\d-]+_(.+)$/);
   if (baseMatch) {
     const basename = baseMatch[1];
     for (const ext of exts) {
-      if (existsSync(join(__dirname, 'audio_files', `${basename}.${ext}`))) {
+      if (existsSync(join(ROOT, 'audio_files', `${basename}.${ext}`))) {
         return `/audio_files/${basename}.${ext}`;
       }
     }
@@ -344,7 +344,7 @@ function findAudioUrl(folder) {
 // rebuilt reader never plays stale times. Folders without a tts_*.json are untouched.
 const TTS_LANGS = ['en', 'ur'];
 function attachTts(folder, result) {
-  const dir = join(__dirname, 'outputs', folder);
+  const dir = join(ROOT, 'outputs', folder);
   const chunks = result.reader_chunks || [];
   const head = c => c.arabic.split(/\s+/).filter(Boolean).slice(0, 6).join(' ');
   for (const lang of TTS_LANGS) {
@@ -371,7 +371,7 @@ function sendWords(res, folder, file) {
   const key = `${folder}/${file}`;
   if (!ttsWords.has(key)) {
     try {
-      const m = JSON.parse(readFileSync(join(__dirname, 'outputs', folder, file), 'utf8'));
+      const m = JSON.parse(readFileSync(join(ROOT, 'outputs', folder, file), 'utf8'));
       ttsWords.set(key, JSON.stringify({
         blocks: Object.fromEntries(m.blocks.filter(b => b.words).map(b => [b.i, b.words])),
         // A voice track with the imam's recitation in it (recite.js): his words, for the Arabic.
@@ -393,7 +393,7 @@ app.get('/words/:folder/imam.json', (req, res) => {
 
 app.get('/tts/:folder/:lang.mp3', (req, res) => {
   if (!ALLOWED_FOLDERS.has(req.params.folder) || !TTS_LANGS.includes(req.params.lang)) return res.status(404).end();
-  res.sendFile(join(__dirname, 'outputs', req.params.folder, `tts_${req.params.lang}.mp3`), err => {
+  res.sendFile(join(ROOT, 'outputs', req.params.folder, `tts_${req.params.lang}.mp3`), err => {
     if (err && !res.headersSent) res.status(404).end();
   });
 });
@@ -423,7 +423,7 @@ app.get('/api/results', (req, res) => {
   if (listCache) return res.json(listCache);
   const items = PUBLIC_KHUTBAHS.map(k => {
     try {
-      return listItem(k, JSON.parse(readFileSync(join(__dirname, 'outputs', k.folder, 'result.json'), 'utf8')));
+      return listItem(k, JSON.parse(readFileSync(join(ROOT, 'outputs', k.folder, 'result.json'), 'utf8')));
     } catch { return null; }
   }).filter(Boolean);
   listCache = { featured: FEATURED_FOLDER, items };
@@ -458,12 +458,12 @@ app.get('/api/results/:folder', (req, res) => {
 });
 
 // Live khutbah mode (test): /live page + status endpoint
-app.get('/live', (req, res) => res.sendFile(join(__dirname, 'public', 'live.html')));
+app.get('/live', (req, res) => res.sendFile(join(ROOT, 'public', 'live.html')));
 app.get('/api/live/status', (req, res) => res.json(liveStatus()));
 
 // Streaming live mode (Speechmatics realtime) — separate from /live and from the
 // offline upload pipeline; both continue to work untouched.
-app.get('/stream', (req, res) => res.sendFile(join(__dirname, 'public', 'stream.html')));
+app.get('/stream', (req, res) => res.sendFile(join(ROOT, 'public', 'stream.html')));
 app.get('/api/stream/status', (req, res) => res.json(streamStatus()));
 
 // Quran ayah lookup with harakat
@@ -618,7 +618,7 @@ const publicJob = ({ file, ...job }) => job;
 app.get('/admin/upload', (req, res) => {
   if (!ADMIN_TOKEN) return res.status(503).send('Set the ADMIN_TOKEN env var to use uploads.');
   if (!isAdmin(req)) return res.status(401).send('Unauthorized');
-  res.sendFile(join(__dirname, 'admin', 'upload.html'));
+  res.sendFile(join(ROOT, 'admin', 'upload.html'));
 });
 
 // The recording as the request body (not a form): any size up to MAX_UPLOAD, streamed to disk.
