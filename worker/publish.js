@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// publish.js — Take a khutbah recording to a publishable state in one command, and stop
-// before anything is committed or pushed (Render deploys main).
+// publish.js — Take a khutbah recording to a published page in one command. Nothing is
+// committed or deployed: the khutbah goes to the site through its publish API (worker/site.js).
 //
 //   1. audio: remux to audio_files/<name>.<ext> with the moov atom first (phone recordings put it
 //      last, so the player shows 0:00 until the whole file downloads), optionally trimming
@@ -9,9 +9,9 @@
 //   3. gate: verify_reader.js must pass
 //   4. test set: the khutbah is added to tests/khutbahs.json with its current cards, marked
 //      unconfirmed, and tests/test_khutbahs.js --rebuild must pass for every khutbah
-//   5. site: an entry in server/khutbahs.json (featured unless --no-feature) and the
-//      .gitignore allowlist lines for its audio and output folder
-// Then it prints what to check and the git commands. It never commits or pushes.
+//   5. site: the reader's files, the recording and the entry go to --site (featured unless
+//      --no-feature): your local server by default (npm start), to check it there first
+// Then it prints what to check.
 //
 // Usage:
 //   node worker/publish.js <recording> --slug 2026-10-02 --title "…" --date "2 October 2026"
@@ -22,13 +22,17 @@
 //        [--no-feature] [--review]        --review also runs review_blocks.js (about $0.07)
 //        [--keep-audio]                   audio_files/<name>.<ext> is already in place (autopublish.js)
 //        [--page reader-ur.html] [--audio <file in audio_files/>]   the entry's own page and recording
+//        [--site https://khutbah-live.onrender.com]   where to publish (default http://localhost:3000)
+//        [--no-site]                      stop after the checks and the test set
 //        [--dry-run]                      print the plan, change nothing
 
+import 'dotenv/config';
 import { spawnSync } from 'child_process';
 import { readFileSync, writeFileSync, existsSync, openSync, readSync, closeSync, readdirSync, statSync } from 'fs';
 import { join, extname, basename, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { verifyReader } from '../core/verify_reader.js';
+import { publishToSite, siteSlugs } from './site.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -51,9 +55,11 @@ const trimStart = +opt('--trim-start', 0), trimEnd = +opt('--trim-end', 0);
 const fromFolder = opt('--from-folder');
 const dryRun = flag('--dry-run');
 
-const KHUTBAHS = join(ROOT, 'server', 'khutbahs.json');
-const khutbahs = JSON.parse(readFileSync(KHUTBAHS, 'utf8'));
-if (khutbahs.some(k => k.slug === slug)) die(`slug "${slug}" is already in server/khutbahs.json`);
+const site = flag('--no-site') ? null : opt('--site', 'http://localhost:3000').replace(/\/+$/, '');
+if (site) {
+  const taken = await siteSlugs(site).catch(e => die(`cannot reach ${site} (${e.message}): start it with npm start, or pass --site <url> or --no-site`));
+  if (taken.includes(slug)) die(`slug "${slug}" is already on ${site}`);
+}
 
 const run = (cmd, args) => {
   console.log(`  $ ${cmd} ${args.join(' ')}`);
@@ -155,41 +161,35 @@ if (!spec.khutbahs.some(k => k.slug === slug)) {
 run('node', ['tests/test_khutbahs.js', '--rebuild']);
 
 // ── 5. Site ───────────────────────────────────────────────────────────────────
-step('5. server/khutbahs.json and .gitignore');
 const feature = !flag('--no-feature');
-const fields = [
-  ['folder', runName], ['slug', slug], ['title', title], ['speaker', opt('--speaker', 'Friday Khutbah')],
-  ['masjid', opt('--masjid')], ['masjid_ar', opt('--masjid-ar')], ['maps_url', opt('--maps-url')], ['date', date],
-  ['audio', opt('--audio')], ['page', opt('--page')],
-].filter(([, val]) => val);
-// The newest entry goes first; a featured one takes the home page from the one before it.
-if (feature) for (const k of khutbahs) delete k.featured;
-khutbahs.unshift({ ...Object.fromEntries(fields), ...(feature ? { featured: true } : {}) });
-writeFileSync(KHUTBAHS, JSON.stringify(khutbahs, null, 2) + '\n');
-console.log(`  + server/khutbahs.json: ${slug}${feature ? ' (featured)' : ''}`);
-
-let gi = readFileSync(join(ROOT, '.gitignore'), 'utf8');
-const addAfterLast = (text, prefix, line) => {
-  if (text.includes(line)) return text;
-  const lines = text.split('\n');
-  let at = -1;
-  lines.forEach((l, i) => { if (l.startsWith(prefix)) at = i; });
-  if (at < 0) die(`no "${prefix}" lines in .gitignore`);
-  lines.splice(at + 1, 0, line);
-  return lines.join('\n');
-};
-gi = addAfterLast(gi, '!audio_files/', `!${audioOut}`);
-gi = addAfterLast(gi, '!outputs/', `!outputs/${runName}/`);
-writeFileSync(join(ROOT, '.gitignore'), gi);
-console.log(`  + .gitignore: !${audioOut}, !outputs/${runName}/`);
+if (site) {
+  step(`5. Publish to ${site}`);
+  const fields = [
+    ['slug', slug], ['title', title], ['speaker', opt('--speaker', 'Friday Khutbah')],
+    ['masjid', opt('--masjid')], ['masjid_ar', opt('--masjid-ar')], ['maps_url', opt('--maps-url')], ['date', date],
+    ['audio', opt('--audio')], ['page', opt('--page')],
+  ].filter(([, val]) => val);
+  const entry = { ...Object.fromEntries(fields), ...(feature ? { featured: true } : {}) };
+  // The recording the page plays: --audio names it, else it is the one made in step 1.
+  const recording = join(ROOT, 'audio_files', opt('--audio') || basename(audioOut));
+  const url = await publishToSite({ site, key: process.env.ADMIN_TOKEN, folderPath: join(ROOT, folder), recording, entry })
+    .catch(e => die(`publishing to ${site} failed: ${e.message}`));
+  console.log(`  ✓ live at ${url}${feature ? ' (featured)' : ''}`);
+}
 
 if (flag('--review')) { step('Review'); run('node', ['core/review_blocks.js', folder]); }
 
-console.log(`
-✓ Ready to check. Not committed, not pushed.
-  1. node server/server.js, then open http://localhost:3000/${slug} in Safari or Chrome (not VS Code's
-     browser: it cannot play .m4a) and read it through; play the audio and follow the highlight.
+// The same run, published to the live site, reusing the folder and the recording made here.
+function liveArgs() {
+  const rest = argv.filter((a, i) => !['--site', '--from-folder'].includes(a) && !['--site', '--from-folder'].includes(argv[i - 1]) && a !== '--keep-audio');
+  return [...rest, '--from-folder', folder, '--keep-audio', '--site', 'https://khutbah-live.onrender.com']
+    .map(a => (/[\s"'$]/.test(a) ? JSON.stringify(a) : a)).join(' ');
+}
+console.log(site ? `
+✓ Published to ${site}/${slug}. Nothing committed or deployed.
+  1. Open it in Safari or Chrome (not VS Code's browser: it cannot play .m4a) and read it through;
+     play the audio and follow the highlight.
   2. Confirm the cards in tests/khutbahs.json (entry "${slug}", "confirmed": false).
-  3. git add ${audioOut} ${folder} server/khutbahs.json .gitignore tests/khutbahs.json
-     git commit -m "Publish ${title} (${date})"
-  4. Push when traffic is low: git push origin main   (Render deploys main in about a minute)`);
+  3. For the live site:
+     node worker/publish.js ${liveArgs()}` : `
+✓ Checked; not published (--no-site).`);

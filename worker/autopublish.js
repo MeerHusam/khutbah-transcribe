@@ -3,7 +3,7 @@
 // Run by upload_worker.js for each recording sent from the upload page, or by hand.
 //
 //   node worker/autopublish.js <recording> [--masjid "Masjid Name"] [--single] [--date 2026-10-02]
-//        [--job <upload id>] [--no-push]
+//        [--job <upload id>] [--no-push]          --no-push: everything but publishing
 //   node worker/autopublish.js --resume outputs/<folder> [--masjid …] [--no-push]
 //        after a failed run: the steps already done are kept (the voices come from the cache)
 //
@@ -17,18 +17,19 @@
 //   5. the voices, side by side: Urdu (Orus, a direction per sentence, a passage at a time) and
 //      English (Charon); each then gets its word times (the Urdu's come with its voice) and his
 //      recitation before each verse
-//   6. publish.js (the checks, the test set, the site entry: one page with English and Urdu),
-//      then commit and push to main; Render deploys it, and the page is checked live.
+//   6. publish.js: the checks, the test set, then the site's publish API (one page with English
+//      and Urdu); the page is live at once, with no commit and no deploy, and is checked.
 // With --job, every stage is reported to the upload page (/admin/uploads/<id>/status).
 // Our masjid gets the date as its link (/2026-10-02) and is featured; another masjid gets
 // /2026-10-02-<masjid> and is not.
 
 import 'dotenv/config';
 import Anthropic from '@anthropic-ai/sdk';
-import { spawn, spawnSync } from 'child_process';
-import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync, appendFileSync } from 'fs';
+import { spawn } from 'child_process';
+import { readFileSync, existsSync, readdirSync, mkdirSync, appendFileSync } from 'fs';
 import { join, extname, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
+import { siteSlugs } from './site.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SITE = process.env.SITE_URL || 'https://khutbah-live.onrender.com';
@@ -61,9 +62,9 @@ const home = !masjidIn || /ma'?ather|معذر/i.test(masjidIn);
 const masjid = home ? HOME.masjid : masjidIn;
 const masjidSlug = masjidIn.normalize('NFKD').replace(/[^\x00-\x7f]/g, '').toLowerCase().replace(/\b(masjid|mosque|jami|jamia)\b/g, '')
   .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);
-const takenSlugs = () => JSON.parse(readFileSync(join(ROOT, 'server', 'khutbahs.json'), 'utf8')).map(k => k.slug);
+const taken = resume || !push ? [] : await siteSlugs(SITE).catch(e => { console.error(`cannot reach ${SITE}: ${e.message}`); process.exit(1); });
 let slug = resumedSlug ?? (home ? dateISO : `${dateISO}-${masjidSlug || 'masjid'}`);
-for (let n = 2; !resume && takenSlugs().includes(slug); n++) slug = `${home ? dateISO : `${dateISO}-${masjidSlug || 'masjid'}`}-${n}`;
+for (let n = 2; taken.includes(slug); n++) slug = `${home ? dateISO : `${dateISO}-${masjidSlug || 'masjid'}`}-${n}`;
 const name = `khutbah-${slug}`;
 
 // ── Log, report, run ───────────────────────────────────────────────────────────
@@ -193,44 +194,24 @@ async function main() {
     voice('en', 'English', []),
   ]);
 
-  // 6. Publish: checks, test set, site entry (one page), then commit and push.
-  await report('publishing', { message: push ? 'checks, then the site' : 'checks (not pushing: --no-push)' });
+  // 6. Publish: checks, test set, then the site's publish API (one page). The page plays the
+  // cleaned recording; the original stays on this Mac.
+  await report('publishing', { message: push ? 'checks, then the site' : 'checks (not publishing: --no-push)' });
   await run('checks and site entry', 'node', ['worker/publish.js', audioOut, '--from-folder', F, '--keep-audio', '--slug', slug, '--title', title, '--date', dateText,
     '--name', name, '--masjid', masjid, ...(home ? ['--masjid-ar', HOME.masjid_ar, '--maps-url', HOME.maps_url] : ['--no-feature']),
-    '--page', 'reader-ur.html', ...(cleanAudio ? ['--audio', cleanAudio] : []), ...(single ? ['--single'] : [])]);
-  // The page plays the cleaned recording; the original then stays on this Mac only (half the push).
-  let gi = readFileSync(join(ROOT, '.gitignore'), 'utf8');
-  if (cleanAudio) gi = gi.split('\n').filter(l => l !== `!audio_files/${audioName}`).join('\n');
-  for (const line of [cleanAudio && `!audio_files/${cleanAudio}`, `!${F}/tts_ur.mp3`, `!${F}/tts_en.mp3`].filter(Boolean)) {
-    if (!gi.includes(line)) gi = gi.trimEnd() + '\n' + line + '\n';
-  }
-  writeFileSync(join(ROOT, '.gitignore'), gi);
-  const paths = [cleanAudio ? join('audio_files', cleanAudio) : audioOut, F, 'server/khutbahs.json', '.gitignore', 'tests/khutbahs.json'];
+    '--page', 'reader-ur.html', ...(cleanAudio ? ['--audio', cleanAudio] : []), ...(single ? ['--single'] : []),
+    ...(push ? ['--site', SITE] : ['--no-site'])]);
   const link = `${SITE}/${slug}`;
   const summary = times.map(([l, s]) => `${l} ${s}s`).join(', ');
   if (!push) {
-    log(`not pushed (--no-push). Steps: ${summary}`);
-    await report('live', { link: `(not pushed) ${link}`, message: `${mins()} min, not pushed` });
+    log(`not published (--no-push). Steps: ${summary}`);
+    await report('live', { link: `(not published) ${link}`, message: `${mins()} min, not published` });
     return;
   }
-  const git = args => { const r = spawnSync('git', args, { cwd: ROOT, encoding: 'utf8' }); if (r.status !== 0) throw new Error(`git ${args[0]}: ${(r.stderr || r.stdout).trim().slice(-300)}`); return r.stdout; };
-  git(['add', ...paths]);
-  git(['commit', '-m', `Publish ${title} (${dateText}, ${masjid})`, '--', ...paths]);
-  git(['pull', '--rebase', '--autostash', 'origin', 'main']);
-  git(['push', 'origin', 'HEAD:main']);
-  log('pushed; waiting for the site');
-  for (let i = 0; i < 40; i++) {
-    await new Promise(r => setTimeout(r, 10000));
-    try {
-      const r = await fetch(`${SITE}/${slug}`);
-      if (r.ok) {
-        log(`live: ${link}. Steps: ${summary}`);
-        await report('live', { link, message: `${mins()} min from upload start` });
-        return;
-      }
-    } catch { /* still deploying */ }
-  }
-  throw new Error('pushed, but the page did not come up within 7 minutes');
+  const r = await fetch(link).catch(() => null);
+  if (!r?.ok) throw new Error(`published, but ${link} did not load (${r?.status ?? 'no answer'})`);
+  log(`live: ${link}. Steps: ${summary}`);
+  await report('live', { link, message: `${mins()} min from upload start` });
 }
 
 main().catch(async e => {
