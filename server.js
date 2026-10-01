@@ -64,6 +64,8 @@ app.get('/', (req, res) => res.type('html').send(withShareMeta('home.html', req,
 // Short share links: /2026-09-25 instead of /index.html?folder=<run folder>.
 app.get('/:slug', (req, res, next) => {
   const k = PUBLIC_KHUTBAHS.find(x => x.slug && x.slug === req.params.slug);
+  const moved = !k && PUBLIC_KHUTBAHS.find(x => x.old_slugs?.includes(req.params.slug));
+  if (moved) return res.redirect(301, `/${moved.slug}`);
   if (!k) return next();
   // An entry can name its own page (the Urdu edition's reader-ur.html); the rest use index.html.
   const where = [k.date, k.masjid].filter(Boolean).join(' · ');
@@ -72,6 +74,12 @@ app.get('/:slug', (req, res, next) => {
     description: [where, shareSummary(k.folder)].filter(Boolean).join(' · ') || HOME_DESCRIPTION,
     path: `/${k.slug}`,
   }));
+});
+// The old reader address: an entry that has moved folder or has its own page opens at its slug.
+app.get('/index.html', (req, res, next) => {
+  const k = req.query.folder && entryForFolder(req.query.folder);
+  if (k && k.slug && (k.folder !== req.query.folder || k.page)) return res.redirect(301, `/${k.slug}`);
+  next();
 });
 app.use(express.static(join(__dirname, 'public')));
 app.use('/audio_files', express.static(join(__dirname, 'audio_files')));
@@ -87,32 +95,40 @@ const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 // in audio_files/<basename>.<ext> (basename = folder name after the timestamp).
 // ────────────────────────────────────────────────────────────────────────────
 const PUBLIC_KHUTBAHS = [
+  // ── 25 Sep: one page with the English and the Urdu (reader-ur.html: Read English|اردو, Hear
+  //    Imam|English|اردو, word by word). Its folder is the Urdu edition's, which has the voices and
+  //    the imam's word times; the English folder before it stays in the repo but is not served.
+  //    The old addresses still open it: /2026-09-25-urdu and ?folder=<the English folder>.
   {
-    folder: '2026-09-25T10-04-57_khutbah-2026-09-25-masjid',
+    folder: '2026-09-25T10-04-57_khutbah-2026-09-25-masjid-urdu',
     slug: '2026-09-25',
+    old_slugs: ['2026-09-25-urdu'],
+    old_folders: ['2026-09-25T10-04-57_khutbah-2026-09-25-masjid'],
     title: 'The Blessing of Security',
     speaker: 'Friday Khutbah',
     masjid: 'Askan AlMaather Mosque',
     masjid_ar: 'جامع إسكان المعذر',
     maps_url: 'https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6',
     date: '25 September 2026',
+    // The imam's recording with the hall's reverb and echo taken out (clean_audio.py); same
+    // timeline as the original, so every time still holds.
+    audio: 'khutbah-2026-09-25-masjid-clean.m4a',
+    page: 'reader-ur.html',
     featured: true,
   },
-  // ── 25 Sep in Urdu: an entry of its own, so the English page above stays exactly as it is.
-  //    The Urdu reading and the voice reading it (ElevenLabs) were made by the pipeline alone:
-  //    translate_urdu.js + review_urdu.js, no hand edits. Its page is reader-ur.html.
+  // ── 25 Sep in Makkah (Sheikh al-Dosari): one page with the English and the Urdu, like 25 Sep
+  //    above. The Urdu and its voice (Orus, with his own recitation before each verse) were made
+  //    by the pipeline alone; no hand edits.
   {
-    folder: '2026-09-25T10-04-57_khutbah-2026-09-25-masjid-urdu',
-    slug: '2026-09-25-urdu',
-    title: 'The Blessing of Security · اردو',
-    speaker: 'Friday Khutbah',
-    masjid: 'Askan AlMaather Mosque',
-    masjid_ar: 'جامع إسكان المعذر',
-    maps_url: 'https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6',
+    folder: '2026-09-27T16-37-16_makkah_dosari_2026-09-25',
+    slug: 'makkah-2026-09-25',
+    title: 'Lofty Aspiration',
+    speaker: 'Sheikh Yasser al-Dosari',
+    masjid: 'Masjid al-Haram, Makkah',
+    masjid_ar: 'المسجد الحرام',
+    maps_url: 'https://www.google.com/maps/search/?api=1&query=Masjid+al-Haram+Makkah',
     date: '25 September 2026',
-    // The imam's recording with the hall's reverb and echo taken out (clean_audio.py); same
-    // timeline as the original the English entry above plays, so every time still holds.
-    audio: 'khutbah-2026-09-25-masjid-clean.m4a',
+    audio: 'makkah_dosari_2026-09-25.m4a',
     page: 'reader-ur.html',
   },
   // ── Arafah khutbah (single continuous khutbah — processed with `--single`) ──
@@ -169,6 +185,8 @@ const PUBLIC_KHUTBAHS = [
 ];
 const FEATURED_FOLDER = (PUBLIC_KHUTBAHS.find(k => k.featured) || PUBLIC_KHUTBAHS[0]).folder;
 const ALLOWED_FOLDERS = new Set(PUBLIC_KHUTBAHS.map(k => k.folder));
+// An entry by its folder, or by a folder it used to have (an old ?folder= link still opens it).
+const entryForFolder = f => PUBLIC_KHUTBAHS.find(k => k.folder === f || k.old_folders?.includes(f));
 // Short share links: /2026-09-25 instead of /index.html?folder=<run folder>.
 const SLUG_TO_FOLDER = new Map(PUBLIC_KHUTBAHS.filter(k => k.slug).map(k => [k.slug, k.folder]));
 const FOLDER_TO_SLUG = new Map(PUBLIC_KHUTBAHS.filter(k => k.slug).map(k => [k.folder, k.slug]));
@@ -414,6 +432,8 @@ app.get('/api/results', (req, res) => {
 
 // Load a specific published khutbah (allowlist-gated)
 app.get('/api/results/:folder', (req, res) => {
+  const moved = entryForFolder(req.params.folder);
+  if (moved && moved.folder !== req.params.folder) req.params.folder = moved.folder;
   if (!ALLOWED_FOLDERS.has(req.params.folder)) {
     return res.status(404).json({ error: 'Not found' });
   }

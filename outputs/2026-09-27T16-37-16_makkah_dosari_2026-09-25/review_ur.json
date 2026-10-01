@@ -1,0 +1,139 @@
+{
+  "model": "claude-opus-5-5",
+  "reviewed_at": "2026-10-01T16:24:01.380Z",
+  "chunks": 73,
+  "corrected": 5,
+  "usage": {
+    "calls": 8,
+    "input_tokens": 82202,
+    "output_tokens": 10106,
+    "cache_read_input_tokens": 33284,
+    "input_usd": 0.3421,
+    "output_usd": 0.2021,
+    "cost_usd": 0.5442
+  },
+  "log": [
+    {
+      "round": 1,
+      "chunk": 7,
+      "issues": [
+        {
+          "type": "inconsistent",
+          "severity": "low",
+          "problem": "علو الهمة is rendered «ہمت کی بلندی» here but «بلند ہمتی» everywhere else in the khutbah (chunks 13, 22, 24, 27, 41, etc.)."
+        }
+      ],
+      "applied": false,
+      "urdu_before": "اور جو خوبیاں انسان کو بلند کرتی ہیں اور اسے کمزوری اور ذلت سے دور رکھتی ہیں، ان میں سب سے بڑی خوبی ہمت کی بلندی ہے۔",
+      "urdu_after": null
+    },
+    {
+      "round": 1,
+      "chunk": 15,
+      "issues": [
+        {
+          "type": "boundary",
+          "severity": "medium",
+          "problem": "The Urdu ends with the fragment «اور داخل ہوئے…», which has no subject and no destination, and chunk 16 does not complete it. The imam's «ودخل» is clearly the start of the familiar allusion «people entered the religion of Allah in multitudes», as the reviewed English gives it. The sentence should be completed so that it reads as a whole sentence."
+        }
+      ],
+      "applied": true,
+      "urdu_before": "چنانچہ آپ نے دعوت کا بوجھ اٹھایا، صبر کیا اور ڈٹے رہے، یہاں تک کہ دنیا آپ کے آگے جھک گئی، آپ کے پیغام سے دل روشن ہو گئے اور داخل ہوئے…",
+      "urdu_after": "چنانچہ آپ نے دعوت کا بوجھ اٹھایا، صبر کیا اور ڈٹے رہے، یہاں تک کہ دنیا آپ کے آگے جھک گئی، آپ کے پیغام سے دل روشن ہو گئے اور لوگ اللہ کے دین میں فوج در فوج داخل ہوئے۔"
+    },
+    {
+      "round": 1,
+      "chunk": 29,
+      "issues": [
+        {
+          "type": "unnatural",
+          "severity": "medium",
+          "problem": "\"لے گرتی ہیں\" is not idiomatic Urdu. The natural verb is \"گرا دیتی ہیں\"."
+        },
+        {
+          "type": "unnatural",
+          "severity": "low",
+          "problem": "\"آرام اور آسائش پر ٹک جانے\" is an odd rendering of الركون إلى الراحة. Urdu readers would say \"آرام اور آسائش کی طرف جھک جانے\"."
+        }
+      ],
+      "applied": true,
+      "urdu_before": "اور جب دل بڑے ہوں تو ان کی مرادیں پوری کرنے میں جسم تھک جاتے ہیں۔ اور جو اپنے آپ کو آرام اور آسائش پر ٹک جانے کا عادی بنا لے، سستی کی رسیاں اسے پستی کی تہہ میں لے گرتی ہیں۔",
+      "urdu_after": "اور جب دل بڑے ہوں تو ان کی مرادیں پوری کرنے میں جسم تھک جاتے ہیں۔ اور جو اپنے آپ کو آرام اور آسائش کی طرف جھک جانے کا عادی بنا لے، سستی کی رسیاں اسے پستی کی تہہ تک گرا دیتی ہیں۔"
+    },
+    {
+      "round": 1,
+      "chunk": 30,
+      "issues": [
+        {
+          "type": "unnatural",
+          "severity": "medium",
+          "problem": "\"اپنے رکھنے والے کو\" (for بصاحبها) is awkward and unclear Urdu. \"ہمت والے کو\" says it naturally."
+        }
+      ],
+      "applied": true,
+      "urdu_before": "تو ہمت اگر بلند ہو تو اپنے رکھنے والے کو خوبصورتی اور کمال تک اونچا لے جاتی ہے، اور اگر گر جائے تو اسے کمزوری اور برے حال میں گرا دیتی ہے۔",
+      "urdu_after": "تو ہمت اگر بلند ہو تو ہمت والے کو خوبصورتی اور کمال تک اونچا لے جاتی ہے، اور اگر گر جائے تو اسے کمزوری اور برے حال میں گرا دیتی ہے۔"
+    },
+    {
+      "round": 1,
+      "chunk": 47,
+      "issues": [
+        {
+          "type": "boundary",
+          "severity": "medium",
+          "problem": "The clause «جو ... حاصل کر رہی ہے» refers to the vision (رؤية، سوچ). Placed after the main verb «قائم کر رہا ہے», it reads as if it refers to the masculine «وطن», and the gender then clashes. It should sit right after «سوچ»."
+        }
+      ],
+      "applied": true,
+      "urdu_before": "اور بے شک ہمارا بابرکت وطن سعودی عرب آج اپنی دانش مند قیادت اور دور رس اور درست سوچ کے ذریعے بلند ہمتی اور مضبوط ارادے کی بہترین مثالیں قائم کر رہا ہے، جو مختلف میدانوں اور شعبوں میں امتیاز اور خوشحالی حاصل کر رہی ہے، اپنے بنیادی اصولوں کو مضبوطی سے تھامے ہوئے، اپنی اقدار پر فخر کرتے ہوئے، اور اپنی پرانی روایت اور جدید دور کو جمع کرتے ہوئے",
+      "urdu_after": "اور بے شک ہمارا بابرکت وطن سعودی عرب آج اپنی دانش مند قیادت اور ایسی دور رس اور درست سوچ کے ذریعے، جو مختلف میدانوں اور شعبوں میں امتیاز اور خوشحالی حاصل کر رہی ہے، بلند ہمتی اور مضبوط ارادے کی بہترین مثالیں قائم کر رہا ہے، اپنے بنیادی اصولوں کو مضبوطی سے تھامے ہوئے، اپنی اقدار پر فخر کرتے ہوئے، اور اپنی پرانی روایت اور جدید دور کو جمع کرتے ہوئے"
+    },
+    {
+      "round": 1,
+      "chunk": 48,
+      "issues": [
+        {
+          "type": "mistranslation",
+          "severity": "low",
+          "problem": "الريادة الحقة means true leadership or pioneering. 'سچی رہنمائی' reads as 'true guidance', so 'حقیقی قیادت' fits better."
+        },
+        {
+          "type": "unnatural",
+          "severity": "low",
+          "problem": "'اس بات کو پکا کرتا ہے' for يؤكد is odd in Urdu. 'واضح کرتا ہے' is the natural phrasing."
+        }
+      ],
+      "applied": false,
+      "urdu_before": "ایک بے مثال توازن کے ساتھ، جو اس بات کو پکا کرتا ہے کہ اپنی روایت پر قائم رہنے کا مطلب خود کو بند کر لینا نہیں، اور جدید دور کو اپنانے کا مطلب اس میں گم ہو جانا نہیں، اور سچی رہنمائی اور آگے رہنا انہی دونوں کو جمع کرنے میں ہے۔",
+      "urdu_after": null
+    },
+    {
+      "round": 1,
+      "chunk": 50,
+      "issues": [
+        {
+          "type": "unnatural",
+          "severity": "low",
+          "problem": "ولاء is rendered as 'وفاداری', which is the same word as the subject, so the sentence says 'loyalty is loyalty'. 'وابستگی' (allegiance, attachment) avoids the circularity."
+        }
+      ],
+      "applied": false,
+      "urdu_before": "تو وطن سے وفاداری صرف کہی جانے والی باتیں اور بلند کیے جانے والے نعرے نہیں، بلکہ یہ وفاداری اور اپنائیت ہے، اقدار اور اصول ہیں، دینی فریضہ اور اخلاقی پابندی ہے۔",
+      "urdu_after": null
+    },
+    {
+      "round": 1,
+      "chunk": 69,
+      "issues": [
+        {
+          "type": "unnatural",
+          "severity": "medium",
+          "problem": "The English word «سیکیورٹی» is used where a common Urdu word exists; a khutbah should say «امن» (رجال أمننا)."
+        }
+      ],
+      "applied": true,
+      "urdu_before": "اے اللہ! ہمارے سیکیورٹی اور دفاع کے جوانوں اور ہماری سرحدوں پر ڈٹے ہوئے ہمارے فوجیوں کی حفاظت فرما اور ان کی مدد فرما، اور تو ان سب کا مددگار، حامی، پشت پناہ اور سہارا بن جا۔",
+      "urdu_after": "اے اللہ! ہمارے امن اور دفاع کے جوانوں اور ہماری سرحدوں پر ڈٹے ہوئے ہمارے فوجیوں کی حفاظت فرما اور ان کی مدد فرما، اور تو ان سب کا مددگار، حامی، پشت پناہ اور سہارا بن جا۔"
+    }
+  ]
+}

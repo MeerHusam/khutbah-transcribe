@@ -36,6 +36,7 @@ hadith_data/
 !audio_files/khutbah-2026-09-11-masjid.m4a
 !audio_files/khutbah-2026-09-25-masjid.m4a
 !audio_files/khutbah-2026-09-25-masjid-clean.m4a
+!audio_files/makkah_dosari_2026-09-25.m4a
 
 # ── Pipeline output runs ──────────────────────────────────────────────────────
 # Ignore all runs, then bundle ONLY the two published khutbahs. Each folder is
@@ -50,7 +51,10 @@ outputs/*
 !outputs/2026-09-25T10-04-57_khutbah-2026-09-25-masjid/
 # The 25 Sep Urdu edition (its own entry; reader-ur.html), with the Urdu voice track.
 !outputs/2026-09-25T10-04-57_khutbah-2026-09-25-masjid-urdu/
+# The 25 Sep Makkah khutbah (Sheikh al-Dosari): one page with English and Urdu (reader-ur.html).
+!outputs/2026-09-27T16-37-16_makkah_dosari_2026-09-25/
 
 # Voice tracks are mp3, ignored above by *.mp3: ship the Urdu edition's.
 !outputs/2026-09-25T10-04-57_khutbah-2026-09-25-masjid-urdu/tts_ur.mp3
 !outputs/2026-09-25T10-04-57_khutbah-2026-09-25-masjid-urdu/tts_en.mp3
+!outputs/2026-09-27T16-37-16_makkah_dosari_2026-09-25/tts_ur.mp3
