@@ -103,6 +103,25 @@ def align_block(session, tokenizer, wave, start, end, text, iso, pad=PAD):
     return out
 
 
+def performance_cores():
+    """How many fast cores this Mac has (hw.perflevel0), or None elsewhere."""
+    try:
+        return int(subprocess.run(['sysctl', '-n', 'hw.perflevel0.physicalcpu'], capture_output=True, text=True, check=True).stdout)
+    except (OSError, ValueError, subprocess.CalledProcessError):
+        return None
+
+
+def open_model():
+    """The aligner model. On an Apple chip it runs on the performance cores only: by default
+    onnxruntime also hands work to the slow efficiency cores and waits for them (1 Oct: 150 s ->
+    117 s for a 16-min khutbah on an M1 Pro, same results)."""
+    opts = onnxruntime.SessionOptions()
+    cores = performance_cores()
+    if cores:
+        opts.intra_op_num_threads = cores
+    return onnxruntime.InferenceSession(str(MODEL), sess_options=opts, providers=['CPUExecutionProvider'])
+
+
 def dump(manifest):
     """The manifest as JSON with one block per line, so it stays small and diffs block by block."""
     head = {k: v for k, v in manifest.items() if k != 'blocks'}
@@ -113,7 +132,7 @@ def dump(manifest):
 def run_job():
     job = json.load(sys.stdin)
     wave = load_audio(job['audio'])
-    session = onnxruntime.InferenceSession(str(MODEL), providers=['CPUExecutionProvider'])
+    session = open_model()
     tokenizer = Tokenizer()
     iso, pad, blocks, out = ISO[job['lang']], job.get('pad', PAD), job['blocks'], []
     began = time.time()
@@ -132,7 +151,7 @@ def main():
     manifest_path = folder / f'tts_{lang}.json'
     manifest = json.loads(manifest_path.read_text())
     wave = load_audio(folder / manifest.get('audio', f'tts_{lang}.mp3'))
-    session = onnxruntime.InferenceSession(str(MODEL), providers=['CPUExecutionProvider'])
+    session = open_model()
     tokenizer = Tokenizer()
     began = time.time()
     blocks = manifest['blocks']
