@@ -483,7 +483,7 @@ async function main() {
 
   // Step 9b: Published translations for quotes inside the prose (one model call per quote, see quote_swaps.js).
   console.log('\nMatching quoted hadith and verses to their published English...');
-  const { planQuoteSwaps } = await import('./quote_swaps.js');
+  const { planQuoteSwaps } = await import('./core/quote_swaps.js');
   result.metadata.english_swaps = await planQuoteSwaps(transcript, result);
   console.log(` ${result.metadata.english_swaps.published} published, ${result.metadata.english_swaps.ours} ours ($${result.metadata.english_swaps.cost_usd.toFixed(4)})`);
 

@@ -6,17 +6,17 @@
 // blocks the site builds. Those intermediate checks passed while whole verses were
 // invisible on the page. This validates the final artifact instead.
 //
-// Usage: node verify_reader.js outputs/<folder>          (exit 1 on any failure)
+// Usage: node core/verify_reader.js outputs/<folder>          (exit 1 on any failure)
 // Also importable: verifyReader(folder) -> { failures, warnings, blocks, result, ... }
 
 import { readFileSync, existsSync } from 'fs';
 import { join, resolve } from 'path';
 import { pathToFileURL } from 'url';
-import { normalizeArabic, normalizeArabicDeep } from './pipeline.js';
+import { normalizeArabic, normalizeArabicDeep } from '../pipeline.js';
 import { loadResult } from './reader_chunks.js';
 import { checkEnglish } from './check_english.js';
 
-const quran = JSON.parse(readFileSync(new URL('./node_modules/quran-json/dist/quran.json', import.meta.url), 'utf8'));
+const quran = JSON.parse(readFileSync(new URL('../node_modules/quran-json/dist/quran.json', import.meta.url), 'utf8'));
 const ayahText = (s, a) =>
   quran.find(x => x.id === s)?.verses?.find(v => v.id === a)?.text ?? null;
 
@@ -332,7 +332,7 @@ export function verifyReader(folder, { readerRaw: readerOverride = null, result:
 if (import.meta.url === pathToFileURL(resolve(process.argv[1] ?? '')).href) {
   const folder = process.argv[2];
   if (!folder || !existsSync(folder)) {
-    console.error('Usage: node verify_reader.js outputs/<folder>');
+    console.error('Usage: node core/verify_reader.js outputs/<folder>');
     process.exit(1);
   }
   const { failures, warnings, blocks, result, transcriptWords } = verifyReader(folder);

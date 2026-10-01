@@ -15,7 +15,7 @@
 //   "<n>": { span: [first, last], en, ur } } }], keyed by the card block's Arabic.
 // Answers are cached by request hash (hadith_data/.verse_excerpt_answers.json).
 //
-// Usage: node verse_excerpts.js outputs/<folder>   (also run by reanalyze.js and translate_urdu.js)
+// Usage: node core/verse_excerpts.js outputs/<folder>   (also run by reanalyze.js and translate_urdu.js)
 
 import 'dotenv/config';
 import Anthropic from '@anthropic-ai/sdk';
@@ -24,11 +24,11 @@ import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname, resolve } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { parseReaderBlocks } from './verify_reader.js';
-import { publishedVerseEnglish } from './pipeline.js';
-import './public/recited.js';
+import { publishedVerseEnglish } from '../pipeline.js';
+import '../public/recited.js';
 
 const { recitedSpans } = globalThis.KTRecited;
-const ROOT = dirname(fileURLToPath(import.meta.url));
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MODEL = 'claude-sonnet-5';
 const PRICE_IN = 2 / 1e6, PRICE_OUT = 10 / 1e6; // USD per token, claude-sonnet-5
 const quran = JSON.parse(readFileSync(join(ROOT, 'node_modules/quran-json/dist/quran.json'), 'utf8'));
@@ -153,7 +153,7 @@ export async function planVerseExcerpts(result, readerRaw, { log = console.log }
 if (import.meta.url === pathToFileURL(resolve(process.argv[1] ?? '')).href) {
   const folder = process.argv[2];
   if (!folder || !existsSync(join(folder, 'result.json'))) {
-    console.error('Usage: node verse_excerpts.js outputs/<folder>');
+    console.error('Usage: node core/verse_excerpts.js outputs/<folder>');
     process.exit(1);
   }
   const result = JSON.parse(readFileSync(join(folder, 'result.json'), 'utf8'));

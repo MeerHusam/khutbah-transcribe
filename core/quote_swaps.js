@@ -22,7 +22,7 @@ import { createHash } from 'crypto';
 import { readFileSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { buildReaderView, publishedVerseEnglish, cachedSunnahPage, applyQuoteSwaps } from './pipeline.js';
+import { buildReaderView, publishedVerseEnglish, cachedSunnahPage, applyQuoteSwaps } from '../pipeline.js';
 import { quoteProblems, droppedWords, skeletonSet, englishKeys, verseText } from './check_english.js';
 
 // Sonnet 5, not Haiku: on the 7 test khutbahs Haiku (at temperature 0) refused 5 correct
@@ -37,7 +37,7 @@ const [PRICE_IN, PRICE_OUT] = (PRICES[SWAP_MODEL] ?? [5, 25]).map(p => p / 1e6);
 // Every answer the model gave, by a hash of the exact request, so a rerun on the same texts
 // (a copy of the folder, a code change to the checks) never pays again. The checks in
 // judgeSwap always run afresh on the stored answer.
-const ANSWER_CACHE = join(dirname(fileURLToPath(import.meta.url)), 'hadith_data', '.swap_answers.json');
+const ANSWER_CACHE = join(dirname(fileURLToPath(import.meta.url)), '..', 'hadith_data', '.swap_answers.json');
 let _answers = null;
 const answers = () => (_answers ??= (() => { try { return JSON.parse(readFileSync(ANSWER_CACHE, 'utf8')); } catch { return {}; } })());
 const saveAnswers = () => { try { writeFileSync(ANSWER_CACHE, JSON.stringify(_answers, null, 1), 'utf8'); } catch {} };

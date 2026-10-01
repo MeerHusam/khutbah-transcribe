@@ -4,7 +4,7 @@ import { createServer } from 'http';
 import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync, createWriteStream, readdirSync, unlinkSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { loadResult } from './reader_chunks.js';
+import { loadResult } from './core/reader_chunks.js';
 import { handleLiveConnection, liveStatus } from './live.js';
 import { handleStreamConnection, streamStatus } from './live/index.js';
 import { buildTrafficPage, classifyUA, readJsonl } from './admin_traffic.js';

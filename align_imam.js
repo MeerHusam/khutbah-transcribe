@@ -14,7 +14,7 @@ import { spawnSync } from 'child_process';
 import { writeFileSync, existsSync } from 'fs';
 import { join, dirname, basename, resolve } from 'path';
 import { fileURLToPath } from 'url';
-import { loadResult } from './reader_chunks.js';
+import { loadResult } from './core/reader_chunks.js';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const [folder, audio] = process.argv.slice(2);

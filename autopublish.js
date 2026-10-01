@@ -173,7 +173,7 @@ async function main() {
   ]);
 
   // 4. Verses recited only in part.
-  await run('verse excerpts', 'node', ['verse_excerpts.js', F]);
+  await run('verse excerpts', 'node', ['core/verse_excerpts.js', F]);
 
   // 5. Voices, then word timing and the recitation.
   //    Each language on its own: the Urdu track comes with its word times (from the passage

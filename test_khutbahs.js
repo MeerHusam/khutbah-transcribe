@@ -16,7 +16,7 @@
 
 import { readFileSync, existsSync } from 'fs';
 import { join, resolve } from 'path';
-import { verifyReader } from './verify_reader.js';
+import { verifyReader } from './core/verify_reader.js';
 import { buildReaderView, deduplicateHadithRefs, nameKeys } from './pipeline.js';
 
 const args = process.argv.slice(2);

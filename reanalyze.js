@@ -27,7 +27,7 @@ import {
   yieldTailToLaterRefs,
   settleLoneWords,
 } from './pipeline.js';
-import { planQuoteSwaps } from './quote_swaps.js';
+import { planQuoteSwaps } from './core/quote_swaps.js';
 
 const folder = process.argv[2];
 if (!folder || !existsSync(folder)) {

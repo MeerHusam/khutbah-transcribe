@@ -18,7 +18,7 @@
 import { spawnSync } from 'child_process';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, basename } from 'path';
-import { loadResult } from './reader_chunks.js';
+import { loadResult } from './core/reader_chunks.js';
 
 const SR = 24000;
 const VERSE_INTRO = { en: 'Allah says:', ur: 'ارشادِ باری تعالیٰ ہے:' }; // as tts.js

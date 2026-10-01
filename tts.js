@@ -37,7 +37,7 @@ import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs';
 import { join, dirname, resolve, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
-import { loadResult } from './reader_chunks.js';
+import { loadResult } from './core/reader_chunks.js';
 import { directions } from './voice_directions.js';
 import './public/recited.js';
 

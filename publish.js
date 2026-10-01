@@ -28,7 +28,7 @@ import { spawnSync } from 'child_process';
 import { readFileSync, writeFileSync, existsSync, openSync, readSync, closeSync, readdirSync, statSync } from 'fs';
 import { join, extname, basename, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { verifyReader } from './verify_reader.js';
+import { verifyReader } from './core/verify_reader.js';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -185,7 +185,7 @@ gi = addAfterLast(gi, '!outputs/', `!outputs/${runName}/`);
 writeFileSync(join(ROOT, '.gitignore'), gi);
 console.log(`  + .gitignore: !${audioOut}, !outputs/${runName}/`);
 
-if (flag('--review')) { step('Review'); run('node', ['review_blocks.js', folder]); }
+if (flag('--review')) { step('Review'); run('node', ['core/review_blocks.js', folder]); }
 
 console.log(`
 ✓ Ready to check. Not committed, not pushed.

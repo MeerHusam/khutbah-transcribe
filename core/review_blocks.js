@@ -7,7 +7,7 @@
 // It only reports. Nothing in the output folder is changed except review.json, which lists
 // the flags for a person to check.
 //
-// Usage: node review_blocks.js outputs/<folder> [--batch 10] [--effort medium|high] [--dry-run]
+// Usage: node core/review_blocks.js outputs/<folder> [--batch 10] [--effort medium|high] [--dry-run]
 //   --dry-run   print the first request and the token estimate, make no call
 
 import 'dotenv/config';
@@ -15,7 +15,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { parseReaderBlocks } from './verify_reader.js';
-import { publishedVerseEnglish } from './pipeline.js';
+import { publishedVerseEnglish } from '../pipeline.js';
 
 const MODEL = 'claude-sonnet-5';
 const PRICE_IN = 2 / 1e6, PRICE_OUT = 10 / 1e6; // USD per token, claude-sonnet-5
@@ -23,7 +23,7 @@ const PRICE_IN = 2 / 1e6, PRICE_OUT = 10 / 1e6; // USD per token, claude-sonnet-
 const args = process.argv.slice(2);
 const folder = args[0];
 if (!folder || !existsSync(join(folder, 'reader.txt'))) {
-  console.error('Usage: node review_blocks.js outputs/<folder> [--batch 10] [--dry-run]');
+  console.error('Usage: node core/review_blocks.js outputs/<folder> [--batch 10] [--dry-run]');
   process.exit(1);
 }
 const BATCH = args.includes('--batch') ? +args[args.indexOf('--batch') + 1] : 10;
@@ -32,7 +32,7 @@ const effort = args.includes('--effort') ? args[args.indexOf('--effort') + 1] : 
 
 const result = JSON.parse(readFileSync(join(folder, 'result.json'), 'utf8'));
 const blocks = parseReaderBlocks(readFileSync(join(folder, 'reader.txt'), 'utf8'));
-const quran = JSON.parse(readFileSync(new URL('./node_modules/quran-json/dist/quran.json', import.meta.url), 'utf8'));
+const quran = JSON.parse(readFileSync(new URL('../node_modules/quran-json/dist/quran.json', import.meta.url), 'utf8'));
 const verseAr = (s, a) => quran.find(x => x.id === s)?.verses?.find(v => v.id === a)?.text ?? '';
 
 const badgeRe = /^(📖|📑)\s+(.+?)\s+(\d+):(\d+)(?:-(\d+))?\s+—/;
