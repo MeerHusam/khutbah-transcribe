@@ -5,8 +5,6 @@ import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync, cre
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { loadResult } from '../core/reader_chunks.js';
-import { handleLiveConnection, liveStatus } from './live.js';
-import { handleStreamConnection, streamStatus } from './live/index.js';
 import { buildTrafficPage, classifyUA, readJsonl } from './admin_traffic.js';
 
 // Load Quran data once at startup
@@ -259,10 +257,6 @@ function broadcastViewers() {
 }
 
 wss.on('connection', (ws, req) => {
-  // Live khutbah sockets (host + listeners) — separate protocols, not page-views.
-  const wsPath = (req.url || '').split('?')[0];
-  if (wsPath === '/ws/live') return handleLiveConnection(ws, req);
-  if (wsPath === '/ws/stream') return handleStreamConnection(ws, req);
   liveClients.add(ws);
   totalViews += 1;
   const rawIp = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
@@ -456,15 +450,6 @@ app.get('/api/results/:folder', (req, res) => {
     res.status(404).json({ error: e.message });
   }
 });
-
-// Live khutbah mode (test): /live page + status endpoint
-app.get('/live', (req, res) => res.sendFile(join(ROOT, 'public', 'live.html')));
-app.get('/api/live/status', (req, res) => res.json(liveStatus()));
-
-// Streaming live mode (Speechmatics realtime) — separate from /live and from the
-// offline upload pipeline; both continue to work untouched.
-app.get('/stream', (req, res) => res.sendFile(join(ROOT, 'public', 'stream.html')));
-app.get('/api/stream/status', (req, res) => res.json(streamStatus()));
 
 // Quran ayah lookup with harakat
 app.get('/api/quran/:surah/:ayah', (req, res) => {
