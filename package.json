@@ -6,7 +6,8 @@
   "main": "pipeline.js",
   "scripts": {
     "start": "node server/server.js",
-    "pipeline": "node pipeline.js"
+    "pipeline": "node pipeline.js",
+    "test": "node tests/test_khutbahs.js && node tests/test_khutbahs.js --rebuild && node --test tests/*.test.js"
   },
   "engines": {
     "node": ">=20"

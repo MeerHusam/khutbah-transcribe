@@ -1,14 +1,14 @@
 #!/usr/bin/env node
-// test_khutbahs.js — Run every khutbah in tests/khutbahs.json through the reader checks and
+// tests/test_khutbahs.js — Run every khutbah in tests/khutbahs.json through the reader checks and
 // compare its cards against the expected lists. A fix for one khutbah must not break another:
 // run this before and after every change to the pipeline or the reader.
 //
 // Usage:
-//   node test_khutbahs.js              check the outputs on disk
-//   node test_khutbahs.js --rebuild    rebuild each reader in memory with the current code first
+//   node tests/test_khutbahs.js              check the outputs on disk
+//   node tests/test_khutbahs.js --rebuild    rebuild each reader in memory with the current code first
 //                                      (tests buildReaderView changes without writing any files)
-//   node test_khutbahs.js --only 2026-08-21 --warnings
-//   node test_khutbahs.js --root <dir>    check copies of the output folders under <dir> instead
+//   node tests/test_khutbahs.js --only 2026-08-21 --warnings
+//   node tests/test_khutbahs.js --root <dir>    check copies of the output folders under <dir> instead
 //                                      (e.g. a regeneration made elsewhere, before it replaces outputs/)
 //
 // Besides the cards, each khutbah may list `hadith_english`: per quoted hadith (slug:number),
@@ -16,9 +16,9 @@
 
 import { readFileSync, existsSync } from 'fs';
 import { join, resolve } from 'path';
-import { verifyReader } from './core/verify_reader.js';
-import { buildReaderView } from './core/reader.js';
-import { deduplicateHadithRefs, nameKeys } from './core/hadith.js';
+import { verifyReader } from '../core/verify_reader.js';
+import { buildReaderView } from '../core/reader.js';
+import { deduplicateHadithRefs, nameKeys } from '../core/hadith.js';
 
 const args = process.argv.slice(2);
 const rebuild = args.includes('--rebuild');
@@ -26,7 +26,7 @@ const showWarnings = args.includes('--warnings');
 const only = args.includes('--only') ? args[args.indexOf('--only') + 1] : null;
 const root = args.includes('--root') ? resolve(args[args.indexOf('--root') + 1]) : null;
 
-const spec = JSON.parse(readFileSync(new URL('./tests/khutbahs.json', import.meta.url), 'utf8'));
+const spec = JSON.parse(readFileSync(new URL('./khutbahs.json', import.meta.url), 'utf8'));
 
 // Multiset difference: what `want` has that `got` lacks, and the reverse.
 function diff(want, got) {

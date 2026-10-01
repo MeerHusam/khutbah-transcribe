@@ -8,7 +8,7 @@
 //   2. pipeline: node pipeline.js <audio> --gemini [--single] [--type …]   (Claude, Gemini, Groq)
 //   3. gate: verify_reader.js must pass
 //   4. test set: the khutbah is added to tests/khutbahs.json with its current cards, marked
-//      unconfirmed, and test_khutbahs.js --rebuild must pass for every khutbah
+//      unconfirmed, and tests/test_khutbahs.js --rebuild must pass for every khutbah
 //   5. site: an entry in server/khutbahs.json (featured unless --no-feature) and the
 //      .gitignore allowlist lines for its audio and output folder
 // Then it prints what to check and the git commands. It never commits or pushes.
@@ -152,7 +152,7 @@ if (!spec.khutbahs.some(k => k.slug === slug)) {
   writeFileSync(specPath, JSON.stringify(spec, null, 2) + '\n');
   console.log(`  + ${slug}: ${quran.length} verse card(s), ${hadith.length} hadith card(s), unconfirmed`);
 }
-run('node', ['test_khutbahs.js', '--rebuild']);
+run('node', ['tests/test_khutbahs.js', '--rebuild']);
 
 // ── 5. Site ───────────────────────────────────────────────────────────────────
 step('5. server/khutbahs.json and .gitignore');
