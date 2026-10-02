@@ -19,10 +19,11 @@ const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
-// The old address: pages shared as khutbah-live.onrender.com/... open on khutbah.dev. Page
-// requests only: /admin (the upload worker) and /api (Render's health check) answer on both.
+// The old address: pages shared as khutbah-live.onrender.com/... open on khutbah.dev, admin
+// pages included. Page requests only; /api (Render's health check) and /admin/uploads (the upload
+// worker) answer on both.
 app.use((req, res, next) => {
-  if (req.hostname === 'khutbah-live.onrender.com' && (req.method === 'GET' || req.method === 'HEAD') && !/^\/(admin|api)(\/|$)/.test(req.path)) {
+  if (req.hostname === 'khutbah-live.onrender.com' && (req.method === 'GET' || req.method === 'HEAD') && !/^\/(api|admin\/uploads|admin\/api)(\/|$)/.test(req.path)) {
     return res.redirect(301, `https://khutbah.dev${req.originalUrl}`);
   }
   next();
@@ -30,19 +31,22 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '16kb' }));
 
 // Link previews (WhatsApp, iMessage, Telegram…): their crawlers read the HTML and run no
-// script, so a shared link showed only "KhutbahTranscribe". Each page is sent with its title,
+// script, so a shared link showed only the site's name. Each page is sent with its title,
 // "In Short" summary and share image in <title> and Open Graph tags.
+// The site's own address, for search engines: canonical links and the sitemap.
+const SITE = 'https://khutbah.dev';
 const escHtml = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 function withShareMeta(file, req, { title, description, path }) {
   const base = `${req.headers['x-forwarded-proto']?.split(',')[0] || req.protocol}://${req.get('host')}`;
   const tags = [
     `<title>${escHtml(title)}</title>`,
     `<meta name="description" content="${escHtml(description)}">`,
-    `<meta property="og:site_name" content="KhutbahTranscribe">`,
+    `<meta property="og:site_name" content="Khutbah.dev">`,
     `<meta property="og:type" content="website">`,
     `<meta property="og:title" content="${escHtml(title)}">`,
     `<meta property="og:description" content="${escHtml(description)}">`,
     `<meta property="og:url" content="${escHtml(base + path)}">`,
+    `<link rel="canonical" href="${SITE}${escHtml(path)}">`,
     `<meta property="og:image" content="${escHtml(base)}/img/og.png">`,
     `<meta property="og:image:width" content="1200">`,
     `<meta property="og:image:height" content="630">`,
@@ -67,8 +71,13 @@ function shareSummary(folder) {
 }
 
 app.get('/', (req, res) => res.type('html').send(withShareMeta('home.html', req, {
-  title: 'KhutbahTranscribe', description: HOME_DESCRIPTION, path: '/',
+  title: 'Khutbah.dev · Friday Khutbahs in Arabic & English', description: HOME_DESCRIPTION, path: '/',
 })));
+// For search engines: the home page and every khutbah's short link (robots.txt points here).
+app.get('/sitemap.xml', (req, res) => res.type('application/xml').send(
+  '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+  + ['/', ...PUBLIC_KHUTBAHS.filter(k => k.slug).map(k => `/${k.slug}`)].map(p => `  <url><loc>${SITE}${p}</loc></url>\n`).join('')
+  + '</urlset>\n'));
 // Short share links: /2026-09-25 instead of /index.html?folder=<run folder>.
 app.get('/:slug', (req, res, next) => {
   const k = PUBLIC_KHUTBAHS.find(x => x.slug && x.slug === req.params.slug);
@@ -78,7 +87,7 @@ app.get('/:slug', (req, res, next) => {
   // An entry can name its own page (the Urdu edition's reader-ur.html); the rest use index.html.
   const where = [k.date, k.masjid].filter(Boolean).join(' · ');
   res.type('html').send(withShareMeta(k.page || 'index.html', req, {
-    title: `${k.title} · KhutbahTranscribe`,
+    title: `${k.title} · Khutbah.dev`,
     description: [where, shareSummary(k.folder)].filter(Boolean).join(' · ') || HOME_DESCRIPTION,
     path: `/${k.slug}`,
   }));
@@ -699,7 +708,7 @@ app.post('/admin/uploads/:id/status', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`KhutbahTranscribe (public read-only) running at http://localhost:${PORT}`);
+  console.log(`Khutbah.dev (public read-only) running at http://localhost:${PORT}`);
   // Pre-warm cache so the very first visitor never waits on file I/O.
   for (const k of PUBLIC_KHUTBAHS) {
     try {
