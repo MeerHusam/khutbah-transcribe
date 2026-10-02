@@ -78,8 +78,11 @@ app.get('/sitemap.xml', (req, res) => res.type('application/xml').send(
   '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
   + ['/', ...PUBLIC_KHUTBAHS.filter(k => k.slug).map(k => `/${k.slug}`)].map(p => `  <url><loc>${SITE}${p}</loc></url>\n`).join('')
   + '</urlset>\n'));
-// A link to share for corrections and suggestions: the feedback form on the home page.
-app.get(['/feedback', '/suggestion', '/suggestions'], (req, res) => res.redirect('/#contact'));
+// Feedback, suggestions and comments: a form, and the messages people chose to show (/api/comments).
+app.get(['/feedback', '/suggestion', '/suggestions'], (req, res) => res.type('html').send(withShareMeta('feedback.html', req, {
+  title: 'Feedback & suggestions · Khutbah.dev', path: '/feedback',
+  description: 'Tell us how Khutbah.dev can be better: feedback, suggestions, corrections or comments. You can stay anonymous.',
+})));
 // Short share links: /2026-09-25 instead of /index.html?folder=<run folder>.
 app.get('/:slug', (req, res, next) => {
   const k = PUBLIC_KHUTBAHS.find(x => x.slug && x.slug === req.params.slug);
@@ -528,17 +531,28 @@ app.get('/api/quran/:surah/:ayah', (req, res) => {
 // /admin/feedback?key=<ADMIN_TOKEN>. (data/ is ephemeral on Render's free plan —
 // use the persistent disk in render.yaml to keep submissions across redeploys.)
 // ────────────────────────────────────────────────────────────────────────────
+// /feedback posts can be shown there (public: true, name optional); the email never is, and
+// nothing sent before 2 Oct 2026 has the flag, so older messages stay private.
+const feedbackTimes = new Map(); // ip -> recent post times, for the limit below
 app.post('/api/feedback', (req, res) => {
   const message = (req.body?.message || '').toString().trim().slice(0, 2000);
   const contact = (req.body?.contact || '').toString().trim().slice(0, 200);
   if (!message) return res.status(400).json({ error: 'Message is required' });
+  if (req.body?.website) return res.json({ ok: true }); // the hidden field only bots fill in
+  const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim();
+  const recent = (feedbackTimes.get(ip) || []).filter(t => Date.now() - t < 10 * 60_000);
+  if (recent.length >= 5) return res.status(429).json({ error: 'Too many messages' });
+  if (feedbackTimes.size > 5000) feedbackTimes.clear();
+  feedbackTimes.set(ip, [...recent, Date.now()]);
   const entry = {
     ts: new Date().toISOString(),
     message,
+    name: (req.body?.name || '').toString().trim().slice(0, 60) || null,
+    public: req.body?.public === true,
     contact: contact || null,
     khutbah: (req.body?.folder || '').toString().slice(0, 120) || null,
     ua: (req.headers['user-agent'] || '').toString().slice(0, 200),
-    ip: (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim(),
+    ip,
   };
   try {
     appendFileSync(FEEDBACK_FILE, JSON.stringify(entry) + '\n');
@@ -567,26 +581,41 @@ app.post('/api/engage', express.text({ type: '*/*', limit: '2kb' }), (req, res) 
   res.sendStatus(204);
 });
 
+// feedback.jsonl holds the messages and, as {hide: <ts>} lines, the ones taken off /feedback.
+function readFeedback() {
+  let lines = [];
+  try {
+    lines = readFileSync(FEEDBACK_FILE, 'utf8').split('\n').filter(Boolean)
+      .map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+  } catch {}
+  const hidden = new Set(lines.filter(l => l.hide).map(l => l.hide));
+  return lines.filter(l => l.message).map(l => ({ ...l, hidden: hidden.has(l.ts) })).reverse();
+}
+app.get('/api/comments', (req, res) => res.json(readFeedback().filter(e => e.public && !e.hidden).slice(0, 200)
+  .map(e => ({ ts: e.ts, name: e.name, message: e.message }))));
+app.post('/admin/feedback/hide', express.urlencoded({ extended: false }), (req, res) => {
+  if (!ADMIN_TOKEN || req.query.key !== ADMIN_TOKEN) return res.status(401).send('Unauthorized');
+  if (req.body?.ts) appendFileSync(FEEDBACK_FILE, JSON.stringify({ hide: String(req.body.ts).slice(0, 40) }) + '\n');
+  res.redirect(303, `/admin/feedback?key=${encodeURIComponent(ADMIN_TOKEN)}`);
+});
+
 app.get('/admin/feedback', (req, res) => {
   if (!ADMIN_TOKEN) return res.status(503).send('Set the ADMIN_TOKEN env var to view feedback.');
   if (req.query.key !== ADMIN_TOKEN) return res.status(401).send('Unauthorized');
-  let entries = [];
-  try {
-    entries = readFileSync(FEEDBACK_FILE, 'utf8').split('\n').filter(Boolean)
-      .map(l => { try { return JSON.parse(l); } catch { return null; } })
-      .filter(Boolean).reverse();
-  } catch {}
-  const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const entries = readFeedback();
+  const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const shown = e => !e.public ? 'private' : e.hidden ? 'hidden from /feedback'
+    : `on /feedback <form method="post" action="/admin/feedback/hide?key=${esc(encodeURIComponent(ADMIN_TOKEN))}"><input type="hidden" name="ts" value="${esc(e.ts)}"><button>Hide</button></form>`;
   const cards = entries.length
     ? entries.map(e => `<div class="f"><div class="msg">${esc(e.message)}</div>
-        <div class="meta">${esc(e.ts)}${e.contact ? ' · ' + esc(e.contact) : ''}${e.khutbah ? ' · ' + esc(e.khutbah) : ''}</div></div>`).join('')
+        <div class="meta">${esc(e.ts)}${e.name ? ' · ' + esc(e.name) : ''}${e.contact ? ' · ' + esc(e.contact) : ''}${e.khutbah ? ' · ' + esc(e.khutbah) : ''} · ${shown(e)}</div></div>`).join('')
     : '<p>No feedback yet.</p>';
   res.send(`<!doctype html><meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Feedback (${entries.length})</title>
     <style>body{font-family:system-ui,-apple-system,sans-serif;max-width:760px;margin:24px auto;padding:0 16px;color:#1a1a1a}
     h1{font-size:18px;margin-bottom:16px}.f{border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:12px}
-    .msg{white-space:pre-wrap;line-height:1.55}.meta{font-size:12px;color:#6b7280;margin-top:8px}</style>
+    .msg{white-space:pre-wrap;line-height:1.55}.meta{font-size:12px;color:#6b7280;margin-top:8px}.meta form{display:inline}</style>
     <h1>Feedback (${entries.length})</h1>${cards}`);
 });
 

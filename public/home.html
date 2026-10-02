@@ -491,20 +491,6 @@
       background-image: var(--pattern); background-size: 70px 70px;
       opacity: 0.04; pointer-events: none;
     }
-    .form-row { margin-bottom: 14px; position: relative; z-index: 1; }
-    .form-row label {
-      display: block; font-size: 12px; font-weight: 600; letter-spacing: 0.08em;
-      text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px;
-    }
-    .form-input, .form-textarea {
-      width: 100%; background: rgba(0,0,0,0.25); border: 1px solid var(--border);
-      border-radius: 10px; padding: 11px 14px;
-      font-family: var(--font-ui); font-size: 14px; color: var(--cream);
-      outline: none; transition: border-color 0.2s;
-      resize: vertical;
-    }
-    .form-input:focus, .form-textarea:focus { border-color: rgba(217,184,106,0.4); }
-    .form-textarea { min-height: 110px; }
     .form-submit {
       width: 100%; padding: 12px;
       background: linear-gradient(135deg, var(--gold-bright), var(--gold-deep));
@@ -514,13 +500,8 @@
       position: relative; z-index: 1;
     }
     .form-submit:hover { opacity: 0.9; }
-    .form-submit:disabled { opacity: 0.5; cursor: not-allowed; }
-    .form-status {
-      font-size: 13px; text-align: center; margin-top: 12px;
-      min-height: 18px; color: var(--green);
-      position: relative; z-index: 1;
-    }
-    .form-status.error { color: #e07070; }
+    a.form-submit { display: block; text-align: center; text-decoration: none; }
+    .contact-cta-text { font-size: 14px; line-height: 1.7; color: #b5ae9e; margin-bottom: 18px; position: relative; z-index: 1; }
 
     /* ── Footer ── */
     footer {
@@ -689,16 +670,8 @@
       </div>
     </div>
     <div class="contact-form-card">
-      <div class="form-row">
-        <label>Message</label>
-        <textarea class="form-textarea" id="fbMessage" placeholder="Your feedback, correction, or suggestion…"></textarea>
-      </div>
-      <div class="form-row">
-        <label>Email or name <span style="color:var(--text-dim);font-weight:400">(optional)</span></label>
-        <input class="form-input" id="fbContact" type="text" placeholder="So we can reply">
-      </div>
-      <button class="form-submit" id="fbSubmit" onclick="submitFeedback()">Send Message</button>
-      <div class="form-status" id="fbStatus"></div>
+      <p class="contact-cta-text">Read what others said, or leave a message yourself. You can stay anonymous.</p>
+      <a class="form-submit" href="/feedback">Leave feedback or a comment</a>
     </div>
   </div>
 </section>
@@ -779,11 +752,6 @@
       const rest     = data.items.filter(k => !k.featured);
       const ordered  = [...(featured ? [featured] : []), ...rest];
       document.getElementById('grid').innerHTML = ordered.map(renderCard).join('');
-      // /feedback lands on /#contact; the cards and then the fonts push the form down after the first jump.
-      if (location.hash === '#contact') {
-        const toForm = () => document.getElementById('contact').scrollIntoView();
-        toForm(); document.fonts.ready.then(toForm); addEventListener('load', toForm);
-      }
     })
     .then(() => {
       // Masjid name opens the map instead of the reader behind it.
@@ -800,30 +768,6 @@
     .catch(() => {
       document.getElementById('grid').innerHTML = '<p style="color:var(--text-dim)">Could not load khutbahs.</p>';
     });
-
-  async function submitFeedback() {
-    const msg = document.getElementById('fbMessage').value.trim();
-    const contact = document.getElementById('fbContact').value.trim();
-    const status = document.getElementById('fbStatus');
-    const btn = document.getElementById('fbSubmit');
-    if (!msg) { status.textContent = 'Please write a message first.'; status.className = 'form-status error'; return; }
-    btn.disabled = true; status.textContent = ''; status.className = 'form-status';
-    try {
-      const res = await fetch('/api/feedback', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, contact })
-      });
-      if (res.ok) {
-        status.textContent = '✓ Thank you! Your message was received.';
-        document.getElementById('fbMessage').value = '';
-        document.getElementById('fbContact').value = '';
-      } else { throw new Error(); }
-    } catch {
-      status.textContent = 'Something went wrong. Please try again.';
-      status.className = 'form-status error';
-    }
-    btn.disabled = false;
-  }
 
   // A random ID this browser keeps, so people sharing one Wi-Fi count separately.
   function deviceId() {
