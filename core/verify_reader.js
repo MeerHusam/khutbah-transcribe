@@ -120,6 +120,16 @@ export function verifyReader(folder, { readerRaw: readerOverride = null, result:
     run.words.length >= 2 ? fail(msg) : warn(msg);
   }
 
+  // ── 2b. No block starts with the previous hadith's attribution ─────────────────
+  // "متفق عليه." / "رواه البخاري." closes the hadith before it (buildProseChunks keeps it there
+  // since 2 Oct 2026); a block that opens with one shows the source under the wrong hadith.
+  for (const b of blocks) {
+    const ws = b.arabic.split(/\s+/);
+    if (/^(?:متفق عليه|(?:رواه|اخرجه|خرجه) )/.test(normalizeArabic(ws.slice(0, 3).join(' '))) && ws.slice(0, 6).some(w => /[.؟!…]$/.test(w))) {
+      fail(`a block starts with the previous hadith's attribution: "${ws.slice(0, 6).join(' ')}"`);
+    }
+  }
+
   // ── 3. No block may show two translations of the same thing ──────────────────
   // The hadith cards briefly rendered Claude's paraphrase and the published translation
   // stacked on top of each other.
