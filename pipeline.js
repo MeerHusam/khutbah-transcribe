@@ -340,6 +340,8 @@ function normalizeArabicDeep(text) {
     .replace(/ئ/g, '')   // strip hamza-on-ya': in the corpus the ya' is already present
                          // separately, so replacing with ي would double it ("سيئاتكم" → "سياتكم")
     .replace(/ؤ/g, 'و') // hamza-on-waw → waw
+    .replace(/وو/g, 'و') // "رؤوف" → "رووف", the corpus "رءوف" → "روف"
+    .replace(/وا(?=\s|$)/g, 'و') // the alif after a plural waw, absent in the corpus ("جاءو" for "جاءوا")
     .replace(/\s+/g, ' ')
     .trim();
 }
