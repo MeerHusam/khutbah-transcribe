@@ -152,9 +152,10 @@ test('unknown pages get the 404 page, unknown /api paths a JSON 404', async () =
 test('upload API: upload, claim once, download, and the recording is removed', async () => {
   const headers = { 'x-admin-key': KEY };
   assert.equal((await get('/admin/upload', { method: 'POST', body: Buffer.alloc(200 * 1024) })).status, 401);
-  const job = await (await get('/admin/upload', { method: 'POST', headers: { ...headers, 'x-file-name': 'khutbah.m4a', 'x-masjid': 'Test' }, body: Buffer.alloc(200 * 1024) })).json();
+  const job = await (await get('/admin/upload', { method: 'POST', headers: { ...headers, 'x-file-name': 'khutbah.m4a', 'x-masjid': 'Test', 'x-date': '2026-09-25' }, body: Buffer.alloc(200 * 1024) })).json();
   assert.equal(job.status, 'uploaded');
   assert.equal(job.masjid, 'Test');
+  assert.equal(job.date, '2026-09-25');
   const queued = await (await get('/admin/uploads?status=uploaded', { headers })).json();
   assert.deepEqual(queued.map(j => j.id), [job.id]);
   const status = s => get(`/admin/uploads/${job.id}/status`, { method: 'POST', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify({ status: s }) });

@@ -11,9 +11,10 @@
   body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, -apple-system, sans-serif; padding: 20px 16px 60px; max-width: 560px; margin-inline: auto; }
   h1 { font-size: 22px; margin: 4px 0 4px; color: var(--gold); font-weight: 600; }
   .sub { color: var(--mut); font-size: 14px; margin: 0 0 20px; }
+  .hint { color: var(--mut); font-size: 12.5px; margin: 8px 0 0; line-height: 1.5; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
   label { display: block; font-size: 13px; color: var(--mut); margin: 12px 0 6px; }
-  input[type=text] { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--line); background: #0f1d15; color: var(--fg); font-size: 16px; }
+  input[type=text], input[type=date] { color-scheme: dark; width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--line); background: #0f1d15; color: var(--fg); font-size: 16px; }
   .file { display: flex; align-items: center; justify-content: center; text-align: center; border: 2px dashed var(--line); border-radius: 12px; padding: 22px 12px; color: var(--mut); cursor: pointer; }
   .file.has { border-color: var(--green); color: var(--fg); }
   .file input { display: none; }
@@ -47,8 +48,12 @@
 
 <div class="card">
   <label class="file" id="drop"><input type="file" id="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.aac,.caf,.opus"><span id="fileLabel">Tap to choose the recording</span></label>
+  <p class="hint">From Voice Memos on an iPhone: open the recording, tap ⋯ › Share › Save to Files, then tap above and pick Choose Files.</p>
   <label for="masjid">Masjid (leave empty for Askan AlMaather Mosque)</label>
-  <input type="text" id="masjid" placeholder="Askan AlMaather Mosque" autocomplete="off">
+  <input type="text" id="masjid" list="masjids" placeholder="Askan AlMaather Mosque" autocomplete="off">
+  <datalist id="masjids"></datalist>
+  <label for="date">Date of the khutbah (change it only for an older recording)</label>
+  <input type="date" id="date">
   <label class="check"><input type="checkbox" id="single"> One khutbah only (Eid, Arafah, a lecture)</label>
   <button id="go" disabled>Upload</button>
   <div class="bar" id="bar"><div></div></div>
@@ -72,7 +77,12 @@
     ['live', 'Live'],
   ];
   const ORDER = STEPS.map(s => s[0]);
-  try { $('masjid').value = localStorage.getItem('kt-masjid') || ''; } catch {}
+  // The date defaults to today; the masjid box starts empty (our masjid) and suggests the names
+  // already on the site, which must match exactly for the home page's masjid buttons.
+  $('date').value = new Date().toLocaleDateString('sv');
+  fetch('/api/results').then(r => r.json()).then(d => {
+    $('masjids').innerHTML = [...new Set(d.items.map(k => k.masjid).filter(Boolean))].map(m => `<option value="${esc(m)}">`).join('');
+  }).catch(() => {});
 
   let file = null;
   $('file').addEventListener('change', e => {
@@ -85,13 +95,13 @@
   $('go').addEventListener('click', () => {
     if (!file) return;
     const masjid = $('masjid').value.trim();
-    try { localStorage.setItem('kt-masjid', masjid); } catch {}
     const xhr = new XMLHttpRequest();
     xhr.open('POST', '/admin/upload');
     xhr.setRequestHeader('x-admin-key', key);
     xhr.setRequestHeader('x-file-name', encodeURIComponent(file.name));
     xhr.setRequestHeader('x-masjid', encodeURIComponent(masjid));
     xhr.setRequestHeader('x-single', $('single').checked ? '1' : '0');
+    xhr.setRequestHeader('x-date', $('date').value);
     xhr.setRequestHeader('content-type', file.type || 'application/octet-stream');
     $('bar').style.display = 'block'; $('go').disabled = true; $('msg').className = 'msg'; $('msg').textContent = 'Uploading…';
     xhr.upload.onprogress = e => { if (e.lengthComputable) $('bar').firstElementChild.style.width = `${(e.loaded / e.total) * 100}%`; };
