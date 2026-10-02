@@ -400,6 +400,8 @@ The **25 MB Whisper limit** is checked AFTER preprocessing (which compresses to 
 
 **API keys (`.env`):** `ANTHROPIC_API_KEY` (required), `GROQ_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `HADITH_API_KEY` (present but **unused** — hadithapi.com can't produce sunnah.com numbers, see fix #17; kept for possible future grade/English enrichment).
 
+**Gemini voice quota (2 Oct 2026):** `gemini-3.8-flash-tts` allows **100 requests per day per Google project** on Tier 1 (and 10 a minute). One khutbah's voices take ~80 (English one per block, ~67; Urdu one per passage, ~13), so **two voiced runs in one day hit the cap** — on Fri 2 Oct a morning test (71 calls) left the real khutbah stuck mid-voice. The Gemini SDK then obeys `retry-after` (~14 h) silently: no log line, 0% CPU. Check with one request at `maxRetries: 0`. Fixes: no voiced test runs on a Friday before the khutbah; a key in a project that has not voiced today (the limit is per project — a second key in the same project shares it; since 2 Oct the key is in `meerhusam-mynotes`, the old one in `gen-lang-client-0711520646`). The quota resets at 00:00 UTC.
+
 **Output folders:** `outputs/YYYY-MM-DDTHH-MM-SS_<filename>/` — `transcript.txt`, `result.json`, `readable.txt`, `reader.txt` (+ `transcript_groq.txt` in `--gemini`).
 
 ---
