@@ -115,6 +115,18 @@ const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 // ────────────────────────────────────────────────────────────────────────────
 const PUBLIC_KHUTBAHS = [
   {
+    folder: '2026-10-02T09-05-36_khutbah-2026-10-02',
+    slug: '2026-10-02',
+    title: 'The Virtue of the Companions',
+    speaker: 'Friday Khutbah',
+    masjid: 'Askan AlMaather Mosque',
+    masjid_ar: 'جامع إسكان المعذر',
+    maps_url: 'https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6',
+    date: '2 October 2026',
+    page: 'reader-ur.html',
+    featured: true,
+  },
+  {
     folder: '2026-10-02T07-44-06_khutbah-2026-10-02-madinah-munawwarah',
     slug: '2026-09-25-madinah-munawwarah',
     title: 'Paradise: The Eternal Abode',
@@ -143,7 +155,6 @@ const PUBLIC_KHUTBAHS = [
     // switched back 2 Oct). Same timeline, so every time still holds.
     audio: 'khutbah-2026-09-25-masjid.m4a',
     page: 'reader-ur.html',
-    featured: true,
   },
   // ── 25 Sep in Makkah (Sheikh al-Dosari): one page with the English and the Urdu, like 25 Sep
   //    above. The Urdu and its voice (Orus, with his own recitation before each verse) were made

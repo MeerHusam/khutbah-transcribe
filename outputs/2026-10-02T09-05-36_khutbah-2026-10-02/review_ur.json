@@ -1,0 +1,134 @@
+{
+  "model": "claude-opus-5-5",
+  "reviewed_at": "2026-10-02T09:16:39.357Z",
+  "chunks": 62,
+  "corrected": 2,
+  "usage": {
+    "calls": 7,
+    "input_tokens": 34094,
+    "output_tokens": 8592,
+    "cache_read_input_tokens": 62978,
+    "input_usd": 0.1616,
+    "output_usd": 0.1718,
+    "cost_usd": 0.3334
+  },
+  "log": [
+    {
+      "round": 1,
+      "chunk": 5,
+      "issues": [
+        {
+          "type": "unnatural",
+          "severity": "low",
+          "problem": "In «اپنی بہترین مخلوق اور اپنے نبی» the «اور» can suggest two different persons. In the Arabic «خير خلقه ونبيه» both describe the one Prophet ﷺ."
+        }
+      ],
+      "applied": false,
+      "urdu_before": "بلکہ یہ اس نسل کا ذکر ہے جسے اللہ جل و علا نے اپنی بہترین مخلوق اور اپنے نبی صلی اللہ علیہ وسلم کی صحبت کے لیے، اپنے دین کو اٹھانے اور اپنا پیغام پہنچانے کے لیے چن لیا۔",
+      "urdu_after": null
+    },
+    {
+      "round": 1,
+      "chunk": 9,
+      "issues": [
+        {
+          "type": "inconsistent",
+          "severity": "low",
+          "problem": "«متفق علیہ» is rendered here as «(بخاری و مسلم)» but elsewhere in the khutbah (chunks 17, 20) as «اسے بخاری اور مسلم نے روایت کیا ہے»."
+        }
+      ],
+      "applied": false,
+      "urdu_before": "(بخاری و مسلم)۔ تو جب اللہ جل و علا نے ان کی تعریف فرما دی اور اس کے رسول صلی اللہ علیہ وسلم نے ان کے سب سے بہتر ہونے کی گواہی دے دی، تو اللہ جل و علا کی تعریف کے بعد کون سی تعریف، اور اس کے رسول صلی اللہ علیہ وسلم کی گواہی کے بعد کون سی گواہی باقی رہ جاتی ہے؟",
+      "urdu_after": null
+    },
+    {
+      "round": 1,
+      "chunk": 12,
+      "issues": [
+        {
+          "type": "other",
+          "severity": "low",
+          "problem": "The invocation is for a group of Companions (نترضى عنهم), so the plural رضی اللہ عنہم is correct, not the singular رضی اللہ عنہ."
+        }
+      ],
+      "applied": false,
+      "urdu_before": "اور اللہ کے بندو! ان معزز ہستیوں کا ہم پر یہ حق ہے کہ ہم ان سے محبت کریں، ان کے لیے رضی اللہ عنہ کی دعا کریں، ان کی فضیلت اور ان کے مقام کو پہچانیں اور اپنی زبانوں کو ان کے بارے میں بچا کر رکھیں۔",
+      "urdu_after": null
+    },
+    {
+      "round": 1,
+      "chunk": 18,
+      "issues": [
+        {
+          "type": "unnatural",
+          "severity": "medium",
+          "problem": "\"نہ ان پر طعن کا میدان بناتے ہیں\" is ungrammatical, because one makes them the arena; the Arabic ولا ميدانا للطعن means making them an arena for slander. It should read \"نہ انہیں طعن کا میدان بناتے ہیں\"."
+        }
+      ],
+      "applied": true,
+      "urdu_before": "چنانچہ وہ نہ انہیں برا بھلا کہنے کا نشانہ بناتے ہیں، نہ ان پر طعن کا میدان بناتے ہیں، اور نہ ان کے بارے میں شبہات اور جھوٹی باتیں پھیلاتے ہیں۔",
+      "urdu_after": "چنانچہ وہ نہ انہیں برا بھلا کہنے کا نشانہ بناتے ہیں، نہ انہیں طعن و تشنیع کا میدان بناتے ہیں، اور نہ ان کے بارے میں شبہات اور جھوٹی باتیں پھیلاتے ہیں۔"
+    },
+    {
+      "round": 1,
+      "chunk": 20,
+      "issues": [
+        {
+          "type": "unnatural",
+          "severity": "low",
+          "problem": "\"ان میں\" comes right after \"کلمات\", so it can be read as \"in these words\". The Arabic اجتمع لهم refers to the Companions, so it should be \"ان کے اندر\"."
+        }
+      ],
+      "applied": false,
+      "urdu_before": "اسے بخاری اور مسلم نے روایت کیا ہے۔ کیا ہی شاندار کلمات ہیں جو آنے والی نسلوں کو ان کا مقام بتاتے ہیں، کیونکہ ان میں صحبت کا شرف اور بڑی قربانی اور جاں نثاری جمع ہو گئی، حالانکہ ان میں سے بہت سوں کے پاس توشہ اور سامان بہت کم تھا اور انہیں تکلیفیں اور ظلم و ستم سہنے پڑے، لیکن اس کے باوجود ان کے دلوں میں ایمان اور ثابت قدمی جم گئی اور ان کے اندر عزم",
+      "urdu_after": null
+    },
+    {
+      "round": 1,
+      "chunk": 23,
+      "issues": [
+        {
+          "type": "unnatural",
+          "severity": "medium",
+          "problem": "\"ہمارا ان کا ذکر\" is a clumsy construction that an Urdu reader would stumble on."
+        },
+        {
+          "type": "other",
+          "severity": "low",
+          "problem": "For the Companions as a group the plural رضی اللہ عنہم is correct."
+        }
+      ],
+      "applied": true,
+      "urdu_before": "تو اللہ کے بندو! ان کے بارے میں ہماری گفتگو محبت اور ادب و احترام کے ساتھ ہونی چاہیے، اور ہمارا ان کا ذکر رضی اللہ عنہ کی دعا اور قدردانی کے ساتھ جڑا ہوا ہونا چاہیے۔",
+      "urdu_after": "تو اللہ کے بندو! ان کے بارے میں ہماری گفتگو محبت اور ادب و احترام کے ساتھ ہونی چاہیے، اور جب ہم ان کا ذکر کریں تو وہ رضی اللہ عنہم کی دعا اور قدردانی کے ساتھ جڑا ہوا ہونا چاہیے۔"
+    },
+    {
+      "round": 1,
+      "chunk": 42,
+      "issues": [
+        {
+          "type": "mistranslation",
+          "severity": "low",
+          "problem": "«مقتدين به» (singular) means following him, the Messenger ﷺ. The Urdu «ان کی پیروی» (plural) points to the Companions instead."
+        }
+      ],
+      "applied": false,
+      "urdu_before": "اور ایسی میانہ روی جس میں نہ حد سے بڑھنا ہے، نہ کوتاہی ہے اور نہ بے راہ روی۔ تو اے اللہ، اے جلال اور عزت والے! ہمیں میانہ روی اور اعتدال عطا فرما، اور وہ طریقہ نصیب فرما جس پر تیرے رسول صلی اللہ علیہ وسلم کے صحابہ تھے، کہ ہم ان کی پیروی کرنے والے ہوں، نہ حد سے بڑھنے والے ہوں اور نہ انتہا پسند، اے جلال اور عزت والے!",
+      "urdu_after": null
+    },
+    {
+      "round": 1,
+      "chunk": 58,
+      "issues": [
+        {
+          "type": "register",
+          "severity": "low",
+          "problem": "The English word «سیکیورٹی» is used twice where common Urdu words exist (امن و امان، سلامتی). It does not suit the dignified tone of the khutbah dua."
+        }
+      ],
+      "applied": false,
+      "urdu_before": "اور اے اللہ! ہماری سیکیورٹی کے جوانوں، دفاع کے جوانوں، افواج کے جوانوں اور تمام سیکیورٹی شعبوں کے لوگوں کی حفاظت فرما اور ان کے حوصلے مضبوط فرما۔ اے اللہ! انہیں ہمارے دشمن اور ہمارے ملک کے دشمن کی پہچان عطا فرما، اے جلال اور عزت والے!",
+      "urdu_after": null
+    }
+  ]
+}
