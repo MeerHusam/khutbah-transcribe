@@ -190,6 +190,17 @@
       justify-content: center;
       gap: 20px;
     }
+    /* One button per masjid (with its count) above the cards; shown once there are two masjids. */
+    .masjid-filter { display: flex; flex-wrap: wrap; gap: 8px; margin: -6px 0 22px; }
+    .masjid-filter:empty { display: none; }
+    .masjid-filter button {
+      font: 500 13px var(--font-ui); color: var(--text-muted); cursor: pointer;
+      background: var(--surface); border: 1px solid var(--border-soft); border-radius: 99px; padding: 7px 14px;
+    }
+    .masjid-filter button:hover { color: var(--cream); border-color: var(--border); }
+    .masjid-filter button span { color: var(--text-dim); margin-left: 5px; }
+    .masjid-filter button[aria-pressed="true"] { color: #0a1611; background: var(--gold); border-color: var(--gold); }
+    .masjid-filter button[aria-pressed="true"] span { color: rgba(10,22,17,0.6); }
     .khutbahs-grid .featured-card {
       grid-column: 1 / -1;
     }
@@ -593,6 +604,7 @@
 
 <main class="khutbahs-section" id="khutbahs">
   <div class="section-label">Available Khutbahs</div>
+  <div class="masjid-filter" id="masjidFilter" role="group" aria-label="Show khutbahs from one masjid"></div>
   <div class="khutbahs-grid" id="grid">
     <div style="color:var(--text-dim);font-size:14px;padding:20px 0;">Loading…</div>
   </div>
@@ -791,7 +803,21 @@
       const featured = data.items.find(k => k.featured);
       const rest     = data.items.filter(k => !k.featured);
       const ordered  = [...(featured ? [featured] : []), ...rest];
-      document.getElementById('grid').innerHTML = ordered.map(renderCard).join('');
+      const grid = document.getElementById('grid'), bar = document.getElementById('masjidFilter');
+      const show = m => {
+        grid.innerHTML = ordered.filter(k => !m || k.masjid === m).map(renderCard).join('');
+        bar.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.m === m)));
+      };
+      const perMasjid = new Map();
+      for (const k of ordered) if (k.masjid) perMasjid.set(k.masjid, (perMasjid.get(k.masjid) || 0) + 1);
+      if (perMasjid.size > 1) {
+        // Short labels so the row fits a phone: the city after the comma ("Masjid al-Haram, Makkah" → Makkah).
+        const short = m => (m.includes(',') ? m.split(',').pop().trim() : m.replace(/\s+Mosque$/i, ''));
+        bar.innerHTML = [['', 'All', ordered.length], ...[...perMasjid].sort((a, b) => b[1] - a[1]).map(([m, n]) => [m, short(m), n])]
+          .map(([m, label, n]) => `<button type="button" data-m="${escAttr(m)}" title="${escAttr(m || 'All masjids')}">${esc(label)}<span>${n}</span></button>`).join('');
+        bar.addEventListener('click', e => { const b = e.target.closest('button'); if (b) show(b.dataset.m); });
+      }
+      show('');
     })
     .then(() => {
       // Masjid name opens the map instead of the reader behind it.
