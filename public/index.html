@@ -695,6 +695,16 @@
     /* Hidden while traffic is still small; the server keeps counting. Delete this
        rule (and .badge-extra in home.html) to show unique + visits again. */
     .viewers .total-views { display: none; }
+    /* The arrow back to the block being read, once the reader has scrolled away from it. */
+    body > .back-to-active { position: fixed; right: 18px; bottom: calc(20px + env(safe-area-inset-bottom)); z-index: 60; }
+    .back-to-active {
+      width: 46px; height: 46px; border-radius: 50%; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, var(--gold-bright), var(--gold-deep)); color: #0a1611;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+    }
+    .back-to-active[hidden] { display: none; }
+    .back-to-active.up svg { transform: rotate(180deg); }
   </style>
 </head>
 <body>
@@ -728,6 +738,7 @@
   </div>
 </header>
 
+<button type="button" class="back-to-active" id="backToActive" hidden aria-label="Back to the part being read" title="Back to the part being read"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
 <div id="app">
   <div class="state-msg"><h2>Loading…</h2></div>
 </div>
@@ -1746,6 +1757,23 @@
     player.style.display = 'flex';
     updateVoiceBtn();
 
+    // The page keeps the block being read in view. Scrolling away by hand stops that and shows an
+    // arrow back to it; the arrow, scrolling back to it, or tapping a block follows again.
+    let following = true, byHand = false;
+    const backBtn = document.getElementById('backToActive');
+    const follow = () => { following = true; backBtn.hidden = true; };
+    const toActive = () => { follow(); byHand = false; activeChunk?.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+    const showBack = () => {
+      const r = activeChunk?.getBoundingClientRect();
+      const away = !!r && (r.bottom < 90 || r.top > innerHeight - 140);
+      if (byHand) following = !away;
+      backBtn.hidden = following;
+      if (away) backBtn.classList.toggle('up', r.bottom < 90);
+    };
+    ['wheel', 'touchmove', 'keydown'].forEach(t => addEventListener(t, () => { byHand = true; }, { passive: true }));
+    addEventListener('scroll', () => { if (byHand) showBack(); }, { passive: true });
+    backBtn.addEventListener('click', toActive);
+
     let lastT = null; // activeChunk is shared with the voice switch, declared above
     audio.addEventListener('timeupdate', () => {
       // Count audio actually played: small forward steps while playing, not seeks.
@@ -1768,8 +1796,8 @@
       if (best !== activeChunk) {
         if (activeChunk) activeChunk.classList.remove('chunk-active');
         best.classList.add('chunk-active');
-        best.scrollIntoView({ behavior: 'smooth', block: 'center' });
         activeChunk = best;
+        if (following) toActive(); else showBack();
       }
     });
 
@@ -1780,6 +1808,7 @@
     document.querySelectorAll('.reader-chunk').forEach(el => {
       el.addEventListener('click', e => {
         if (e.target.closest('a')) return;
+        follow();
         const t = chunkTime(el);
         if (t == null) return;
         audio.currentTime = t;
@@ -1789,6 +1818,7 @@
     });
 
     scrubber.addEventListener('input', () => {
+      follow();
       audio.currentTime = (scrubber.value / 100) * audio.duration;
     });
   }
