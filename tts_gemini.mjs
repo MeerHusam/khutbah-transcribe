@@ -180,7 +180,16 @@ async function hear(pcm) {
 
 const checks = [];
 async function speakPassage(blocks, n) {
-  const parts = blocks.flatMap(b => (b.parts?.length ? b.parts : [{ text: b.text, style: null }]));
+  // A sentence that runs on into the next block is one part with one direction: on 2 Oct a new
+  // direction at the block break ("…ایمان کی نشانی | اور ان سے بغض…", one sentence) made the voice
+  // close the half sentence and start the rest in another tone. A colon before a quote still
+  // splits: a change of tone there is natural.
+  const parts = [];
+  for (const p of blocks.flatMap(b => (b.parts?.length ? b.parts : [{ text: b.text, style: null }]))) {
+    const last = parts.at(-1);
+    if (last && !endsSentence(last.text) && !/:["”’)]?\s*$/.test(last.text)) last.text += ' ' + p.text;
+    else parts.push({ ...p });
+  }
   const request = { model: job.model, voice: job.voice, style: job.style, parts };
   const path = cachePath(request);
   if (existsSync(path)) { usage.cached++; return readFileSync(path); }
