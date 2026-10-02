@@ -575,8 +575,13 @@ app.post('/api/engage', express.text({ type: '*/*', limit: '2kb' }), (req, res) 
   lastEngage.set(b.id, now);
   if (lastEngage.size > 5000) lastEngage.clear();
   const secs = x => (Number.isFinite(+x) && +x >= 0 ? Math.min(Math.round(+x), 6 * 3600) : 0);
+  // Per track (imam, en, ur): seconds played, length, and the minutes heard (since 2 Oct 2026).
+  const perVoice = (o, f) => Object.fromEntries(['imam', 'en', 'ur'].filter(v => o?.[v] != null).map(v => [v, f(o[v])]));
+  const minutes = a => (Array.isArray(a) ? [...new Set(a.map(Number).filter(n => Number.isInteger(n) && n >= 0 && n < 360))].sort((x, y) => x - y) : []);
   const entry = { ts: new Date(now).toISOString(), id: b.id, open_s: secs(b.open_s), played_s: secs(b.played_s),
-    max_pos: secs(b.max_pos), dur: secs(b.dur) || null, lang: b.lang === 'ur' ? 'ur' : 'en' };
+    max_pos: secs(b.max_pos), dur: secs(b.dur) || null, lang: b.lang === 'ur' ? 'ur' : 'en',
+    voices: perVoice(b.voices, secs), durs: perVoice(b.durs, secs), heard: perVoice(b.heard, minutes),
+    depth: Math.min(100, secs(b.depth)), copies: Math.min(50, secs(b.copies)), refs: Math.min(500, secs(b.refs)) };
   try { appendFileSync(ENGAGE_FILE, JSON.stringify(entry) + '\n'); } catch {}
   res.sendStatus(204);
 });

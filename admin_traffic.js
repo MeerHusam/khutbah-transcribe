@@ -5,7 +5,9 @@
 //                 the 27 Sep 2026 update, older lines have only ts/new/new_device)
 //   geo_views.jsonl  one line per page view with a located IP (city level, from ip-api.com)
 //   engage.jsonl  reader-page snapshots: seconds visible, seconds of audio played, furthest
-//                 point reached, language (several per view; the largest values count)
+//                 point reached, language (several per view; the largest values count); since
+//                 2 Oct 2026 also seconds played per track, the minutes of each track heard,
+//                 how far down the text (depth %), WhatsApp copies and Quran/Hadith link taps
 // Nothing here stores an IP address or a full user-agent.
 
 const RIYADH_MS = 3 * 3600e3; // Riyadh is UTC+3 all year
@@ -50,6 +52,10 @@ const median = xs => {
 };
 const mins = s => (s == null ? '–' : s < 60 ? `${Math.round(s)} s` : `${(s / 60).toFixed(s < 600 ? 1 : 0)} min`);
 const pct = (a, b) => (b ? `${Math.round((100 * a) / b)}%` : '–');
+const hrs = s => (s < 3600 ? mins(s) : `${(s / 3600).toFixed(1)} h`);
+const sum = xs => xs.reduce((a, x) => a + (x || 0), 0);
+const VOICE_NAME = { imam: 'The imam (Arabic)', en: 'English voice', ur: 'Urdu voice' };
+const VOICE_SHORT = { imam: 'Imam', en: 'EN', ur: 'UR' };
 const bar = (n, peak, cls = '') => `<span class="bar ${cls}" style="width:${Math.max(2, Math.round((n / Math.max(1, peak)) * 100))}%"></span>`;
 
 function smallTable(title, rows, total) {
@@ -130,8 +136,16 @@ export function buildTrafficPage({ visits, geo, engage, totals, khutbahs, now = 
   const eng = new Map();
   for (const e of engage) {
     if (!e.id) continue;
-    const cur = eng.get(e.id) || { open_s: 0, played_s: 0, max_pos: 0, dur: null, lang: 'en' };
+    const cur = eng.get(e.id) || { open_s: 0, played_s: 0, max_pos: 0, dur: null, lang: 'en', v2: false,
+      voices: {}, durs: {}, heard: {}, depth: 0, copies: 0, refs: 0 };
     cur.open_s = Math.max(cur.open_s, e.open_s || 0);
+    for (const [v, n] of Object.entries(e.voices || {})) cur.voices[v] = Math.max(cur.voices[v] || 0, n);
+    Object.assign(cur.durs, e.durs);
+    for (const [v, ms] of Object.entries(e.heard || {})) cur.heard[v] = [...new Set([...(cur.heard[v] || []), ...ms])];
+    cur.depth = Math.max(cur.depth, e.depth || 0);
+    cur.copies = Math.max(cur.copies, e.copies || 0);
+    cur.refs = Math.max(cur.refs, e.refs || 0);
+    cur.v2 ||= 'depth' in e; // reports from 2 Oct 2026 on carry the fields above
     cur.played_s = Math.max(cur.played_s, e.played_s || 0);
     cur.max_pos = Math.max(cur.max_pos, e.max_pos || 0);
     if (e.dur) cur.dur = e.dur;
@@ -146,11 +160,39 @@ export function buildTrafficPage({ visits, geo, engage, totals, khutbahs, now = 
     const played = es.filter(e => e.played_s >= 5);
     const finished = played.filter(e => e.dur && e.max_pos >= 0.9 * e.dur);
     const devs = new Set(vs.map(v => v.dev).filter(Boolean)).size;
+    const es2 = es.filter(e => e.v2);
+    const byVoice = Object.keys(VOICE_SHORT).map(v => [v, sum(es2.map(e => e.voices[v]))]).filter(([, n]) => n > 0);
+    const voiceSplit = byVoice.length ? byVoice.map(([v, n]) => `${VOICE_SHORT[v]} ${pct(n, sum(byVoice.map(x => x[1])))}`).join(' · ') : '–';
     return `<tr><td>${esc(titleOf.get(slug) || slug)}<div class="slug">/${esc(slug)}</div></td><td class="n">${vs.length}</td><td>${devs || '–'}</td>
       <td>${mins(median(es.map(e => e.open_s)))}</td><td>${pct(played.length, es.length)}</td>
-      <td>${mins(median(played.map(e => e.played_s)))}</td><td>${pct(finished.length, played.length)}</td></tr>`;
+      <td>${mins(median(played.map(e => e.played_s)))}</td><td>${pct(finished.length, played.length)}</td>
+      <td>${voiceSplit}</td><td>${pct(es2.filter(e => e.depth >= 90).length, es2.length)}</td>
+      <td>${sum(es2.map(e => e.copies)) || '–'}</td><td>${sum(es2.map(e => e.refs)) || '–'}</td></tr>`;
   }).join('');
   const allEng = readers.map(v => eng.get(v.id)).filter(Boolean);
+  const weekEng = readers.filter(v => within(v.ts, 7)).map(v => eng.get(v.id)).filter(Boolean);
+  const v2Eng = allEng.filter(e => e.v2);
+  const voiceRows = Object.keys(VOICE_NAME).map(v => [VOICE_NAME[v], Math.round(sum(v2Eng.map(e => e.voices[v])) / 60)]).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
+
+  // Where listeners stop: for each khutbah and track, the share of its listeners who heard each minute.
+  const curves = count(readers, v => v.k).flatMap(([slug]) => {
+    const es = readers.filter(v => v.k === slug).map(v => eng.get(v.id)).filter(Boolean);
+    return Object.keys(VOICE_NAME).map(voice => {
+      const ls = es.filter(e => e.heard[voice]?.length);
+      if (!ls.length) return '';
+      const len = Math.max(...ls.map(e => e.durs[voice] || 0), ...ls.map(e => (Math.max(...e.heard[voice]) + 1) * 60));
+      const share = Array.from({ length: Math.max(1, Math.ceil(len / 60)) }, (_, m) => ls.filter(e => e.heard[voice].includes(m)).length / ls.length);
+      const half = share.findIndex(x => x < 0.5);
+      let drop = 0, at = -1;
+      for (let m = 1; m < share.length; m++) if (share[m - 1] - share[m] > drop) { drop = share[m - 1] - share[m]; at = m; }
+      const notes = [`${ls.length} listener(s)`,
+        half > 0 ? `half had stopped by minute ${half}` : half < 0 ? 'at least half heard every minute' : 'most started part-way in',
+        at > 0 && drop >= 0.1 ? `biggest drop at minute ${at} (${Math.round(drop * 100)} points)` : null].filter(Boolean).join(' · ');
+      return `<div class="card"><h3>${esc(titleOf.get(slug) || slug)} · ${VOICE_NAME[voice]}</h3>
+        <div class="hours">${share.map((x, m) => `<div class="hcol" title="minute ${m}–${m + 1}: ${Math.round(x * 100)}% of listeners"><span style="height:${Math.round(x * 100)}%"></span><em>${m % 5 === 0 ? m : ''}</em></div>`).join('')}</div>
+        <div style="height:16px"></div><p class="note">${notes}</p></div>`;
+    });
+  }).filter(Boolean).join('');
   const langRows = count(allEng, e => (e.lang === 'ur' ? 'اردو (Urdu)' : 'English'));
 
   const sourceOf = v => (v.src ? `Link tagged “${v.src}”` : v.ref ? `From ${v.ref}` : /app$/.test(v.browser || '') ? `Inside the ${v.browser}` : 'Direct / app link (WhatsApp etc.)');
@@ -204,6 +246,8 @@ export function buildTrafficPage({ visits, geo, engage, totals, khutbahs, now = 
   <div class="stat"><b>${totals.devices}</b><span>unique devices (since 25 Sep)</span></div>
   <div class="stat"><b>${l1.length}</b><span>views in the last 24 h · ${newDev(l1)} new devices</span></div>
   <div class="stat"><b>${l7.length}</b><span>views in the last 7 days · ${newDev(l7)} new devices</span></div>
+  <div class="stat"><b>${hrs(sum(allEng.map(e => e.played_s)))}</b><span>of audio listened, since 27 Sep · ${hrs(sum(weekEng.map(e => e.played_s)))} in the last 7 days</span></div>
+  <div class="stat"><b>${hrs(sum(allEng.map(e => e.open_s)))}</b><span>with a khutbah on screen, since 27 Sep · ${hrs(sum(weekEng.map(e => e.open_s)))} in the last 7 days</span></div>
 </div>
 
 <h2>Where viewers are</h2>
@@ -218,9 +262,13 @@ ${newPlaces ? `<h3 style="margin-top:14px">New places in the last 7 days</h3><di
 <tbody>${dayRows || '<tr><td colspan="6">No visits logged yet.</td></tr>'}</tbody></table></div>
 
 <h2>Khutbahs</h2>
-<p class="sub">Reader-page views ${note}${bots ? `, not counting ${bots} view(s) from bots or data centres` : ''}. “Time on page” counts only while the page is on screen; it and the listening columns cover views whose page reported back. “Listened” is audio actually played; “finished” means they reached the last 10%.</p>
-<div class="scroll"><table><thead><tr><th>Khutbah</th><th>Views</th><th>Devices</th><th>Median time on page</th><th>Pressed play</th><th>Median listened</th><th>Finished</th></tr></thead>
-<tbody>${khRows || `<tr><td colspan="7">No khutbah views ${note}.</td></tr>`}</tbody></table></div>
+<p class="sub">Reader-page views ${note}${bots ? `, not counting ${bots} view(s) from bots or data centres` : ''}. “Time on page” counts only while the page is on screen; it and the listening columns cover views whose page reported back. “Listened” is audio actually played; “finished” means they reached the last 10%. The last four columns count from 2 Oct 2026: “Voice” splits listening time between the imam's recording and the English and Urdu voices; “Read to end” is views that got to the end of the text (scrolling, or following the audio); “Shared” is taps on “Copy for WhatsApp”; “Ref taps” is taps on Quran and Hadith links.</p>
+<div class="scroll"><table><thead><tr><th>Khutbah</th><th>Views</th><th>Devices</th><th>Median time on page</th><th>Pressed play</th><th>Median listened</th><th>Finished</th><th>Voice</th><th>Read to end</th><th>Shared</th><th>Ref taps</th></tr></thead>
+<tbody>${khRows || `<tr><td colspan="11">No khutbah views ${note}.</td></tr>`}</tbody></table></div>
+
+<h2>Where listeners stop</h2>
+<p class="sub">For each khutbah and track, the share of its listeners who heard each minute (from 2 Oct 2026). A steep step down shows where people stop; hover a bar for its number.</p>
+<div class="grid">${curves || '<p class="sub">No listening reported since 2 Oct 2026 yet.</p>'}</div>
 
 <h2>How they got here, and on what</h2>
 <p class="sub">${humans.length ? `${humans.length} view(s) ${note}.` : `No views ${note}.`} WhatsApp opens links without saying where they came from, so shared links show as “direct / app link”.</p>
@@ -231,6 +279,7 @@ ${newPlaces ? `<h3 style="margin-top:14px">New places in the last 7 days</h3><di
   ${smallTable('System', count(humans, v => v.os), humans.length)}
   ${smallTable('Browser', count(humans, v => v.browser), humans.length)}
   ${smallTable('Reading in', langRows, allEng.length)}
+  ${smallTable('Listening by voice (minutes, from 2 Oct)', voiceRows, sum(voiceRows.map(r => r[1])))}
 </div>
 
 <h2>When</h2>

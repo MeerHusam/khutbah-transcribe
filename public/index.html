@@ -1648,6 +1648,7 @@
   }
 
   function copyShare() {
+    engage.copies++;
     const urdu = document.body.classList.contains('lang-ur') && result?.urdu?.share_summary;
     const text = urdu || result?.share_summary || result?.summary || '';
     navigator.clipboard.writeText(text).then(() => {
@@ -1661,8 +1662,10 @@
   // ── Engagement, for /admin/traffic: time the page is on screen, audio actually played,
   //    the furthest point reached. Sent every 30 s while reading or listening, and when the
   //    page is hidden or closed (sendBeacon survives the page closing). No personal data.
+  //    Since 2 Oct 2026 also: seconds played per track (imam, en, ur), the minutes of each track
+  //    heard (where listeners stop), how far down the text they got, shares and reference taps.
   let visitId = null;
-  const engage = { open: 0, played: 0, maxPos: 0 };
+  const engage = { open: 0, played: 0, maxPos: 0, voices: {}, heard: {}, durs: {}, depth: 0, copies: 0, refs: 0 };
   let visibleSince = document.visibilityState === 'visible' ? Date.now() : null;
   const openSecs = () => engage.open + (visibleSince ? (Date.now() - visibleSince) / 1000 : 0);
   function sendEngage(final = false) {
@@ -1671,6 +1674,8 @@
       id: visitId, open_s: openSecs(), played_s: engage.played, max_pos: engage.maxPos,
       dur: audio && Number.isFinite(audio.duration) ? audio.duration : null,
       lang: document.body.classList.contains('lang-ur') ? 'ur' : 'en', final,
+      voices: engage.voices, durs: engage.durs, depth: engage.depth, copies: engage.copies, refs: engage.refs,
+      heard: Object.fromEntries(Object.entries(engage.heard).map(([v, m]) => [v, [...m]])),
     });
     try { navigator.sendBeacon('/api/engage', new Blob([body], { type: 'text/plain' })); } catch {}
   }
@@ -1682,6 +1687,13 @@
   });
   window.addEventListener('pagehide', () => sendEngage(true));
   setInterval(() => { if (visibleSince || (audio && !audio.paused)) sendEngage(); }, 30000);
+  addEventListener('scroll', () => {
+    const chunks = document.querySelectorAll('.reader-chunk');
+    if (!chunks.length) return;
+    const top = chunks[0].getBoundingClientRect().top, bottom = chunks[chunks.length - 1].getBoundingClientRect().bottom;
+    engage.depth = Math.round(Math.max(engage.depth, Math.min(100, (100 * (innerHeight - top)) / Math.max(1, bottom - top))));
+  }, { passive: true });
+  document.addEventListener('click', e => { if (e.target.closest('a[href*="quran.com"], a[href*="sunnah.com"]')) engage.refs++; }, true);
 
   // ── Audio player ──
   let audio = null;
@@ -1778,7 +1790,12 @@
     audio.addEventListener('timeupdate', () => {
       // Count audio actually played: small forward steps while playing, not seeks.
       const step = audio.currentTime - (lastT ?? audio.currentTime);
-      if (!audio.paused && step > 0 && step < 3) engage.played += step;
+      if (!audio.paused && step > 0 && step < 3) {
+        engage.played += step;
+        engage.voices[voice] = (engage.voices[voice] || 0) + step;
+        (engage.heard[voice] ||= new Set()).add(Math.floor(audio.currentTime / 60));
+        if (Number.isFinite(audio.duration)) engage.durs[voice] = Math.round(audio.duration);
+      }
       lastT = audio.currentTime;
       engage.maxPos = Math.max(engage.maxPos, audio.currentTime);
       if (!audio.duration) return;
