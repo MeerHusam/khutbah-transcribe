@@ -90,7 +90,7 @@ async function report(status, extra = {}) {
 }
 
 // One command; its output goes to the log. Resolves when it succeeds, rejects otherwise.
-function run(label, cmd, args) {
+function runOnce(label, cmd, args) {
   return new Promise((resolve, reject) => {
     const t0 = Date.now();
     log(`▶ ${label}`);
@@ -102,9 +102,23 @@ function run(label, cmd, args) {
       const secs = Math.round((Date.now() - t0) / 1000);
       times.push([label, secs]);
       if (code === 0) { log(`✓ ${label} (${secs} s)`); resolve(tail); }
-      else reject(new Error(`${label} failed: ${tail.trim().split('\n').slice(-3).join(' / ')}`));
+      else reject(Object.assign(new Error(`${label} failed: ${tail.trim().split('\n').slice(-3).join(' / ')}`), { tail }));
     });
   });
+}
+
+// A step that failed on a passing API problem (Anthropic or Gemini overloaded or rate-limited, a
+// dropped connection) runs again after a minute, up to 3 times, before the run gives up. On 2 Oct
+// a 529 "Overloaded" from Anthropic stopped a run at the Urdu review.
+const PASSING = /overloaded|\b529\b|\b503\b|\b429\b|rate_limit|RESOURCE_EXHAUSTED|UNAVAILABLE|InternalServerError|APIConnection|ECONNRESET|ETIMEDOUT|socket hang up|fetch failed/i;
+async function run(label, cmd, args, { tries = 3, wait = 60_000 } = {}) {
+  for (let n = 1; ; n++) {
+    try { return await runOnce(label, cmd, args); } catch (e) {
+      if (n > tries || !PASSING.test(e.tail ?? '')) throw e;
+      log(`… ${label}: the API is busy (${(e.tail.match(PASSING) || [''])[0]}); trying again in ${wait / 1000} s (${n}/${tries})`);
+      await new Promise(r => setTimeout(r, wait));
+    }
+  }
 }
 
 async function main() {
@@ -141,7 +155,7 @@ async function main() {
   // 2. Title.
   let title = null;
   try {
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 60_000, maxRetries: 2 });
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 60_000, maxRetries: 6 }); // 6: rides out a short "Overloaded"
     const r = await anthropic.messages.create({
       model: 'claude-sonnet-5-5', max_tokens: 2000, output_config: { effort: 'low' },
       messages: [{ role: 'user', content: `Give this Friday khutbah a short English title for its web page: 2 to 5 words, Title Case, no quotation marks, no "Khutbah" or date, like "The Blessing of Security" or "Lofty Aspiration". Reply with the title only.\n\nSummary: ${result.summary}\n\nIn short: ${result.share_summary}` }],
