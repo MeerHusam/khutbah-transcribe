@@ -3,7 +3,7 @@
 // Run by upload_worker.js for each recording sent from the upload page, or by hand.
 //
 //   node autopublish.js <recording> [--masjid "Masjid Name"] [--single] [--date 2026-10-02]
-//        [--job <upload id>] [--no-push]
+//        [--job <upload id>] [--no-push] [--clean]   --clean: the page plays the recording with the hall's echo taken out
 //   node autopublish.js --resume outputs/<folder> [--masjid …] [--no-push]
 //        after a failed run: the steps already done are kept (the voices come from the cache)
 //
@@ -12,7 +12,7 @@
 //      the English, the Quran and hadith cards
 //   2. a short title from the summary (one small Claude call)
 //   3. side by side: the Urdu (translate_urdu.js, review_urdu.js) and, locally, the imam's word
-//      times, his delivery and the recording with the hall's echo taken out (clean_audio.py)
+//      times and his delivery (with --clean, also the recording with the hall's echo taken out)
 //   4. verse_excerpts.js: a verse he recited only in part shows (and is voiced) only in part
 //   5. the voices, side by side: Urdu (Orus, a direction per sentence, a passage at a time) and
 //      English (Charon); each then gets its word times (the Urdu's come with its voice) and his
@@ -165,7 +165,7 @@ async function main() {
   title ||= (result.share_summary || 'Friday Khutbah').split(/\s+/).slice(0, 5).join(' ');
   await report('english', { title, message: title });
 
-  // 3. Urdu (API) beside the imam's timing and the cleaned recording (local).
+  // 3. Urdu (API) beside the imam's timing (local).
   await report('urdu');
   let cleanAudio = null;
   await Promise.all([
@@ -176,6 +176,9 @@ async function main() {
     (async () => {
       await step(() => has('words_imam.json'), 'imam word timing', 'node', ['align_imam.js', F, audioOut]);
       await step(() => has('delivery_imam.json'), 'imam delivery', PY_ALIGN, ['imam_delivery.py', F, audioOut]);
+      // The hall's echo taken out (clean_audio.py): off since 2 Oct 2026, the imam sounded processed
+      // with it. It never fed the text, cards or timing, only what is heard. --clean turns it back on.
+      if (!flag('--clean')) return;
       try {
         const wav = join('audio_files', `${name}-clean.wav`);
         await step(() => existsSync(join(ROOT, wav)), 'echo removal', PY_CLEAN, ['clean_audio.py', audioOut, F, wav]);
