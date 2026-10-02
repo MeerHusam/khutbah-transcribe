@@ -16,9 +16,9 @@
 //    the Companion (its published text opens with the whole chain of narrators); one call.
 // Writes result.urdu and reader_ur.txt (the reader with Urdu in place of English).
 //
-// Usage: node translate_urdu.js outputs/<folder> [--batch 12] [--retranslate] [--dry-run]
-//   Block translations already in result.urdu are kept unless --retranslate; verses and hadith
-//   are always fetched again (free).
+// Usage: node translate_urdu.js outputs/<folder> [--batch 12] [--retranslate] [--chunks 13,14] [--dry-run]
+//   Block translations already in result.urdu are kept unless --retranslate (all) or --chunks
+//   (those); verses and hadith are always fetched again (free).
 
 import 'dotenv/config';
 import Anthropic from '@anthropic-ai/sdk';
@@ -121,17 +121,23 @@ async function translate(indices, urdu) {
 }
 
 // ── Blocks ───────────────────────────────────────────────────────────────────
+// Only the chunks without an Urdu translation are translated (all of them on a first run, or
+// with --retranslate); --chunks 13,14 translates those again, after a fix moved their boundaries.
+const only = args.includes('--chunks') ? args[args.indexOf('--chunks') + 1].split(',').map(Number) : [];
 const kept = result.urdu?.chunk_translations;
-const reuse = !args.includes('--retranslate') && kept?.length === chunks.length && kept.every(Boolean);
-const urdu = reuse ? [...kept] : new Array(chunks.length).fill(null);
-if (reuse) console.log(`  keeping the ${kept.length} Urdu block translations already in result.json`);
-for (let from = reuse ? chunks.length : 0; from < chunks.length; from += BATCH) {
-  const idx = Array.from({ length: Math.min(BATCH, chunks.length - from) }, (_, k) => from + k);
+const reuse = !args.includes('--retranslate') && kept?.length === chunks.length;
+const urdu = reuse ? kept.map((t, i) => (only.includes(i) ? null : t || null)) : new Array(chunks.length).fill(null);
+const todo = urdu.map((t, i) => (t ? null : i)).filter(i => i !== null);
+if (reuse) console.log(`  keeping ${chunks.length - todo.length} of the ${chunks.length} Urdu block translations already in result.json`);
+for (let k = 0; k < todo.length;) {
+  // A batch: up to BATCH chunks in a row, so the chunks around it are the context.
+  const idx = [todo[k++]];
+  while (k < todo.length && idx.length < BATCH && todo[k] === idx.at(-1) + 1) idx.push(todo[k++]);
   Object.assign(urdu, await translate(idx, urdu));
   if (dryRun) process.exit(0);
   // Anything missing is asked for again on its own, never left for a neighbour to fill.
   for (const i of idx) if (!urdu[i]) Object.assign(urdu, await translate([i], urdu));
-  console.log(`  chunks ${from}-${idx.at(-1)}: ${idx.filter(i => urdu[i]).length}/${idx.length}`);
+  console.log(`  chunks ${idx[0]}-${idx.at(-1)}: ${idx.filter(i => urdu[i]).length}/${idx.length}`);
 }
 const missing = urdu.map((t, i) => (t ? null : i)).filter(i => i !== null);
 if (missing.length) { console.error(`✗ no Urdu for chunk(s) ${missing.join(', ')}; nothing written`); process.exit(1); }
