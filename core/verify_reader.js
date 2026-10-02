@@ -248,6 +248,11 @@ export function verifyReader(folder, { readerRaw: readerOverride = null, result:
     if (!h.link && /bukhari|muslim|tirmidhi|abu ?dawud|nasa|ibn ?majah|muwatta|malik|ahmad/i.test(h.collection ?? '')) {
       warn(`hadith card without a sunnah.com link (${h.collection}): "${(h.detected_text ?? '').slice(0, 50)}"`);
     }
+    // Only from the local copy (sunnah.com unreachable or its search found nothing): its numbers
+    // agree with sunnah.com's for most collections but not every Muslim hadith, so check it.
+    if (h.link && h.verification !== 'sunnah_search') {
+      warn(`hadith link not confirmed on sunnah.com, from the local copy (${h.link}): "${(h.detected_text ?? '').slice(0, 40)}"`);
+    }
   }
 
   // ── 5a. Every hadith card must be confirmed by sunnah.com ─────────────────────

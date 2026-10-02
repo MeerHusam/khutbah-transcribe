@@ -19,6 +19,7 @@ const COLLECTIONS = [
   { id: 'ara-abudawud',  name: 'Sunan Abu Dawud' },
   { id: 'ara-nasai',     name: "Sunan an-Nasa'i" },
   { id: 'ara-ibnmajah',  name: 'Sunan Ibn Majah' },
+  { id: 'ara-tirmidhi',  name: 'Jami` at-Tirmidhi' },
 ];
 
 mkdirSync(DATA_DIR, { recursive: true });

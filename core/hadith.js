@@ -66,7 +66,20 @@ const COLLECTION_NAMES = {
   'ara-abudawud': 'Sunan Abu Dawud',
   'ara-nasai':    "Sunan an-Nasa'i",
   'ara-ibnmajah': 'Sunan Ibn Majah',
+  'ara-tirmidhi': 'Jami` at-Tirmidhi',
 };
+
+// The number sunnah.com gives a corpus hadith. Sahih Muslim's hadithnumber counts sequentially
+// (4938 would link a different hadith); its arabicnumber "1913.01", "1913.02" is sunnah.com's
+// 1913a, 1913b. Checked 2 Oct 2026 against the saved sunnah.com pages: Bukhari, Abu Dawud,
+// Tirmidhi, Nasa'i and Ibn Majah agree number for number; Muslim this way 6 of 7 (one a number
+// off), which is why a link only from the corpus is flagged as unconfirmed (verify_reader).
+function sunnahNumber(id, h) {
+  if (id !== 'ara-muslim') return h.hadithnumber ?? h.arabicnumber;
+  if (h.arabicnumber == null) return null;
+  const [whole, frac] = String(h.arabicnumber).split('.');
+  return frac ? whole + String.fromCharCode(96 + Number(frac)) : whole;
+}
 
 // Load and pre-process all downloaded hadith collections.
 // Extracts just the matn (main text) from each hadith, stripping the isnad.
@@ -86,13 +99,14 @@ function loadHadithCorpus() {
       const matn = extractMatn(h.text ?? '');
       const matnWords = matn.split(/\s+/).filter(Boolean);
       if (matnWords.length < 5) continue;
+      const number = sunnahNumber(id, h);
       corpus.push({
         collection: collectionName,
         collectionId: id,
-        number: h.hadithnumber ?? h.arabicnumber,
+        number,
         matn,
         matnWords,
-        link: `https://sunnah.com/${id.replace('ara-', '')}:${h.hadithnumber}`,
+        link: number ? `https://sunnah.com/${id.replace('ara-', '')}:${number}` : null,
       });
     }
   }
