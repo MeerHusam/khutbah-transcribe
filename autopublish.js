@@ -114,7 +114,8 @@ const PASSING = /overloaded|\b529\b|\b503\b|\b429\b|rate_limit|RESOURCE_EXHAUSTE
 async function run(label, cmd, args, { tries = 3, wait = 60_000 } = {}) {
   for (let n = 1; ; n++) {
     try { return await runOnce(label, cmd, args); } catch (e) {
-      if (n > tries || !PASSING.test(e.tail ?? '')) throw e;
+      // Gemini's daily limit does not pass in a minute: no point trying again.
+      if (n > tries || !PASSING.test(e.tail ?? '') || /daily voice limit/.test(e.tail ?? '')) throw e;
       log(`… ${label}: the API is busy (${(e.tail.match(PASSING) || [''])[0]}); trying again in ${wait / 1000} s (${n}/${tries})`);
       await new Promise(r => setTimeout(r, wait));
     }
