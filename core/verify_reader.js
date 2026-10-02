@@ -241,6 +241,14 @@ export function verifyReader(folder, { readerRaw: readerOverride = null, result:
   if (hadithBadges !== (result.hadith_references ?? []).length) {
     warn(`${(result.hadith_references ?? []).length} hadith refs but ${hadithBadges} badges rendered`);
   }
+  // A hadith from a collection sunnah.com has, but no link: its search found nothing (Madinah 25 Sep,
+  // Tirmidhi's "bricks of gold and silver", the imam's wording differs) or sunnah.com was unreachable.
+  // A warning: it can be a hadith sunnah.com doesn't carry, so check it by hand.
+  for (const h of result.hadith_references ?? []) {
+    if (!h.link && /bukhari|muslim|tirmidhi|abu ?dawud|nasa|ibn ?majah|muwatta|malik|ahmad/i.test(h.collection ?? '')) {
+      warn(`hadith card without a sunnah.com link (${h.collection}): "${(h.detected_text ?? '').slice(0, 50)}"`);
+    }
+  }
 
   // ── 5a. Every hadith card must be confirmed by sunnah.com ─────────────────────
   // A card that sunnah.com's search did not confirm is a guess from the local corpus, and
