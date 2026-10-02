@@ -22,7 +22,6 @@ const require = createRequire(import.meta.url);
 function pushQuranBadge(lines, ref, inline = false) {
   lines.push('');
   const marker = inline ? '📑' : '📖';
-  if (!ref.matched) { lines.push(`${marker} Quranic reference — no match found`); return; }
   const ayahLabel = ref.ayah_number_end && ref.ayah_number_end !== ref.ayah_number
     ? `${ref.ayah_number}-${ref.ayah_number_end}`
     : `${ref.ayah_number}`;
@@ -234,9 +233,12 @@ function buildReaderView(transcript, result, opts = {}) {
   const normWords = normalizeArabic(transcript).split(/\s+/).filter(Boolean);
   const normTranscriptStr = normWords.join(' ');
 
-  // Locate each reference in the transcript by matching its first 5 words
+  // Locate each reference in the transcript by matching its first 5 words. A Quran reference
+  // no verse matched is not shown: Claude reads "قال الله تعالى" as a verse's lead-in, but on
+  // Madinah's 25 Sep it opened a hadith qudsi (Bukhari 7498), whose card it then covered with
+  // "Quranic reference — no match found". Its words stay in the prose, already translated.
   const allRefs = [
-    ...quran_references.map((r, i) => ({ ...r, refType: 'quran', refIndex: i })),
+    ...quran_references.map((r, i) => ({ ...r, refType: 'quran', refIndex: i })).filter(r => r.matched),
     ...hadith_references.map((r, i) => ({ ...r, refType: 'hadith', refIndex: i })),
   ];
 

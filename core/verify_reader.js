@@ -120,6 +120,9 @@ export function verifyReader(folder, { readerRaw: readerOverride = null, result:
     run.words.length >= 2 ? fail(msg) : warn(msg);
   }
 
+  // ── 2a. No "no match found" Quran card (it hid a hadith qudsi's card, Madinah 25 Sep) ──
+  if (/Quranic reference — no match found/.test(readerRaw)) fail('a "Quranic reference — no match found" card is shown');
+
   // ── 2b. No block starts with the previous hadith's attribution ─────────────────
   // "متفق عليه." / "رواه البخاري." closes the hadith before it (buildProseChunks keeps it there
   // since 2 Oct 2026); a block that opens with one shows the source under the wrong hadith.
