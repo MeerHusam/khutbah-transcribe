@@ -76,6 +76,7 @@ async function retranslateEnglish(indices) {
         'Translate one chunk of it into natural, fluent English: exactly its own words, no more and no less (Quran verses are ' +
         'shown separately on the page, so never add the words of a verse next to the chunk). Match the style of the English ' +
         'around it (honorifics such as صلى الله عليه وسلم stay in Arabic) and make it read on from the English before it. ' +
+        '«متفق عليه» after a hadith is "Narrated by al-Bukhari and Muslim", never "Agreed upon". ' +
         'Do not use em dashes or en dashes. Reply with the English only.\n\n' +
         `English before: ${en[i - 1] ?? '(start of the khutbah)'}\nChunk: ${arabic}\nEnglish after: ${en[i + 1] ?? '(end)'}` }],
     });

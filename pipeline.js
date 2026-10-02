@@ -1518,6 +1518,8 @@ Given this Arabic Khutbah transcript, do the following:
 
 IMPORTANT STYLE RULE (applies to ALL English text you produce — chunk_translations, share_summary, summary): Do NOT use em dashes (—) or en dashes (–) anywhere. Use a comma, period, colon, parentheses, or the word "and" instead. Write natural prose without dash-joined clauses.
 
+ATTRIBUTION RULE: When the khatib says «متفق عليه» after a hadith, translate it as "Narrated by al-Bukhari and Muslim" (what the term means), never "Agreed upon".
+
 PROSE-CHUNK RULE: A prose chunk may END with a lead-in to a Quranic verse (e.g. "قال الله تعالى", "وقال سبحانه", or the first words of a verse the khatib is about to recite). Translate ONLY the literal Arabic words present in that chunk. Do NOT complete the sentence with, or paraphrase, the content of the Quranic verse that follows — those verses are displayed separately with their own translation. For example, if a chunk ends with "وكيف يدعو", translate just "And how can he invoke", not the full meaning of the verse.
 
 1. Translate the full text into natural, readable English. Preserve Islamic terms untranslated: Allah, Rasulullah, Salah, Zakat, Ummah, Sunnah, Hadith, Quran, Surah, Ayah, Jummah, Khatib, and any Arabic honorifics like صلى الله عليه وسلم or رضي الله عنه
