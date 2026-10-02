@@ -41,7 +41,7 @@ test('home page carries its link-preview tags', async () => {
   const r = await get('/');
   assert.equal(r.status, 200);
   const html = await r.text();
-  assert.match(html, /<meta property="og:title" content="Khutbah.dev · Friday Khutbahs in Arabic &amp; English">/);
+  assert.match(html, /<meta property="og:title" content="Khutbah.dev · Friday Khutbahs in Arabic, English &amp; Urdu">/);
   assert.match(html, /<link rel="canonical" href="https:\/\/khutbah.dev\/">/);
 });
 
