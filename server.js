@@ -134,7 +134,7 @@ const PUBLIC_KHUTBAHS = [
     slug: '2026-09-25-madinah-munawwarah',
     title: 'Paradise: The Eternal Abode',
     speaker: 'Friday Khutbah',
-    masjid: 'Madinah Munawwarah',
+    masjid: 'Masjid an-Nabawi, Madinah',
     date: '25 September 2026',
     audio: 'khutbah-2026-10-02-madinah-munawwarah-clean.m4a',
     page: 'reader-ur.html',
