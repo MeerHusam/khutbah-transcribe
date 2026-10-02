@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Page not found · Khutbah.dev</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#0a1611">
+  <link rel="icon" type="image/svg+xml" href="/img/logo.svg">
+  <link rel="icon" type="image/png" href="/img/favicon-48.png">
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Lora:wght@600&family=Amiri:wght@400&family=Reem+Kufi:wght@500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a1611; --border: rgba(217,184,106,0.16); --border-soft: rgba(236,227,207,0.09);
+      --gold: #d9b86a; --gold-bright: #ecd497; --gold-deep: #b8923f;
+      --cream: #ece3cf; --text-muted: #9aa99c; --text-dim: #74857a;
+      --pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Cg fill='none' stroke='%23d9b86a' stroke-width='1'%3E%3Cpath d='M32 4 L60 32 L32 60 L4 32 Z'/%3E%3Cpath d='M14 14 H50 V50 H14 Z'/%3E%3C/g%3E%3C/svg%3E");
+    }
+    html { -webkit-text-size-adjust: 100%; }
+    body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--cream); min-height: 100vh; display: flex; flex-direction: column; -webkit-font-smoothing: antialiased; }
+    body::before { content: ''; position: fixed; inset: 0; background-image: var(--pattern); background-size: 64px 64px; opacity: 0.035; pointer-events: none; }
+    body > * { position: relative; }
+    header { border-bottom: 1px solid var(--border); padding: 14px 32px; padding-top: max(14px, env(safe-area-inset-top)); }
+    .brand { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; }
+    .brand img { width: 40px; height: 40px; border-radius: 50%; box-shadow: 0 0 16px rgba(217,184,106,0.22); }
+    .brand span { font-family: 'Lora', Georgia, serif; font-size: 18px; font-weight: 600; color: var(--cream); }
+    .tld { color: var(--gold); }
+    main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 48px 24px 64px; }
+    .ar { font-family: 'Amiri', serif; font-size: 34px; color: var(--gold); opacity: 0.85; margin-bottom: 6px; }
+    .code { font-family: 'Reem Kufi', sans-serif; font-size: 12px; letter-spacing: 0.25em; color: var(--gold); margin-bottom: 18px; }
+    h1 { font-family: 'Lora', Georgia, serif; font-size: 28px; font-weight: 600; margin-bottom: 12px; }
+    p { font-size: 15px; line-height: 1.7; color: #b5ae9e; max-width: 420px; margin-bottom: 28px; }
+    .btn { display: inline-block; padding: 13px 28px; border-radius: 99px; text-decoration: none; font-weight: 700; font-size: 15px;
+      background: linear-gradient(135deg, var(--gold-bright), var(--gold-deep)); color: #0a1611; }
+    .alt { margin-top: 18px; font-size: 14px; color: var(--text-muted); }
+    .alt a { color: var(--gold); text-decoration: none; }
+    @media (max-width: 700px) { header { padding: 12px 16px; } }
+  </style>
+</head>
+<body>
+<header><a class="brand" href="/"><img src="/img/logo.svg" alt="" width="40" height="40"><span>Khutbah<span class="tld">.dev</span></span></a></header>
+<main>
+  <div class="ar" lang="ar" dir="rtl">الصفحة غير موجودة</div>
+  <div class="code">404</div>
+  <h1>This page doesn't exist</h1>
+  <p>The link may have a typo, or the khutbah may have moved. All our khutbahs are on the home page.</p>
+  <a class="btn" href="/">See all khutbahs</a>
+  <div class="alt">Expected something here? <a href="/feedback">Let us know</a></div>
+</main>
+</body>
+</html>

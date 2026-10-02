@@ -766,6 +766,12 @@ app.post('/admin/uploads/:id/status', (req, res) => {
   res.json(publicJob(job));
 });
 
+// Anything not matched above: the site's own 404 page (JSON for /api). Keep this after every route.
+app.use((req, res) => {
+  if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
+  res.status(404).sendFile(join(__dirname, 'public', '404.html'));
+});
+
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Khutbah.dev (public read-only) running at http://localhost:${PORT}`);
