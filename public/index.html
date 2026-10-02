@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>KhutbahTranscribe</title>
+  <title>Khutbah.dev</title>
   <meta name="theme-color" content="#0a1611">
   <link rel="icon" type="image/svg+xml" href="/img/logo.svg">
   <link rel="icon" type="image/png" href="/img/favicon-48.png">
@@ -100,6 +100,7 @@
       font-size: 17px; font-weight: 600; white-space: nowrap;
       color: var(--cream); letter-spacing: 0.2px;
     }
+    header h1 .tld { color: var(--gold); }
 
     /* Audio player: grows to fill, wraps to its own row on narrow screens */
     .audio-player {
@@ -664,7 +665,7 @@
       .audio-scrubber { min-width: 40px; }
       .skip-btn { font-size: 15px; }
       /* Brand and khutbah picker share the top row; the live count tucks under the name:
-           [logo] KhutbahTranscribe   [picker]
+           [logo] Khutbah.dev         [picker]
                   ● 3 live
            [player ..................]          */
       header {
@@ -701,7 +702,7 @@
 <header>
   <a class="header-left" href="/" style="text-decoration:none;color:inherit;">
     <img class="logo-mark" src="/img/logo.svg" alt="" width="38" height="38">
-    <h1>KhutbahTranscribe</h1>
+    <h1>Khutbah<span class="tld">.dev</span></h1>
   </a>
 
   <div class="audio-player" id="audioPlayer">

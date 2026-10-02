@@ -7,14 +7,14 @@ This file is auto-loaded by Claude Code at session start. It captures the full i
 ## Deployment
 
 - **GitHub:** https://github.com/MeerHusam/khutbah-transcribe (branch: `main`)
-- **Site:** https://khutbah.dev (bought 2 Oct 2026 on Cloudflare Registrar; DNS on Cloudflare: CNAME `@` and `www` → `khutbah-live.onrender.com`, DNS only). Page requests to the old `khutbah-live.onrender.com` get a 301 to the same path on khutbah.dev (`server/server.js`; on main since 2 Oct, ca26a86); `/admin` and `/api` answer on both.
+- **Site:** https://khutbah.dev (bought 2 Oct 2026 on Cloudflare Registrar; DNS on Cloudflare: CNAME `@` and `www` → `khutbah-live.onrender.com`, DNS only). Page requests to the old `khutbah-live.onrender.com` get a 301 to the same path on khutbah.dev (`server/server.js`; on main since 2 Oct, ca26a86 + 3a9c8dc); admin pages redirect too, only `/api` (health check) and `/admin/uploads` (upload worker) answer on both. Canonical links, `/sitemap.xml` and `robots.txt` point search engines at khutbah.dev.
 - **Audio:** https://media.khutbah.dev, the R2 bucket `khutbah-media`'s custom domain (r2.dev address still on, unused).
 - **Render:** service `khutbah-live` (Blueprint, **Starter plan**, auto-deploys on push to `main`)
 - **Persistent disk:** 1 GB mounted at `/opt/render/project/src/data` — `site.db` (the published khutbahs), `outputs/` + `audio_files/` of khutbahs published through the API, `views.json`, `visits.jsonl`, `geo_views.jsonl`, `engage.jsonl`, `feedback.jsonl`, `uploads/` persist across restarts/redeploys
 - **Admin feedback:** `https://khutbah.dev/admin/feedback?key=<ADMIN_TOKEN>` (set in Render Environment tab)
 - **Admin traffic:** `https://khutbah.dev/admin/traffic?key=<ADMIN_TOKEN>` — views, places, khutbahs, sources, devices, listening
 - **Upload page:** `https://khutbah.dev/admin/upload?key=<ADMIN_TOKEN>` — a recording from the masjid; the Mac's worker publishes it
-- **Public name:** KhutbahTranscribe
+- **Public name:** Khutbah.dev (KhutbahTranscribe until 2 Oct 2026; the repo keeps its name, Render deploys from it)
 
 ---
 

@@ -1,4 +1,4 @@
-# KhutbahTranscribe
+# Khutbah.dev
 
 Turns a recording of an Arabic Friday khutbah into a page people can read and listen to:
 the imam's Arabic word by word, an English and an Urdu translation, every Quran verse and

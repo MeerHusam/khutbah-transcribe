@@ -20,11 +20,11 @@ const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
-// The old address: pages shared as khutbah-live.onrender.com/... open on khutbah.dev. Page
-// requests only: /admin (the upload worker, the publish API) and /api (Render's health check)
-// answer on both.
+// The old address: pages shared as khutbah-live.onrender.com/... open on khutbah.dev, admin
+// pages included. Page requests only; /api (Render's health check) and /admin/uploads (the upload
+// worker) answer on both.
 app.use((req, res, next) => {
-  if (req.hostname === 'khutbah-live.onrender.com' && (req.method === 'GET' || req.method === 'HEAD') && !/^\/(admin|api)(\/|$)/.test(req.path)) {
+  if (req.hostname === 'khutbah-live.onrender.com' && (req.method === 'GET' || req.method === 'HEAD') && !/^\/(api|admin\/uploads|admin\/api)(\/|$)/.test(req.path)) {
     return res.redirect(301, `https://khutbah.dev${req.originalUrl}`);
   }
   next();
@@ -39,6 +39,6 @@ app.use(admin);
 wss.on('connection', handleViewer);
 
 server.listen(PORT, () => {
-  console.log(`KhutbahTranscribe (public read-only) running at http://localhost:${PORT}`);
+  console.log(`Khutbah.dev (public read-only) running at http://localhost:${PORT}`);
   warmCache();
 });

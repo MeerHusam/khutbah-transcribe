@@ -40,14 +40,22 @@ const get = (path, init) => fetch(BASE + path, { redirect: 'manual', ...init });
 test('home page carries its link-preview tags', async () => {
   const r = await get('/');
   assert.equal(r.status, 200);
-  assert.match(await r.text(), /<meta property="og:title" content="KhutbahTranscribe">/);
+  const html = await r.text();
+  assert.match(html, /<meta property="og:title" content="Khutbah.dev · Friday Khutbahs in Arabic &amp; English">/);
+  assert.match(html, /<link rel="canonical" href="https:\/\/khutbah.dev\/">/);
+});
+
+test('sitemap.xml lists the home page and every khutbah; robots.txt points to it', async () => {
+  const xml = await (await get('/sitemap.xml')).text();
+  for (const p of ['/', ...khutbahs.map(k => `/${k.slug}`)]) assert.ok(xml.includes(`<loc>https://khutbah.dev${p}</loc>`), p);
+  assert.match(await (await get('/robots.txt')).text(), /Sitemap: https:\/\/khutbah.dev\/sitemap.xml/);
 });
 
 test('every published khutbah opens at its short link; old links redirect; others are 404', async () => {
   for (const k of khutbahs) {
     const r = await get(`/${k.slug}`);
     assert.equal(r.status, 200, k.slug);
-    assert.ok((await r.text()).includes(`<title>${k.title.replace(/&/g, '&amp;')} · KhutbahTranscribe</title>`), k.slug);
+    assert.ok((await r.text()).includes(`<title>${k.title.replace(/&/g, '&amp;')} · Khutbah.dev</title>`), k.slug);
     for (const old of k.old_slugs ?? []) {
       const m = await get(`/${old}`);
       assert.equal(m.status, 301);
@@ -57,7 +65,7 @@ test('every published khutbah opens at its short link; old links redirect; other
   assert.equal((await get('/no-such-khutbah')).status, 404);
 });
 
-test('the old onrender address sends pages to khutbah.dev, but not /admin or /api', async () => {
+test('the old onrender address sends pages to khutbah.dev, but not /api or the upload worker\'s /admin/uploads', async () => {
   const onrender = (method, path) => new Promise((resolve, reject) => request(
     { port: PORT, path, method, headers: { host: 'khutbah-live.onrender.com' } }, r => { r.resume(); resolve(r); },
   ).on('error', reject).end());
@@ -65,6 +73,7 @@ test('the old onrender address sends pages to khutbah.dev, but not /admin or /ap
   assert.equal(r.statusCode, 301);
   assert.equal(r.headers.location, 'https://khutbah.dev/2026-09-25?ref=wa');
   assert.equal((await onrender('GET', '/api/results')).statusCode, 200);
+  assert.equal((await onrender('GET', '/admin/traffic?key=x')).headers.location, 'https://khutbah.dev/admin/traffic?key=x');
   assert.equal((await onrender('GET', '/admin/uploads')).statusCode, 401);
   assert.equal((await onrender('POST', '/admin/api/khutbahs')).statusCode, 401);
   assert.equal((await get('/2026-09-25')).status, 200);
@@ -147,7 +156,7 @@ test('publishing: a new khutbah is live at once, with its files, recording and v
 
     const page = await get('/test-publish');
     assert.equal(page.status, 200);
-    assert.match(await page.text(), /<title>Test Publish · KhutbahTranscribe<\/title>/);
+    assert.match(await page.text(), /<title>Test Publish · Khutbah.dev<\/title>/);
     const list = await (await get('/api/results')).json();
     assert.equal(list.items[0].slug, 'test-publish');
     assert.equal(list.featured, '2026-10-02T12-00-00_khutbah-test-publish');
