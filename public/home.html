@@ -311,6 +311,11 @@
       border: 1px solid rgba(56,178,122,0.2);
       color: #6dd4a4;
     }
+    .stat-lang {
+      background: rgba(236,227,207,0.1);
+      border: 1px solid rgba(236,227,207,0.24);
+      color: var(--cream);
+    }
     .stat-words {
       background: rgba(236,227,207,0.06);
       border: 1px solid rgba(236,227,207,0.12);
@@ -575,8 +580,8 @@
 <section class="hero">
   <div class="hero-ar" aria-hidden="true">الخطبة</div>
   <span class="hero-ornament">۞ &nbsp; ۞ &nbsp; ۞</span>
-  <h1>Friday <span>Khutbahs</span><br>in Arabic & English</h1>
-  <p class="hero-sub">The Friday Khutbah in Arabic, translated to English, with every Quranic verse and Hadith citation sourced and linked.</p>
+  <h1>Friday <span>Khutbahs</span><br>in Arabic, English&nbsp;&amp;&nbsp;Urdu</h1>
+  <p class="hero-sub">The Friday Khutbah in Arabic, translated to English and Urdu, with every Quranic verse and Hadith citation sourced and linked.</p>
   <div class="hero-divider"></div>
 </section>
 
@@ -723,6 +728,8 @@
 
     const stats = `
       <div class="card-stats">
+        ${k.languages?.length ? `<span class="stat-pill stat-lang">${k.languages.map(esc).join(' · ')}</span>` : ''}
+        ${k.voices?.length ? `<span class="stat-pill stat-lang">Voice: ${k.voices.map(esc).join(' · ')}</span>` : ''}
         ${k.quran  ? `<span class="stat-pill stat-quran">${k.quran} Quran refs</span>` : ''}
         ${k.hadith ? `<span class="stat-pill stat-hadith">${k.hadith} Hadith</span>` : ''}
         ${k.words  ? `<span class="stat-pill stat-words">${k.words.toLocaleString()} words</span>` : ''}

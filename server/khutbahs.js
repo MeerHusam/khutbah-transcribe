@@ -122,6 +122,9 @@ function listItem(k, r) {
     quran: r.metadata?.quran_references_matched || 0,
     hadith: r.metadata?.hadith_references_found || 0,
     mode: r.metadata?.transcription_mode || '',
+    // What the page offers: the languages it reads in and the voices it can play (tts.js).
+    languages: ['Arabic', 'English', ...(r.urdu ? ['Urdu'] : [])],
+    voices: TTS_LANGS.filter(l => existsSync(join(contentDir(k.folder), `tts_${l}.json`))).map(l => ({ en: 'English', ur: 'Urdu' })[l]),
   };
 }
 
