@@ -137,9 +137,9 @@ const PUBLIC_KHUTBAHS = [
     masjid_ar: 'جامع إسكان المعذر',
     maps_url: 'https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6',
     date: '25 September 2026',
-    // The imam's recording with the hall's reverb and echo taken out (clean_audio.py); same
-    // timeline as the original, so every time still holds.
-    audio: 'khutbah-2026-09-25-masjid-clean.m4a',
+    // The imam's original recording (the echo-removed one, clean_audio.py, sounded processed;
+    // switched back 2 Oct). Same timeline, so every time still holds.
+    audio: 'khutbah-2026-09-25-masjid.m4a',
     page: 'reader-ur.html',
     featured: true,
   },
