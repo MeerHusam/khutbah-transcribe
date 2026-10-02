@@ -50,7 +50,8 @@
       --pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Cg fill='none' stroke='%23d9b86a' stroke-width='1'%3E%3Cpath d='M32 4 L60 32 L32 60 L4 32 Z'/%3E%3Cpath d='M14 14 H50 V50 H14 Z'/%3E%3C/g%3E%3C/svg%3E");
     }
 
-    html { -webkit-text-size-adjust: 100%; }
+    /* No blue box flashed over a tapped button on Android Chrome; keyboard focus still shows. */
+    html { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
 
     body {
       font-family: var(--font-ui);
