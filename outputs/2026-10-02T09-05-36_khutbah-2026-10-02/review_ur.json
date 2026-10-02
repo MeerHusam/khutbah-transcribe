@@ -1,16 +1,16 @@
 {
   "model": "claude-opus-5-5",
-  "reviewed_at": "2026-10-02T09:16:39.357Z",
+  "reviewed_at": "2026-10-02T10:53:31.859Z",
   "chunks": 62,
   "corrected": 2,
   "usage": {
-    "calls": 7,
-    "input_tokens": 34094,
-    "output_tokens": 8592,
-    "cache_read_input_tokens": 62978,
-    "input_usd": 0.1616,
-    "output_usd": 0.1718,
-    "cost_usd": 0.3334
+    "calls": 1,
+    "input_tokens": 11533,
+    "output_tokens": 369,
+    "cache_read_input_tokens": 0,
+    "input_usd": 0.0461,
+    "output_usd": 0.0074,
+    "cost_usd": 0.0535
   },
   "log": [
     {
