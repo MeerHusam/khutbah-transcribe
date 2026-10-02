@@ -779,8 +779,11 @@
       const rest     = data.items.filter(k => !k.featured);
       const ordered  = [...(featured ? [featured] : []), ...rest];
       document.getElementById('grid').innerHTML = ordered.map(renderCard).join('');
-      // /feedback lands on /#contact; the cards just pushed the form down.
-      if (location.hash === '#contact') document.getElementById('contact').scrollIntoView();
+      // /feedback lands on /#contact; the cards and then the fonts push the form down after the first jump.
+      if (location.hash === '#contact') {
+        const toForm = () => document.getElementById('contact').scrollIntoView();
+        toForm(); document.fonts.ready.then(toForm); addEventListener('load', toForm);
+      }
     })
     .then(() => {
       // Masjid name opens the map instead of the reader behind it.
