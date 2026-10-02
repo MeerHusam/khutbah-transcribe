@@ -56,7 +56,7 @@ function withShareMeta(file, req, { title, description, path }) {
     .replace(/<meta name="description"[^>]*>\s*/, '')
     .replace(/<title>[^<]*<\/title>/, tags);
 }
-const HOME_DESCRIPTION = 'Arabic Friday Khutbahs with English translation, Quranic references, and Hadith citations.';
+const HOME_DESCRIPTION = 'Arabic Friday Khutbahs with English and Urdu translations, every Quran verse and Hadith cited and linked.';
 const shareSummaries = new Map(); // folder -> "In Short", read once
 function shareSummary(folder) {
   if (!shareSummaries.has(folder)) {
@@ -71,7 +71,7 @@ function shareSummary(folder) {
 }
 
 app.get('/', (req, res) => res.type('html').send(withShareMeta('home.html', req, {
-  title: 'Khutbah.dev · Friday Khutbahs in Arabic & English', description: HOME_DESCRIPTION, path: '/',
+  title: 'Khutbah.dev · Friday Khutbahs in Arabic, English & Urdu', description: HOME_DESCRIPTION, path: '/',
 })));
 // For search engines: the home page and every khutbah's short link (robots.txt points here).
 app.get('/sitemap.xml', (req, res) => res.type('application/xml').send(
