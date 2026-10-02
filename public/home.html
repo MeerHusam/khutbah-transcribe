@@ -491,6 +491,20 @@
       background-image: var(--pattern); background-size: 70px 70px;
       opacity: 0.04; pointer-events: none;
     }
+    .form-row { margin-bottom: 14px; position: relative; z-index: 1; }
+    .form-row label {
+      display: block; font-size: 12px; font-weight: 600; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px;
+    }
+    .form-input, .form-textarea {
+      width: 100%; background: rgba(0,0,0,0.25); border: 1px solid var(--border);
+      border-radius: 10px; padding: 11px 14px;
+      font-family: var(--font-ui); font-size: 14px; color: var(--cream);
+      outline: none; transition: border-color 0.2s;
+      resize: vertical;
+    }
+    .form-input:focus, .form-textarea:focus { border-color: rgba(217,184,106,0.4); }
+    .form-textarea { min-height: 110px; }
     .form-submit {
       width: 100%; padding: 12px;
       background: linear-gradient(135deg, var(--gold-bright), var(--gold-deep));
@@ -500,8 +514,19 @@
       position: relative; z-index: 1;
     }
     .form-submit:hover { opacity: 0.9; }
-    a.form-submit { display: block; text-align: center; text-decoration: none; }
-    .contact-cta-text { font-size: 14px; line-height: 1.7; color: #b5ae9e; margin-bottom: 18px; position: relative; z-index: 1; }
+    .form-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+    .form-status {
+      font-size: 13px; text-align: center; margin-top: 12px;
+      min-height: 18px; color: var(--green);
+      position: relative; z-index: 1;
+    }
+    .form-status.error { color: #e07070; }
+    .form-row label .opt { color: var(--text-dim); font-weight: 400; text-transform: none; letter-spacing: 0; }
+    .check { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; color: #b5ae9e; margin: 2px 0 16px; cursor: pointer; position: relative; z-index: 1; }
+    .check input { margin-top: 3px; accent-color: var(--gold); width: 16px; height: 16px; }
+    .trap { position: absolute; left: -9999px; }
+    .see-comments { display: block; text-align: center; margin-top: 6px; font-size: 14px; color: var(--gold); text-decoration: none; position: relative; z-index: 1; }
+    .see-comments:hover { text-decoration: underline; }
 
     /* ── Footer ── */
     footer {
@@ -670,8 +695,23 @@
       </div>
     </div>
     <div class="contact-form-card">
-      <p class="contact-cta-text">Read what others said, or leave a message yourself. You can stay anonymous.</p>
-      <a class="form-submit" href="/feedback">Leave feedback or a comment</a>
+      <div class="form-row">
+        <label>Message</label>
+        <textarea class="form-textarea" id="fbMessage" placeholder="Your feedback, correction, or suggestion…"></textarea>
+      </div>
+      <div class="form-row">
+        <label for="fbName">Name <span class="opt">(optional, leave empty to stay anonymous)</span></label>
+        <input class="form-input" id="fbName" type="text" maxlength="60" autocomplete="name">
+      </div>
+      <div class="form-row">
+        <label for="fbContact">Email <span class="opt">(optional, only if you'd like a reply; never shown)</span></label>
+        <input class="form-input" id="fbContact" type="email" maxlength="200" autocomplete="email">
+      </div>
+      <input class="trap" id="fbWebsite" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <label class="check"><input type="checkbox" id="fbPublic" checked> Show my message on the feedback page for others to read</label>
+      <button class="form-submit" id="fbSubmit" onclick="submitFeedback()">Send</button>
+      <div class="form-status" id="fbStatus"></div>
+      <a class="see-comments" href="/feedback">See what others said →</a>
     </div>
   </div>
 </section>
@@ -768,6 +808,32 @@
     .catch(() => {
       document.getElementById('grid').innerHTML = '<p style="color:var(--text-dim)">Could not load khutbahs.</p>';
     });
+
+  async function submitFeedback() {
+    const msg = document.getElementById('fbMessage').value.trim();
+    const contact = document.getElementById('fbContact').value.trim();
+    const name = document.getElementById('fbName').value.trim();
+    const status = document.getElementById('fbStatus');
+    const btn = document.getElementById('fbSubmit');
+    if (!msg) { status.textContent = 'Please write a message first.'; status.className = 'form-status error'; return; }
+    btn.disabled = true; status.textContent = ''; status.className = 'form-status';
+    try {
+      const res = await fetch('/api/feedback', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, contact, name, public: document.getElementById('fbPublic').checked,
+          website: document.getElementById('fbWebsite').value })
+      });
+      if (res.status === 429) { status.textContent = 'Too many messages for now. Please try again in a few minutes.'; status.className = 'form-status error'; btn.disabled = false; return; }
+      if (res.ok) {
+        status.textContent = '✓ Thank you! Your message was received.';
+        document.getElementById('fbMessage').value = '';
+      } else { throw new Error(); }
+    } catch {
+      status.textContent = 'Something went wrong. Please try again.';
+      status.className = 'form-status error';
+    }
+    btn.disabled = false;
+  }
 
   // A random ID this browser keeps, so people sharing one Wi-Fi count separately.
   function deviceId() {
