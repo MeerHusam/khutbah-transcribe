@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 // reanalyze.js — Rebuild reader.txt from existing result.json + transcript.txt
-// using the improved canonical-span alignment. No API calls needed.
+// using the improved canonical-span alignment. No API calls needed, except: when a fix moves
+// some chunk boundaries but keeps the number of chunks (a Quran zone that now ends where the
+// verse does), the English of just those chunks is translated again, and the Urdu commands
+// for the same chunks are printed (translate_urdu.js / review_urdu.js --chunks).
 //
 // Usage: node reanalyze.js outputs/<folder> [--keep-chunks] [--no-swaps]
 //
@@ -13,6 +16,7 @@
 // call per quote whose inputs changed, claude-sonnet-5 by default; nothing when they did not).
 // --no-swaps skips that and keeps whatever plan result.json already has.
 
+import Anthropic from '@anthropic-ai/sdk';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import {
@@ -51,7 +55,34 @@ console.log(`Transcript: ${transcriptWords.length} words`);
 const keepChunks = process.argv.includes('--keep-chunks');
 if (keepChunks) console.log('Keeping the stored prose chunks and Quran refs (--keep-chunks)');
 
+let moved = [];
 const allQuranRefs = keepChunks ? (result.quran_references || []) : recomputeChunksAndZones();
+if (moved.length) {
+  await retranslateEnglish(moved);
+  console.log(`  then: node translate_urdu.js ${folder} --chunks ${moved.join(',')} && node review_urdu.js ${folder} --chunks ${moved.join(',')}`);
+}
+
+// English for the chunks whose boundaries moved, one call each, with the whole khutbah and the
+// English on either side so it reads on; the model of the first analysis (pipeline.js).
+async function retranslateEnglish(indices) {
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 300_000, maxRetries: 4 });
+  const map = result.prose_chunk_map, en = result.chunk_translations;
+  for (const i of indices) {
+    const arabic = transcriptWords.slice(map[i].wordStart, map[i].wordEnd).join(' ');
+    const msg = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6', max_tokens: 2000,
+      messages: [{ role: 'user', content:
+        `The transcript of an Arabic Friday khutbah, for context:\n${transcript}\n\n` +
+        'Translate one chunk of it into natural, fluent English: exactly its own words, no more and no less (Quran verses are ' +
+        'shown separately on the page, so never add the words of a verse next to the chunk). Match the style of the English ' +
+        'around it (honorifics such as صلى الله عليه وسلم stay in Arabic) and make it read on from the English before it. ' +
+        'Do not use em dashes or en dashes. Reply with the English only.\n\n' +
+        `English before: ${en[i - 1] ?? '(start of the khutbah)'}\nChunk: ${arabic}\nEnglish after: ${en[i + 1] ?? '(end)'}` }],
+    });
+    en[i] = msg.content.find(b => b.type === 'text')?.text.trim() || en[i];
+    console.log(`  chunk ${i}: boundaries moved, English translated again: ${en[i].slice(0, 70)}…`);
+  }
+}
 
 // Steps 1-4: recompute Quran zones, prose chunks and zone refs with the current code.
 function recomputeChunksAndZones() {
@@ -78,8 +109,13 @@ function recomputeChunksAndZones() {
   // English — re-timing a run with fresh Whisper segments did exactly that, shifting two
   // boundaries, which the old count-only check (drift <= 2) let through silently.
   const newMap = proseChunks.map(({ wordStart, wordEnd, proseIdx }) => ({ wordStart, wordEnd, proseIdx }));
-  if (result.prose_chunk_map && result.chunk_translations &&
-      JSON.stringify(result.prose_chunk_map) !== JSON.stringify(newMap) && !process.argv.includes('--force')) {
+  const oldMap = result.prose_chunk_map;
+  if (oldMap?.length === newMap.length && result.chunk_translations && !process.argv.includes('--force')) {
+    // The same chunks, some with moved boundaries (a fix to the Quran zones): those are
+    // translated again below; every other chunk keeps its English, and its voice.
+    moved = newMap.map((e, i) => (JSON.stringify(e) !== JSON.stringify(oldMap[i]) ? i : -1)).filter(i => i >= 0);
+  } else if (oldMap && result.chunk_translations &&
+      JSON.stringify(oldMap) !== JSON.stringify(newMap) && !process.argv.includes('--force')) {
     const at = newMap.findIndex((e, i) => JSON.stringify(e) !== JSON.stringify(result.prose_chunk_map[i]));
     console.error(`✗ Prose chunk boundaries changed from chunk ${at} on — the stored translations would pair`);
     console.error('  with the wrong blocks. Nothing written. Re-run the full pipeline for this folder, or pass');
