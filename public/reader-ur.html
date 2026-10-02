@@ -843,13 +843,13 @@
     <button type="button" class="ap-min" id="apMin" onclick="togglePlayerSize()" aria-label="Shrink the player" title="Shrink the player"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
     <div class="ap-switches">
       <div class="ap-group" id="readGroup" role="group" aria-labelledby="readLabel">
-        <span class="ap-label" id="readLabel">Read</span>
+        <span class="ap-label" id="readLabel">Read in</span>
         <span class="seg" id="readSwitch">
           <button type="button" data-lang="en" aria-pressed="false" onclick="setLang('en')" title="The English translation on screen">English</button><button type="button" data-lang="ur" lang="ur" aria-pressed="false" onclick="setLang('ur')" title="The Urdu translation on screen">اردو</button>
         </span>
       </div>
       <div class="ap-group" id="hearGroup" role="group" aria-labelledby="hearLabel" hidden>
-        <span class="ap-label" id="hearLabel">Hear</span>
+        <span class="ap-label" id="hearLabel">Hear in</span>
         <span class="seg" id="voiceSwitch">
           <button type="button" data-voice="imam" class="on" aria-pressed="true" onclick="pickVoice('imam')" title="The imam's recording, in Arabic">Imam</button><button type="button" data-voice="en" aria-pressed="false" onclick="pickVoice('en')" title="The English translation, read aloud by an AI voice" hidden>English</button><button type="button" data-voice="ur" lang="ur" aria-pressed="false" onclick="pickVoice('ur')" title="The Urdu translation, read aloud by an AI voice" hidden>اردو</button>
         </span>
@@ -1853,7 +1853,8 @@
     updateVoiceBtn();
   }
 
-  // Phones: the player shrinks to one slim row while reading, and remembers the choice.
+  // Phones: the player shrinks to one slim row while reading. Every visit opens it again
+  // (Meer, 2 Oct): a shrunk player is easy to miss.
   function togglePlayerSize(mini) {
     const player = document.getElementById('audioPlayer');
     mini = mini ?? !player.classList.contains('mini');
@@ -1863,7 +1864,6 @@
     const min = document.getElementById('apMin');
     min.title = mini ? 'Open the player' : 'Shrink the player';
     min.setAttribute('aria-label', min.title);
-    try { localStorage.setItem('kt-player-mini', mini ? '1' : '0'); } catch {}
   }
 
   // Hear is the audio only; the text stays as Read has it.
@@ -2055,15 +2055,16 @@
   }
 
   function initAudio(url) {
-    audio = new Audio(url);
+    // Hear starts in Urdu like Read, where the khutbah has an Urdu voice; each switch then
+    // changes only its own side (listen in Urdu, read in English).
+    if (result.tts_ur) voice = 'ur';
+    audio = new Audio(voice === 'ur' ? result.tts_ur.url : url);
     audio.playbackRate = SPEEDS[speedIdx];
     const player = document.getElementById('audioPlayer');
     const scrubber = document.getElementById('scrubber');
     const timeEl = document.getElementById('audioTime');
     player.classList.add('ready');
-    let mini = false;
-    try { mini = localStorage.getItem('kt-player-mini') === '1'; } catch {}
-    togglePlayerSize(mini);
+    togglePlayerSize(false);
     updateVoiceBtn();
 
     // Phones: a swipe down on the player shrinks it and a swipe up opens it; a tap on the
