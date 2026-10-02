@@ -10,6 +10,24 @@
   ],
   "khutbahs": [
     {
+      "slug": "2026-09-25-madinah-munawwarah",
+      "folder": "outputs/2026-10-02T07-44-06_khutbah-2026-10-02-madinah-munawwarah",
+      "quran": [
+        "2:194",
+        "83:24",
+        "47:15",
+        "9:119"
+      ],
+      "hadith": [
+        "bukhari:7498",
+        "at-tirmidhi:?",
+        "bukhari:7434"
+      ],
+      "hadith_english": {},
+      "corrections": [],
+      "confirmed": false
+    },
+    {
       "slug": "2026-09-25",
       "folder": "outputs/2026-09-25T10-04-57_khutbah-2026-09-25-masjid",
       "quran": [

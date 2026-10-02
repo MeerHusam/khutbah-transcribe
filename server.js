@@ -112,6 +112,16 @@ const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 // in audio_files/<basename>.<ext> (basename = folder name after the timestamp).
 // ────────────────────────────────────────────────────────────────────────────
 const PUBLIC_KHUTBAHS = [
+  {
+    folder: '2026-10-02T07-44-06_khutbah-2026-10-02-madinah-munawwarah',
+    slug: '2026-09-25-madinah-munawwarah',
+    title: 'Paradise: The Eternal Abode',
+    speaker: 'Friday Khutbah',
+    masjid: 'Madinah Munawwarah',
+    date: '25 September 2026',
+    audio: 'khutbah-2026-10-02-madinah-munawwarah-clean.m4a',
+    page: 'reader-ur.html',
+  },
   // ── 25 Sep: one page with the English and the Urdu (reader-ur.html: Read English|اردو, Hear
   //    Imam|English|اردو, word by word). Its folder is the Urdu edition's, which has the voices and
   //    the imam's word times; the English folder before it stays in the repo but is not served.
