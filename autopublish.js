@@ -193,9 +193,10 @@ async function main() {
   // 4. Verses recited only in part.
   await run('verse excerpts', 'node', ['verse_excerpts.js', F]);
 
-  // 5. Voices, then word timing and the recitation.
-  //    Each language on its own: the Urdu track comes with its word times (from the passage
-  //    split), so while it is still being voiced the English one can already be aligned.
+  // 5. Voices, then the recitation. Both are voiced a passage at a time with a direction per
+  //    sentence (--direct): about 13 Gemini requests each instead of one per block (67 for the
+  //    English on 2 Oct, when two runs in a day hit the 100-a-day limit), and the word times
+  //    come with the passage split, so align_words.py runs only if that failed.
   await report('voices', { message: 'Urdu (Orus) and English (Charon)' });
   const recitation = cleanAudio ? join('audio_files', `${name}-clean.wav`) : audioOut;
   let voiced = 0;
@@ -208,7 +209,7 @@ async function main() {
   };
   await Promise.all([
     voice('ur', 'Urdu', ['--voice', 'Orus', '--direct']),
-    voice('en', 'English', []),
+    voice('en', 'English', ['--direct']),
   ]);
 
   // 6. Publish: checks, test set, site entry (one page), then commit and push.
