@@ -67,12 +67,14 @@ async function speak(text) {
 async function ask(content) {
   for (let attempt = 1; ; attempt++) {
     try {
+      // No SDK retries: it sleeps whatever retry-after the API sends, silently (14 h for the
+      // daily limit on 2 Oct). The waits are decided below instead.
       const r = await ai.interactions.create({
         model: job.model,
         input: [{ type: 'user_input', content }],
         response_format: { type: 'audio' },
         generation_config: { speech_config: [{ voice: job.voice }] },
-      });
+      }, { maxRetries: 0 });
       const find = o => {
         if (!o || typeof o !== 'object') return null;
         if (typeof o.data === 'string' && o.data.length > 1000) return o.data;
@@ -86,9 +88,19 @@ async function ask(content) {
       usage.calls++; usage.input += u.total_input_tokens ?? 0; usage.output += u.total_output_tokens ?? 0;
       return pcm;
     } catch (e) {
-      if (attempt >= 4) throw e;
-      console.error(`  retry ${attempt}: ${String(e.message ?? e).slice(0, 160)}`);
-      await new Promise(r => setTimeout(r, 4000 * attempt));
+      const msg = String(e.message ?? e);
+      // The daily limit (100 requests per Google project on Tier 1) does not pass in minutes.
+      if (/per day/i.test(msg)) {
+        console.error(`✗ Gemini daily voice limit reached: ${msg.slice(0, 200)}\n  Use a key from a Google project that has not voiced today, or wait for 00:00 UTC.`);
+        process.exit(3);
+      }
+      // A request that cannot succeed (a bad key, a bad request) is not tried again.
+      if (attempt >= 6 || (e.status >= 400 && e.status < 500 && e.status !== 429)) throw e;
+      // The per-minute limit (10 requests) or a busy server: wait what the API asks, at most 90 s.
+      const after = +(e.headers?.get?.('retry-after') ?? 0);
+      const wait = Math.min(after > 0 ? after * 1000 : 4000 * attempt, 90_000);
+      console.error(`  retry ${attempt} in ${Math.round(wait / 1000)} s: ${msg.slice(0, 160)}`);
+      await new Promise(r => setTimeout(r, wait));
     }
   }
 }
@@ -168,7 +180,16 @@ async function hear(pcm) {
 
 const checks = [];
 async function speakPassage(blocks, n) {
-  const parts = blocks.flatMap(b => (b.parts?.length ? b.parts : [{ text: b.text, style: null }]));
+  // A sentence that runs on into the next block is one part with one direction: on 2 Oct a new
+  // direction at the block break ("…ایمان کی نشانی | اور ان سے بغض…", one sentence) made the voice
+  // close the half sentence and start the rest in another tone. A colon before a quote still
+  // splits: a change of tone there is natural.
+  const parts = [];
+  for (const p of blocks.flatMap(b => (b.parts?.length ? b.parts : [{ text: b.text, style: null }]))) {
+    const last = parts.at(-1);
+    if (last && !endsSentence(last.text) && !/:["”’)]?\s*$/.test(last.text)) last.text += ' ' + p.text;
+    else parts.push({ ...p });
+  }
   const request = { model: job.model, voice: job.voice, style: job.style, parts };
   const path = cachePath(request);
   if (existsSync(path)) { usage.cached++; return readFileSync(path); }

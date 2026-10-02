@@ -190,6 +190,17 @@
       justify-content: center;
       gap: 20px;
     }
+    /* One button per masjid (with its count) above the cards; shown once there are two masjids. */
+    .masjid-filter { display: flex; flex-wrap: wrap; gap: 8px; margin: -6px 0 22px; }
+    .masjid-filter:empty { display: none; }
+    .masjid-filter button {
+      font: 500 13px var(--font-ui); color: var(--text-muted); cursor: pointer;
+      background: var(--surface); border: 1px solid var(--border-soft); border-radius: 99px; padding: 7px 14px;
+    }
+    .masjid-filter button:hover { color: var(--cream); border-color: var(--border); }
+    .masjid-filter button span { color: var(--text-dim); margin-left: 5px; }
+    .masjid-filter button[aria-pressed="true"] { color: #0a1611; background: var(--gold); border-color: var(--gold); }
+    .masjid-filter button[aria-pressed="true"] span { color: rgba(10,22,17,0.6); }
     .khutbahs-grid .featured-card {
       grid-column: 1 / -1;
     }
@@ -521,6 +532,12 @@
       position: relative; z-index: 1;
     }
     .form-status.error { color: #e07070; }
+    .form-row label .opt { color: var(--text-dim); font-weight: 400; text-transform: none; letter-spacing: 0; }
+    .check { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; color: #b5ae9e; margin: 2px 0 16px; cursor: pointer; position: relative; z-index: 1; }
+    .check input { margin-top: 3px; accent-color: var(--gold); width: 16px; height: 16px; }
+    .trap { position: absolute; left: -9999px; }
+    .see-comments { display: block; text-align: center; margin-top: 6px; font-size: 14px; color: var(--gold); text-decoration: none; position: relative; z-index: 1; }
+    .see-comments:hover { text-decoration: underline; }
 
     /* ── Footer ── */
     footer {
@@ -587,6 +604,7 @@
 
 <main class="khutbahs-section" id="khutbahs">
   <div class="section-label">Available Khutbahs</div>
+  <div class="masjid-filter" id="masjidFilter" role="group" aria-label="Show khutbahs from one masjid"></div>
   <div class="khutbahs-grid" id="grid">
     <div style="color:var(--text-dim);font-size:14px;padding:20px 0;">Loading…</div>
   </div>
@@ -677,8 +695,8 @@
   <div class="section-label">Contact</div>
   <div class="contact-wrap">
     <div class="contact-info">
-      <h3>Say something</h3>
-      <p>Noticed a wrong reference or mistranslation? Want to suggest a khutbah to add? Everything sent here is read.</p>
+      <h3>Help us improve</h3>
+      <p>Please let us know how we can make this better. Any suggestions or feedback are welcome, big or small. JazakAllahu khayran.</p>
       <div class="contact-detail">
         <span class="contact-dot"></span>
         <span>Built by <a href="https://www.linkedin.com/in/meerhusam" target="_blank" rel="noopener">Meer Husamuddin</a></span>
@@ -694,11 +712,18 @@
         <textarea class="form-textarea" id="fbMessage" placeholder="Your feedback, correction, or suggestion…"></textarea>
       </div>
       <div class="form-row">
-        <label>Email or name <span style="color:var(--text-dim);font-weight:400">(optional)</span></label>
-        <input class="form-input" id="fbContact" type="text" placeholder="So we can reply">
+        <label for="fbName">Name <span class="opt">(optional, leave empty to stay anonymous)</span></label>
+        <input class="form-input" id="fbName" type="text" maxlength="60" autocomplete="name">
       </div>
-      <button class="form-submit" id="fbSubmit" onclick="submitFeedback()">Send Message</button>
+      <div class="form-row">
+        <label for="fbContact">Email <span class="opt">(optional, only if you'd like a reply; never shown)</span></label>
+        <input class="form-input" id="fbContact" type="email" maxlength="200" autocomplete="email">
+      </div>
+      <input class="trap" id="fbWebsite" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <label class="check"><input type="checkbox" id="fbPublic" checked> Show my message on the feedback page for others to read</label>
+      <button class="form-submit" id="fbSubmit" onclick="submitFeedback()">Send</button>
       <div class="form-status" id="fbStatus"></div>
+      <a class="see-comments" href="/feedback">See what others said →</a>
     </div>
   </div>
 </section>
@@ -778,7 +803,21 @@
       const featured = data.items.find(k => k.featured);
       const rest     = data.items.filter(k => !k.featured);
       const ordered  = [...(featured ? [featured] : []), ...rest];
-      document.getElementById('grid').innerHTML = ordered.map(renderCard).join('');
+      const grid = document.getElementById('grid'), bar = document.getElementById('masjidFilter');
+      const show = m => {
+        grid.innerHTML = ordered.filter(k => !m || k.masjid === m).map(renderCard).join('');
+        bar.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.m === m)));
+      };
+      const perMasjid = new Map();
+      for (const k of ordered) if (k.masjid) perMasjid.set(k.masjid, (perMasjid.get(k.masjid) || 0) + 1);
+      if (perMasjid.size > 1) {
+        // Short labels so the row fits a phone: the city after the comma ("Masjid al-Haram, Makkah" → Makkah).
+        const short = m => (m.includes(',') ? m.split(',').pop().trim() : m.replace(/\s+Mosque$/i, ''));
+        bar.innerHTML = [['', 'All', ordered.length], ...[...perMasjid].sort((a, b) => b[1] - a[1]).map(([m, n]) => [m, short(m), n])]
+          .map(([m, label, n]) => `<button type="button" data-m="${escAttr(m)}" title="${escAttr(m || 'All masjids')}">${esc(label)}<span>${n}</span></button>`).join('');
+        bar.addEventListener('click', e => { const b = e.target.closest('button'); if (b) show(b.dataset.m); });
+      }
+      show('');
     })
     .then(() => {
       // Masjid name opens the map instead of the reader behind it.
@@ -799,6 +838,7 @@
   async function submitFeedback() {
     const msg = document.getElementById('fbMessage').value.trim();
     const contact = document.getElementById('fbContact').value.trim();
+    const name = document.getElementById('fbName').value.trim();
     const status = document.getElementById('fbStatus');
     const btn = document.getElementById('fbSubmit');
     if (!msg) { status.textContent = 'Please write a message first.'; status.className = 'form-status error'; return; }
@@ -806,12 +846,13 @@
     try {
       const res = await fetch('/api/feedback', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, contact })
+        body: JSON.stringify({ message: msg, contact, name, public: document.getElementById('fbPublic').checked,
+          website: document.getElementById('fbWebsite').value })
       });
+      if (res.status === 429) { status.textContent = 'Too many messages for now. Please try again in a few minutes.'; status.className = 'form-status error'; btn.disabled = false; return; }
       if (res.ok) {
         status.textContent = '✓ Thank you! Your message was received.';
         document.getElementById('fbMessage').value = '';
-        document.getElementById('fbContact').value = '';
       } else { throw new Error(); }
     } catch {
       status.textContent = 'Something went wrong. Please try again.';

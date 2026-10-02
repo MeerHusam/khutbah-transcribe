@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Feedback · Khutbah.dev</title>
+  <meta name="theme-color" content="#0a1611">
+  <link rel="icon" type="image/svg+xml" href="/img/logo.svg">
+  <link rel="icon" type="image/png" href="/img/favicon-48.png">
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+  <meta name="description" content="Feedback, suggestions and comments on Khutbah.dev.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@400;600&family=Reem+Kufi:wght@500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a1611; --surface: #112519;
+      --border: rgba(217,184,106,0.16); --border-soft: rgba(236,227,207,0.09);
+      --gold: #d9b86a; --gold-bright: #ecd497; --gold-deep: #b8923f; --green: #38b27a;
+      --cream: #ece3cf; --text-muted: #9aa99c; --text-dim: #74857a; --radius: 16px;
+      --font-ui: 'Inter', -apple-system, sans-serif; --font-serif: 'Lora', Georgia, serif; --font-kufi: 'Reem Kufi', sans-serif;
+      --pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Cg fill='none' stroke='%23d9b86a' stroke-width='1'%3E%3Cpath d='M32 4 L60 32 L32 60 L4 32 Z'/%3E%3Cpath d='M14 14 H50 V50 H14 Z'/%3E%3C/g%3E%3C/svg%3E");
+    }
+    html { -webkit-text-size-adjust: 100%; }
+    body { font-family: var(--font-ui); background: var(--bg); color: var(--cream); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+    body::before { content: ''; position: fixed; inset: 0; background-image: var(--pattern); background-size: 64px 64px; opacity: 0.035; pointer-events: none; }
+    body > * { position: relative; }
+
+    header {
+      background: rgba(10,22,17,0.85); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border); padding: 14px 32px; padding-top: max(14px, env(safe-area-inset-top));
+      display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50;
+    }
+    .header-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+    .logo-mark { width: 40px; height: 40px; border-radius: 50%; box-shadow: 0 0 16px rgba(217,184,106,0.22); }
+    .brand-name { font-family: var(--font-serif); font-size: 18px; font-weight: 600; color: var(--cream); }
+    .tld { color: var(--gold); }
+    .header-link { color: var(--text-muted); font-size: 13.5px; text-decoration: none; }
+    .header-link:hover { color: var(--cream); }
+
+    main { max-width: 680px; margin: 0 auto; padding: 48px 24px 80px; }
+    .section-label { font-family: var(--font-kufi); font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; }
+    h1 { font-family: var(--font-serif); font-size: 28px; font-weight: 600; margin-bottom: 12px; }
+    .intro { font-size: 15px; line-height: 1.75; color: #b5ae9e; margin-bottom: 28px; }
+
+    .form-card {
+      background: linear-gradient(150deg, rgba(56,178,122,0.08) 0%, transparent 55%), var(--surface);
+      border: 1px solid var(--border); border-radius: var(--radius); padding: 26px;
+    }
+    .form-row { margin-bottom: 14px; }
+    .form-row label { display: block; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+    .form-row label span { font-weight: 400; color: var(--text-dim); text-transform: none; letter-spacing: 0; }
+    .form-input, .form-textarea {
+      width: 100%; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px;
+      font-family: var(--font-ui); font-size: 16px; color: var(--cream); outline: none; resize: vertical;
+    }
+    .form-input:focus, .form-textarea:focus { border-color: rgba(217,184,106,0.4); }
+    .form-textarea { min-height: 120px; }
+    .check { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: #b5ae9e; margin: 4px 0 18px; cursor: pointer; }
+    .check input { margin-top: 3px; accent-color: var(--gold); width: 16px; height: 16px; }
+    .trap { position: absolute; left: -9999px; }
+    .form-submit {
+      width: 100%; padding: 13px; border: none; border-radius: 99px; cursor: pointer;
+      background: linear-gradient(135deg, var(--gold-bright), var(--gold-deep)); font-weight: 700; font-size: 15px; color: #0a1611;
+    }
+    .form-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+    .form-status { font-size: 13.5px; text-align: center; margin-top: 12px; min-height: 18px; color: var(--green); }
+    .form-status.error { color: #e07070; }
+
+    .comments { margin-top: 48px; }
+    .comments h2 { font-family: var(--font-serif); font-size: 20px; font-weight: 600; margin-bottom: 16px; }
+    .comment { border: 1px solid var(--border-soft); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; background: rgba(17,37,25,0.5); }
+    .comment .who { font-size: 13px; color: var(--gold); font-weight: 600; }
+    .comment .when { font-size: 12px; color: var(--text-dim); font-weight: 400; margin-left: 6px; }
+    .comment p { font-size: 15px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 6px; }
+    .empty { color: var(--text-dim); font-size: 14px; }
+
+    footer { border-top: 1px solid var(--border-soft); padding: 28px 32px; text-align: center; font-size: 13px; color: var(--text-dim); }
+    footer a { color: var(--gold); text-decoration: none; }
+    @media (max-width: 700px) {
+      header { padding: 12px 16px; }
+      main { padding: 36px 16px 60px; }
+      .form-card { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a class="header-brand" href="/">
+    <img class="logo-mark" src="/img/logo.svg" alt="" width="40" height="40">
+    <span class="brand-name">Khutbah<span class="tld">.dev</span></span>
+  </a>
+  <a class="header-link" href="/">All khutbahs</a>
+</header>
+
+<main>
+  <div class="section-label">Feedback</div>
+  <h1>Help us improve</h1>
+  <p class="intro">Please let us know how we can make this better. Feedback, suggestions, corrections or comments, big or small, are all welcome. You don't need to give your name. JazakAllahu khayran.</p>
+
+  <form class="form-card" id="fbForm">
+    <div class="form-row">
+      <label for="fbMessage">Message</label>
+      <textarea class="form-textarea" id="fbMessage" maxlength="2000" placeholder="Your feedback, suggestion or comment…" required></textarea>
+    </div>
+    <div class="form-row">
+      <label for="fbName">Name <span>(optional, leave empty to stay anonymous)</span></label>
+      <input class="form-input" id="fbName" type="text" maxlength="60" autocomplete="name">
+    </div>
+    <div class="form-row">
+      <label for="fbContact">Email <span>(optional, only if you'd like a reply; never shown)</span></label>
+      <input class="form-input" id="fbContact" type="email" maxlength="200" autocomplete="email">
+    </div>
+    <input class="trap" id="fbWebsite" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <label class="check"><input type="checkbox" id="fbPublic" checked> Show my message below for others to read</label>
+    <button class="form-submit" id="fbSubmit" type="submit">Send</button>
+    <div class="form-status" id="fbStatus" role="status"></div>
+  </form>
+
+  <section class="comments">
+    <h2>What others said</h2>
+    <div id="comments"><p class="empty">Loading…</p></div>
+  </section>
+</main>
+
+<footer>Khutbah.dev · <a href="/">All khutbahs</a></footer>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const day = ts => new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  function loadComments() {
+    fetch('/api/comments').then(r => r.json()).then(list => {
+      $('comments').innerHTML = list.length
+        ? list.map(c => `<div class="comment"><div class="who">${esc(c.name || 'Anonymous')}<span class="when">${day(c.ts)}</span></div><p dir="auto">${esc(c.message)}</p></div>`).join('')
+        : '<p class="empty">No comments yet. Be the first.</p>';
+    }).catch(() => { $('comments').innerHTML = '<p class="empty">Could not load comments.</p>'; });
+  }
+  loadComments();
+
+  $('fbForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const status = $('fbStatus'), btn = $('fbSubmit');
+    const message = $('fbMessage').value.trim();
+    if (!message) { status.textContent = 'Please write a message first.'; status.className = 'form-status error'; return; }
+    btn.disabled = true; status.textContent = ''; status.className = 'form-status';
+    try {
+      const res = await fetch('/api/feedback', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, name: $('fbName').value.trim(), contact: $('fbContact').value.trim(),
+          public: $('fbPublic').checked, website: $('fbWebsite').value }),
+      });
+      if (res.status === 429) throw new Error('Too many messages for now. Please try again in a few minutes.');
+      if (!res.ok) throw new Error('Something went wrong. Please try again.');
+      status.textContent = 'Thank you, your message was received.';
+      $('fbMessage').value = '';
+      loadComments();
+    } catch (err) {
+      status.textContent = err.message; status.className = 'form-status error';
+    }
+    btn.disabled = false;
+  });
+</script>
+</body>
+</html>

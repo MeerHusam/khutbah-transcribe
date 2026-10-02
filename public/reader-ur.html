@@ -50,7 +50,8 @@
       --pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Cg fill='none' stroke='%23d9b86a' stroke-width='1'%3E%3Cpath d='M32 4 L60 32 L32 60 L4 32 Z'/%3E%3Cpath d='M14 14 H50 V50 H14 Z'/%3E%3C/g%3E%3C/svg%3E");
     }
 
-    html { -webkit-text-size-adjust: 100%; }
+    /* No blue box flashed over a tapped button on Android Chrome; keyboard focus still shows. */
+    html { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
 
     body {
       font-family: var(--font-ui);
@@ -741,7 +742,8 @@
       }
       .ap-handle span { width: 38px; height: 4px; border-radius: 4px; background: var(--border); }
       /* Each switch with its name above it:  READ [English | اردو]    HEAR [Imam | English | اردو] */
-      .ap-switches { grid-area: sw; display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; margin: 0 0 6px; }
+      /* A narrow phone (360 px) has no room for both on one row: Hear then goes under Read. */
+      .ap-switches { grid-area: sw; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 8px 10px; margin: 0 0 6px; }
       .ap-group { flex-direction: column; align-items: flex-start; gap: 3px; }
       .ap-label { padding-left: 4px; }
       .seg button { min-height: 40px; padding: 0 12px; font-size: 13px; }
@@ -806,6 +808,17 @@
     /* Hidden while traffic is still small; the server keeps counting. Delete this
        rule (and .badge-extra in home.html) to show unique + visits again. */
     .viewers .total-views { display: none; }
+    /* The arrow back to the block being read, once the reader has scrolled away from it: just above
+       the player. */
+    .audio-player .back-to-active { position: absolute; right: max(16px, calc(50vw - 526px)); bottom: calc(100% + 14px); }
+    .back-to-active {
+      width: 46px; height: 46px; border-radius: 50%; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, var(--gold-bright), var(--gold-deep)); color: #0a1611;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+    }
+    .back-to-active[hidden] { display: none; }
+    .back-to-active.up svg { transform: rotate(180deg); }
   </style>
 </head>
 <body>
@@ -827,19 +840,20 @@
 </header>
 
   <div class="audio-player" id="audioPlayer">
+    <button type="button" class="back-to-active" id="backToActive" hidden aria-label="Back to the part being read" title="Back to the part being read"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
     <button type="button" class="ap-handle" id="apHandle" onclick="togglePlayerSize()" aria-label="Shrink or expand the player" aria-expanded="true"><span></span></button>
     <button type="button" class="ap-min" id="apMin" onclick="togglePlayerSize()" aria-label="Shrink the player" title="Shrink the player"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
     <div class="ap-switches">
       <div class="ap-group" id="readGroup" role="group" aria-labelledby="readLabel">
-        <span class="ap-label" id="readLabel">Read</span>
+        <span class="ap-label" id="readLabel">Read in</span>
         <span class="seg" id="readSwitch">
-          <button type="button" data-lang="en" aria-pressed="false" onclick="setLang('en')" title="The English translation on screen">English</button><button type="button" data-lang="ur" lang="ur" aria-pressed="false" onclick="setLang('ur')" title="The Urdu translation on screen">اردو</button>
+          <button type="button" data-lang="en" aria-pressed="false" onclick="setLang('en')" title="The English translation on screen" aria-label="English">EN</button><button type="button" data-lang="ur" lang="ur" aria-pressed="false" onclick="setLang('ur')" title="The Urdu translation on screen">اردو</button>
         </span>
       </div>
       <div class="ap-group" id="hearGroup" role="group" aria-labelledby="hearLabel" hidden>
-        <span class="ap-label" id="hearLabel">Hear</span>
+        <span class="ap-label" id="hearLabel">Hear in</span>
         <span class="seg" id="voiceSwitch">
-          <button type="button" data-voice="imam" class="on" aria-pressed="true" onclick="pickVoice('imam')" title="The imam's recording, in Arabic">Imam</button><button type="button" data-voice="en" aria-pressed="false" onclick="pickVoice('en')" title="The English translation, read aloud by an AI voice" hidden>English</button><button type="button" data-voice="ur" lang="ur" aria-pressed="false" onclick="pickVoice('ur')" title="The Urdu translation, read aloud by an AI voice" hidden>اردو</button>
+          <button type="button" data-voice="imam" class="on" aria-pressed="true" onclick="pickVoice('imam')" title="The imam's recording, in Arabic">Imam (Arabic)</button><button type="button" data-voice="en" aria-pressed="false" onclick="pickVoice('en')" title="The English translation, read aloud by an AI voice" aria-label="English" hidden>EN</button><button type="button" data-voice="ur" lang="ur" aria-pressed="false" onclick="pickVoice('ur')" title="The Urdu translation, read aloud by an AI voice" hidden>اردو</button>
         </span>
       </div>
     </div>
@@ -1507,9 +1521,12 @@
         // Link the badge to the hadith on sunnah.com, as the verse badge links to quran.com.
         const h = hadithRefForBadge(part.trim());
         const nUr = ur && h && ur.narrators && ur.narrators[hadithKeyOf(h)];
-        const cUr = ur && h && COLLECTION_UR[h.collection];
+        // The imam said "متفق عليه": the card names both Sahihs (its link goes to one of them).
+        const both = h && h.in_both_sahihs;
+        const cUr = ur && h && (both ? 'صحیح بخاری و صحیح مسلم' : COLLECTION_UR[h.collection]);
         const text = ur && h && (nUr || cUr)
-          ? [nUr, cUr || h.collection].filter(Boolean).join('  ·  ') : hadithMatch[1];
+          ? [nUr, cUr || h.collection].filter(Boolean).join('  ·  ')
+          : both ? hadithMatch[1].replace(/Collection:.*$/, 'Collection: Sahih al-Bukhari & Sahih Muslim') : hadithMatch[1];
         return (h && h.link
           ? `<a class="chunk-hadith-cite" href="${escAttr(h.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${escHtml(text)} ↗</a>`
           : `<div class="chunk-hadith-cite">${escHtml(text)}</div>`)
@@ -1769,6 +1786,7 @@
   }
 
   function copyShare() {
+    engage.copies++;
     const urdu = document.body.classList.contains('lang-ur') && result?.urdu?.share_summary;
     const text = urdu || result?.share_summary || result?.summary || '';
     navigator.clipboard.writeText(text).then(() => {
@@ -1782,8 +1800,10 @@
   // ── Engagement, for /admin/traffic: time the page is on screen, audio actually played,
   //    the furthest point reached. Sent every 30 s while reading or listening, and when the
   //    page is hidden or closed (sendBeacon survives the page closing). No personal data.
+  //    Since 2 Oct 2026 also: seconds played per track (imam, en, ur), the minutes of each track
+  //    heard (where listeners stop), how far down the text they got, shares and reference taps.
   let visitId = null;
-  const engage = { open: 0, played: 0, maxPos: 0 };
+  const engage = { open: 0, played: 0, maxPos: 0, voices: {}, heard: {}, durs: {}, depth: 0, copies: 0, refs: 0 };
   let visibleSince = document.visibilityState === 'visible' ? Date.now() : null;
   const openSecs = () => engage.open + (visibleSince ? (Date.now() - visibleSince) / 1000 : 0);
   function sendEngage(final = false) {
@@ -1792,6 +1812,8 @@
       id: visitId, open_s: openSecs(), played_s: engage.played, max_pos: engage.maxPos,
       dur: audio && Number.isFinite(audio.duration) ? audio.duration : null,
       lang: document.body.classList.contains('lang-ur') ? 'ur' : 'en', final,
+      voices: engage.voices, durs: engage.durs, depth: engage.depth, copies: engage.copies, refs: engage.refs,
+      heard: Object.fromEntries(Object.entries(engage.heard).map(([v, m]) => [v, [...m]])),
     });
     try { navigator.sendBeacon('/api/engage', new Blob([body], { type: 'text/plain' })); } catch {}
   }
@@ -1803,6 +1825,13 @@
   });
   window.addEventListener('pagehide', () => sendEngage(true));
   setInterval(() => { if (visibleSince || (audio && !audio.paused)) sendEngage(); }, 30000);
+  addEventListener('scroll', () => {
+    const chunks = document.querySelectorAll('.reader-chunk');
+    if (!chunks.length) return;
+    const top = chunks[0].getBoundingClientRect().top, bottom = chunks[chunks.length - 1].getBoundingClientRect().bottom;
+    engage.depth = Math.round(Math.max(engage.depth, Math.min(100, (100 * (innerHeight - top)) / Math.max(1, bottom - top))));
+  }, { passive: true });
+  document.addEventListener('click', e => { if (e.target.closest('a[href*="quran.com"], a[href*="sunnah.com"]')) engage.refs++; }, true);
 
   // ── Audio player ──
   let audio = null;
@@ -1841,7 +1870,8 @@
     updateVoiceBtn();
   }
 
-  // Phones: the player shrinks to one slim row while reading, and remembers the choice.
+  // Phones: the player shrinks to one slim row while reading. Every visit opens it again
+  // (Meer, 2 Oct): a shrunk player is easy to miss.
   function togglePlayerSize(mini) {
     const player = document.getElementById('audioPlayer');
     mini = mini ?? !player.classList.contains('mini');
@@ -1851,7 +1881,6 @@
     const min = document.getElementById('apMin');
     min.title = mini ? 'Open the player' : 'Shrink the player';
     min.setAttribute('aria-label', min.title);
-    try { localStorage.setItem('kt-player-mini', mini ? '1' : '0'); } catch {}
   }
 
   // Hear is the audio only; the text stays as Read has it.
@@ -2043,15 +2072,16 @@
   }
 
   function initAudio(url) {
-    audio = new Audio(url);
+    // Hear starts in Urdu like Read, where the khutbah has an Urdu voice; each switch then
+    // changes only its own side (listen in Urdu, read in English).
+    if (result.tts_ur) voice = 'ur';
+    audio = new Audio(voice === 'ur' ? result.tts_ur.url : url);
     audio.playbackRate = SPEEDS[speedIdx];
     const player = document.getElementById('audioPlayer');
     const scrubber = document.getElementById('scrubber');
     const timeEl = document.getElementById('audioTime');
     player.classList.add('ready');
-    let mini = false;
-    try { mini = localStorage.getItem('kt-player-mini') === '1'; } catch {}
-    togglePlayerSize(mini);
+    togglePlayerSize(false);
     updateVoiceBtn();
 
     // Phones: a swipe down on the player shrinks it and a swipe up opens it; a tap on the
@@ -2081,11 +2111,33 @@
     };
     audio.addEventListener('loadedmetadata', showTime);
 
+    // The page keeps the block being read in view. Scrolling away by hand stops that and shows an
+    // arrow back to it; the arrow, scrolling back to it, or tapping a block follows again.
+    let following = true, byHand = false;
+    const backBtn = document.getElementById('backToActive');
+    const follow = () => { following = true; backBtn.hidden = true; };
+    const toActive = () => { follow(); byHand = false; activeChunk?.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+    const showBack = () => {
+      const r = activeChunk?.getBoundingClientRect();
+      const away = !!r && (r.bottom < 90 || r.top > innerHeight - 140);
+      if (byHand) following = !away;
+      backBtn.hidden = following;
+      if (away) backBtn.classList.toggle('up', r.bottom < 90);
+    };
+    ['wheel', 'touchmove', 'keydown'].forEach(t => addEventListener(t, () => { byHand = true; }, { passive: true }));
+    addEventListener('scroll', () => { if (byHand) showBack(); }, { passive: true });
+    backBtn.addEventListener('click', toActive);
+
     let lastT = null;
     audio.addEventListener('timeupdate', () => {
       // Count audio actually played: small forward steps while playing, not seeks.
       const step = audio.currentTime - (lastT ?? audio.currentTime);
-      if (!audio.paused && step > 0 && step < 3) engage.played += step;
+      if (!audio.paused && step > 0 && step < 3) {
+        engage.played += step;
+        engage.voices[voice] = (engage.voices[voice] || 0) + step;
+        (engage.heard[voice] ||= new Set()).add(Math.floor(audio.currentTime / 60));
+        if (Number.isFinite(audio.duration)) engage.durs[voice] = Math.round(audio.duration);
+      }
       lastT = audio.currentTime;
       engage.maxPos = Math.max(engage.maxPos, audio.currentTime);
       if (!audio.duration) return;
@@ -2104,8 +2156,8 @@
       if (best !== activeChunk) {
         if (activeChunk) activeChunk.classList.remove('chunk-active');
         best.classList.add('chunk-active');
-        best.scrollIntoView({ behavior: 'smooth', block: 'center' });
         activeChunk = best;
+        if (following) toActive(); else showBack();
       }
     });
 
@@ -2118,6 +2170,7 @@
     document.querySelectorAll('.reader-chunk').forEach(el => {
       el.addEventListener('click', e => {
         if (e.target.closest('a')) return;
+        follow();
         const w = wordTimeAt(el, e.clientX, e.clientY);
         if (w != null) { audio.currentTime = w; audio.play(); setPlayIcon(false); return; }
         const t = chunkTime(el);
@@ -2129,6 +2182,7 @@
     });
 
     scrubber.addEventListener('input', () => {
+      follow();
       audio.currentTime = (scrubber.value / 100) * audio.duration;
     });
   }

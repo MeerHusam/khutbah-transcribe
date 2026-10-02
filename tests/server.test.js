@@ -122,6 +122,33 @@ test('feedback is stored, and readable only with the admin key', async () => {
   assert.equal((await get(`/admin/traffic?key=${KEY}`)).status, 200);
 });
 
+test('/feedback shows only the comments people chose to show, minus hidden ones; bots are dropped', async () => {
+  const post = body => get('/api/feedback', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  assert.equal((await get('/feedback')).status, 200);
+  assert.equal((await get('/suggestion')).status, 200);
+  await post({ message: 'please add Tamil', name: 'Ahmed', public: true, contact: 'a@b.c' });
+  await post({ message: 'a private note', public: false });
+  await post({ message: 'spam', public: true, website: 'http://spam' });
+  let comments = await (await get('/api/comments')).json();
+  assert.deepEqual(comments.map(c => c.message), ['please add Tamil']);
+  assert.equal(comments[0].name, 'Ahmed');
+  assert.equal(comments[0].contact, undefined); // the email is never shown
+  const hide = key => get(`/admin/feedback/hide?key=${key}`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: `ts=${encodeURIComponent(comments[0].ts)}` });
+  assert.equal((await hide('wrong')).status, 401);
+  assert.equal((await hide(KEY)).status, 303);
+  comments = await (await get('/api/comments')).json();
+  assert.equal(comments.length, 0);
+});
+
+test('unknown pages get the 404 page, unknown /api paths a JSON 404', async () => {
+  const page = await get('/no-such-page');
+  assert.equal(page.status, 404);
+  assert.match(await page.text(), /Page not found/);
+  const api = await get('/api/no-such-thing');
+  assert.equal(api.status, 404);
+  assert.deepEqual(await api.json(), { error: 'Not found' });
+});
+
 test('upload API: upload, claim once, download, and the recording is removed', async () => {
   const headers = { 'x-admin-key': KEY };
   assert.equal((await get('/admin/upload', { method: 'POST', body: Buffer.alloc(200 * 1024) })).status, 401);

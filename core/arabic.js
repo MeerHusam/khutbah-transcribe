@@ -264,6 +264,8 @@ function normalizeArabicDeep(text) {
     .replace(/ئ/g, '')   // strip hamza-on-ya': in the corpus the ya' is already present
                          // separately, so replacing with ي would double it ("سيئاتكم" → "سياتكم")
     .replace(/ؤ/g, 'و') // hamza-on-waw → waw
+    .replace(/وو/g, 'و') // "رؤوف" → "رووف", the corpus "رءوف" → "روف"
+    .replace(/وا(?=\s|$)/g, 'و') // the alif after a plural waw, absent in the corpus ("جاءو" for "جاءوا")
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -832,6 +834,13 @@ function buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSeg
     if (/[.؟!…]$/.test(transcriptWords[i])) sentenceBreaks.add(i + 1);
   }
   const breakSet = sentenceBreaks.size ? sentenceBreaks : segBreaks;
+  // A hadith's attribution ("متفق عليه.", "رواه البخاري.") closes the hadith, so no block starts
+  // with it: on 2 Oct "متفق عليه" opened the next block three times. Only a short attribution
+  // sentence (a sentence end within six words) moves; a long one is the imam's own sentence.
+  for (const b of [...breakSet]) {
+    if (!/^(?:متفق عليه|(?:رواه|اخرجه|خرجه) )/.test(normalizeArabic(transcriptWords.slice(b, b + 3).join(' ')))) continue;
+    if (transcriptWords.slice(b, b + 6).some(w => /[.؟!…]$/.test(w))) breakSet.delete(b);
+  }
 
   const proseChunks = [];
   let cursor = 0;

@@ -16,9 +16,9 @@
 //    the Companion (its published text opens with the whole chain of narrators); one call.
 // Writes result.urdu and reader_ur.txt (the reader with Urdu in place of English).
 //
-// Usage: node urdu/translate_urdu.js outputs/<folder> [--batch 12] [--retranslate] [--dry-run]
-//   Block translations already in result.urdu are kept unless --retranslate; verses and hadith
-//   are always fetched again (free).
+// Usage: node urdu/translate_urdu.js outputs/<folder> [--batch 12] [--retranslate] [--chunks 13,14] [--dry-run]
+//   Block translations already in result.urdu are kept unless --retranslate (all) or --chunks
+//   (those); verses and hadith are always fetched again (free).
 
 import 'dotenv/config';
 import Anthropic from '@anthropic-ai/sdk';
@@ -62,6 +62,7 @@ const SYSTEM = `You translate an Arabic Friday khutbah (sermon) into Urdu for wo
 - Translate exactly the words of each chunk, so that the chunks read on from one another; never move words into a neighbouring chunk.
 - Write the Urdu a good khateeb in Pakistan speaks from the minbar: respectful and religious, but in the words ordinary worshippers use at home and in the bazaar, so that someone with no schooling in Arabic or Persian follows every sentence when it is read aloud. Keep the religious terms and honorifics everyone knows (اللہ تعالیٰ، نبی کریم صلی اللہ علیہ وسلم، رضی اللہ عنہ، تقویٰ، نماز، زکوٰۃ). For everything else choose the everyday word over the bookish Arabic or Persian one: ایمان والے بھائیو (not ایمانی بھائیو) for إخوة الإيمان, جائیداد (not املاک) for property, دین و دنیا کے کام (not مصلحتیں) for مصالح الدين والدنيا. It stays a khutbah: dignified, never slang, and no English word where an Urdu one is common.
 - Put a Quran verse or a hadith that the imam quotes in quotation marks “…”, translated faithfully.
+- «متفق عليه» after a hadith is always «اسے بخاری اور مسلم نے روایت کیا ہے».
 - The transcript may have speech-recognition slips; translate the evident meaning.
 
 Chunks are cut at the imam's pauses, so one sentence often runs across two chunks. You are shown the chunks before and after as context: read them to see where each sentence really ends, and make the Urdu of neighbouring chunks join into one grammatical sentence when read in order. Never end a chunk with a full stop (۔) or begin it as a new sentence when the Arabic sentence carries on into the next chunk; a question that spans chunks keeps its question mark at its true end. Keep natural Urdu word order across the join: never invert a clause to fit the cut ("اور چونکہ یہ / نعمت بہت عظیم ہے", not "اور چونکہ بہت بڑی ہے / یہ عظیم نعمت").
@@ -122,17 +123,23 @@ async function translate(indices, urdu) {
 }
 
 // ── Blocks ───────────────────────────────────────────────────────────────────
+// Only the chunks without an Urdu translation are translated (all of them on a first run, or
+// with --retranslate); --chunks 13,14 translates those again, after a fix moved their boundaries.
+const only = args.includes('--chunks') ? args[args.indexOf('--chunks') + 1].split(',').map(Number) : [];
 const kept = result.urdu?.chunk_translations;
-const reuse = !args.includes('--retranslate') && kept?.length === chunks.length && kept.every(Boolean);
-const urdu = reuse ? [...kept] : new Array(chunks.length).fill(null);
-if (reuse) console.log(`  keeping the ${kept.length} Urdu block translations already in result.json`);
-for (let from = reuse ? chunks.length : 0; from < chunks.length; from += BATCH) {
-  const idx = Array.from({ length: Math.min(BATCH, chunks.length - from) }, (_, k) => from + k);
+const reuse = !args.includes('--retranslate') && kept?.length === chunks.length;
+const urdu = reuse ? kept.map((t, i) => (only.includes(i) ? null : t || null)) : new Array(chunks.length).fill(null);
+const todo = urdu.map((t, i) => (t ? null : i)).filter(i => i !== null);
+if (reuse) console.log(`  keeping ${chunks.length - todo.length} of the ${chunks.length} Urdu block translations already in result.json`);
+for (let k = 0; k < todo.length;) {
+  // A batch: up to BATCH chunks in a row, so the chunks around it are the context.
+  const idx = [todo[k++]];
+  while (k < todo.length && idx.length < BATCH && todo[k] === idx.at(-1) + 1) idx.push(todo[k++]);
   Object.assign(urdu, await translate(idx, urdu));
   if (dryRun) process.exit(0);
   // Anything missing is asked for again on its own, never left for a neighbour to fill.
   for (const i of idx) if (!urdu[i]) Object.assign(urdu, await translate([i], urdu));
-  console.log(`  chunks ${from}-${idx.at(-1)}: ${idx.filter(i => urdu[i]).length}/${idx.length}`);
+  console.log(`  chunks ${idx[0]}-${idx.at(-1)}: ${idx.filter(i => urdu[i]).length}/${idx.length}`);
 }
 const missing = urdu.map((t, i) => (t ? null : i)).filter(i => i !== null);
 if (missing.length) { console.error(`✗ no Urdu for chunk(s) ${missing.join(', ')}; nothing written`); process.exit(1); }

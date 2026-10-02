@@ -36,6 +36,11 @@ app.use(express.static(join(ROOT, 'public')));
 for (const dir of audioRoots) app.use('/audio_files', express.static(dir));
 app.use(api);
 app.use(admin);
+// Anything not matched above: the site's own 404 page (JSON for /api). Keep this after every route.
+app.use((req, res) => {
+  if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
+  res.status(404).sendFile(join(ROOT, 'public', '404.html'));
+});
 wss.on('connection', handleViewer);
 
 server.listen(PORT, () => {

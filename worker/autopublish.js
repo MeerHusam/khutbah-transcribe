@@ -3,7 +3,7 @@
 // Run by upload_worker.js for each recording sent from the upload page, or by hand.
 //
 //   node worker/autopublish.js <recording> [--masjid "Masjid Name"] [--single] [--date 2026-10-02]
-//        [--job <upload id>] [--no-push]          --no-push: everything but publishing
+//        [--job <upload id>] [--no-push] [--clean]   --no-push: everything but publishing; --clean: the page plays the recording with the hall's echo taken out
 //   node worker/autopublish.js --resume outputs/<folder> [--masjid …] [--no-push]
 //        after a failed run: the steps already done are kept (the voices come from the cache)
 //
@@ -12,7 +12,7 @@
 //      the English, the Quran and hadith cards
 //   2. a short title from the summary (one small Claude call)
 //   3. side by side: the Urdu (translate_urdu.js, review_urdu.js) and, locally, the imam's word
-//      times, his delivery and the recording with the hall's echo taken out (clean_audio.py)
+//      times and his delivery (with --clean, also the recording with the hall's echo taken out)
 //   4. verse_excerpts.js: a verse he recited only in part shows (and is voiced) only in part
 //   5. the voices, side by side: Urdu (Orus, a direction per sentence, a passage at a time) and
 //      English (Charon); each then gets its word times (the Urdu's come with its voice) and his
@@ -91,7 +91,7 @@ async function report(status, extra = {}) {
 }
 
 // One command; its output goes to the log. Resolves when it succeeds, rejects otherwise.
-function run(label, cmd, args) {
+function runOnce(label, cmd, args) {
   return new Promise((resolve, reject) => {
     const t0 = Date.now();
     log(`▶ ${label}`);
@@ -103,9 +103,24 @@ function run(label, cmd, args) {
       const secs = Math.round((Date.now() - t0) / 1000);
       times.push([label, secs]);
       if (code === 0) { log(`✓ ${label} (${secs} s)`); resolve(tail); }
-      else reject(new Error(`${label} failed: ${tail.trim().split('\n').slice(-3).join(' / ')}`));
+      else reject(Object.assign(new Error(`${label} failed: ${tail.trim().split('\n').slice(-3).join(' / ')}`), { tail }));
     });
   });
+}
+
+// A step that failed on a passing API problem (Anthropic or Gemini overloaded or rate-limited, a
+// dropped connection) runs again after a minute, up to 3 times, before the run gives up. On 2 Oct
+// a 529 "Overloaded" from Anthropic stopped a run at the Urdu review.
+const PASSING = /overloaded|\b529\b|\b503\b|\b429\b|rate_limit|RESOURCE_EXHAUSTED|UNAVAILABLE|InternalServerError|APIConnection|ECONNRESET|ETIMEDOUT|socket hang up|fetch failed/i;
+async function run(label, cmd, args, { tries = 3, wait = 60_000 } = {}) {
+  for (let n = 1; ; n++) {
+    try { return await runOnce(label, cmd, args); } catch (e) {
+      // Gemini's daily limit does not pass in a minute: no point trying again.
+      if (n > tries || !PASSING.test(e.tail ?? '') || /daily voice limit/.test(e.tail ?? '')) throw e;
+      log(`… ${label}: the API is busy (${(e.tail.match(PASSING) || [''])[0]}); trying again in ${wait / 1000} s (${n}/${tries})`);
+      await new Promise(r => setTimeout(r, wait));
+    }
+  }
 }
 
 async function main() {
@@ -142,7 +157,7 @@ async function main() {
   // 2. Title.
   let title = null;
   try {
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 60_000, maxRetries: 2 });
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 60_000, maxRetries: 6 }); // 6: rides out a short "Overloaded"
     const r = await anthropic.messages.create({
       model: 'claude-sonnet-5-5', max_tokens: 2000, output_config: { effort: 'low' },
       messages: [{ role: 'user', content: `Give this Friday khutbah a short English title for its web page: 2 to 5 words, Title Case, no quotation marks, no "Khutbah" or date, like "The Blessing of Security" or "Lofty Aspiration". Reply with the title only.\n\nSummary: ${result.summary}\n\nIn short: ${result.share_summary}` }],
@@ -152,7 +167,7 @@ async function main() {
   title ||= (result.share_summary || 'Friday Khutbah').split(/\s+/).slice(0, 5).join(' ');
   await report('english', { title, message: title });
 
-  // 3. Urdu (API) beside the imam's timing and the cleaned recording (local).
+  // 3. Urdu (API) beside the imam's timing (local).
   await report('urdu');
   let cleanAudio = null;
   await Promise.all([
@@ -163,6 +178,9 @@ async function main() {
     (async () => {
       await step(() => has('words_imam.json'), 'imam word timing', 'node', ['voice/align_imam.js', F, audioOut]);
       await step(() => has('delivery_imam.json'), 'imam delivery', PY_ALIGN, ['voice/imam_delivery.py', F, audioOut]);
+      // The hall's echo taken out (clean_audio.py): off since 2 Oct 2026, the imam sounded processed
+      // with it. It never fed the text, cards or timing, only what is heard. --clean turns it back on.
+      if (!flag('--clean')) return;
       try {
         const wav = join('audio_files', `${name}-clean.wav`);
         await step(() => existsSync(join(ROOT, wav)), 'echo removal', PY_CLEAN, ['voice/clean_audio.py', audioOut, F, wav]);
@@ -176,9 +194,10 @@ async function main() {
   // 4. Verses recited only in part.
   await run('verse excerpts', 'node', ['core/verse_excerpts.js', F]);
 
-  // 5. Voices, then word timing and the recitation.
-  //    Each language on its own: the Urdu track comes with its word times (from the passage
-  //    split), so while it is still being voiced the English one can already be aligned.
+  // 5. Voices, then the recitation. Both are voiced a passage at a time with a direction per
+  //    sentence (--direct): about 13 Gemini requests each instead of one per block (67 for the
+  //    English on 2 Oct, when two runs in a day hit the 100-a-day limit), and the word times
+  //    come with the passage split, so align_words.py runs only if that failed.
   await report('voices', { message: 'Urdu (Orus) and English (Charon)' });
   const recitation = cleanAudio ? join('audio_files', `${name}-clean.wav`) : audioOut;
   let voiced = 0;
@@ -191,11 +210,11 @@ async function main() {
   };
   await Promise.all([
     voice('ur', 'Urdu', ['--voice', 'Orus', '--direct']),
-    voice('en', 'English', []),
+    voice('en', 'English', ['--direct']),
   ]);
 
   // 6. Publish: checks, test set, then the site's publish API (one page). The page plays the
-  // cleaned recording; the original stays on this Mac.
+  // imam's recording (the echo-removed one with --clean).
   await report('publishing', { message: push ? 'checks, then the site' : 'checks (not publishing: --no-push)' });
   await run('checks and site entry', 'node', ['worker/publish.js', audioOut, '--from-folder', F, '--keep-audio', '--slug', slug, '--title', title, '--date', dateText,
     '--name', name, '--masjid', masjid, ...(home ? ['--masjid-ar', HOME.masjid_ar, '--maps-url', HOME.maps_url] : ['--no-feature']),

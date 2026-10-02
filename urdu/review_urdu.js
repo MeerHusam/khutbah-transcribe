@@ -15,7 +15,7 @@
 // block's Urdu before and after), then rebuilds reader_ur.txt with translate_urdu.js (which
 // makes no model call when the translations are already there).
 //
-// Usage: node urdu/review_urdu.js outputs/<folder> [--batch 12] [--rounds 2] [--dry-run]
+// Usage: node urdu/review_urdu.js outputs/<folder> [--batch 12] [--rounds 2] [--chunks 13,14] [--dry-run]
 //   Run after translate_urdu.js. --dry-run prints the first request and makes no call.
 
 import 'dotenv/config';
@@ -40,6 +40,9 @@ const opt = (name, dflt) => { const i = args.indexOf(name); return i >= 0 ? +arg
 const BATCH = opt('--batch', 12);
 const ROUNDS = opt('--rounds', 2);
 const dryRun = args.includes('--dry-run');
+// --chunks 13,14: review only these (translated again after a fix moved their boundaries); the
+// earlier review of the other chunks stays in review_ur.json.
+const only = args.includes('--chunks') ? args[args.indexOf('--chunks') + 1].split(',').map(Number) : null;
 
 const result = JSON.parse(readFileSync(join(folder, 'result.json'), 'utf8'));
 const words = readFileSync(join(folder, 'transcript.txt'), 'utf8').trim().split(/\s+/).filter(Boolean);
@@ -132,7 +135,7 @@ if (dryRun) {
 const usage = { calls: 0, input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0 };
 const before = [...urdu];
 const log = [];
-let toReview = urdu.map((_, i) => i);
+let toReview = only ?? urdu.map((_, i) => i);
 for (let round = 1; round <= ROUNDS && toReview.length; round++) {
   const changed = new Set();
   for (let k = 0; k < toReview.length; k += BATCH) {
@@ -166,7 +169,10 @@ for (let round = 1; round <= ROUNDS && toReview.length; round++) {
 usage.input_usd = Math.round((usage.input_tokens * PRICE_IN + usage.cache_read_input_tokens * PRICE_IN * 0.1) * 10000) / 10000;
 usage.output_usd = Math.round(usage.output_tokens * PRICE_OUT * 10000) / 10000;
 usage.cost_usd = Math.round((usage.input_usd + usage.output_usd) * 10000) / 10000;
-const corrected = urdu.filter((u, i) => u !== before[i]).length;
+const earlier = only && existsSync(join(folder, 'review_ur.json'))
+  ? JSON.parse(readFileSync(join(folder, 'review_ur.json'), 'utf8')).log.filter(l => !only.includes(l.chunk)) : [];
+log.unshift(...earlier);
+const corrected = only ? new Set(log.filter(l => l.applied).map(l => l.chunk)).size : urdu.filter((u, i) => u !== before[i]).length;
 result.urdu.chunk_translations = urdu;
 result.urdu.review = { model: MODEL, reviewed_at: new Date().toISOString(), rounds: ROUNDS, chunks_corrected: corrected, cost_usd: usage.cost_usd };
 writeFileSync(join(folder, 'result.json'), JSON.stringify(result, null, 2), 'utf8');

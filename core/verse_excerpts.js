@@ -7,8 +7,8 @@
 // alignment the page uses for its bolding (public/recited.js). No published translation
 // exists for part of a verse, so one model call per khutbah copies out the part of Sahih
 // International (and of the Urdu translation, when the khutbah has one) that renders those
-// words. A part is kept only when it is a verbatim piece of the published text and its share
-// of the translation is close to the recited share of the Arabic; otherwise the card keeps
+// words. A part is kept only when it is a verbatim piece of the published text that starts and
+// ends near where the recited words start and end in the Arabic; otherwise the card keeps
 // the full verse with the recited part in bold, as before.
 //
 // Stored as result.verse_excerpts: [{ arabic, surah, ayah, ayah_end, verses: {
@@ -59,13 +59,17 @@ const SCHEMA = {
 const words = t => (t ?? '').split(/\s+/).filter(Boolean);
 const trimQuotes = t => (t ?? '').trim().replace(/^["'‘“]+|["'’”]+$/g, '').trim();
 
-// A kept excerpt: a verbatim piece of the published text whose share of it is near the
-// recited share of the Arabic (translations keep the verse's order closely enough).
-function accept(excerpt, full, arShare) {
+// A kept excerpt: a verbatim piece of the published text that starts and ends near where the
+// recited words start and end in the Arabic (translations keep the verse's order closely
+// enough). Its length alone is not enough: on 2 Oct, for 9:100 recited from its first word,
+// the answer was the verse's middle clause ("Allah is pleased with them…"), of a similar length.
+function accept(excerpt, full, [from, to]) {
   const x = trimQuotes(excerpt);
   if (!x || !full.includes(x)) return null;
-  const share = words(x).length / Math.max(words(full).length, 1);
-  return Math.abs(share - arShare) <= 0.35 ? x : null;
+  const n = Math.max(words(full).length, 1);
+  const start = words(full.slice(0, full.indexOf(x))).length / n;
+  const end = start + words(x).length / n;
+  return Math.abs(start - from) <= 0.25 && Math.abs(end - to) <= 0.25 ? x : null;
 }
 
 export async function planVerseExcerpts(result, readerRaw, { log = console.log } = {}) {
@@ -97,6 +101,7 @@ export async function planVerseExcerpts(result, readerRaw, { log = console.log }
       arabic: c.texts[i],
       recited: words(c.texts[i]).slice(f, l + 1).join(' '),
       share: (l - f + 1) / c.lens[i],
+      at: [f / c.lens[i], (l + 1) / c.lens[i]],
       en: publishedVerseEnglish({ surah_number: c.s, ayah_number: n }),
       ur: result.urdu?.verses?.[`${c.s}:${n}`] ?? '',
     });
@@ -137,8 +142,8 @@ export async function planVerseExcerpts(result, readerRaw, { log = console.log }
       const ans = answers[it.id] ?? {};
       verses[n] = {
         span: c.spans[i],
-        en: accept(ans.en, it.en, it.share),
-        ur: it.ur ? accept(ans.ur, it.ur, it.share) : null,
+        en: accept(ans.en, it.en, it.at),
+        ur: it.ur ? accept(ans.ur, it.ur, it.at) : null,
       };
       log(`  ${c.s}:${n} recited ${Math.round(it.share * 100)}%: ${verses[n].en ? `“${verses[n].en}”` : 'full verse kept (English)'}` +
         (it.ur ? ` | ${verses[n].ur ? 'Urdu part found' : 'full verse kept (Urdu)'}` : ''));

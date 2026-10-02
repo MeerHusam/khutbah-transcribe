@@ -1,5 +1,30 @@
 [
   {
+    "folder": "2026-10-02T09-05-36_khutbah-2026-10-02",
+    "slug": "2026-10-02",
+    "title": "The Virtue of the Companions",
+    "speaker": "Friday Khutbah",
+    "masjid": "Askan AlMaather Mosque",
+    "masjid_ar": "جامع إسكان المعذر",
+    "maps_url": "https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6",
+    "date": "2 October 2026",
+    "audio": "khutbah-2026-10-02.m4a",
+    "page": "reader-ur.html",
+    "featured": true,
+    "media_url": "https://media.khutbah.dev/2026-10-02T09-05-36_khutbah-2026-10-02/"
+  },
+  {
+    "folder": "2026-10-02T07-44-06_khutbah-2026-10-02-madinah-munawwarah",
+    "slug": "2026-09-25-madinah-munawwarah",
+    "title": "Paradise: The Eternal Abode",
+    "speaker": "Friday Khutbah",
+    "masjid": "Masjid an-Nabawi, Madinah",
+    "date": "25 September 2026",
+    "audio": "khutbah-2026-10-02-madinah-munawwarah-clean.m4a",
+    "page": "reader-ur.html",
+    "media_url": "https://media.khutbah.dev/2026-10-02T07-44-06_khutbah-2026-10-02-madinah-munawwarah/"
+  },
+  {
     "folder": "2026-09-25T10-04-57_khutbah-2026-09-25-masjid-urdu",
     "slug": "2026-09-25",
     "old_slugs": [
@@ -17,7 +42,6 @@
     "audio": "khutbah-2026-09-25-masjid.m4a",
     "media_url": "https://media.khutbah.dev/2026-09-25T10-04-57_khutbah-2026-09-25-masjid-urdu/",
     "page": "reader-ur.html",
-    "featured": true,
     "note": "One page with the English and the Urdu (reader-ur.html: Read English|اردو, Hear Imam|English|اردو, word by word). Its folder is the Urdu edition's, which has the voices and the imam's word times; the English folder before it stays in the repo but is not served. The old addresses still open it: /2026-09-25-urdu and ?folder=<the English folder>. The audio is the imam's original recording (the echo-removed one sounded processed; switched back 2 Oct 2026); same timeline, so every time still holds."
   },
   {

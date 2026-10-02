@@ -375,7 +375,9 @@ const IMAM_ATTRIBUTION = [
   [/^ابو داود/, 'abudawud'], [/^النسائي/, 'nasai'], [/^ابن ماج/, 'ibnmajah'],
   [/^الامام احمد|^احمد/, 'ahmad'], [/^مالك/, 'malik'],
 ];
-function imamAttributionSlug(transcript, detectedText) {
+// "متفق عليه", "الشيخان", "الصحيحين", "البخاري ومسلم": in both Bukhari and Muslim.
+const BOTH_SAHIHS = /^متفق عليه|^الشيخان|^الصحيحين|^البخاري ومسلم/;
+function imamAttribution(transcript, detectedText) {
   const tNorm = normalizeArabic(transcript);
   const dWords = normalizeArabic(detectedText ?? '').split(/\s+/).filter(Boolean);
   for (const n of [5, 4, 3]) {
@@ -389,7 +391,7 @@ function imamAttributionSlug(transcript, detectedText) {
     // "رواه الامام البخاري ومسلم", "أخرجه في الصحيحين": a title or "in" can come before the
     // name (11 Sep's and Sudais's "each of you is a shepherd" were carded as Claude's Abu Dawud).
     const name = (m[1] ?? m[2]).trim().replace(/^(?:الامام|في)\s+/, '');
-    for (const [re, slug] of IMAM_ATTRIBUTION) if (re.test(name)) return slug;
+    for (const [re, slug] of IMAM_ATTRIBUTION) if (re.test(name)) return { slug, both: BOTH_SAHIHS.test(name) };
     return null;
   }
   return null;
@@ -398,7 +400,8 @@ function imamAttributionSlug(transcript, detectedText) {
 async function resolveSunnahLinksForRefs(refs, transcript = null) {
   for (const ref of refs) {
     const claudeSlug = collectionToSlug(ref.collection);
-    const imamSlug = transcript ? imamAttributionSlug(transcript, ref.detected_text) : null;
+    const imam = transcript ? imamAttribution(transcript, ref.detected_text) : null;
+    const imamSlug = imam?.slug ?? null;
     let sunnah = null;
     if (imamSlug) sunnah = await resolveSunnahLink(ref.detected_text, imamSlug);
     if (!sunnah) sunnah = await resolveSunnahLink(ref.detected_text, claudeSlug);
@@ -429,6 +432,9 @@ async function resolveSunnahLinksForRefs(refs, transcript = null) {
       if (page?.english) ref.translation = page.english;
       if (page?.arabic) ref.published_arabic = page.arabic;
     }
+    // The imam said it is in both (متفق عليه): the card names both Sahihs, linked to one.
+    if (imam?.both && /^(?:bukhari|muslim)$/.test(sunnah?.collection_slug ?? '')) ref.in_both_sahihs = true;
+    else delete ref.in_both_sahihs;
   }
   return refs;
 }

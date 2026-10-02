@@ -43,6 +43,11 @@ router.get('/sitemap.xml', (req, res) => res.type('application/xml').send(
   '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
   + ['/', ...catalog().list.filter(k => k.slug).map(k => `/${k.slug}`)].map(p => `  <url><loc>${SITE}${p}</loc></url>\n`).join('')
   + '</urlset>\n'));
+// Feedback, suggestions and comments: a form, and the messages people chose to show (/api/comments).
+router.get(['/feedback', '/suggestion', '/suggestions'], (req, res) => res.type('html').send(withShareMeta('feedback.html', req, {
+  title: 'Feedback & suggestions · Khutbah.dev', path: '/feedback',
+  description: 'Tell us how Khutbah.dev can be better: feedback, suggestions, corrections or comments. You can stay anonymous.',
+})));
 // Short share links: /2026-09-25 instead of /index.html?folder=<run folder>.
 router.get('/:slug', (req, res, next) => {
   const { list } = catalog();
