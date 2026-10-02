@@ -779,6 +779,8 @@
       const rest     = data.items.filter(k => !k.featured);
       const ordered  = [...(featured ? [featured] : []), ...rest];
       document.getElementById('grid').innerHTML = ordered.map(renderCard).join('');
+      // /feedback lands on /#contact; the cards just pushed the form down.
+      if (location.hash === '#contact') document.getElementById('contact').scrollIntoView();
     })
     .then(() => {
       // Masjid name opens the map instead of the reader behind it.

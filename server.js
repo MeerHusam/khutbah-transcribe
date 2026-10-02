@@ -78,6 +78,8 @@ app.get('/sitemap.xml', (req, res) => res.type('application/xml').send(
   '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
   + ['/', ...PUBLIC_KHUTBAHS.filter(k => k.slug).map(k => `/${k.slug}`)].map(p => `  <url><loc>${SITE}${p}</loc></url>\n`).join('')
   + '</urlset>\n'));
+// A link to share for corrections and suggestions: the feedback form on the home page.
+app.get(['/feedback', '/suggestion', '/suggestions'], (req, res) => res.redirect('/#contact'));
 // Short share links: /2026-09-25 instead of /index.html?folder=<run folder>.
 app.get('/:slug', (req, res, next) => {
   const k = PUBLIC_KHUTBAHS.find(x => x.slug && x.slug === req.params.slug);
