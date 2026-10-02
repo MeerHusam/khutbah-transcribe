@@ -1520,9 +1520,12 @@
         // Link the badge to the hadith on sunnah.com, as the verse badge links to quran.com.
         const h = hadithRefForBadge(part.trim());
         const nUr = ur && h && ur.narrators && ur.narrators[hadithKeyOf(h)];
-        const cUr = ur && h && COLLECTION_UR[h.collection];
+        // The imam said "متفق عليه": the card names both Sahihs (its link goes to one of them).
+        const both = h && h.in_both_sahihs;
+        const cUr = ur && h && (both ? 'صحیح بخاری و صحیح مسلم' : COLLECTION_UR[h.collection]);
         const text = ur && h && (nUr || cUr)
-          ? [nUr, cUr || h.collection].filter(Boolean).join('  ·  ') : hadithMatch[1];
+          ? [nUr, cUr || h.collection].filter(Boolean).join('  ·  ')
+          : both ? hadithMatch[1].replace(/Collection:.*$/, 'Collection: Sahih al-Bukhari & Sahih Muslim') : hadithMatch[1];
         return (h && h.link
           ? `<a class="chunk-hadith-cite" href="${escAttr(h.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${escHtml(text)} ↗</a>`
           : `<div class="chunk-hadith-cite">${escHtml(text)}</div>`)
