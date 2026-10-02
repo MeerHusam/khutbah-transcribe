@@ -14,11 +14,11 @@
     "masjid_ar": "جامع إسكان المعذر",
     "maps_url": "https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6",
     "date": "25 September 2026",
-    "audio": "khutbah-2026-09-25-masjid-clean.m4a",
+    "audio": "khutbah-2026-09-25-masjid.m4a",
     "media_url": "https://media.khutbah.dev/2026-09-25T10-04-57_khutbah-2026-09-25-masjid-urdu/",
     "page": "reader-ur.html",
     "featured": true,
-    "note": "One page with the English and the Urdu (reader-ur.html: Read English|اردو, Hear Imam|English|اردو, word by word). Its folder is the Urdu edition's, which has the voices and the imam's word times; the English folder before it stays in the repo but is not served. The old addresses still open it: /2026-09-25-urdu and ?folder=<the English folder>. The audio is the imam's recording with the hall's reverb and echo taken out (clean_audio.py); same timeline as the original, so every time still holds."
+    "note": "One page with the English and the Urdu (reader-ur.html: Read English|اردو, Hear Imam|English|اردو, word by word). Its folder is the Urdu edition's, which has the voices and the imam's word times; the English folder before it stays in the repo but is not served. The old addresses still open it: /2026-09-25-urdu and ?folder=<the English folder>. The audio is the imam's original recording (the echo-removed one sounded processed; switched back 2 Oct 2026); same timeline, so every time still holds."
   },
   {
     "folder": "2026-09-27T16-37-16_makkah_dosari_2026-09-25",
