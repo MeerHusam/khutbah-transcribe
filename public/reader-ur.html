@@ -742,7 +742,8 @@
       }
       .ap-handle span { width: 38px; height: 4px; border-radius: 4px; background: var(--border); }
       /* Each switch with its name above it:  READ [English | اردو]    HEAR [Imam | English | اردو] */
-      .ap-switches { grid-area: sw; display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; margin: 0 0 6px; }
+      /* A narrow phone (360 px) has no room for both on one row: Hear then goes under Read. */
+      .ap-switches { grid-area: sw; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 8px 10px; margin: 0 0 6px; }
       .ap-group { flex-direction: column; align-items: flex-start; gap: 3px; }
       .ap-label { padding-left: 4px; }
       .seg button { min-height: 40px; padding: 0 12px; font-size: 13px; }
@@ -846,13 +847,13 @@
       <div class="ap-group" id="readGroup" role="group" aria-labelledby="readLabel">
         <span class="ap-label" id="readLabel">Read in</span>
         <span class="seg" id="readSwitch">
-          <button type="button" data-lang="en" aria-pressed="false" onclick="setLang('en')" title="The English translation on screen">English</button><button type="button" data-lang="ur" lang="ur" aria-pressed="false" onclick="setLang('ur')" title="The Urdu translation on screen">اردو</button>
+          <button type="button" data-lang="en" aria-pressed="false" onclick="setLang('en')" title="The English translation on screen" aria-label="English">EN</button><button type="button" data-lang="ur" lang="ur" aria-pressed="false" onclick="setLang('ur')" title="The Urdu translation on screen">اردو</button>
         </span>
       </div>
       <div class="ap-group" id="hearGroup" role="group" aria-labelledby="hearLabel" hidden>
         <span class="ap-label" id="hearLabel">Hear in</span>
         <span class="seg" id="voiceSwitch">
-          <button type="button" data-voice="imam" class="on" aria-pressed="true" onclick="pickVoice('imam')" title="The imam's recording, in Arabic">Imam (Arabic)</button><button type="button" data-voice="en" aria-pressed="false" onclick="pickVoice('en')" title="The English translation, read aloud by an AI voice" hidden>English</button><button type="button" data-voice="ur" lang="ur" aria-pressed="false" onclick="pickVoice('ur')" title="The Urdu translation, read aloud by an AI voice" hidden>اردو</button>
+          <button type="button" data-voice="imam" class="on" aria-pressed="true" onclick="pickVoice('imam')" title="The imam's recording, in Arabic">Imam (Arabic)</button><button type="button" data-voice="en" aria-pressed="false" onclick="pickVoice('en')" title="The English translation, read aloud by an AI voice" aria-label="English" hidden>EN</button><button type="button" data-voice="ur" lang="ur" aria-pressed="false" onclick="pickVoice('ur')" title="The Urdu translation, read aloud by an AI voice" hidden>اردو</button>
         </span>
       </div>
     </div>
