@@ -880,15 +880,23 @@
   const sTag = new URLSearchParams(location.search).get('s');
   if (sTag) viewQ.set('s', sTag);
   try { const r = document.referrer && new URL(document.referrer).hostname; if (r) viewQ.set('r', r); } catch {}
-  const ws = new WebSocket(`${proto}://${location.host}/?${viewQ}`);
-  ws.onmessage = e => {
-    const m = JSON.parse(e.data);
-    if (m.type !== 'viewers') return;
-    document.getElementById('liveCount').textContent = m.live;
-    document.getElementById('uniqueCount').textContent = (m.unique ?? '–').toLocaleString();
-    document.getElementById('totalCount').textContent = m.total.toLocaleString();
-    document.getElementById('viewersBadge').classList.toggle('online', m.live > 0);
-  };
+  let viewerTries = 0;
+  function connectViewers(again = false) {
+    const ws = new WebSocket(`${proto}://${location.host}/?${viewQ}${again ? '&re=1' : ''}`);
+    ws.onmessage = e => {
+      const m = JSON.parse(e.data);
+      if (m.type !== 'viewers') return;
+      document.getElementById('liveCount').textContent = m.live;
+      document.getElementById('uniqueCount').textContent = (m.unique ?? '–').toLocaleString();
+      document.getElementById('totalCount').textContent = m.total.toLocaleString();
+      document.getElementById('viewersBadge').classList.toggle('online', m.live > 0);
+    };
+    // A phone drops the socket when its screen locks, a redeploy drops everyone: come back into
+    // the live count (?re=1, not a new view), waiting longer after each failed try.
+    ws.onopen = () => { viewerTries = 0; };
+    ws.onclose = () => setTimeout(() => connectViewers(true), Math.min(60_000, 3000 * 2 ** viewerTries++) + Math.random() * 2000);
+  }
+  connectViewers();
 </script>
 </body>
 </html>

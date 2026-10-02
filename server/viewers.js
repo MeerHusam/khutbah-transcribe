@@ -19,6 +19,25 @@ async function lookupGeo(ip) {
   } catch { return null; }
 }
 
+// ip-api.com's free tier allows 45 lookups a minute and blocks an address that keeps going over;
+// a thousand people opening a shared link within minutes would. Each address is looked up once
+// (a masjid's Wi-Fi is one address) and at most 40 a minute; past that a visit is logged without
+// its place. `lookup` is replaceable for the test.
+// ponytail: the cache only empties at 5000 addresses or a restart; places rarely change.
+const geoCache = new Map(); // ip -> Promise<place | null>
+let geoMinute = 0, geoCount = 0;
+export function placeOf(ip, lookup = lookupGeo) {
+  if (geoCache.has(ip)) return geoCache.get(ip);
+  const minute = Math.floor(Date.now() / 60_000);
+  if (minute !== geoMinute) { geoMinute = minute; geoCount = 0; }
+  if (++geoCount > 40) return Promise.resolve(null);
+  if (geoCache.size > 5000) geoCache.clear();
+  const place = lookup(ip);
+  geoCache.set(ip, place);
+  place.then(g => { if (!g) geoCache.delete(ip); }); // a failed lookup is tried again next visit
+  return place;
+}
+
 let totalViews = 0;
 let uniqueIps = new Set();
 // Hashed IP -> ISO timestamp of that visitor's first ever visit. Hashes recorded before
@@ -35,8 +54,14 @@ try {
   uniqueDevices = new Set(saved.unique_devices || []);
 } catch { totalViews = 0; }
 
+// Written at most every 5 s: it holds every hashed address, and a write per visit adds up when
+// many arrive at once. A crash loses at most those 5 s of counts.
+let persistTimer = null;
 function persistViews() {
-  try { writeFileSync(VIEWS_FILE, JSON.stringify({ total: totalViews, unique_ips: [...uniqueIps], first_seen: firstSeen, unique_devices: [...uniqueDevices] })); } catch {}
+  persistTimer ??= setTimeout(() => {
+    persistTimer = null;
+    try { writeFileSync(VIEWS_FILE, JSON.stringify({ total: totalViews, unique_ips: [...uniqueIps], first_seen: firstSeen, unique_devices: [...uniqueDevices] })); } catch {}
+  }, 5000);
 }
 
 function hashIp(ip) {
@@ -52,16 +77,30 @@ function viewerCounts() {
   return { type: 'viewers', live: liveClients.size, total: totalViews, unique: uniqueIps.size, devices: uniqueDevices.size };
 }
 
+// Every join and leave used to send the count to every open page, n² messages when a shared
+// link brings many people at once; now one round at most every 2 s.
+let broadcastTimer = null;
 function broadcastViewers() {
-  const payload = JSON.stringify(viewerCounts());
-  for (const ws of liveClients) {
-    if (ws.readyState === 1) ws.send(payload);
-  }
+  broadcastTimer ??= setTimeout(() => {
+    broadcastTimer = null;
+    const payload = JSON.stringify(viewerCounts());
+    for (const ws of liveClients) if (ws.readyState === 1) ws.send(payload);
+  }, 2000);
 }
 
 // One page view: a viewer socket opened by home.html or a reader page.
 export function handleViewer(ws, req) {
   liveClients.add(ws);
+  ws.on('close', () => { liveClients.delete(ws); broadcastViewers(); });
+  ws.on('error', () => liveClients.delete(ws));
+  const params = new URL(req.url || '/', 'http://x').searchParams;
+  // A page reconnecting (?re=1: the phone woke up, or the site redeployed) is back in the live
+  // count but is not a new view: the page keeps the view ID it was given.
+  if (params.get('re') === '1') {
+    if (ws.readyState === 1) ws.send(JSON.stringify(viewerCounts()));
+    broadcastViewers();
+    return;
+  }
   totalViews += 1;
   const rawIp = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
   const visitTs = new Date().toISOString();
@@ -74,7 +113,6 @@ export function handleViewer(ws, req) {
   }
   // The page sends its browser ID as ?d=; stored hashed, like IPs.
   let isNewDevice = false, deviceHash = null;
-  const params = new URL(req.url || '/', 'http://x').searchParams;
   const device = params.get('d') || '';
   if (/^[A-Za-z0-9-]{8,64}$/.test(device)) {
     deviceHash = hashIp('device:' + device);
@@ -104,18 +142,11 @@ export function handleViewer(ws, req) {
     ws.send(JSON.stringify(viewerCounts()));
   }
   broadcastViewers();
-  lookupGeo(rawIp).then(geo => {
+  placeOf(rawIp).then(geo => {
     if (geo) {
       visit.geo = { city: geo.city, country: geo.country, countryCode: geo.countryCode, hosting: geo.hosting };
       try { appendFileSync(GEO_FILE, JSON.stringify({ ts: new Date().toISOString(), ...geo }) + '\n'); } catch {}
     }
     try { appendFileSync(VISITS_FILE, JSON.stringify(visit) + '\n'); } catch {}
-  });
-  ws.on('close', () => {
-    liveClients.delete(ws);
-    broadcastViewers();
-  });
-  ws.on('error', () => {
-    liveClients.delete(ws);
   });
 }

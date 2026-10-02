@@ -1008,10 +1008,15 @@
     try { const r = document.referrer && new URL(document.referrer).hostname; if (r) q.set('r', r); } catch {}
     return q.toString();
   }
-  function connectViewers() {
+  let viewerTries = 0;
+  function connectViewers(again = false) {
     try {
       const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-      const ws = new WebSocket(`${proto}://${location.host}/?${viewParams()}`);
+      const ws = new WebSocket(`${proto}://${location.host}/?${viewParams()}${again ? '&re=1' : ''}`);
+      // A phone drops the socket when its screen locks, a redeploy drops everyone: come back into
+      // the live count (?re=1, not a new view), waiting longer after each failed try.
+      ws.onopen = () => { viewerTries = 0; };
+      ws.onclose = () => setTimeout(() => connectViewers(true), Math.min(60_000, 3000 * 2 ** viewerTries++) + Math.random() * 2000);
       ws.onmessage = e => {
         const m = JSON.parse(e.data);
         if (m.type === 'hello') { visitId = m.id; return; }

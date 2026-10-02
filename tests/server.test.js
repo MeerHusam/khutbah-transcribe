@@ -111,6 +111,28 @@ test('the viewer socket counts a visit and logs it', async () => {
   assert.equal(JSON.parse(readFileSync(join(DATA, 'visits.jsonl'), 'utf8').trim()).page, 'home');
 });
 
+test('a page reconnecting (?re=1) is live again but not a new view', async () => {
+  const counts = url => new Promise((resolve, reject) => {
+    const ws = new WebSocket(url);
+    ws.on('message', m => { const j = JSON.parse(m); if (j.type === 'viewers') { ws.close(); resolve(j); } });
+    ws.on('error', reject);
+  });
+  const before = await counts(`ws://localhost:${PORT}/?d=test-device-2&p=home`);
+  const again = await counts(`ws://localhost:${PORT}/?d=test-device-2&p=home&re=1`);
+  assert.equal(again.total, before.total);
+});
+
+test('place lookups: each address once, at most 40 a minute', async () => {
+  const { placeOf } = await import('../server/viewers.js');
+  let calls = 0;
+  const lookup = async () => { calls++; return { city: 'Riyadh' }; };
+  assert.deepEqual(await placeOf('203.0.113.1', lookup), { city: 'Riyadh' });
+  await placeOf('203.0.113.1', lookup);
+  assert.equal(calls, 1);
+  for (let i = 2; i <= 60; i++) await placeOf(`203.0.113.${i}`, lookup);
+  assert.ok(calls <= 40, `${calls} lookups in a minute`);
+});
+
 test('feedback is stored, and readable only with the admin key', async () => {
   const post = body => get('/api/feedback', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   assert.equal((await post({})).status, 400);
