@@ -10,6 +10,37 @@
   ],
   "khutbahs": [
     {
+      "slug": "2026-10-02-al-haram-makkah",
+      "folder": "outputs/2026-10-03T23-14-37_khutbah-2026-10-02-al-haram-makkah",
+      "quran": [
+        "25:62",
+        "25:2",
+        "33:46",
+        "59:18",
+        "22:46",
+        "59:2",
+        "2:66",
+        "~79:26",
+        "11:120",
+        "12:111",
+        "69:11-12",
+        "29:35",
+        "29:38",
+        "9:126",
+        "14:45",
+        "~3:13",
+        "50:37",
+        "33:56"
+      ],
+      "hadith": [
+        "abudawud:4862",
+        "at-tabarani:?"
+      ],
+      "hadith_english": {},
+      "corrections": [],
+      "confirmed": false
+    },
+    {
       "slug": "2026-10-02-madinah-munawwarah",
       "folder": "outputs/2026-10-03T19-45-57_khutbah-2026-10-02-an-nabawi-madinah",
       "quran": [
