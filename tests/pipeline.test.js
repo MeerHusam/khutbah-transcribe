@@ -1,4 +1,4 @@
-// tests/pipeline.test.js — pipeline.js end to end on a published khutbah's transcript, with Claude
+// tests/pipeline.test.js — pipeline.js end to end on a published khutbah's transcript (tests/fixture/), with Claude
 // replaced by a stub (tests/stubs/) that answers with the analysis the khutbah got, rebuilt from
 // its result.json. Every stage after transcription runs for real, at no cost; sunnah.com
 // lookups use the local cache when there is one and are skipped quietly when offline.
@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { verifyReader } from '../core/verify_reader.js';
 
-const RUN = 'outputs/2026-09-25T10-04-57_khutbah-2026-09-25-masjid';
+const RUN = 'tests/fixture';
 
 test('pipeline.js --transcript with a stub Claude: every stage runs and the reader passes the publish gate', () => {
   const dir = mkdtempSync(join(tmpdir(), 'pipeline-test-'));

@@ -1,25 +1,28 @@
 // tests/server.test.js — The site against a real server: pages, khutbah API, viewer socket,
 // feedback, the admin and upload API, and publishing a khutbah. The server runs on its own port
 // with an empty data folder (a fresh database, seeded from server/khutbahs.seed.json), so
-// nothing touches real visit counts or the real list.
+// nothing touches real visit counts or the real list. The khutbahs' files are not in the repo:
+// each listed khutbah is given tests/fixture/ (2 Oct 2026's run) as its files.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, copyFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, copyFileSync, cpSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { request } from 'node:http';
 import WebSocket from 'ws';
-import { publishToSite } from '../worker/site.js';
+import { publishToSite, recordInSeed } from '../worker/site.js';
 
 const PORT = 3200 + Math.floor(Math.random() * 600);
 const BASE = `http://localhost:${PORT}`;
 const KEY = 'test-admin-key';
 const DATA = mkdtempSync(join(tmpdir(), 'khutbah-server-test-'));
 const khutbahs = JSON.parse(readFileSync('server/khutbahs.seed.json', 'utf8'));
+const FIXTURE = 'tests/fixture';
 let server;
 
 before(async () => {
+  for (const k of khutbahs) cpSync(FIXTURE, join(DATA, 'outputs', k.folder), { recursive: true });
   server = spawn(process.execPath, ['server/server.js'], {
     env: { ...process.env, PORT: String(PORT), ADMIN_TOKEN: KEY, DATA_DIR: DATA },
     stdio: ['ignore', 'pipe', 'inherit'],
@@ -194,18 +197,23 @@ test('upload API: upload, claim once, download, and the recording is removed', a
 });
 
 test('publishing: a new khutbah is live at once, with its files, recording and voice track', async () => {
-  // A copy of 25 Sep's run under a new folder name, as the Mac would have it.
-  const src = join('outputs', khutbahs[0].folder);
+  // A copy of a run under a new folder name, as the Mac would have it.
+  const src = FIXTURE;
   const tmp = mkdtempSync(join(tmpdir(), 'khutbah-publish-test-'));
   const folderPath = join(tmp, '2026-10-02T12-00-00_khutbah-test-publish');
   mkdirSync(folderPath);
-  for (const f of ['result.json', 'reader.txt', 'reader_ur.txt', 'tts_ur.json', 'tts_ur.mp3', 'words_imam.json']) copyFileSync(join(src, f), join(folderPath, f));
+  for (const f of ['result.json', 'reader.txt', 'reader_ur.txt', 'tts_ur.json', 'words_imam.json']) copyFileSync(join(src, f), join(folderPath, f));
+  writeFileSync(join(folderPath, 'tts_ur.mp3'), Buffer.alloc(1000, 2));
   const recording = join(tmp, 'khutbah-test-publish.m4a');
   writeFileSync(recording, Buffer.alloc(1000, 1));
   const entry = { slug: 'test-publish', title: 'Test Publish', date: '2 October 2026', page: 'reader-ur.html', featured: true };
   try {
     await assert.rejects(publishToSite({ site: BASE, key: 'wrong-key', folderPath, recording, entry }), /401/);
-    assert.equal(await publishToSite({ site: BASE, key: KEY, folderPath, recording, entry }), `${BASE}/test-publish`);
+    const seed = join(tmp, 'seed.json');
+    copyFileSync('server/khutbahs.seed.json', seed);
+    const published = await publishToSite({ site: BASE, key: KEY, folderPath, recording, entry });
+    assert.equal(published.url, `${BASE}/test-publish`);
+    recordInSeed(published.entry, seed);
 
     const page = await get('/test-publish');
     assert.equal(page.status, 200);
@@ -233,17 +241,24 @@ test('publishing: a new khutbah is live at once, with its files, recording and v
     assert.equal(again.items[0].title, 'Test Publish, corrected');
     assert.equal(again.items.length, list.items.length);
     // A new slug for the same khutbah: the old link redirects to it.
-    await publishToSite({ site: BASE, key: KEY, folderPath, recording, entry: { ...entry, slug: 'test-publish-2' } });
+    recordInSeed((await publishToSite({ site: BASE, key: KEY, folderPath, recording, entry: { ...entry, slug: 'test-publish-2' } })).entry, seed);
     const moved = await get('/test-publish');
     assert.equal(moved.status, 301);
     assert.equal(moved.headers.get('location'), '/test-publish-2');
+    // The repo's copy of the list says what the site's database says.
+    const copy = JSON.parse(readFileSync(seed, 'utf8'));
+    assert.equal(copy.length, khutbahs.length + 1);
+    assert.deepEqual(copy[0], { folder: '2026-10-02T12-00-00_khutbah-test-publish', ...entry, slug: 'test-publish-2', old_slugs: ['test-publish'] });
+    assert.deepEqual(copy.filter(k => k.featured).map(k => k.slug), ['test-publish-2']);
+    const live = (await (await get('/api/results')).json()).items.find(i => i.folder === copy[0].folder);
+    assert.equal(live.slug, copy[0].slug);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
 });
 
 test('a khutbah whose audio is on R2: its recording and voice links point there', async () => {
-  const src = join('outputs', khutbahs[0].folder);
+  const src = FIXTURE;
   const folder = '2026-10-02T13-00-00_khutbah-test-r2';
   const headers = { 'x-admin-key': KEY, 'content-type': 'application/octet-stream' };
   for (const f of ['result.json', 'reader.txt', 'tts_ur.json']) {

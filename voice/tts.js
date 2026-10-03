@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 // tts.js — A voice track for a khutbah (30 Sep 2026): reads each reader block's English
 // (--lang en) or Urdu (--lang ur) aloud and writes one audio track the page can play in place of
-// the imam's. Two engines:
-//  - gemini (default, tts_gemini.mjs): Gemini TTS (gemini-3.8-flash-tts), voice Charon or Orus.
-//  - elevenlabs (tts_elevenlabs.py, paid credits): eleven_v3 (speaks Urdu well) or eleven_flash_v2.
+// the imam's, with Gemini TTS (gemini-3.8-flash-tts, tts_gemini.mjs), voice Charon or Orus.
+// (The ElevenLabs engine, unused since 1 Oct 2026, was removed on 3 Oct; it is in git history.)
 //
 //  - Blocks are the page's blocks (reader_chunks.js), so the voice track and the reader
 //    highlight line up block for block.
@@ -12,16 +11,14 @@
 //  - A verse card: the verse's English (Sahih International), cut to the part the imam recited
 //    when the card shows only that part (verse_excerpts), as the page does.
 //  - The Quran itself is never synthesised: only its English meaning is spoken.
-//  - Arabic names and terms: Gemini is told to say them the Arabic way; eleven_flash_v2 takes
-//    them from tts_lexicon.txt.
+//  - Arabic names and terms: Gemini is told to say them the Arabic way.
 // Writes tts_<lang>.mp3 (the track) and tts_<lang>.json (voice, and each block's start/end in the
 // track, with its opening Arabic words so a rebuilt reader cannot be paired with stale times).
 //
-// Usage: node voice/tts.js outputs/<folder> [--engine gemini|elevenlabs] [--lang en|ur] [--limit N] [--dry-run]
-//   gemini:     [--voice Charon] [--direct]: a direction for every sentence (voice_directions.js,
-//     from delivery_imam.json when imam_delivery.py has run) and the blocks voiced a passage
-//     at a time, then split back into blocks with the word aligner (.venv-align).
-//   elevenlabs: [--model eleven_v3|eleven_flash_v2] [--voice daniel] [--max-credits 2000]
+// Usage: node voice/tts.js outputs/<folder> [--lang en|ur] [--voice Charon] [--direct] [--limit N] [--dry-run]
+//   --direct: a direction for every sentence (voice_directions.js, from delivery_imam.json when
+//     imam_delivery.py has run) and the blocks voiced a passage at a time, then split back into
+//     blocks with the word aligner (.venv-align).
 //   --limit N speaks only the first N blocks into tts_<lang>_preview_<voice>.mp3, to listen to;
 //     the page's track (tts_<lang>.mp3, tts_<lang>.json) is left as it is.
 //   --dry-run prints the text of every block and makes no audio.
@@ -41,12 +38,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const folder = args[0];
 const opt = (name, dflt) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : dflt; };
-const engine = opt('--engine', 'gemini');
 const lang = opt('--lang', 'en');
-// ElevenLabs stock voices, by name (the API key needs only text-to-speech permission).
-const ELEVEN_VOICES = { daniel: 'onwK4e9ZLuTAKqWW03F9', george: 'JBFqnCBsd6RMkjVDRZzb', brian: 'nPczCjzI2devNBz1zQrb', bill: 'pqHfZKP75CvOlQylNhV4' };
-const model = opt('--model', engine === 'gemini' ? 'gemini-3.8-flash-tts' : 'eleven_v3');
-const voice = opt('--voice', { elevenlabs: 'daniel', gemini: 'Charon' }[engine]);
+const model = opt('--model', 'gemini-3.8-flash-tts');
+const voice = opt('--voice', 'Charon');
 // Gemini's delivery, given as a style note (text in the transcript itself would be spoken).
 const GEMINI_STYLE = {
   en: 'calm, clear and reverent, at a steady pace, like a translator reading a Friday sermon; Arabic names and Islamic terms (Allah, Muhammad, taqwa, Quraysh, Makkah) pronounced the Arabic way, as a Muslim scholar would',
@@ -60,10 +54,8 @@ const GEMINI_BASE = {
 const limit = +opt('--limit', '0');
 // Faster delivery without re-generating: ffmpeg's atempo keeps the pitch; times scale with it.
 const tempo = +opt('--tempo', '1');
-// ElevenLabs spends paid credits: a run that would cost more than this stops before sending.
-const maxCredits = +opt('--max-credits', '2000');
 const dryRun = args.includes('--dry-run');
-// Gemini only: a direction for every sentence (voice_directions.js, from the imam's delivery
+// A direction for every sentence (voice_directions.js, from the imam's delivery
 // and the meaning) and the blocks voiced a passage at a time, so the tone carries from one
 // block into the next (Orus, 1 Oct 2026).
 const direct = args.includes('--direct');
@@ -73,12 +65,9 @@ const directEffort = opt('--direct-effort', 'high');
 // per voice instead of 13–16, under the 100 a day per Google project (a request can return up to
 // ~655 s of audio; 6,000 characters is about 8 min).
 const PASSAGE_CHARS = 4000;
-const elevenKey = process.env.ELEVEN_LABS_API_KEY || process.env.ELEVENLABS_API_KEY;
-if (!folder || !existsSync(join(folder, 'result.json')) || !['elevenlabs', 'gemini'].includes(engine)
-    || !['en', 'ur'].includes(lang) || (engine === 'elevenlabs' && !dryRun && !elevenKey) || (direct && engine !== 'gemini')) {
-  console.error('Usage: node voice/tts.js outputs/<folder> [--engine gemini|elevenlabs] [--lang en|ur] [--limit N] [--tempo 1.15] [--dry-run]\n'
-    + '  gemini (default): [--voice Charon] [--direct [--direct-effort high]]  (a note per sentence, voiced a passage at a time)\n'
-    + '  elevenlabs (ELEVEN_LABS_API_KEY in .env): [--model eleven_v3|eleven_flash_v2] [--voice daniel] [--max-credits 2000]');
+if (!folder || !existsSync(join(folder, 'result.json')) || !['en', 'ur'].includes(lang)) {
+  console.error('Usage: node voice/tts.js outputs/<folder> [--lang en|ur] [--voice Charon] [--direct [--direct-effort high]] [--limit N] [--tempo 1.15] [--dry-run]\n'
+    + '  --direct: a note per sentence, voiced a passage at a time');
   process.exit(1);
 }
 
@@ -230,8 +219,7 @@ if (dryRun) {
 }
 
 // A preview is named after its voice, so previews of different voices sit side by side.
-const voiceName = engine === 'elevenlabs' ? `${model}_${voice}` : `gemini_${voice}`;
-const base = limit ? `tts_${lang}_preview_${voiceName}${tempo !== 1 ? `_x${tempo}` : ''}` : `tts_${lang}`;
+const base = limit ? `tts_${lang}_preview_gemini_${voice}${tempo !== 1 ? `_x${tempo}` : ''}` : `tts_${lang}`;
 const wav = join(folder, `${base}.wav`);
 // A few seconds of quiet where the imam sits between the two khutbahs, so the second one
 // doesn't run straight on from the first (before --tempo, which shortens it a little). It
@@ -242,37 +230,21 @@ const secondBlock = secondAt < 0 ? null : blocks.find(b => b.i >= secondAt)?.i ?
 const notes = direct ? await directions({ folder, lang, blocks, effort: directEffort,
   arabic: new Map(blocks.map(b => [b.i, chunks[b.i].arabic])) }) : null;
 const job = {
-  block_pause: 0.7, sentence_pause: 0.2,
+  block_pause: 0.7,
   out: resolve(wav),
   blocks: blocks.map(({ i, text }) => ({ i, text, ...(i === secondBlock ? { pause_before: KHUTBAH_PAUSE } : {}),
     ...(notes ? { parts: notes.get(i) } : {}) })),
-  ...{
-    gemini: { model, voice, style: (direct ? GEMINI_BASE : GEMINI_STYLE)[lang], concurrency: 2,
-      ...(direct ? { passages: PASSAGE_CHARS, lang } : {}) },
-    elevenlabs: {
-      model, voice: ELEVEN_VOICES[voice] ?? voice, language_code: lang, max_credits: maxCredits,
-      // Whole blocks: the model reads a paragraph with better flow than sentence by sentence.
-      whole_blocks: 3000,
-      // Only Flash v2 honours inline <phoneme> tags; v3 is left to say names its own way.
-      ...(lang === 'en' && model === 'eleven_flash_v2' ? { lexicon: join(ROOT, 'voice', 'tts_lexicon.txt') } : {}),
-    },
-  }[engine],
+  model, voice, style: (direct ? GEMINI_BASE : GEMINI_STYLE)[lang], concurrency: 2,
+  ...(direct ? { passages: PASSAGE_CHARS, lang } : {}),
 };
-const [python, script] = {
-  elevenlabs: [join(ROOT, '.venv', 'bin', 'python'), 'tts_elevenlabs.py'],
-  gemini: [process.execPath, 'tts_gemini.mjs'],
-}[engine];
 const chars = blocks.reduce((n, b) => n + b.text.length, 0);
-console.log(`Speaking ${blocks.length} blocks (${chars} characters) with ${{
-  elevenlabs: `ElevenLabs ${model} (${voice}, ${lang})`,
-  gemini: `Gemini ${model} (${voice}, ${lang})`,
-}[engine]}...`);
+console.log(`Speaking ${blocks.length} blocks (${chars} characters) with Gemini ${model} (${voice}, ${lang})...`);
 const began = Date.now();
-const py = spawnSync(python, [join(ROOT, 'voice', script)], {
+const py = spawnSync(process.execPath, [join(ROOT, 'voice', 'tts_gemini.mjs')], {
   cwd: ROOT, input: JSON.stringify(job),
   encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['pipe', 'pipe', 'inherit'],
 });
-if (py.status !== 0) { console.error(`${script} failed`); process.exit(1); }
+if (py.status !== 0) { console.error('tts_gemini.mjs failed'); process.exit(1); }
 // The times are the last line: libraries may print their own lines on stdout too.
 const times = new Map(JSON.parse(py.stdout.trim().split('\n').at(-1)).map(t => [t.i, t]));
 
@@ -291,11 +263,8 @@ if (limit) {
 }
 
 const manifest = {
-  engine: { elevenlabs: `elevenlabs:${model}`, gemini: `gemini:${model}` }[engine],
-  ...{
-    elevenlabs: { voice },
-    gemini: { voice, ...(direct ? { directed: `voice_directions.js (${directEffort})`, passages: PASSAGE_CHARS } : {}) },
-  }[engine],
+  engine: `gemini:${model}`,
+  voice, ...(direct ? { directed: `voice_directions.js (${directEffort})`, passages: PASSAGE_CHARS } : {}),
   lang,
   created: new Date().toISOString(),
   audio: `${base}.mp3`,

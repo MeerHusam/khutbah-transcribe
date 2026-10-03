@@ -25,7 +25,7 @@
 
 import 'dotenv/config';
 import Anthropic from '@anthropic-ai/sdk';
-import { spawn } from 'child_process';
+import { spawn, spawnSync } from 'child_process';
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync, appendFileSync } from 'fs';
 import { join, extname, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
@@ -204,7 +204,7 @@ async function main() {
   const recitation = cleanAudio ? join('audio_files', `${name}-clean.wav`) : audioOut;
   let voiced = 0;
   const voice = async (lang, label, args) => {
-    await run(`${label} voice`, 'node', ['voice/tts.js', F, '--engine', 'gemini', '--lang', lang, ...args, '--tempo', '1.15']);
+    await run(`${label} voice`, 'node', ['voice/tts.js', F, '--lang', lang, ...args, '--tempo', '1.15']);
     if (++voiced === 2) await report('timing');
     const m = JSON.parse(readFileSync(join(ROOT, F, `tts_${lang}.json`), 'utf8'));
     if (!m.blocks.every(b => b.words?.length)) await run(`${lang} word timing`, PY_ALIGN, ['voice/align_words.py', F, lang]);
@@ -243,8 +243,25 @@ async function main() {
   const r = await fetch(link).catch(() => null);
   if (!r?.ok) throw new Error(`published, but ${link} did not load (${r?.status ?? 'no answer'})`);
   log(`live: ${link}. Steps: ${summary}`);
+  commitPublished(`Publish ${title} (${dateText}, ${masjid})`);
   await report('live', { link, message: `${mins()} min from upload start${pendingNote}` });
   if (voiceFailed.length) process.exit(4);
+}
+
+// One commit on main per khutbah: the list publish.js wrote (server/khutbahs.seed.json) and the
+// test set. Render's build filter (render.yaml) skips the deploy for these files, so the site
+// stays up. The khutbah is already live: a git problem is logged, never fatal.
+function commitPublished(message) {
+  const git = args => spawnSync('git', args, { cwd: ROOT, encoding: 'utf8' });
+  const paths = ['server/khutbahs.seed.json', 'tests/khutbahs.json'];
+  if (!git(['status', '--porcelain', '--', ...paths]).stdout.trim()) return;
+  const branch = git(['rev-parse', '--abbrev-ref', 'HEAD']).stdout.trim();
+  if (branch !== 'main') return log(`⚠ on branch ${branch}, not main: the list is updated but not committed`);
+  for (const args of [['commit', '-m', message, '--', ...paths], ['pull', '--rebase', '--autostash', 'origin', 'main'], ['push', 'origin', 'main']]) {
+    const r = git(args);
+    if (r.status !== 0) return log(`⚠ git ${args[0]} failed, commit the list by hand: ${(r.stderr || r.stdout).trim().slice(-200)}`);
+  }
+  log('list committed and pushed to main (no deploy)');
 }
 
 // Voices still to make: the worker (upload_worker.js) runs this job again with --resume when

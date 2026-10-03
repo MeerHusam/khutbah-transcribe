@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // publish.js — Take a khutbah recording to a published page in one command. Nothing is
-// committed or deployed: the khutbah goes to the site through its publish API (worker/site.js).
+// deployed: the khutbah goes to the site through its publish API (worker/site.js).
 //
 //   1. audio: remux to audio_files/<name>.<ext> with the moov atom first (phone recordings put it
 //      last, so the player shows 0:00 until the whole file downloads), optionally trimming
@@ -10,7 +10,8 @@
 //   4. test set: the khutbah is added to tests/khutbahs.json with its current cards, marked
 //      unconfirmed, and tests/test_khutbahs.js --rebuild must pass for every khutbah
 //   5. site: the reader's files, the recording and the entry go to --site (featured unless
-//      --no-feature): your local server by default (npm start), to check it there first
+//      --no-feature): your local server by default (npm start), to check it there first. On
+//      khutbah.dev the entry is also written into server/khutbahs.seed.json (autopublish.js commits it)
 // Then it prints what to check.
 //
 // Usage:
@@ -32,7 +33,7 @@ import { readFileSync, writeFileSync, existsSync, openSync, readSync, closeSync,
 import { join, extname, basename, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { verifyReader } from '../core/verify_reader.js';
-import { publishToSite, siteSlugs } from './site.js';
+import { publishToSite, siteSlugs, recordInSeed } from './site.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -177,9 +178,13 @@ if (site) {
   const entry = { ...Object.fromEntries(fields), ...(feature ? { featured: true } : {}) };
   // The recording the page plays: --audio names it, else it is the one made in step 1.
   const recording = join(ROOT, 'audio_files', opt('--audio') || basename(audioOut));
-  const url = await publishToSite({ site, key: process.env.ADMIN_TOKEN, folderPath: join(ROOT, folder), recording, entry })
+  const published = await publishToSite({ site, key: process.env.ADMIN_TOKEN, folderPath: join(ROOT, folder), recording, entry })
     .catch(e => die(`publishing to ${site} failed: ${e.message}`));
-  console.log(`  ✓ live at ${url}${feature ? ' (featured)' : ''}`);
+  console.log(`  ✓ live at ${published.url}${feature ? ' (featured)' : ''}`);
+  if (new URL(site).hostname === 'khutbah.dev') {
+    recordInSeed(published.entry, join(ROOT, 'server', 'khutbahs.seed.json'));
+    console.log('  ✓ server/khutbahs.seed.json updated');
+  }
 }
 
 if (flag('--review')) { step('Review'); run('node', ['core/review_blocks.js', folder]); }
@@ -191,7 +196,7 @@ function liveArgs() {
     .map(a => (/[\s"'$]/.test(a) ? JSON.stringify(a) : a)).join(' ');
 }
 console.log(site ? `
-✓ Published to ${site}/${slug}. Nothing committed or deployed.
+✓ Published to ${site}/${slug}. Nothing deployed.
   1. Open it in Safari or Chrome (not VS Code's browser: it cannot play .m4a) and read it through;
      play the audio and follow the highlight.
   2. Confirm the cards in tests/khutbahs.json (entry "${slug}", "confirmed": false).
