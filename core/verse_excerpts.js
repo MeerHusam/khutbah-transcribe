@@ -29,8 +29,8 @@ import '../public/recited.js';
 
 const { recitedSpans } = globalThis.KTRecited;
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const MODEL = 'claude-sonnet-5';
-const PRICE_IN = 2 / 1e6, PRICE_OUT = 10 / 1e6; // USD per token, claude-sonnet-5
+const MODEL = 'claude-sonnet-5-5';
+const PRICE_IN = 2 / 1e6, PRICE_OUT = 10 / 1e6; // USD per token, claude-sonnet-5-5
 const quran = JSON.parse(readFileSync(join(ROOT, 'node_modules/quran-json/dist/quran.json'), 'utf8'));
 const verseAr = (s, a) => quran[s - 1]?.verses?.find(v => v.id === a)?.text ?? '';
 

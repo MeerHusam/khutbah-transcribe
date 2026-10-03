@@ -223,8 +223,8 @@ PART 2 (start of the second khutbah): ${arabicB}
 Return ONLY valid JSON, no markdown: {"part1":"English of PART 1","part2":"English of PART 2"}`;
 
   try {
-    const msg = await anthropic.messages.create({ model, max_tokens: 1200, messages: [{ role: 'user', content: prompt }] });
-    const raw = (msg.content?.[0]?.text ?? '').replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+    const msg = await anthropic.messages.create({ model, max_tokens: 4000, output_config: { effort: 'low' }, messages: [{ role: 'user', content: prompt }] });
+    const raw = (msg.content?.find(b => b.type === 'text')?.text ?? '').replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
     const j = JSON.parse(raw);
     if (!j.part1 || !j.part2) return false;
     proseChunks.splice(si, 1,
