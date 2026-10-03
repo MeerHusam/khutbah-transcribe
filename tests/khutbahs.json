@@ -1,6 +1,6 @@
 {
   "_about": [
-    "Expected cards for each khutbah, checked by test_khutbahs.js on every change.",
+    "Expected cards for each khutbah, checked by tests/test_khutbahs.js on every change.",
     "quran: badge keys in reading order; '~' marks a verse quoted inside prose (inline badge).",
     "hadith: sunnah.com slug:number; 'collection:?' when sunnah.com has no page for it.",
     "Built 2026-09-26 from each khutbah's output as published, with the known errors corrected",

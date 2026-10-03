@@ -5,11 +5,13 @@
   "type": "module",
   "main": "pipeline.js",
   "scripts": {
-    "start": "node server.js",
-    "pipeline": "node pipeline.js"
+    "start": "node server/server.js",
+    "pipeline": "node pipeline.js",
+    "test": "node tests/test_khutbahs.js && node tests/test_khutbahs.js --rebuild && node --test tests/*.test.js",
+    "check": "node scripts/check_keys.js"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
@@ -17,8 +19,6 @@
     "dotenv": "^16.4.5",
     "express": "^5.2.1",
     "groq-sdk": "^1.2.0",
-    "openai": "^4.77.0",
-    "qrcode": "^1.5.4",
     "quran-json": "^3.1.2",
     "ws": "^8.20.1"
   }

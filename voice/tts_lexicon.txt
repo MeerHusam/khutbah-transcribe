@@ -1,0 +1,187 @@
+# tts_lexicon.txt — How the English voice (tts.js with ElevenLabs eleven_flash_v2) says Arabic words.
+# Without it the voice reads them by English spelling rules: "Allah" as "AL-uh",
+# "Muhammad" as "muh-HAM-id".
+#
+# One word per line: the word, then its sounds. Case does not matter. "Allah's" is found
+# from "Allah", and "al-X" from X (with the al- joined to a sun letter: al-Tirmidhi is
+# said at-Tirmidhi). Words not listed are read the English way.
+#
+# Sounds are written the way the voice's phonemizer (espeak) writes them, with ˈ just before
+# the stressed vowel. Arabic sounds the voice has: q  χ (kh)  ɣ (gh)  θ (th)  ð (dh)  ʃ (sh)
+# dʒ (j)  ɾ (r)  ː (long vowel). It has no ʿayn or ḥ: ʿayn is dropped, or ʔ between vowels;
+# ḥ is h. Vowels: ɑ (a), ɑː (ā), ɪ (i), iː (ī), ʊ (u), uː (ū).
+# Checked 30 Sep 2026: Whisper hears "ɑllˈɑːh" as الله; the default "ˈælə" as "Alan".
+
+# ── Allah, His names, phrases
+Allah            ɑllˈɑːh
+Allahu           ɑllˈɑːhu
+Akbar            ˈɑkbɑɾ
+Aziz             ɑzˈiːz
+Qawi             qɑwˈiː
+Qawiyy           qɑwˈiː
+Rahman           ɾɑhmˈɑːn
+Rahim            ɾɑhˈiːm
+SubhanAllah      sʊbhˌɑːnɑllˈɑːh
+Alhamdulillah    ɑlhˌɑmdʊlɪllˈɑːh
+InshaAllah       ɪnʃˌɑːʔɑllˈɑːh
+MashaAllah       mˌɑːʃɑːʔɑllˈɑːh
+Bismillah        bɪsmɪllˈɑːh
+
+# ── The Prophet ﷺ, Companions, family, prophets
+Muhammad         mʊhˈɑmmɑd
+Ahmad            ˈɑhmɑd
+Rasulullah       ɾɑsˌuːlʊllˈɑːh
+Ibrahim          ɪbɾɑːhˈiːm
+Ismail           ɪsmɑːʔˈiːl
+Ismaeel          ɪsmɑːʔˈiːl
+Ishaq            ɪshˈɑːq
+Yaqub            jɑʔqˈuːb
+Yusuf            jˈuːsʊf
+Musa             mˈuːsɑː
+Isa              ˈiːsɑː
+Maryam           mˈɑɾjɑm
+Nuh              nˈuːh
+Dawud            dɑːwˈuːd
+Sulayman         sʊlɑjmˈɑːn
+Yunus            jˈuːnʊs
+Harun            hɑːɾˈuːn
+Jibril           dʒɪbɾˈiːl
+Hajar            hˈɑːdʒɑɾ
+Abu              ˈɑbuː
+Abi              ˈɑbiː
+Ibn              ˈɪbn
+Bakr             bˈɑkɾ
+Umar             ˈʊmɑɾ
+Uthman           ʊθmˈɑːn
+Ali              ˈɑliː
+Talib            tˈɑːlɪb
+Aisha            ɑːʔˈɪʃɑ
+Aishah           ɑːʔˈɪʃɑ
+Khadijah         χɑdˈiːdʒɑ
+Fatimah          fˈɑːtɪmɑ
+Hasan            hˈɑsɑn
+Husayn           hʊsˈɑjn
+Hussain          hʊsˈɑjn
+Bilal            bɪlˈɑːl
+Anas             ˈɑnɑs
+Jabir            dʒˈɑːbɪɾ
+Muadh            mʊʔˈɑːð
+Mu'adh           mʊʔˈɑːð
+Abbas            ɑbbˈɑːs
+Abdullah         ɑbdʊllˈɑːh
+Abdulaziz        ɑbdʊlɑzˈiːz
+Salman           sɑlmˈɑːn
+Salih            sˈɑːlɪh
+Sa'd             sˈɑʔd
+Mas'ud           mɑsʔˈuːd
+Masud            mɑsʔˈuːd
+Hurayrah         hʊɾˈɑjɾɑ
+Hurairah         hʊɾˈɑjɾɑ
+Abrahah          ˈɑbɾɑhɑ
+Quraysh          qʊɾˈɑjʃ
+Ansar            ɑnsˈɑːɾ
+Muhajirun        mʊhɑːdʒɪɾˈuːn
+
+# ── Scholars and books
+Bukhari          bʊχˈɑːɾiː
+Tirmidhi         tɪɾmˈɪðiː
+Tabarani         tˌɑbɑɾˈɑːniː
+Albani           ɑlbˈɑːniː
+Majah            mˈɑːdʒɑ
+Zuhri            zˈʊhɾiː
+Fawzan           fɑwzˈɑːn
+Qayyim           qˈɑjjɪm
+Taymiyyah        tɑjmˈɪjjɑ
+Nawawi           nɑwˈɑwiː
+Sahih            sɑhˈiːh
+Sahihs           sɑhˈiːhz
+Sunan            sˈʊnɑn
+Sheikh           ʃˈeɪχ
+Shaykh           ʃˈɑjχ
+Shaykhs          ʃˈɑjχs
+Imam             ɪmˈɑːm
+Imams            ɪmˈɑːmz
+
+# ── Places
+Makkah           mˈɑkkɑ
+Madinah          mɑdˈiːnɑ
+Medina           mɑdˈiːnɑ
+Mukarramah       mʊkˈɑɾɾɑmɑ
+Munawwarah       mʊnˈɑwwɑɾɑ
+Masjid           mˈɑsdʒɪd
+Haram            hɑɾˈɑːm
+Aqsa             ˈɑqsɑ
+Kaaba            kˈɑʔbɑ
+Ka'bah           kˈɑʔbɑ
+Qiblah           qˈɪblɑ
+Qiblahs          qˈɪblɑz
+Arafah           ˈɑɾɑfɑ
+Arafa            ˈɑɾɑfɑ
+Arafat           ˈɑɾɑfɑːt
+Muzdalifah       mʊzdɑlˈɪfɑ
+Mina             mˈɪnɑː
+Mash'ar          mˈɑʃʔɑɾ
+Jamrat           dʒˈɑmɾɑt
+Jamarat          dʒɑmɑɾˈɑːt
+Aqabah           ˈɑqɑbɑ
+Firdaws          fɪɾdˈɑws
+
+# ── Worship, times, terms
+Islam            ɪslˈɑːm
+Muslim           mˈʊslɪm
+Muslims          mˈʊslɪmz
+Ummah            ˈʊmmɑ
+Quran            qʊɾˈɑːn
+Qur'an           qʊɾˈɑːn
+Sunnah           sˈʊnnɑ
+Hajj             hˈɑddʒ
+Umrah            ˈʊmɾɑ
+Ramadan          ɾɑmɑdˈɑːn
+Ramadhan         ɾɑmɑdˈɑːn
+Eid              ˈiːd
+Adha             ˈɑdhɑː
+Fitr             fˈɪtɾ
+Dhul             ðʊl
+Hijjah           hˈɪddʒɑ
+Tashreeq         tɑʃɾˈiːq
+Tashriq          tɑʃɾˈiːq
+Udhiyah          ʊdhˈiːjɑ
+Tawaf            tɑwˈɑːf
+Salah            sɑlˈɑːh
+Salat            sɑlˈɑːt
+Zakat            zɑkˈɑːt
+Zakah            zɑkˈɑː
+Sadaqah          sˈɑdɑqɑ
+Dhuhr            ðˈʊhɾ
+Asr              ˈɑsɾ
+Maghrib          mˈɑɣɾɪb
+Isha             ʔɪʃˈɑːʔ
+Fajr             fˈɑdʒɾ
+Jumu'ah          dʒʊmˈʊʔɑ
+Jumuah           dʒʊmˈʊʔɑ
+khutbah          χˈʊtbɑ
+dhikr            ðˈɪkɾ
+tahleel          tɑhlˈiːl
+takbeer          tɑkbˈiːɾ
+taqwa            tˈɑqwɑ
+tawhid           tɑwhˈiːd
+iman             iːmˈɑːn
+ihsan            ɪhsˈɑːn
+du'a             dʊʔˈɑː
+dua              dʊʔˈɑː
+hadith           hɑdˈiːθ
+ayah             ˈɑːjɑ
+surah            sˈuːɾɑ
+Jannah           dʒˈɑnnɑ
+Jahannam         dʒɑhˈɑnnɑm
+dunya            dˈʊnjɑ
+akhirah          ˈɑːχɪɾɑ
+Shaytan          ʃɑjtˈɑːn
+Shari'ah         ʃɑɾˈiːʔɑ
+Shariah          ʃɑɾˈiːʔɑ
+fitnah           fˈɪtnɑ
+jihad            dʒɪhˈɑːd
+mujahid          mʊdʒˈɑːhɪd
+mujahideen       mʊdʒɑːhɪdˈiːn
+hijab            hɪdʒˈɑːb
+ribat            ɾɪbˈɑːt

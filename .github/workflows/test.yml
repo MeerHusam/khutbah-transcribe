@@ -1,0 +1,17 @@
+# Runs `npm test` on every push and pull request: the reader checks on every published khutbah
+# (tests/test_khutbahs.js, as on disk and rebuilt), the server's routes and upload API, and the
+# pipeline end to end with Claude stubbed out. Free: no API key is used. Node 22: the site uses
+# its built-in SQLite (node:sqlite).
+name: test
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test

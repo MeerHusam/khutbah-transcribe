@@ -1,0 +1,6 @@
+# .venv-clean — taking the hall's reverb and echo out of a recording (voice/clean_audio.py).
+# Python 3.12.
+#   uv venv --python 3.12 .venv-clean && VIRTUAL_ENV=.venv-clean uv pip install -r requirements/clean.txt
+numpy==2.5.3
+scipy==1.18.1
+soundfile==0.14.0
