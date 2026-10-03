@@ -55,8 +55,19 @@ function toEntry(row) {
 }
 const toColumns = k => Object.fromEntries(FIELDS.map(f => [f, k[f] == null ? null : LISTS.has(f) ? JSON.stringify(k[f]) : String(k[f])]));
 
+// Newest khutbah first, by its date ("2 October 2026"); one without a date goes by the date its
+// folder name starts with (the run's). Khutbahs of the same day keep the order they were added.
+// Until 3 Oct 2026 the list was only the order of adding, so 22 May stood above 11 Sep.
+const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+export function dayOf(k) {
+  const [d, m, y] = (k.date ?? '').trim().toLowerCase().split(/\s+/);
+  const month = MONTHS.indexOf(m);
+  if (month >= 0 && +d && +y) return Date.UTC(+y, month, +d);
+  return Date.parse((k.folder ?? '').slice(0, 10)) || 0;
+}
+
 export function listKhutbahs() {
-  return db.prepare('SELECT * FROM khutbahs ORDER BY position').all().map(toEntry);
+  return db.prepare('SELECT * FROM khutbahs ORDER BY position').all().map(toEntry).sort((a, b) => dayOf(b) - dayOf(a));
 }
 
 const upsert = db.prepare(`
