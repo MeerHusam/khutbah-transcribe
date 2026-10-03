@@ -68,9 +68,11 @@ const dryRun = args.includes('--dry-run');
 // block into the next (Orus, 1 Oct 2026).
 const direct = args.includes('--direct');
 const directEffort = opt('--direct-effort', 'high');
-// Characters a passage aims for (about 2 min of Urdu); it ends at the first sentence end past
-// 60% of this, and at 150% wherever it is.
-const PASSAGE_CHARS = 1500;
+// Characters a passage aims for (about 5 min of Urdu); it ends at the first sentence end past
+// 60% of this, and at 150% wherever it is. Was 1,500 until 3 Oct 2026: about 4 requests a khutbah
+// per voice instead of 13–16, under the 100 a day per Google project (a request can return up to
+// ~655 s of audio; 6,000 characters is about 8 min).
+const PASSAGE_CHARS = 4000;
 const elevenKey = process.env.ELEVEN_LABS_API_KEY || process.env.ELEVENLABS_API_KEY;
 if (!folder || !existsSync(join(folder, 'result.json')) || !['elevenlabs', 'gemini'].includes(engine)
     || !['en', 'ur'].includes(lang) || (engine === 'elevenlabs' && !dryRun && !elevenKey) || (direct && engine !== 'gemini')) {
@@ -245,7 +247,7 @@ const job = {
   blocks: blocks.map(({ i, text }) => ({ i, text, ...(i === secondBlock ? { pause_before: KHUTBAH_PAUSE } : {}),
     ...(notes ? { parts: notes.get(i) } : {}) })),
   ...{
-    gemini: { model, voice, style: (direct ? GEMINI_BASE : GEMINI_STYLE)[lang], concurrency: 4,
+    gemini: { model, voice, style: (direct ? GEMINI_BASE : GEMINI_STYLE)[lang], concurrency: 2,
       ...(direct ? { passages: PASSAGE_CHARS, lang } : {}) },
     elevenlabs: {
       model, voice: ELEVEN_VOICES[voice] ?? voice, language_code: lang, max_credits: maxCredits,

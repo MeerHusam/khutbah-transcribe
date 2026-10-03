@@ -30,7 +30,7 @@ import { spawnSync } from 'child_process';
 import { askCloud, CLOUD_MODEL } from './tts_cloud.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const CACHE = join(ROOT, '.tts_cache', 'gemini');
+const CACHE = process.env.TTS_CACHE_DIR || join(ROOT, '.tts_cache', 'gemini'); // the test points it elsewhere
 const PRICE_IN = 0.5 / 1e6, PRICE_OUT = 9 / 1e6; // USD per token, gemini-3.8-flash-tts, through 2026
 const SR = 24000;
 
@@ -38,8 +38,56 @@ const job = JSON.parse(readFileSync(0, 'utf8'));
 // TTS_BACKEND=cloud: the same voices through Cloud Text-to-Speech (tts_cloud.mjs), no daily cap.
 const CLOUD = process.env.TTS_BACKEND === 'cloud';
 if (CLOUD) job.model = CLOUD_MODEL; // also keeps its cached audio apart from the Gemini API's
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 mkdirSync(CACHE, { recursive: true });
+
+// Keys: GEMINI_API_KEY, GEMINI_API_KEY2, … one per Google project, each with its own 100 voice
+// requests a day (Tier 1; paying more does not raise it). A key whose daily limit is reached is
+// skipped until the time the API gave, kept in .tts_cache/gemini/limits.json so the next run does
+// not spend a request to find out again.
+const LIMITS = join(CACHE, 'limits.json');
+const keyId = key => createHash('sha1').update(key).digest('hex').slice(0, 12);
+const readLimits = () => { try { return JSON.parse(readFileSync(LIMITS, 'utf8')); } catch { return {}; } };
+const keys = Object.keys(process.env).filter(n => /^GEMINI_API_KEY\d*$/.test(n)).sort()
+  .map(name => ({ name, key: process.env[name] })).filter(k => k.key);
+let current = null;
+function client() {
+  const limits = readLimits();
+  const k = keys.find(k => !(limits[keyId(k.key)] > Date.now()));
+  if (!k) return null;
+  if (k !== current?.k) {
+    current = { k, ai: new GoogleGenAI({ apiKey: k.key, ...(process.env.GEMINI_BASE_URL ? { httpOptions: { baseUrl: process.env.GEMINI_BASE_URL } } : {}) }) };
+    console.error(`  voice key: ${k.name}`);
+  }
+  return current.ai;
+}
+function dailyLimitReached(msg) {
+  const m = msg.match(/retry in (?:(\d+)h)?(?:(\d+)m)?(?:([\d.]+)s)?/);
+  const secs = m ? (+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0) : 0;
+  const midnight = new Date(); midnight.setUTCHours(24, 0, 0, 0);
+  const until = secs ? Date.now() + secs * 1000 : midnight.getTime();
+  writeFileSync(LIMITS, JSON.stringify({ ...readLimits(), [keyId(current.k.key)]: until }));
+  console.error(`  ${current.k.name}: daily voice limit reached, until ${new Date(until).toISOString()}`);
+}
+
+// At most 8 requests and 9,000 text tokens a minute per key (the limits are 10 and 10,000).
+// Requests the API turns away still count toward the 100 a day: on 3 Oct both voices ran at
+// once, 21 requests went out in one minute, and the day's limit was gone after 31 passages.
+const RPM = 8, TPM = 9000;
+const sent = new Map();
+async function pace(name, tokens) {
+  for (;;) {
+    const now = Date.now();
+    const recent = (sent.get(name) ?? []).filter(s => now - s.at < 60_000);
+    sent.set(name, recent);
+    const used = recent.reduce((n, s) => n + s.tokens, 0);
+    if (!recent.length || (recent.length < RPM && used + tokens <= TPM)) { recent.push({ at: now, tokens }); return; }
+    await new Promise(r => setTimeout(r, Math.max(500, 60_000 - (now - recent[0].at))));
+  }
+}
+// ponytail: tokens guessed from the request's size (about 3 characters a token); the API does not
+// say before it is asked, and the 10% margin under its limit absorbs the error.
+const tokensOf = content => Math.ceil(JSON.stringify(content).length / 3);
+const isBlocked = e => /content_blocked|blocked for an unspecified policy/i.test(String(e?.message ?? e));
 
 // The PCM samples of a WAV file (Gemini returns 24 kHz mono 16-bit with a RIFF header).
 function pcmOf(wav) {
@@ -54,7 +102,38 @@ function pcmOf(wav) {
   throw new Error('no audio data in the WAV');
 }
 
-const usage = { calls: 0, cached: 0, input: 0, output: 0, chars: 0 };
+const usage = { calls: 0, cached: 0, input: 0, output: 0, chars: 0, vertex: 0 };
+
+// The last route, when every Gemini key has used its day: the same model on Google Cloud's Agent
+// Platform (VERTEX_API_KEY), paid per use with no daily quota (tested 3 Oct 2026). With an API
+// key there is no per-sentence style annotation (that API wants a Google login), and a whole
+// direction in [brackets] is read aloud, but its first five words are not: each sentence gets
+// those as a short cue. VERTEX_BASE_URL is for the test.
+const cue = style => {
+  const s = (style ?? '').split('For this sentence: ')[1];
+  return s ? `[${s.split(/\s+/).slice(0, 5).join(' ').replace(/[,.;:]+$/, '')}] ` : '';
+};
+async function askVertex(content) {
+  const base = process.env.VERTEX_BASE_URL || 'https://aiplatform.googleapis.com';
+  const r = await fetch(`${base}/v1/publishers/google/models/${job.model}:generateContent`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-goog-api-key': process.env.VERTEX_API_KEY },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: content.map(c => cue(c.annotations?.[0]?.style) + c.text).join('') }] }],
+      generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: job.voice } } } },
+    }),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(`Agent Platform ${r.status}: ${JSON.stringify(j).slice(0, 300)}`), { status: r.status });
+  const data = j.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
+  if (!data) {
+    const why = j.promptFeedback?.blockReason ?? j.candidates?.[0]?.finishReason;
+    throw Object.assign(new Error(`${/SAFETY|BLOCK|PROHIBITED/i.test(why ?? '') ? 'content_blocked' : 'no audio'} (Agent Platform: ${why ?? JSON.stringify(j).slice(0, 200)})`), { status: 400 });
+  }
+  const u = j.usageMetadata ?? {};
+  usage.calls++; usage.input += u.promptTokenCount ?? 0; usage.output += u.candidatesTokenCount ?? 0;
+  return pcmOf(Buffer.from(data, 'base64'));
+}
 const cachePath = request => join(CACHE, createHash('sha1').update(JSON.stringify(request)).digest('hex') + '.pcm');
 const annotate = (text, style) => ({ type: 'text', text, annotations: [{ type: 'speech_metadata', style }] });
 
@@ -70,12 +149,25 @@ async function speak(text) {
 // One Gemini request: text parts, each with its style note -> the PCM samples.
 async function ask(content) {
   for (let attempt = 1; ; attempt++) {
+    let onVertex = false;
     try {
       if (CLOUD) {
         const pcm = pcmOf(await askCloud(content, { lang: job.lang, voice: job.voice, sampleRate: SR }));
         usage.calls++; usage.chars += content.reduce((n, c) => n + c.text.length, 0);
         return pcm;
       }
+      const ai = client();
+      if (!ai && process.env.VERTEX_API_KEY) {
+        if (!usage.vertex++) console.error('  every Gemini key has used its day: on to the Agent Platform (VERTEX_API_KEY)');
+        onVertex = true;
+        await pace('VERTEX_API_KEY', tokensOf(content));
+        return await askVertex(content);
+      }
+      if (!ai) {
+        console.error(`✗ Gemini daily voice limit reached on every key (${keys.map(k => k.name).join(', ') || 'none set'}).\n  Add a key from another Google project as GEMINI_API_KEY<n>, or VERTEX_API_KEY, or wait for the reset.`);
+        process.exit(3);
+      }
+      await pace(current.k.name, tokensOf(content));
       // No SDK retries: it sleeps whatever retry-after the API sends, silently (14 h for the
       // daily limit on 2 Oct). The waits are decided below instead.
       const r = await ai.interactions.create({
@@ -98,11 +190,9 @@ async function ask(content) {
       return pcm;
     } catch (e) {
       const msg = String(e.message ?? e);
-      // The daily limit (100 requests per Google project on Tier 1) does not pass in minutes.
-      if (/per day/i.test(msg)) {
-        console.error(`✗ Gemini daily voice limit reached: ${msg.slice(0, 200)}\n  Use a key from a Google project that has not voiced today, or wait for 00:00 UTC.`);
-        process.exit(3);
-      }
+      // The daily limit (100 requests per Google project on Tier 1) does not pass in minutes:
+      // on to the next key (client() above stops the run when none is left).
+      if (/per day/i.test(msg) && !CLOUD && !onVertex) { dailyLimitReached(msg); attempt--; continue; }
       // A request that cannot succeed (a bad key, a bad request) is not tried again.
       if (attempt >= 6 || (e.status >= 400 && e.status < 500 && e.status !== 429)) throw e;
       // The per-minute limit (10 requests) or a busy server: wait what the API asks, at most 90 s.
@@ -172,7 +262,11 @@ async function hear(pcm) {
   const key = process.env.GROQ_API_KEY;
   if (!key) return null;
   const form = new FormData();
-  form.append('file', new Blob([wavOf(pcm)], { type: 'audio/wav' }), 'passage.wav');
+  // As mp3: a passage of 8 minutes is 23 MB as a WAV, and Groq takes at most 25 MB.
+  const mp3 = spawnSync('ffmpeg', ['-v', 'error', '-f', 's16le', '-ar', String(SR), '-ac', '1', '-i', 'pipe:0', '-b:a', '48k', '-f', 'mp3', 'pipe:1'],
+    { input: pcm, maxBuffer: 256 * 1024 * 1024 });
+  if (mp3.status === 0) form.append('file', new Blob([mp3.stdout], { type: 'audio/mpeg' }), 'passage.mp3');
+  else form.append('file', new Blob([wavOf(pcm)], { type: 'audio/wav' }), 'passage.wav');
   form.append('model', 'whisper-large-v3');
   form.append('language', job.lang ?? 'ur');
   form.append('response_format', 'text');
@@ -185,6 +279,25 @@ async function hear(pcm) {
     await new Promise(r => setTimeout(r, 5000 * attempt));
   }
   return null;
+}
+
+// Gemini can refuse a passage with "content_blocked" and no reason (3 Oct, an English passage
+// of the 2 Oct Madinah khutbah; the whole voice step stopped). Then the same words without the
+// per-sentence directions, then block by block, so the run stops only for a block Gemini will
+// not say at all, and names it.
+async function askAround(content, blocks, n) {
+  try { return await ask(content); } catch (e) { if (!isBlocked(e)) throw e; }
+  const where = `passage ${n + 1} (blocks ${blocks[0].i}-${blocks.at(-1).i})`;
+  console.error(`  ${where}: blocked by Gemini, no reason given; again without the directions`);
+  try { return await ask([annotate(blocks.map(b => b.text).join(' '), job.style)]); } catch (e) { if (!isBlocked(e)) throw e; }
+  console.error(`  ${where}: blocked again; block by block`);
+  const out = [];
+  for (const b of blocks) {
+    try { out.push(await ask([annotate(b.text, job.style)]), Buffer.alloc(Math.round(SR * 0.4) * 2)); } catch (e) {
+      throw isBlocked(e) ? new Error(`Gemini will not voice block ${b.i} ("content_blocked"): "${b.text.slice(0, 120)}"`) : e;
+    }
+  }
+  return Buffer.concat(out);
 }
 
 const checks = [];
@@ -207,7 +320,7 @@ async function speakPassage(blocks, n) {
   const text = blocks.map(b => b.text).join(' ');
   let best = null;
   for (let take = 1; take <= 3; take++) {
-    const pcm = await ask(content);
+    const pcm = await askAround(content, blocks, n);
     const heard = await hear(pcm);
     const share = heard == null ? null : heardShare(text, heard);
     const score = share ? share.said - Math.max(0, share.extra - 1.15) : 1;
@@ -305,5 +418,5 @@ if (job.passages) {
 
 const cost = usage.input * PRICE_IN + usage.output * PRICE_OUT;
 if (CLOUD) console.error(`  ${usage.calls} Cloud TTS call(s) (${CLOUD_MODEL}), ${usage.cached} from cache, ${usage.chars} characters; cost per the Cloud billing page`);
-else console.error(`  ${usage.calls} Gemini call(s), ${usage.cached} block(s) from cache, ${usage.input} in / ${usage.output} out tokens, about $${cost.toFixed(3)}`);
+else console.error(`  ${usage.calls} Gemini call(s)${usage.vertex ? ` (${usage.vertex} on the Agent Platform)` : ''}, ${usage.cached} from cache, ${usage.input} in / ${usage.output} out tokens, about $${cost.toFixed(3)}`);
 console.log('\n' + JSON.stringify(times));

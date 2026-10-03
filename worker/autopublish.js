@@ -195,9 +195,9 @@ async function main() {
   await run('verse excerpts', 'node', ['core/verse_excerpts.js', F]);
 
   // 5. Voices, then the recitation. Both are voiced a passage at a time with a direction per
-  //    sentence (--direct): about 13 Gemini requests each instead of one per block (67 for the
-  //    English on 2 Oct, when two runs in a day hit the 100-a-day limit), and the word times
-  //    come with the passage split, so align_words.py runs only if that failed.
+  //    sentence (--direct): about 4 Gemini requests each since 3 Oct (13 before; one per block,
+  //    67 for the English, on 2 Oct, when two runs in a day hit the 100-a-day limit), and the word
+  //    times come with the passage split, so align_words.py runs only if that failed.
   await report('voices', { message: 'Urdu (Orus) and English (Charon)' });
   const recitation = cleanAudio ? join('audio_files', `${name}-clean.wav`) : audioOut;
   let voiced = 0;
@@ -208,10 +208,10 @@ async function main() {
     if (!m.blocks.every(b => b.words?.length)) await run(`${lang} word timing`, PY_ALIGN, ['voice/align_words.py', F, lang]);
     await run(`${lang} recitation`, 'node', ['voice/recite.js', F, lang, recitation, '--lift', '2']);
   };
-  await Promise.all([
-    voice('ur', 'Urdu', ['--voice', 'Orus', '--direct']),
-    voice('en', 'English', ['--direct']),
-  ]);
+  // One after the other, Urdu first: side by side they sent 21 requests in a minute against a
+  // limit of 10 (3 Oct), and the turned-away requests counted toward the 100 a day.
+  await voice('ur', 'Urdu', ['--voice', 'Orus', '--direct']);
+  await voice('en', 'English', ['--direct']);
 
   // 6. Publish: checks, test set, then the site's publish API (one page). The page plays the
   // imam's recording (the echo-removed one with --clean).
