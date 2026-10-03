@@ -589,6 +589,31 @@ function extendZonesByConsecutiveAyahs(zones, tNorm) {
   return zones;
 }
 
+// A verse's first word or two that the match missed because the imam's form differs from the
+// corpus only by a leading و ("ويكفر" for the Quran's "يكفر", "من" for "ومن"), or because the
+// corpus writes يا أيها as one word, ياايها. Left out, they became one-word prose blocks beside a
+// full sentence of translation ("ويكفر", "يا"; 2 Oct 2026 Madinah). A word joins the verse only
+// if it is the verse's own preceding word, so a lead-in like "قال تعالى" stays in the prose.
+const noWaw = w => w.replace(/^و(?=..)/, '');
+function extendZoneStarts(zones, tNorm) {
+  for (const z of zones) {
+    const verse = quranData[z.surah_id - 1]?.verses?.[z.ayah_id - 1]?.text;
+    if (!verse) continue;
+    const words = normalizeArabicDeep(verse).split(/\s+/).filter(Boolean);
+    let k = words.indexOf(tNorm[z.start]);
+    let start = z.start;
+    for (let taken = 0; taken < 2 && k > 0 && start > 0; taken++) {
+      const want = words[k - 1], have = tNorm[start - 1];
+      if (noWaw(want) === noWaw(have)) { start--; k--; }
+      else if (want === `يا${have}` && tNorm[start - 2] === 'يا') { start -= 2; k--; }
+      else break;
+    }
+    if (start === z.start) continue;
+    z.start = start;
+    for (const s of z.ayah_spans ?? []) s.start = Math.min(s.start, start);
+  }
+}
+
 function prescanForQuranZones(transcriptWords, n = 4) {
   if (!quranData) return [];
   const index = getQuranNgramIndex(n);
@@ -640,6 +665,8 @@ function prescanForQuranZones(transcriptWords, n = 4) {
     // Always advance i past the zone (guard against a span that doesn't move us forward).
     i = Math.max(bestEnd, i + 1);
   }
+
+  extendZoneStarts(zones, tNorm);
 
   // PAD_START=0: do NOT pad the zone backward. Padding pulled the intro phrase's last
   // word(s) ("قال الله [تعالى]", "قال عز [وجل]") into the zone, where they were excluded

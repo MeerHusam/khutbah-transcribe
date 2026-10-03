@@ -133,6 +133,22 @@ export function verifyReader(folder, { readerRaw: readerOverride = null, result:
     }
   }
 
+  // ── 2c. No word or two of a verse left outside its card ───────────────────────
+  // "ويكفر" and "يا" stood as blocks of their own beside the verse cards, each with a full
+  // sentence of translation (2 Oct 2026 Madinah: the verse match missed a leading و and the
+  // split يا أيها). A lead-in such as "قال تعالى:" is a short block beside a verse too, and is fine.
+  const isVerse = b => b?.englishParas.some(p => /^📖/.test(p));
+  blocks.forEach((b, k) => {
+    const ws = b.arabic.split(/\s+/).filter(Boolean);
+    if (isVerse(b) || ws.length > 2 || !(isVerse(blocks[k - 1]) || isVerse(blocks[k + 1]))) return;
+    if (/[:：]$/.test(b.arabic.trim()) || /^(?:ف|و)?(?:قال|يقول|تعالي|تعالى|سبحانه|وجل)/.test(normalizeArabic(ws[0]))) return;
+    // The fragments carried a whole sentence of English ("and He will expiate his sins and grant
+    // him a great reward"); a short block that is really short ("نعم. نعم", Arafah) does not.
+    const english = b.englishParas.filter(p => !/^(📖|📑|📚|❝)/.test(p)).join(' ').split(/\s+/).filter(Boolean).length;
+    if (english <= 6) return;
+    fail(`a ${ws.length}-word block beside a verse card, likely a verse word the match missed: "${b.arabic}"`);
+  });
+
   // ── 3. No block may show two translations of the same thing ──────────────────
   // The hadith cards briefly rendered Claude's paraphrase and the published translation
   // stacked on top of each other.
