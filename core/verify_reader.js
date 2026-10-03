@@ -12,7 +12,7 @@
 import { readFileSync, existsSync } from 'fs';
 import { join, resolve } from 'path';
 import { pathToFileURL } from 'url';
-import { normalizeArabic, normalizeArabicDeep } from './arabic.js';
+import { normalizeArabic, normalizeArabicDeep, splitsPhrase } from './arabic.js';
 import { loadResult } from './reader_chunks.js';
 import { checkEnglish } from './check_english.js';
 
@@ -147,6 +147,15 @@ export function verifyReader(folder, { readerRaw: readerOverride = null, result:
     const english = b.englishParas.filter(p => !/^(📖|📑|📚|❝)/.test(p)).join(' ').split(/\s+/).filter(Boolean).length;
     if (english <= 6) return;
     fail(`a ${ws.length}-word block beside a verse card, likely a verse word the match missed: "${b.arabic}"`);
+  });
+
+  // ── 2d. No block break inside "صلى الله عليه وسلم" or a like phrase ───────────────
+  // A block ended "يقول النبي صلى" and the next began "الله عليه وسلم:", so its English began
+  // "وسلم said:" (2 Oct 2026 Madinah; a timing segment ended there).
+  blocks.forEach((b, k) => {
+    if (!k) return;
+    const prev = blocks[k - 1].arabic.split(/\s+/).filter(Boolean).slice(-4), next = b.arabic.split(/\s+/).filter(Boolean).slice(0, 4);
+    if (splitsPhrase([...prev, ...next], prev.length)) fail(`a block break splits a phrase: "${prev.join(' ')} | ${next.join(' ')}"`);
   });
 
   // ── 3. No block may show two translations of the same thing ──────────────────

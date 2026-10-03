@@ -841,6 +841,20 @@ function buildZoneRefs(zones, transcriptWords, existingRefs) {
 // Splits transcript words into numbered prose chunks, skipping detected Quran zones.
 // Returns [{text, wordStart, wordEnd, proseIdx}] for prose chunks only.
 // proseIdx is the 0-based index matching the chunk_translations array.
+// Phrases a block never splits: on 2 Oct 2026 (Madinah) a 30-second timing segment ended inside
+// "يقول النبي صلى | الله عليه وسلم: ليس الغنى…", the long sentence was cut there, and the English
+// block began "وسلم said:". A cut that would fall inside one moves past it.
+const FIXED_PHRASES = ['صلى الله عليه وسلم', 'صلى الله عليه وآله وسلم', 'رضي الله عنه', 'رضي الله عنها',
+  'رضي الله عنهما', 'رضي الله عنهم', 'عز وجل', 'جل جلاله', 'سبحانه وتعالى', 'تبارك وتعالى', 'عليه السلام',
+  'عليه الصلاة والسلام', 'رحمه الله'].map(p => p.split(' ').map(w => normalizeArabic(w)));
+const bare = w => normalizeArabic(w ?? '').replace(/[^\u0621-\u064A]/g, '');
+function splitsPhrase(words, b) {
+  return FIXED_PHRASES.some(p => {
+    for (let k = 1; k < p.length; k++) if (p.every((w, j) => bare(words[b - k + j]) === bare(w))) return true;
+    return false;
+  });
+}
+
 function buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSegments) {
   // Build set of word-index positions where each Whisper segment ends.
   // These are the natural breath/pause boundaries in the imam's speech.
@@ -868,6 +882,7 @@ function buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSeg
     if (!/^(?:متفق عليه|(?:رواه|اخرجه|خرجه) )/.test(normalizeArabic(transcriptWords.slice(b, b + 3).join(' ')))) continue;
     if (transcriptWords.slice(b, b + 6).some(w => /[.؟!…]$/.test(w))) breakSet.delete(b);
   }
+  for (const b of [...breakSet]) if (splitsPhrase(transcriptWords, b)) breakSet.delete(b);
 
   const proseChunks = [];
   let cursor = 0;
@@ -931,9 +946,10 @@ function buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSeg
         if (end < e) {
           let cut = -1;
           for (let b = end; b > i + MIN_CHUNK; b--) {
-            if (segBreaks.has(b) || /[،,؛;]$/.test(transcriptWords[b - 1] ?? '')) { cut = b; break; }
+            if ((segBreaks.has(b) || /[،,؛;]$/.test(transcriptWords[b - 1] ?? '')) && !splitsPhrase(transcriptWords, b)) { cut = b; break; }
           }
           if (cut > i) end = cut;
+          while (end < e && splitsPhrase(transcriptWords, end)) end++;
         }
         const slice = transcriptWords.slice(i, end);
         if (slice.length > 0)
@@ -1060,6 +1076,7 @@ function matchClaudeQuranRef(ref) {
 }
 
 export {
+  splitsPhrase,
   matchClaudeQuranRef,
   normalizeArabic,
   wordOverlapScore,
