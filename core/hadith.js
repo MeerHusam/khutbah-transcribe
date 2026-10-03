@@ -331,6 +331,11 @@ function parseSunnahNarrator(narrated, lead = '') {
   // Companion is the father, named inside the son's name.
   const fromFather = txt.match(/^\S+ (?:bin|ibn|b\.) (.+?) (?:narrated|reported) from his father/i);
   if (fromFather) return { narrator: cut(fromFather[1]), companion: cut(fromFather[1]), successor: false };
+  // "Al-Hasan narrated from Abu Hurairah that the Messenger of Allah (s.a.w) said:" (Tirmidhi 2305):
+  // the first name is a Successor, the Companion is the one he narrates from. The card showed
+  // "Al-Hasan" (2 Oct 2026 Madinah), though the imam named Abu Hurairah himself.
+  const from = txt.match(/^(.+?) (?:narrated|reported) (?:from|on the authority of) (?!his )(.+?)(?: that\b| who\b| saying\b|:|,)/i);
+  if (from) return { narrator: cut(from[1]), companion: cut(from[2]), successor: true };
   // Cut at the reporting clause: "Sa'd b. Abu Waqqas reported Allah's Messenger (ﷺ) as
   // saying" and "Salman who" were shown whole as the narrator's name.
   const first = cut(txt) || null;
