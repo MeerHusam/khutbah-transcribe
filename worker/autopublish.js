@@ -26,7 +26,7 @@
 import 'dotenv/config';
 import Anthropic from '@anthropic-ai/sdk';
 import { spawn } from 'child_process';
-import { readFileSync, existsSync, readdirSync, mkdirSync, appendFileSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync, appendFileSync } from 'fs';
 import { join, extname, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { siteSlugs } from './site.js';
@@ -154,9 +154,10 @@ async function main() {
   const audioOut = join('audio_files', audioName);
   const result = JSON.parse(readFileSync(join(ROOT, F, 'result.json'), 'utf8'));
 
-  // 2. Title.
-  let title = null;
-  try {
+  // 2. Title, kept in the folder: a resumed run (voices added later) keeps the page's title.
+  const titleFile = join(ROOT, F, 'title.txt');
+  let title = existsSync(titleFile) ? readFileSync(titleFile, 'utf8').trim() || null : null;
+  if (!title) try {
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 60_000, maxRetries: 6 }); // 6: rides out a short "Overloaded"
     const r = await anthropic.messages.create({
       model: 'claude-sonnet-5-5', max_tokens: 2000, output_config: { effort: 'low' },
@@ -164,6 +165,7 @@ async function main() {
     });
     title = r.content.find(b => b.type === 'text')?.text.trim().replace(/^["'“]|["'”.]$/g, '').split('\n')[0].slice(0, 60) || null;
   } catch (e) { log(`title: ${e.message}`); }
+  if (title && !existsSync(titleFile)) writeFileSync(titleFile, title + '\n'); // only a real title is kept
   title ||= (result.share_summary || 'Friday Khutbah').split(/\s+/).slice(0, 5).join(' ');
   await report('english', { title, message: title });
 
@@ -210,8 +212,17 @@ async function main() {
   };
   // One after the other, Urdu first: side by side they sent 21 requests in a minute against a
   // limit of 10 (3 Oct), and the turned-away requests counted toward the 100 a day.
-  await voice('ur', 'Urdu', ['--voice', 'Orus', '--direct']);
-  await voice('en', 'English', ['--direct']);
+  // A voice that cannot be made now (every key spent, a refusal) does not hold back the page:
+  // it goes live with its text, and the worker adds the voice later (logs/voices_pending.json).
+  const voiceFailed = [];
+  for (const [lang, label, args] of [['ur', 'Urdu', ['--voice', 'Orus', '--direct']], ['en', 'English', ['--direct']]]) {
+    try { await voice(lang, label, args); } catch (e) {
+      // The line of its output that says what went wrong ("✗ …", "…Error: …"), not the stack.
+      const why = (e.tail ?? '').split('\n').map(l => l.trim()).filter(l => /✗|Error\b/.test(l)).pop() ?? e.message;
+      voiceFailed.push(`${label}: ${why}`.slice(0, 240));
+      log(`✗ ${label} voice: the page goes up without it for now`);
+    }
+  }
 
   // 6. Publish: checks, test set, then the site's publish API (one page). The page plays the
   // imam's recording (the echo-removed one with --clean).
@@ -222,15 +233,41 @@ async function main() {
     ...(push ? ['--site', SITE] : ['--no-site'])]);
   const link = `${SITE}/${slug}`;
   const summary = times.map(([l, s]) => `${l} ${s}s`).join(', ');
+  const pendingNote = voicesPending(voiceFailed, F);
   if (!push) {
     log(`not published (--no-push). Steps: ${summary}`);
-    await report('live', { link: `(not published) ${link}`, message: `${mins()} min, not published` });
+    await report('live', { link: `(not published) ${link}`, message: `${mins()} min, not published${pendingNote}` });
+    if (voiceFailed.length) process.exit(4);
     return;
   }
   const r = await fetch(link).catch(() => null);
   if (!r?.ok) throw new Error(`published, but ${link} did not load (${r?.status ?? 'no answer'})`);
   log(`live: ${link}. Steps: ${summary}`);
-  await report('live', { link, message: `${mins()} min from upload start` });
+  await report('live', { link, message: `${mins()} min from upload start${pendingNote}` });
+  if (voiceFailed.length) process.exit(4);
+}
+
+// Voices still to make: the worker (upload_worker.js) runs this job again with --resume when
+// `next` comes (finished steps are kept and voiced passages come from the cache); it counts the
+// tries and gives up after a day. Exit code 4 = live without some voice. Once every voice is
+// made, the entry is removed.
+function voicesPending(failed, key) {
+  const file = join(ROOT, 'logs', 'voices_pending.json');
+  let all = {};
+  try { all = JSON.parse(readFileSync(file, 'utf8')); } catch { /* none yet */ }
+  if (!failed.length) {
+    if (all[key]) { delete all[key]; writeFileSync(file, JSON.stringify(all, null, 1)); log('voices: the pending entry is done'); }
+    return '';
+  }
+  all[key] = {
+    job: jobId, slug, why: failed, tries: all[key]?.tries ?? 0,
+    next: all[key]?.next ?? new Date(Date.now() + 60 * 60_000).toISOString(),
+    args: ['--resume', key, ...(jobId ? ['--job', jobId] : []), ...(masjidIn ? ['--masjid', masjidIn] : []), '--date', dateISO,
+      ...(single ? ['--single'] : []), ...(push ? [] : ['--no-push']), ...(flag('--clean') ? ['--clean'] : [])],
+  };
+  writeFileSync(file, JSON.stringify(all, null, 1));
+  log(`voices pending (${failed.join('; ')}); the worker tries again at ${all[key].next}`);
+  return ` · voices pending, added automatically: ${failed.join('; ')}`;
 }
 
 main().catch(async e => {

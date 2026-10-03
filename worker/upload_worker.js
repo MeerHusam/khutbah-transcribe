@@ -12,7 +12,7 @@
 
 import 'dotenv/config';
 import { spawn } from 'child_process';
-import { createWriteStream, mkdirSync, appendFileSync } from 'fs';
+import { createWriteStream, mkdirSync, appendFileSync, readFileSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { Readable } from 'stream';
@@ -55,9 +55,36 @@ async function next() {
   return false;
 }
 
+// Voices a run could not make (every key spent, a refusal): autopublish published the page
+// without them and listed the job in logs/voices_pending.json. When an entry's time comes it runs
+// again with --resume, which adds the voices to the live page; hourly, for at most a day.
+const PENDING = join(ROOT, 'logs', 'voices_pending.json');
+async function pendingVoices() {
+  let all;
+  try { all = JSON.parse(readFileSync(PENDING, 'utf8')); } catch { return false; }
+  const due = Object.entries(all).find(([, p]) => Date.parse(p.next) <= Date.now());
+  if (!due) return false;
+  const [folder, p] = due;
+  if (p.tries >= 24) {
+    delete all[folder];
+    writeFileSync(PENDING, JSON.stringify(all, null, 1));
+    log(`voices for ${folder}: given up after ${p.tries} tries (${p.why.join('; ')})`);
+    if (p.job) await status(p.job, 'live', `voices failed after a day of tries: ${p.why.join('; ')}`.slice(0, 400)).catch(() => {});
+    return false;
+  }
+  // Counted and moved on before the run, so a run that dies early is not repeated at once.
+  all[folder] = { ...p, tries: p.tries + 1, next: new Date(Date.now() + 60 * 60_000).toISOString() };
+  writeFileSync(PENDING, JSON.stringify(all, null, 1));
+  log(`voices for ${folder}: try ${p.tries + 1}`);
+  const code = await new Promise(res => spawn('node', ['worker/autopublish.js', ...p.args, ...EXTRA], { cwd: ROOT, stdio: 'inherit', env: process.env }).on('close', res));
+  log(`voices for ${folder}: autopublish exited ${code}${code === 0 ? ' (voices added)' : ''}`);
+  return true;
+}
+
 log(`worker started: ${SITE}${EXTRA.length ? ` (autopublish ${EXTRA.join(' ')})` : ''}`);
 for (;;) {
   let worked = false;
   try { worked = await next(); } catch (e) { log(`(site not reachable: ${e.message})`); }
+  if (!worked) try { worked = await pendingVoices(); } catch (e) { log(`(pending voices: ${e.message})`); }
   if (!worked) await new Promise(r => setTimeout(r, 15000));
 }
