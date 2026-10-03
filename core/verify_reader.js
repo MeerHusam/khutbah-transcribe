@@ -15,6 +15,9 @@ import { pathToFileURL } from 'url';
 import { normalizeArabic, normalizeArabicDeep, splitsPhrase } from './arabic.js';
 import { loadResult } from './reader_chunks.js';
 import { checkEnglish } from './check_english.js';
+import '../public/recited.js';
+
+const { recitedSpans } = globalThis.KTRecited;
 
 const quran = JSON.parse(readFileSync(new URL('../node_modules/quran-json/dist/quran.json', import.meta.url), 'utf8'));
 const ayahText = (s, a) =>
@@ -157,6 +160,29 @@ export function verifyReader(folder, { readerRaw: readerOverride = null, result:
     const prev = blocks[k - 1].arabic.split(/\s+/).filter(Boolean).slice(-4), next = b.arabic.split(/\s+/).filter(Boolean).slice(0, 4);
     if (splitsPhrase([...prev, ...next], prev.length)) fail(`a block break splits a phrase: "${prev.join(' ')} | ${next.join(' ')}"`);
   });
+
+  // ── 2e. A verse card marks only what the imam recited ─────────────────────────
+  // 65:4's recited part was taken from a lone "من" 18 words before what he said, so the card,
+  // its translation and the voices gave nearly the whole verse (2 Oct 2026 Madinah;
+  // public/recited.js now drops such strays). A stored excerpt serves only the words it was
+  // made for: after a change to the alignment, core/verse_excerpts.js must run again.
+  for (const b of blocks) {
+    const badge = b.englishParas.map(p => p.match(/^📖\s+.+?\s+(\d+):(\d+)(?:-(\d+))?\s+—/)).find(Boolean);
+    if (!badge) continue;
+    const s = +badge[1], a = +badge[2], e = +(badge[3] ?? badge[2]);
+    const texts = [];
+    for (let n = a; n <= e && texts.length < 25; n++) texts.push(ayahText(s, n));
+    if (texts.some(t => !t)) continue;
+    const spans = recitedSpans(b.arabic, texts);
+    const ref = `${s}:${a}${e > a ? `-${e}` : ''}`;
+    const said = words(b.arabic).length;
+    const marked = spans.reduce((n, sp) => n + (sp ? sp[1] - sp[0] + 1 : 0), 0);
+    if (marked > 1.5 * said + 4) fail(`${ref} card marks ${marked} words as recited, but the imam said ${said}: "${b.arabic.slice(0, 50)}"`);
+    const ex = (result.verse_excerpts ?? []).find(x => x.arabic === b.arabic && x.surah === s && x.ayah === a);
+    for (const [n, v] of Object.entries(ex?.verses ?? {})) {
+      if (!v.whole && String(v.span) !== String(spans[+n - a])) fail(`${s}:${n} excerpt was made for words ${v.span}, the card marks ${spans[+n - a]}: run core/verse_excerpts.js`);
+    }
+  }
 
   // ── 3. No block may show two translations of the same thing ──────────────────
   // The hadith cards briefly rendered Claude's paraphrase and the published translation

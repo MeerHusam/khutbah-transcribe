@@ -32,14 +32,31 @@
     }
     const hit = verseTexts.map(() => []);
     for (let a = 0, b = 0; a < n && b < m;) {
-      if (cw[a].k && cw[a].k === rw[b]) { hit[cw[a].v].push(cw[a].i); a++; b++; }
+      if (cw[a].k && cw[a].k === rw[b]) { hit[cw[a].v].push([cw[a].i, b]); a++; b++; }
       else if (dp[a + 1][b] >= dp[a][b + 1]) a++; else b++;
     }
     // Enough hits to trust: three, or half of a short verse (Abasa 80:28 is two words).
     return hit.map((h, v) => {
+      const kept = withoutStrays(h);
       const need = Math.min(3, Math.ceil(verseTexts[v].split(/\s+/).filter(Boolean).length / 2));
-      return h.length >= need ? [Math.min(...h), Math.max(...h)] : null;
+      return kept.length >= need ? [Math.min(...kept), Math.max(...kept)] : null;
     });
+  }
+
+  // A common word matched far from the rest of its verse while the imam's words run on is not
+  // where he recited: on 2 Oct 2026 (Madinah) his "من يتق الله…" paired its "من" with 65:4's
+  // "من المحيض", 18 words earlier, and the card showed the whole verse as recited. The hits are
+  // cut into runs wherever the verse jumps more than 3 words further than the imam's words do;
+  // runs of one or two words beside a longer run are dropped. [[verse index, recited index]] ->
+  // the verse indexes kept.
+  function withoutStrays(h) {
+    const runs = [];
+    h.forEach(([i, b], j) => {
+      if (!j || (i - h[j - 1][0]) - (b - h[j - 1][1]) > 3) runs.push([]);
+      runs[runs.length - 1].push(i);
+    });
+    const long = runs.filter(r => r.length >= 3);
+    return [].concat(...(long.length ? long : runs));
   }
 
   root.KTRecited = { normArWord, looseAr, recitedSpans };
