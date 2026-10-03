@@ -75,8 +75,9 @@
       justify-content: space-between;
       position: sticky; top: 0; z-index: 50;
     }
-    /* Brand and badge take equal widths so the nav sits in the true centre. */
-    .header-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; flex: 1 1 0; min-width: 0; }
+    /* Brand and badge take equal widths so the nav sits in the true centre; the brand never
+       shrinks under its name (it did between 700 and 900 px, and the nav ran over it). */
+    .header-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; flex: 1 1 0; }
     .logo-mark {
       width: 40px; height: 40px;
       border-radius: 50%;
@@ -367,6 +368,24 @@
       transition: color 0.15s, background 0.15s;
     }
     .header-nav a:hover { color: var(--cream); background: rgba(255,255,255,0.05); }
+    /* Below 900 px the nav is a menu under the header, opened by this button. */
+    .menu-btn {
+      display: none; align-items: center; justify-content: center;
+      width: 38px; height: 34px; margin-left: 12px; flex-shrink: 0;
+      background: none; border: 1px solid var(--border); border-radius: 8px;
+      color: var(--cream); cursor: pointer;
+    }
+    @media (max-width: 900px) {
+      .menu-btn { display: inline-flex; }
+      .header-nav {
+        display: none; position: absolute; top: 100%; left: 0; right: 0;
+        flex-direction: column; align-items: stretch; gap: 2px;
+        padding: 8px 14px 14px; background: #0a1611;
+        border-bottom: 1px solid var(--border);
+      }
+      header.menu-open .header-nav { display: flex; }
+      .header-nav a { font-size: 15px; padding: 12px 14px; }
+    }
 
     /* ── About & Contact sections ── */
     .content-section {
@@ -559,7 +578,6 @@
       .featured-card .card-cta { flex-direction: row; align-items: center; min-width: unset; }
       .about-grid { grid-template-columns: 1fr; }
       .contact-wrap { grid-template-columns: 1fr; }
-      .header-nav { display: none; }
     }
 
     /* ── Fade-in ── */
@@ -580,7 +598,7 @@
     <img class="logo-mark" src="/img/logo.svg" alt="" width="40" height="40">
     <span class="brand-name">Khutbah<span class="tld">.dev</span></span>
   </a>
-  <nav class="header-nav">
+  <nav class="header-nav" id="headerNav">
     <a href="#khutbahs">Khutbahs</a>
     <a href="#how-it-works">How it Works</a>
     <a href="#why">Why</a>
@@ -592,7 +610,21 @@
     <span><b id="liveCount">–</b> live</span>
     <span class="badge-extra">· <b id="uniqueCount">–</b> unique · <b id="totalCount">–</b> visits</span>
   </div>
+  <button class="menu-btn" id="menuBtn" aria-label="Menu" aria-expanded="false" aria-controls="headerNav">
+    <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 5h14M3 10h14M3 15h14"/></svg>
+  </button>
 </header>
+<script>
+  // The menu below 900 px: the button opens it; a link, a tap elsewhere or Escape closes it.
+  (() => {
+    const header = document.querySelector('header'), btn = document.getElementById('menuBtn');
+    const set = open => { header.classList.toggle('menu-open', open); btn.setAttribute('aria-expanded', open); };
+    btn.addEventListener('click', e => { e.stopPropagation(); set(!header.classList.contains('menu-open')); });
+    document.addEventListener('click', e => { if (!e.target.closest('#headerNav')) set(false); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') set(false); });
+    document.querySelectorAll('#headerNav a').forEach(a => a.addEventListener('click', () => set(false)));
+  })();
+</script>
 
 <section class="hero">
   <div class="hero-ar" aria-hidden="true">الخطبة</div>

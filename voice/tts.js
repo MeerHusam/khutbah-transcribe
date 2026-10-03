@@ -155,7 +155,8 @@ function verseSpeech(chunk, s, a, e, excerpts) {
     const out = [];
     for (let i = 0; i < nums.length; i++) {
       if (!spans[i]) continue;
-      const t = whole[i] ? en[i] : ex.verses?.[nums[i]]?.[lang];
+      const v = ex.verses?.[nums[i]]; // only an excerpt made for these words
+      const t = whole[i] ? en[i] : String(v?.span) === String(spans[i]) && v[lang];
       if (!t) return joinVerses(en);
       out.push(t);
     }
