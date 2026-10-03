@@ -82,6 +82,9 @@ async function pendingVoices() {
 }
 
 log(`worker started: ${SITE}${EXTRA.length ? ` (autopublish ${EXTRA.join(' ')})` : ''}`);
+// Every model and key the pipeline needs, checked once at the start (scripts/check_keys.js).
+await new Promise(res => spawn('node', ['scripts/check_keys.js'], { cwd: ROOT, stdio: ['ignore', 'pipe', 'inherit'] })
+  .on('close', code => { log(code === 0 ? 'check: everything the pipeline needs answers' : 'check: something the pipeline needs is DOWN (npm run check)'); res(); }));
 for (;;) {
   let worked = false;
   try { worked = await next(); } catch (e) { log(`(site not reachable: ${e.message})`); }
