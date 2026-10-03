@@ -33,7 +33,7 @@ import { readFileSync, writeFileSync, existsSync, openSync, readSync, closeSync,
 import { join, extname, basename, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { verifyReader } from '../core/verify_reader.js';
-import { publishToSite, siteSlugs, recordInSeed } from './site.js';
+import { publishToSite, siteItems, recordInSeed } from './site.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -58,8 +58,12 @@ const dryRun = flag('--dry-run');
 
 const site = flag('--no-site') ? null : opt('--site', 'http://localhost:3000').replace(/\/+$/, '');
 if (site) {
-  const taken = await siteSlugs(site).catch(e => die(`cannot reach ${site} (${e.message}): start it with npm start, or pass --site <url> or --no-site`));
-  if (taken.includes(slug)) die(`slug "${slug}" is already on ${site}`);
+  const items = await siteItems(site).catch(e => die(`cannot reach ${site} (${e.message}): start it with npm start, or pass --site <url> or --no-site`));
+  // The same run published again (a fix, or its voices added later by the worker) updates its
+  // page in place; another khutbah's link is refused. Until 4 Oct any taken link was refused,
+  // so a resumed autopublish run could never add its voices.
+  const owner = items.find(i => i.slug === slug);
+  if (owner && owner.folder !== basename(fromFolder ?? '')) die(`slug "${slug}" is already on ${site} (${owner.folder})`);
 }
 
 const run = (cmd, args) => {

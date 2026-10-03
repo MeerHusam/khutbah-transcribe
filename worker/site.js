@@ -45,12 +45,13 @@ async function call(site, key, method, path, body, type) {
   return r.json();
 }
 
-// The short links already in use on the site.
-export async function siteSlugs(site) {
+// The khutbahs on the site ({ slug, folder, … }), and the short links in use.
+export async function siteItems(site) {
   const r = await fetch(`${site}/api/results`);
   if (!r.ok) throw new Error(`${site}/api/results: ${r.status}`);
-  return (await r.json()).items.map(i => i.slug);
+  return (await r.json()).items;
 }
+export const siteSlugs = async site => (await siteItems(site)).map(i => i.slug);
 
 // folderPath: the run's folder (outputs/<folder>); recording: the audio file the page plays (its
 // name is the entry's `audio`, or the folder's name after the timestamp); entry: slug, title, …
