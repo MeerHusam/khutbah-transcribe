@@ -255,6 +255,12 @@
     }
 
     .khutbah-heading { margin-bottom: 22px; }
+    /* The way back to the list: the logo also goes home, but few would guess it. */
+    .back-home {
+      display: inline-block; margin-bottom: 14px;
+      font-size: 13px; font-weight: 500; color: var(--text-muted); text-decoration: none;
+    }
+    .back-home:hover { color: var(--gold); }
     .khutbah-heading h2 {
       font-family: var(--font-serif);
       font-size: 26px; font-weight: 600; line-height: 1.3; color: var(--cream);
@@ -912,6 +918,7 @@
     <div class="layout">
       <div class="main-col">
 
+        <a class="back-home" href="/#khutbahs">← All khutbahs</a>
         ${r.title ? `<div class="khutbah-heading">
           <h2>${escHtml(r.title)}</h2>
           ${r.speaker ? `<div class="speaker">${escHtml(r.speaker)}</div>` : ''}
@@ -1084,7 +1091,9 @@
           const out = [];
           for (let i = 0; i < ayahNums.length; i++) {
             if (!spans[i]) continue;
-            const t = whole[i] ? texts[i] : ex.verses[ayahNums[i]] && ex.verses[ayahNums[i]][lang];
+            // An excerpt made for other words (the alignment has changed since) is not used.
+            const v = ex.verses[ayahNums[i]];
+            const t = whole[i] ? texts[i] : v && String(v.span) === String(spans[i]) && v[lang];
             if (!t) return null;
             const body = whole[i] ? escHtml(t) : dots(i, escHtml(t));
             out.push(ayahNums.length > 1 ? `(${num(ayahNums[i])}) ${body}` : body);
