@@ -367,8 +367,15 @@ const sameName = (a, b) => { const B = nameKeys(b); return [...nameKeys(a)].some
 // narrated THAT hadith — Claude named Salman for Bukhari's ribat hadith, which is Sahl ibn
 // Sa'd's. But when the page's first name is a successor, Claude's Companion is the right
 // name to show, as long as it is one of the people on that chain.
+// "'Amr b. al-'As" → "amr ibn al-as": names compared without quote marks, with b./bin as ibn.
+const plainName = s => (s ?? '').toLowerCase().replace(/[`'’ʿʾ]/g, '').replace(/\b(?:b\.|bin)\s/g, 'ibn ').replace(/\s+/g, ' ').trim();
+
 function chooseNarrator(page, claudeNarrator) {
   if (!page?.narrator) return claudeNarrator ?? null;
+  // sunnah.com can name the father for the son: "'Amr b. al-'As reported" on Muslim 1054, whose
+  // chain ends عن عبد الله بن عمرو (2 Oct 2026 Madinah). When Claude's narrator is
+  // "<name> ibn <the page's name>", the page dropped the first name: Claude's is shown.
+  if (claudeNarrator && plainName(claudeNarrator).endsWith(` ibn ${plainName(page.narrator)}`)) return claudeNarrator;
   if (!page.successor) return page.narrator;
   if (claudeNarrator && (sameName(claudeNarrator, page.companion) || sameName(claudeNarrator, page.narrator))) {
     return claudeNarrator;

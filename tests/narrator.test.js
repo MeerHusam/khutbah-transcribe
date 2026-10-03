@@ -18,3 +18,9 @@ test('the forms that already worked still do', () => {
   assert.equal(shown('`Amr bin Shu`aib narrated from his father, from his grandfather, that the Prophet (ﷺ) said:'), '`Amr bin Shu`aib from his father, from his grandfather');
   assert.equal(shown("Narrated Muhammad bin Ka'b Al-Qurazi:", "I heard 'Abdullah bin Mas'ud saying"), "Abdullah bin Mas'ud");
 });
+
+test("sunnah.com naming the father for the son: Claude's fuller name is shown", () => {
+  assert.equal(shown("'Amr b. al-'As reported Allah's Messenger (ﷺ) as saying:", '', 'Abdullah ibn Amr ibn al-As'), 'Abdullah ibn Amr ibn al-As');
+  // A different person entirely is not overruled.
+  assert.equal(shown('Narrated Abu Huraira:', '', 'Abdullah ibn Umar'), 'Abu Huraira');
+});
