@@ -25,6 +25,8 @@ import { buildReadableOutput, buildReaderView } from './core/reader.js';
 import { preprocessAudio, transcribeWithGroq, transcribeWithGemini, SILENCE_PREPEND_SEC } from './core/transcribe.js';
 import { planQuoteSwaps } from './core/quote_swaps.js';
 
+export const ANALYSIS_MODEL = 'claude-sonnet-5-5';
+
 // A missing key fails at the API call with a clear auth error, not at startup.
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || 'not-set',
@@ -195,9 +197,11 @@ async function analyzeWithClaude({ transcript, proseChunks, khutbahType, outDir 
   try {
     // Use streaming so long transcripts don't hit the request timeout
     process.stdout.write('Analysing with Claude');
+    // Claude Sonnet 5.5 since 4 Oct 2026 (was Sonnet 4.6). Its thinking counts toward max_tokens.
     const stream = anthropic.messages.stream({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 16000,
+      model: ANALYSIS_MODEL,
+      max_tokens: 32000,
+      output_config: { effort: 'medium' },
       messages: [
         {
           role: 'user',
@@ -208,7 +212,7 @@ async function analyzeWithClaude({ transcript, proseChunks, khutbahType, outDir 
     stream.on('text', () => process.stdout.write('.'));
     const message = await stream.finalMessage();
     console.log(' done');
-    claudeRaw = message.content[0].text;
+    claudeRaw = message.content.find(b => b.type === 'text')?.text ?? '';
   } catch (e) {
     console.error(`\nClaude API error: ${e.message}`);
     process.exit(1);
@@ -316,7 +320,7 @@ async function main() {
   if (singleKhutbah) console.log('✓ Single-khutbah mode: split detection skipped');
   if (secondKhutbah) {
     console.log(`✓ Second khutbah split at word ${secondKhutbah.word_index} (${secondKhutbah.via}${secondKhutbah.validated ? ', gap-validated' : ''})`);
-    const didSplit = await splitChunkAtKhutbahBoundary(proseChunks, analysis.chunk_translations, secondKhutbah.word_index, transcriptWords, anthropic, 'claude-sonnet-4-6');
+    const didSplit = await splitChunkAtKhutbahBoundary(proseChunks, analysis.chunk_translations, secondKhutbah.word_index, transcriptWords, anthropic, ANALYSIS_MODEL);
     if (didSplit) console.log('  ↳ split the straddling chunk into two (Khutbah 1 | Khutbah 2)');
   }
 

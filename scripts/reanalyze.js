@@ -13,7 +13,7 @@
 // with another block's translation.
 //
 // Quotes inside the prose are matched to their published English by quote_swaps.js (one
-// call per quote whose inputs changed, claude-sonnet-5 by default; nothing when they did not).
+// call per quote whose inputs changed, claude-sonnet-5-5 by default; nothing when they did not).
 // --no-swaps skips that and keeps whatever plan result.json already has.
 
 import 'dotenv/config';
@@ -70,7 +70,7 @@ async function retranslateEnglish(indices) {
   for (const i of indices) {
     const arabic = transcriptWords.slice(map[i].wordStart, map[i].wordEnd).join(' ');
     const msg = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6', max_tokens: 2000,
+      model: 'claude-sonnet-5-5', max_tokens: 4000, output_config: { effort: 'low' },
       messages: [{ role: 'user', content:
         `The transcript of an Arabic Friday khutbah, for context:\n${transcript}\n\n` +
         'Translate one chunk of it into natural, fluent English: exactly its own words, no more and no less (Quran verses are ' +

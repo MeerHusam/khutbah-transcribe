@@ -17,8 +17,8 @@ import { join } from 'path';
 import { parseReaderBlocks } from './verify_reader.js';
 import { publishedVerseEnglish } from './reader.js';
 
-const MODEL = 'claude-sonnet-5';
-const PRICE_IN = 2 / 1e6, PRICE_OUT = 10 / 1e6; // USD per token, claude-sonnet-5
+const MODEL = 'claude-sonnet-5-5';
+const PRICE_IN = 2 / 1e6, PRICE_OUT = 10 / 1e6; // USD per token, claude-sonnet-5-5
 
 const args = process.argv.slice(2);
 const folder = args[0];

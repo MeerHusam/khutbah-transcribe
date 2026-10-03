@@ -32,8 +32,8 @@ import { quoteProblems, droppedWords, skeletonSet, englishKeys, verseText } from
 // Tirmidhi 1639 without its "two eyes" clause; Sonnet 5 got those right. Neither let a
 // wrong swap through the checks.
 // About $0.02 a khutbah. KT_SWAP_MODEL=claude-haiku-4-5 switches back.
-export const SWAP_MODEL = process.env.KT_SWAP_MODEL || 'claude-sonnet-5';
-const PRICES = { 'claude-haiku-4-5': [1, 5], 'claude-sonnet-5': [2, 10] }; // USD per 1M tokens in / out
+export const SWAP_MODEL = process.env.KT_SWAP_MODEL || 'claude-sonnet-5-5';
+const PRICES = { 'claude-haiku-4-5': [1, 5], 'claude-sonnet-5': [2, 10], 'claude-sonnet-5-5': [2, 10] }; // USD per 1M tokens in / out
 const [PRICE_IN, PRICE_OUT] = (PRICES[SWAP_MODEL] ?? [5, 25]).map(p => p / 1e6);
 
 // Every answer the model gave, by a hash of the exact request, so a rerun on the same texts
