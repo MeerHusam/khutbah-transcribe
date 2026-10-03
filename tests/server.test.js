@@ -81,7 +81,10 @@ test('the old onrender address sends pages to khutbah.dev, but not /api or the u
 
 test('/api/results lists the published khutbahs, and each one loads', async () => {
   const list = await (await get('/api/results')).json();
-  assert.deepEqual(list.items.map(i => i.folder), khutbahs.map(k => k.folder));
+  assert.deepEqual(new Set(list.items.map(i => i.folder)), new Set(khutbahs.map(k => k.folder)));
+  // Newest first, by the khutbah's date (its folder's date when it has none), not the order added.
+  const day = i => { const k = khutbahs.find(k => k.folder === i.folder); return k.date ? Date.parse(`${k.date} UTC`) : Date.parse(k.folder.slice(0, 10)); };
+  list.items.forEach((it, n) => n && assert.ok(day(it) <= day(list.items[n - 1]), `${it.folder} is listed above a newer khutbah`));
   assert.equal(list.featured, (khutbahs.find(k => k.featured) ?? khutbahs[0]).folder);
   for (const k of khutbahs) {
     const r = await (await get(`/api/results/${k.folder}`)).json();
