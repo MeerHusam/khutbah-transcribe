@@ -11,7 +11,7 @@ Live site: **https://khutbah.dev** (links to the old khutbah-live.onrender.com a
 
 ```
 recording
-  → transcribe            Gemini 2.5 Flash for the text + Groq Whisper for word timings
+  → transcribe            Gemini 3.5 Flash for the text + Groq Whisper for word timings
   → Quran zones           4-gram index over the Quran finds recited passages, even partial ones
   → prose chunks          the rest, cut at the imam's pauses
   → Claude                translates each chunk, names the verses and hadith it hears

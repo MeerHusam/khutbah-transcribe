@@ -360,7 +360,10 @@ function buildSegmentsFromWordTimes(words, times, refSegments) {
     .filter(s => s.text);
 }
 
-// Gemini 2.5 Flash for transcript quality + Groq Whisper for accurate timestamps.
+// Gemini 3.5 Flash for transcript quality + Groq Whisper for accurate timestamps (3 Oct 2026: gemini-2.5-flash
+// and -pro answer 404 "no longer available to new users" to the key made on 2 Oct. On the 2 Oct Madinah
+// khutbah 3.5-flash and 3.1-pro-preview agreed on 99.8% of 1544 words, no broken words; 3.8-flash and
+// 3.7-flash answered 503 "high demand". 3.8-flash broke words on 11 Sep).
 // Gemini gets the text right (more words, better Arabic); Groq gives real audio-aligned timing.
 // We align Gemini's words to Groq's word-level timestamps so each word gets a real audio time.
 async function transcribeWithGemini(audioPath) {
@@ -403,7 +406,7 @@ Formatting rules — follow these exactly:
   process.stdout.write('Transcribing (Gemini text + Groq timing in parallel)...');
   const [geminiResponse, groqResult, groqWindowed] = await Promise.all([
     gemini.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.5-flash',
       contents: [{ parts: [{ text: geminiPrompt }, { fileData: { mimeType, fileUri: file.uri } }] }],
       // Transcription has one correct answer, so sample as little as possible. The default
       // temperature of 1.0 is why the same audio produced different ayah markup on

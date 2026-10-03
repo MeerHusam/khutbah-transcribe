@@ -1,7 +1,7 @@
 // pipeline.js — The command line: one khutbah recording (or an earlier run's transcript) to an
 // outputs/<time>_<name>/ folder with transcript.txt, result.json, reader.txt and readable.txt.
 //
-//   node pipeline.js audio.mp3          Gemini 2.5 Flash text + Groq timing (best quality; --gemini says the same)
+//   node pipeline.js audio.mp3          Gemini 3.5 Flash text + Groq timing (best quality; --gemini says the same)
 //   node pipeline.js audio.mp3 --groq   Groq whisper-large-v3 alone (free & fast)
 //   node pipeline.js --transcript outputs/<run>/transcript.txt   reuse a transcript and its timings
 //   --type friday|arafah|eid            frames the summary (default friday)
@@ -137,7 +137,7 @@ async function getTranscript({ existingTranscriptPath, audioPath, useGroq }) {
         console.log(`Transcribing via Groq whisper-large-v3 (${fileSizeMB.toFixed(1)} MB)...`);
         transcriptResult = await transcribeWithGroq(usedPath);
       } else {
-        console.log(`Transcribing via Gemini 2.5 Flash + Groq timing (${fileSizeMB.toFixed(1)} MB)...`);
+        console.log(`Transcribing via Gemini 3.5 Flash + Groq timing (${fileSizeMB.toFixed(1)} MB)...`);
         transcriptResult = await transcribeWithGemini(usedPath);
       }
     } catch (e) {
