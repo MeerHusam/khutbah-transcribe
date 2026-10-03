@@ -332,7 +332,7 @@ async function main() {
     transcript_words: transcriptWordTimes,
     metadata: {
       processed_at: new Date().toISOString(),
-      transcription_mode: useGroq ? 'groq:whisper-large-v3' : 'gemini:2.5-flash',
+      transcription_mode: useGroq ? 'groq:whisper-large-v3' : 'gemini:3.5-flash',
       transcript_word_count: wordCount,
       quran_references_found: allQuranRefs.length,
       quran_references_matched: matchedCount,
