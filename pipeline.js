@@ -101,6 +101,7 @@ async function getTranscript({ existingTranscriptPath, audioPath, useGroq }) {
   let transcriptSegments = [];
   let transcriptWordTimes = [];
   let groqText = null; // populated in --gemini mode (Groq side of the hybrid) for comparison
+  let model = null; // which model gave the text (transcribeWithGemini falls back along a list)
   if (existingTranscriptPath) {
     console.log(`Using existing transcript: ${existingTranscriptPath}`);
     transcript = readFileSync(existingTranscriptPath, 'utf8').trim();
@@ -154,6 +155,7 @@ async function getTranscript({ existingTranscriptPath, audioPath, useGroq }) {
     transcriptSegments = typeof transcriptResult === 'string' ? [] : (transcriptResult.segments ?? []);
     transcriptWordTimes = typeof transcriptResult === 'string' ? [] : (transcriptResult.words ?? []).map(w => ({ word: w.word, start: w.start }));
     groqText = (typeof transcriptResult !== 'string' && transcriptResult.groqText) ? transcriptResult.groqText : null;
+    model = useGroq ? 'groq:whisper-large-v3' : transcriptResult.model;
 
     // Whisper timed the preprocessed audio (1s silence prepended); shift back to original-audio time.
     if (usedPath !== audioPath) {
@@ -177,7 +179,7 @@ async function getTranscript({ existingTranscriptPath, audioPath, useGroq }) {
   transcriptWordTimes = transcriptWordTimes
     .map(w => ({ ...w, word: stripAyahMarkup(w.word ?? '') }))
     .filter(w => w.word);
-  return { transcript, transcriptSegments, transcriptWordTimes, groqText };
+  return { transcript, transcriptSegments, transcriptWordTimes, groqText, model };
 }
 
 // Steps 5-6: Claude translates the numbered prose chunks and names the references it hears.
@@ -283,7 +285,7 @@ async function main() {
   const opts = parseArgs(process.argv.slice(2));
   const { useGroq, khutbahType, singleKhutbah } = opts;
   const { outDir, timestamp, audioBasename } = createOutputFolder(opts);
-  const { transcript, transcriptSegments, transcriptWordTimes, groqText } = await getTranscript(opts);
+  const { transcript, transcriptSegments, transcriptWordTimes, groqText, model } = await getTranscript(opts);
 
   // Step 4: Save raw Arabic transcript
   writeFileSync(path.join(outDir, 'transcript.txt'), transcript, 'utf8');
@@ -332,7 +334,7 @@ async function main() {
     transcript_words: transcriptWordTimes,
     metadata: {
       processed_at: new Date().toISOString(),
-      transcription_mode: useGroq ? 'groq:whisper-large-v3' : 'gemini:3.5-flash',
+      transcription_mode: model ?? (useGroq ? 'groq:whisper-large-v3' : 'existing transcript'),
       transcript_word_count: wordCount,
       quran_references_found: allQuranRefs.length,
       quran_references_matched: matchedCount,

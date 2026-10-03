@@ -74,10 +74,12 @@ async function withGroqRateLimit(call, attempts = 6) {
   for (let i = 1; ; i++) {
     try { return await call(); }
     catch (e) {
-      if (e?.status !== 429 || i >= attempts) throw e;
+      // A server error or a dropped connection is asked again too, not only the rate limit.
+      const busy = e?.status === 429 || e?.status >= 500 || (!e?.status && /fetch failed|ECONNRESET|ETIMEDOUT|socket|timed? ?out/i.test(String(e?.message)));
+      if (!busy || i >= attempts) throw e;
       const m = String(e.message).match(/try again in (?:(\d+)m)?([\d.]+)s/);
-      const wait = m ? (+(m[1] ?? 0) * 60 + +m[2]) * 1000 + 1000 : 30_000;
-      console.log(`  Groq rate limit — waiting ${Math.ceil(wait / 1000)}s`);
+      const wait = m ? (+(m[1] ?? 0) * 60 + +m[2]) * 1000 + 1000 : e?.status === 429 ? 30_000 : 5_000 * i;
+      console.log(`  Groq ${e?.status === 429 ? 'rate limit' : `error (${e?.status ?? String(e?.message).slice(0, 60)})`} — waiting ${Math.ceil(wait / 1000)}s`);
       await new Promise(r => setTimeout(r, wait));
     }
   }
@@ -360,6 +362,56 @@ function buildSegmentsFromWordTimes(words, times, refSegments) {
     .filter(s => s.text);
 }
 
+// The models tried for the text, in order. A model can be closed to our key (gemini-2.5-flash
+// answered 404 "no longer available to new users" on 3 Oct 2026) or busy (503 "high demand",
+// 3.7- and 3.8-flash the same morning): a busy one is asked again twice, then the next model.
+// If none answers, the caller uses Groq's own text, so the run goes on.
+const TRANSCRIBE_MODELS = ['gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.6-flash'];
+const BUSY = /\b(429|500|502|503|504)\b|UNAVAILABLE|RESOURCE_EXHAUSTED|high demand|overloaded|fetch failed|ECONNRESET|ETIMEDOUT/i;
+
+async function geminiTranscript(audioPath, mimeType, prompt, { client = gemini, waitMs = 15_000 } = {}) {
+  let file;
+  try {
+    file = await client.files.upload({ file: audioPath, config: { mimeType, displayName: path.basename(audioPath) } });
+    while (file.state === 'PROCESSING') {
+      await new Promise(r => setTimeout(r, 2000));
+      file = await client.files.get({ name: file.name });
+    }
+    if (file.state !== 'ACTIVE') throw new Error(`file upload ended ${file.state}`);
+  } catch (e) {
+    console.log(`\n  Gemini upload failed (${String(e.message).slice(0, 120)})`);
+    return null;
+  }
+  try {
+    for (const model of TRANSCRIBE_MODELS) {
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const r = await client.models.generateContent({
+            model,
+            contents: [{ parts: [{ text: prompt }, { fileData: { mimeType, fileUri: file.uri } }] }],
+            // Transcription has one correct answer, so sample as little as possible. The default
+            // temperature of 1.0 is why the same audio produced different ayah markup on
+            // consecutive runs. temperature 0 + a fixed seed makes runs repeatable in practice,
+            // though the API does not guarantee bit-identical output.
+            config: { temperature: 0, seed: 42 },
+          });
+          const text = (r.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim();
+          if (text) return { text, model };
+          throw new Error('an empty answer');
+        } catch (e) {
+          const busy = BUSY.test(String(e.message)) && !/per day/i.test(String(e.message));
+          console.log(`\n  ${model}: ${String(e.message).slice(0, 140)}${busy && attempt < 3 ? `; again in ${(waitMs * attempt) / 1000} s` : ''}`);
+          if (!busy || attempt === 3) break;
+          await new Promise(r => setTimeout(r, waitMs * attempt));
+        }
+      }
+    }
+    return null;
+  } finally {
+    await client.files.delete({ name: file.name }).catch(() => {});
+  }
+}
+
 // Gemini 3.5 Flash for transcript quality + Groq Whisper for accurate timestamps (3 Oct 2026: gemini-2.5-flash
 // and -pro answer 404 "no longer available to new users" to the key made on 2 Oct. On the 2 Oct Madinah
 // khutbah 3.5-flash and 3.1-pro-preview agreed on 99.8% of 1544 words, no broken words; 3.8-flash and
@@ -371,20 +423,6 @@ async function transcribeWithGemini(audioPath) {
   const mimeMap = { mp3: 'audio/mpeg', mp4: 'audio/mp4', m4a: 'audio/mp4',
     wav: 'audio/wav', ogg: 'audio/ogg', flac: 'audio/flac' };
   const mimeType = mimeMap[ext] ?? 'audio/mpeg';
-
-  // Run Gemini and Groq in parallel — Gemini for text quality, Groq for timing
-  process.stdout.write('Uploading audio to Gemini Files API...');
-  const uploadedFile = await gemini.files.upload({
-    file: audioPath,
-    config: { mimeType, displayName: path.basename(audioPath) },
-  });
-  let file = uploadedFile;
-  while (file.state === 'PROCESSING') {
-    await new Promise(r => setTimeout(r, 2000));
-    file = await gemini.files.get({ name: file.name });
-  }
-  if (file.state !== 'ACTIVE') throw new Error(`Gemini file upload failed: ${file.state}`);
-  console.log(' done');
 
   // The markup rules matter as much as the transcription instruction. Left unsaid, the model
   // decorates recited ayahs — and picks DIFFERENT decoration between runs of the same audio
@@ -403,17 +441,10 @@ Formatting rules — follow these exactly:
   verses run together as continuous text, exactly as the speaker says them.
 - Ordinary sentence punctuation (. ، ؟ !) is fine.`;
 
+  // Gemini and Groq in parallel: Gemini for the text, Groq for the timing.
   process.stdout.write('Transcribing (Gemini text + Groq timing in parallel)...');
-  const [geminiResponse, groqResult, groqWindowed] = await Promise.all([
-    gemini.models.generateContent({
-      model: 'gemini-3.5-flash',
-      contents: [{ parts: [{ text: geminiPrompt }, { fileData: { mimeType, fileUri: file.uri } }] }],
-      // Transcription has one correct answer, so sample as little as possible. The default
-      // temperature of 1.0 is why the same audio produced different ayah markup on
-      // consecutive runs. temperature 0 + a fixed seed makes runs repeatable in practice,
-      // though the API does not guarantee bit-identical output.
-      config: { temperature: 0, seed: 42 },
-    }),
+  const [gem, groqResult, groqWindowed] = await Promise.all([
+    geminiTranscript(audioPath, mimeType, geminiPrompt),
     // Two Whisper passes for timing — whole file (as before; its segments still set the
     // chunk boundaries) and overlapping windows — combined per word in combineTimings.
     transcribeWithGroq(audioPath),
@@ -421,16 +452,16 @@ Formatting rules — follow these exactly:
   ]);
   console.log(' done');
 
-  await gemini.files.delete({ name: file.name }).catch(() => {});
-
-  const geminiText = (geminiResponse.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim();
+  if (!gem) console.log('  ⚠ no Gemini model answered: the transcript is Groq Whisper\'s own text (fewer words, weaker Arabic)');
+  const geminiText = gem?.text ?? (groqResult.text ?? '').trim();
+  const model = gem ? `gemini:${gem.model.replace(/^gemini-/, '')}` : 'groq:whisper-large-v3';
   const groqSegments = groqResult.segments ?? [];
   const groqWords = groqResult.words ?? [];
   // The hybrid already ran Groq for timing — expose its raw text too so callers can
   // compare Gemini vs Groq transcripts without a second transcription pass.
   const groqText = (groqResult.text ?? groqSegments.map(s => s.text).join(' ')).trim();
 
-  if (!groqSegments.length) return { text: geminiText, segments: [], words: [], groqText };
+  if (!groqSegments.length) return { text: geminiText, segments: [], words: [], groqText, model };
 
   const geminiWords = geminiText.split(/\s+/).filter(Boolean);
 
@@ -441,7 +472,7 @@ Formatting rules — follow these exactly:
   if (times) {
     const wordTimes = geminiWords.map((word, k) => ({ word, start: Math.round(times[k] * 100) / 100 }));
     const segments = buildSegmentsFromWordTimes(geminiWords, times, groqSegments);
-    return { text: geminiText, segments, words: wordTimes, groqText };
+    return { text: geminiText, segments, words: wordTimes, groqText, model };
   }
 
   // Fallback: proportional segment mapping if word-level timestamps are unavailable.
@@ -459,10 +490,11 @@ Formatting rules — follow these exactly:
     if (slice.length) segments.push({ start: seg.start, end: seg.end, text: slice.join(' ') });
     gPos += count;
   }
-  return { text: geminiText, segments, words: [], groqText };
+  return { text: geminiText, segments, words: [], groqText, model };
 }
 
 export {
+  geminiTranscript,
   preprocessAudio,
   transcribeWithGroq,
   transcribeWithGemini,

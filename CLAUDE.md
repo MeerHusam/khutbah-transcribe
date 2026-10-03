@@ -382,7 +382,7 @@ node scripts/compare_quran.js outputs/<folder>   # Eval: current Quran pipeline 
 ```
 
 **Transcription modes:**
-- default (`--gemini`) — Gemini 3.5 Flash for text quality (2.5 Flash until 3 Oct 2026: closed to new keys) + Groq Whisper for timestamps (hybrid). Catches ~14% more words than Groq alone (observed: Sudais khutbah 1643 vs 1442). Also writes `transcript_groq.txt` for comparison. See `transcribeWithGemini()` in core/transcribe.js.
+- default (`--gemini`) — Gemini 3.5 Flash for text quality (2.5 Flash until 3 Oct 2026: closed to new keys; if 3.5 Flash is closed or busy, 3.1 Pro, then 3.6 Flash, then Groq's own text — `result.json` metadata.transcription_mode names the one used) + Groq Whisper for timestamps (hybrid). Catches ~14% more words than Groq alone (observed: Sudais khutbah 1643 vs 1442). Also writes `transcript_groq.txt` for comparison. See `transcribeWithGemini()` in core/transcribe.js.
 - `--groq` — Groq whisper-large-v3 alone, free, ~10s for a 20 min file.
 - (OpenAI whisper-1 and `--local` faster-whisper were removed 2 Oct 2026: nothing used them.)
 
