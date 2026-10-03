@@ -5,7 +5,7 @@
 // Audio goes to Cloudflare R2 when the R2_* settings are in .env (the recording and the voice
 // tracks under <folder>/ in the bucket, served from R2_PUBLIC_URL); otherwise it goes to the site
 // with the rest. The R2 keys stay on this machine: the site only stores the public address.
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, basename, extname } from 'path';
 import { createHash, createHmac } from 'crypto';
 
@@ -76,4 +76,15 @@ export async function publishToSite({ site, key, folderPath, recording, entry })
   entry = { folder, ...entry };
   const { link } = await call(site, key, 'POST', '/admin/api/khutbahs', JSON.stringify(entry), 'application/json');
   return { url: site + link, entry };
+}
+
+// The repo keeps a copy of the live list (server/khutbahs.seed.json), as the site's database
+// stores it (server/db.js publishKhutbah): a fresh database starts from it, and autopublish.js
+// commits it, so each khutbah is a commit on main. Render's build filter skips the deploy.
+export function recordInSeed(entry, path) {
+  const list = JSON.parse(readFileSync(path, 'utf8'));
+  const prev = list.find(k => k.folder === entry.folder);
+  if (prev && prev.slug !== entry.slug) entry = { ...entry, old_slugs: [...new Set([...(entry.old_slugs ?? prev.old_slugs ?? []), prev.slug])].filter(s => s !== entry.slug) };
+  if (entry.featured) list.forEach(k => delete k.featured);
+  writeFileSync(path, JSON.stringify([entry, ...list.filter(k => k.folder !== entry.folder)], null, 2) + '\n');
 }

@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { request } from 'node:http';
 import WebSocket from 'ws';
-import { publishToSite } from '../worker/site.js';
+import { publishToSite, recordInSeed } from '../worker/site.js';
 
 const PORT = 3200 + Math.floor(Math.random() * 600);
 const BASE = `http://localhost:${PORT}`;
@@ -209,9 +209,11 @@ test('publishing: a new khutbah is live at once, with its files, recording and v
   const entry = { slug: 'test-publish', title: 'Test Publish', date: '2 October 2026', page: 'reader-ur.html', featured: true };
   try {
     await assert.rejects(publishToSite({ site: BASE, key: 'wrong-key', folderPath, recording, entry }), /401/);
+    const seed = join(tmp, 'seed.json');
+    copyFileSync('server/khutbahs.seed.json', seed);
     const published = await publishToSite({ site: BASE, key: KEY, folderPath, recording, entry });
     assert.equal(published.url, `${BASE}/test-publish`);
-    assert.equal(published.entry.folder, '2026-10-02T12-00-00_khutbah-test-publish');
+    recordInSeed(published.entry, seed);
 
     const page = await get('/test-publish');
     assert.equal(page.status, 200);
@@ -239,10 +241,17 @@ test('publishing: a new khutbah is live at once, with its files, recording and v
     assert.equal(again.items[0].title, 'Test Publish, corrected');
     assert.equal(again.items.length, list.items.length);
     // A new slug for the same khutbah: the old link redirects to it.
-    await publishToSite({ site: BASE, key: KEY, folderPath, recording, entry: { ...entry, slug: 'test-publish-2' } });
+    recordInSeed((await publishToSite({ site: BASE, key: KEY, folderPath, recording, entry: { ...entry, slug: 'test-publish-2' } })).entry, seed);
     const moved = await get('/test-publish');
     assert.equal(moved.status, 301);
     assert.equal(moved.headers.get('location'), '/test-publish-2');
+    // The repo's copy of the list says what the site's database says.
+    const copy = JSON.parse(readFileSync(seed, 'utf8'));
+    assert.equal(copy.length, khutbahs.length + 1);
+    assert.deepEqual(copy[0], { folder: '2026-10-02T12-00-00_khutbah-test-publish', ...entry, slug: 'test-publish-2', old_slugs: ['test-publish'] });
+    assert.deepEqual(copy.filter(k => k.featured).map(k => k.slug), ['test-publish-2']);
+    const live = (await (await get('/api/results')).json()).items.find(i => i.folder === copy[0].folder);
+    assert.equal(live.slug, copy[0].slug);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

@@ -33,7 +33,7 @@ import { readFileSync, writeFileSync, existsSync, openSync, readSync, closeSync,
 import { join, extname, basename, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { verifyReader } from '../core/verify_reader.js';
-import { publishToSite, siteSlugs } from './site.js';
+import { publishToSite, siteSlugs, recordInSeed } from './site.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -181,20 +181,10 @@ if (site) {
   const published = await publishToSite({ site, key: process.env.ADMIN_TOKEN, folderPath: join(ROOT, folder), recording, entry })
     .catch(e => die(`publishing to ${site} failed: ${e.message}`));
   console.log(`  ✓ live at ${published.url}${feature ? ' (featured)' : ''}`);
-  if (new URL(site).hostname === 'khutbah.dev') recordInSeed(published.entry);
-}
-
-// The repo keeps a copy of the live list, as the site's database stores it (server/db.js
-// publishKhutbah): a fresh database starts from it, and autopublish.js commits it, so each
-// khutbah is a commit on main. Render's build filter (render.yaml) skips the deploy.
-function recordInSeed(entry) {
-  const path = join(ROOT, 'server', 'khutbahs.seed.json');
-  const list = JSON.parse(readFileSync(path, 'utf8'));
-  const prev = list.find(k => k.folder === entry.folder);
-  if (prev && prev.slug !== entry.slug) entry.old_slugs = [...new Set([...(entry.old_slugs ?? prev.old_slugs ?? []), prev.slug])].filter(s => s !== entry.slug);
-  if (entry.featured) list.forEach(k => delete k.featured);
-  writeFileSync(path, JSON.stringify([entry, ...list.filter(k => k.folder !== entry.folder)], null, 2) + '\n');
-  console.log('  ✓ server/khutbahs.seed.json updated');
+  if (new URL(site).hostname === 'khutbah.dev') {
+    recordInSeed(published.entry, join(ROOT, 'server', 'khutbahs.seed.json'));
+    console.log('  ✓ server/khutbahs.seed.json updated');
+  }
 }
 
 if (flag('--review')) { step('Review'); run('node', ['core/review_blocks.js', folder]); }
