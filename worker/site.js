@@ -1,5 +1,5 @@
 // Publishing to the site through its API (server/routes/admin.js): the files the reader needs,
-// the recording, then the entry. The khutbah is live at once; nothing is committed or deployed.
+// the recording, then the entry. The khutbah is live at once; nothing is deployed.
 // Used by publish.js (and so by autopublish.js).
 //
 // Audio goes to Cloudflare R2 when the R2_* settings are in .env (the recording and the voice
@@ -54,7 +54,7 @@ export async function siteSlugs(site) {
 
 // folderPath: the run's folder (outputs/<folder>); recording: the audio file the page plays (its
 // name is the entry's `audio`, or the folder's name after the timestamp); entry: slug, title, …
-// Returns the page's address.
+// Returns the page's address and the entry as the site stored it.
 export async function publishToSite({ site, key, folderPath, recording, entry }) {
   if (!key) throw new Error('ADMIN_TOKEN is not set (put the site\'s admin key in .env)');
   const folder = basename(folderPath);
@@ -73,6 +73,7 @@ export async function publishToSite({ site, key, folderPath, recording, entry })
     if (toR2) entry = { ...entry, audio: name };
   }
   if (toR2) entry = { ...entry, media_url: `${process.env.R2_PUBLIC_URL.replace(/\/+$/, '')}/${folder}/` };
-  const { link } = await call(site, key, 'POST', '/admin/api/khutbahs', JSON.stringify({ ...entry, folder }), 'application/json');
-  return site + link;
+  entry = { folder, ...entry };
+  const { link } = await call(site, key, 'POST', '/admin/api/khutbahs', JSON.stringify(entry), 'application/json');
+  return { url: site + link, entry };
 }

@@ -52,18 +52,18 @@ Run every script from the repo root (each loads `.env` from the working director
 | `server/server.js` | The site's wiring only (`npm start`): Express routers, static files, the viewer WebSocket, cache warm-up. |
 | `server/db.js` | The site database (2 Oct 2026, phase 2): SQLite via Node's built-in `node:sqlite` at `DATA_DIR/site.db` (Render's disk). Table `khutbahs` (folder, slug, position, featured, title … old_slugs/old_folders as JSON, note, media_url: where its audio is on R2). `publishKhutbah` upserts by folder: a new one goes on top, featured moves, a changed slug is kept as a redirect, unsent old_slugs/old_folders/note are kept; a slug owned by another folder (or its old slug) is a 409. All SQL is here, so a move to Postgres changes this file only. |
 | `server/khutbahs.seed.json` | The khutbahs published before the database; seeds a fresh database once. Not the live list (that is the database): editing it changes nothing on a running site. |
-| `server/khutbahs.js` | The catalog (`catalog()`, rebuilt after each publish) and each khutbah's result (reader chunks, audio URL, voice tracks, word times), cached; `publish()` clears the caches. A khutbah's files: `DATA_DIR/outputs/<folder>/` and `DATA_DIR/audio_files/` if published through the API, else the repo's `outputs/` and `audio_files/`. An entry with `media_url` plays its recording and voice tracks from there (R2); all 7 seeded khutbahs have one since 2 Oct 2026, so the repo's audio files are no longer served. |
+| `server/khutbahs.js` | The catalog (`catalog()`, rebuilt after each publish) and each khutbah's result (reader chunks, audio URL, voice tracks, word times), cached; `publish()` clears the caches. A khutbah's files: `DATA_DIR/outputs/<folder>/` and `DATA_DIR/audio_files/` (Render's disk, put there by the publish API; the repo's `outputs/` is only a fallback, used locally). An entry with `media_url` plays its recording and voice tracks from there (R2); every listed khutbah has one. `outputs/` and `audio_files/` left git on 3 Oct 2026 (the 9 older khutbahs' text was copied to the disk first): they live on the Mac only. |
 | `server/routes/pages.js` | `/`, `/<slug>`, the old `/index.html?folder=` address; link-preview tags. |
 | `server/routes/api.js` | `/api/results`, `/api/results/:folder`, `/api/quran`, voice tracks and word times, `/api/feedback`, `/api/engage`. |
 | `server/routes/admin.js` | `/admin/feedback`, `/admin/traffic`, `/admin/upload` and the upload job API the Mac's worker uses, and the publish API: `PUT /admin/api/files/<folder>/<name>`, `PUT /admin/api/audio/<name>` (raw body, application/octet-stream), `POST /admin/api/khutbahs` (the entry). All need `ADMIN_TOKEN`. |
 | `server/viewers.js` | Live / total / unique viewer counts over the WebSocket and the per-visit log (`data/visits.jsonl`, geo by ip-api.com). |
 | `server/config.js` | ROOT, PORT, ADMIN_TOKEN and the data paths (`DATA_DIR` env for tests; default `<root>/data`, Render's disk). |
 | `server/admin/` | `traffic.js` builds the /admin/traffic page; `upload.html` is the upload page. |
-| `worker/publish.js` | One command from recording to a published page: remux/trim (faststart checked), pipeline, verify_reader, test entry, then publish through the site's API to `--site` (default `http://localhost:3000`, to check locally first; prints the exact command for the live site; `--no-site` stops after the checks). Never commits or deploys. |
+| `worker/publish.js` | One command from recording to a published page: remux/trim (faststart checked), pipeline, verify_reader, test entry, then publish through the site's API to `--site` (default `http://localhost:3000`, to check locally first; prints the exact command for the live site; `--no-site` stops after the checks). On khutbah.dev it also writes the entry into `server/khutbahs.seed.json` (as the database stores it), so the repo keeps the live list. Never commits or deploys. |
 | `worker/site.js` | The publish API's client: uploads the files the site reads (`SITE_FILES`: result.json, reader.txt, reader_ur.txt, tts_*.json/mp3, words_imam.json), the recording, then the entry. With the `R2_*` settings in `.env` (Mac only), the recording and voice tracks go to Cloudflare R2 instead (bucket `khutbah-media`, key `<folder>/<file>`; S3 API signed with SigV4 in node:crypto, `r2()`), and the entry carries `media_url`. `siteSlugs()` lists the slugs in use. R2 set up 2 Oct 2026; public address is r2.dev (rate-limited) until a custom domain is bought. |
-| `worker/autopublish.js` | Recording to live page with no one in between (1 Oct 2026): remux, `pipeline.js --gemini`, title (Sonnet 5.5, low), then [Urdu translate + review ‖ imam timing, delivery, echo removal only with `--clean` (off since 2 Oct)], `core/verse_excerpts.js`, [Urdu voice (Orus) ‖ English voice (Charon), both `--direct`: a passage at a time, word times come with it → recitation], `worker/publish.js --keep-audio --page reader-ur.html --site $SITE_URL`; a step that fails on a busy API runs again after a minute (up to 3 times) (the publish API: live at once, no commit, no deploy; checked), `--no-push` = everything but publishing. Our masjid: link `/<date>`, featured; another masjid (`--masjid "Name"`): `/<date>-<masjid>`. `--resume outputs/<folder>` reruns a failed run keeping finished steps; `--no-push` for tests. Logs in `logs/<name>.log`. 3-min clip: 5.7 min.  A voice that cannot be made (every key spent, a refusal) no longer stops the run (3 Oct): the page goes live with its text, the job goes into `logs/voices_pending.json`, autopublish exits 4, and `upload_worker.js` runs it again with `--resume` hourly for up to a day, which adds the voices to the live page. The title is kept in `<folder>/title.txt` so a resumed run keeps it. publish.js no longer stops when the test set fails on *other* khutbahs (it warns). |
+| `worker/autopublish.js` | Recording to live page with no one in between (1 Oct 2026): remux, `pipeline.js --gemini`, title (Sonnet 5.5, low), then [Urdu translate + review ‖ imam timing, delivery, echo removal only with `--clean` (off since 2 Oct)], `core/verse_excerpts.js`, [Urdu voice (Orus) ‖ English voice (Charon), both `--direct`: a passage at a time, word times come with it → recitation], `worker/publish.js --keep-audio --page reader-ur.html --site $SITE_URL`; a step that fails on a busy API runs again after a minute (up to 3 times) (the publish API: live at once, no deploy; checked), then one commit on main with the list and the test set (`server/khutbahs.seed.json`, `tests/khutbahs.json`; pull --rebase, push; only on branch main, a git failure is logged, never fatal; Render's build filter skips the deploy), `--no-push` = everything but publishing. Our masjid: link `/<date>`, featured; another masjid (`--masjid "Name"`): `/<date>-<masjid>`. `--resume outputs/<folder>` reruns a failed run keeping finished steps; `--no-push` for tests. Logs in `logs/<name>.log`. 3-min clip: 5.7 min.  A voice that cannot be made (every key spent, a refusal) no longer stops the run (3 Oct): the page goes live with its text, the job goes into `logs/voices_pending.json`, autopublish exits 4, and `upload_worker.js` runs it again with `--resume` hourly for up to a day, which adds the voices to the live page. The title is kept in `<folder>/title.txt` so a resumed run keeps it. publish.js no longer stops when the test set fails on *other* khutbahs (it warns). |
 | `worker/upload_worker.js` | Runs on the Mac (`caffeinate -is node worker/upload_worker.js`, needs `ADMIN_TOKEN` in `.env`): every 15 s takes the oldest recording sent from the upload page (`/admin/upload?key=<ADMIN_TOKEN>`, stored on the Render disk in `data/uploads/`), downloads it to `audio_files/inbox/`, runs `autopublish.js --job <id>`, which reports each stage back to the page. Only calls out; nothing on the Mac is reachable. |
-| `voice/tts.js` | Voice tracks (30 Sep 2026): speaks each reader block's English (`--lang en`) or Urdu (`--lang ur`). Engines: `gemini` (default; `tts_gemini.mjs`) and `elevenlabs` (paid; `eleven_v3` speaks Urdu well; `tts_elevenlabs.py`, per-block cache in `.tts_cache/`, a `--max-credits` cap, 2000 default, checked before anything is sent). `--tempo 1.15` speeds up without regenerating. Writes `tts_<lang>.mp3` + `.json`; the page's player offers the voice of the language on screen. Verses: meaning only, never synthesized Arabic; a lead-in ("Allah says:" / "ارشادِ باری تعالیٰ ہے:") only where the imam didn't introduce the verse. A 4 s pause goes before the second khutbah. `--direct` (Gemini, 1 Oct 2026): a direction per sentence from `voice_directions.js` and the voice a passage at a time; 25 Sep Urdu in Orus: 13 passages, $0.39 with directions. (Kokoro, Chatterbox and OmniVoice were removed 2 Oct 2026.) |
+| `voice/tts.js` | Voice tracks (30 Sep 2026): speaks each reader block's English (`--lang en`) or Urdu (`--lang ur`). Engine: Gemini (`tts_gemini.mjs`; ElevenLabs removed 3 Oct 2026, in git history). `--tempo 1.15` speeds up without regenerating. Writes `tts_<lang>.mp3` + `.json`; the page's player offers the voice of the language on screen. Verses: meaning only, never synthesized Arabic; a lead-in ("Allah says:" / "ارشادِ باری تعالیٰ ہے:") only where the imam didn't introduce the verse. A 4 s pause goes before the second khutbah. `--direct` (Gemini, 1 Oct 2026): a direction per sentence from `voice_directions.js` and the voice a passage at a time; 25 Sep Urdu in Orus: 13 passages, $0.39 with directions. (Kokoro, Chatterbox and OmniVoice were removed 2 Oct 2026.) |
 | `voice/tts_gemini.mjs` | Gemini TTS engine for `tts.js` (passages, directions, word times from the passage split). |
 | `voice/voice_directions.js` | One style note per sentence of a voice track (1 Oct 2026), so the voice rises where the imam is stirred and softens in a du'a: Claude Sonnet 5.5 (high), one call for the whole khutbah, from each block's text, the imam's Arabic and `delivery_imam.json`; kept in `tts_<lang>_directions.json` per block, so only changed blocks are re-directed (~$0.08). Used by `tts.js --direct`. |
 | `voice/align_words.py` | Word times for a voice track (30 Sep 2026): Meta's MMS forced aligner (`models/mms_fa/model.onnx`, run offline in `.venv-align`, no API) aligns each block's audio in `tts_<lang>.mp3` with the text the voice read, and adds `words: [[word, start, end], ...]` to each block of `tts_<lang>.json`. `.venv-align/bin/python voice/align_words.py outputs/<folder> ur`. The page lights the spoken word and matches these words to the text it shows. Setup in its header. Measured on 25 Sep: word starts within 60 ms of the sound for 96% (Urdu) and 91% (English) of phrase starts. |
@@ -74,14 +74,12 @@ Run every script from the repo root (each loads `.env` from the working director
 | `urdu/translate_urdu.js` | Urdu groundwork: Arabic→Urdu per chunk (claude-opus-5-5, high; everyday words a khateeb uses, not bookish ones, since 1 Oct 2026; `review_urdu.js` then corrects it), Junagarhi verses (PLACEHOLDER), fawazahmed0 urd-* hadith; writes `result.urdu` + `reader_ur.txt`. Page shows an English/اردو switch. |
 | `urdu/review_urdu.js` | Stage C for the Urdu: corrects each block against the Arabic (English as a second reference), then rebuilds `reader_ur.txt` with `translate_urdu.js`. |
 | `scripts/reanalyze.js` | Re-runs Claude analysis on an existing `transcript.txt` without re-transcribing. Imports from `core/`. |
-| `scripts/quran_detect.py` | **Prototype** Quran-detection helper using the `quran-detector` PyPI library (shelled out to by `compare_quran.js`). Reads a transcript, prints detected verse fragments as JSON. NOT yet wired into the production pipeline — used for evaluation only. Needs the project `.venv` (Python ≥3.12). |
-| `scripts/compare_quran.js` | **Eval harness.** Runs the current Quran pipeline (`prescanForQuranZones` + `scanTranscriptForQuran` + `buildZoneRefs`) and `quran_detect.py` on a transcript and prints a side-by-side + surah:ayah delta. Read-only. |
 | `scripts/load_test.js` | Many visitors at once against a local copy of the site (`--visitors 1000 --over 60 --hold 30`): page, text, viewer socket, engagement beacons; prints response times, errors, live count, memory. 2 Oct 2026: 1000 in 10 s, 0 errors, all under 10 ms, 89 MB. Run before a big Friday. |
 | `scripts/setup_hadith.js` | Downloads the Hadith collections into `hadith_data/` (skips files already there). |
-| `tests/` | `npm test`: `test_khutbahs.js` (every published khutbah's reader against `khutbahs.json`, on disk and `--rebuild`), `server.test.js` (routes, viewer socket, upload API and publishing through `worker/site.js`, on a real server with an empty DATA_DIR and a fresh database), `pipeline.test.js` (pipeline.js end to end on 25 Sep's transcript with Claude stubbed by `tests/stubs/`; must pass the gate). Free, offline; GitHub Actions runs it (`.github/workflows/test.yml`, Node 22). |
-| `requirements/` | Pinned Python deps for `.venv` (base.txt: ElevenLabs engine, quran-detector), `.venv-align` (align.txt: MMS aligner, imam_delivery) and `.venv-clean` (clean.txt). |
+| `tests/` | `npm test`: `test_khutbahs.js` (every published khutbah's reader against `khutbahs.json`, on disk and `--rebuild`), `server.test.js` (routes, viewer socket, upload API and publishing through `worker/site.js`, on a real server with an empty DATA_DIR and a fresh database), `pipeline.test.js` (pipeline.js end to end on `tests/fixture/`'s transcript with Claude stubbed by `tests/stubs/`; must pass the gate). `tests/fixture/` = 2 Oct 2026's run (text only); the server test gives it to every listed khutbah. `test_khutbahs.js` skips folders that are not on disk, so on GitHub Actions (no `outputs/`) it checks nothing: run `npm test` on the Mac before a change to the reader. Free, offline; GitHub Actions runs it (`.github/workflows/test.yml`, Node 22). |
+| `requirements/` | Pinned Python deps for `.venv-align` (align.txt: MMS aligner, imam_delivery) and `.venv-clean` (clean.txt). |
 | `public/` | The pages: `home.html` (landing), `index.html` (reader), `reader-ur.html` (reader with Urdu and voices; entries name it with `page`), `recited.js` (shared with the voice scripts), `results.html` (old-link redirect). |
-| `docs/` | ARCHITECTURE (scalability proposal), FIXES (root causes of every fix), DEPLOY, STREAMING (removed mode, record only), recordings. |
+| `docs/` | FIXES (root causes of every fix), DEPLOY, recordings. |
 
 ---
 
@@ -298,8 +296,8 @@ Zone refs' `detected_text` starts from `zone.start` (includes the 2-word PAD), s
 ### True Matn Span for Hadith (fix #15 edge case)
 Fetch canonical matn from the resolved sunnah.com page (fix #17), align it to the transcript to get the Hadith's real start/end word range, then gate Quran absorption in `buildReaderView` on the matched-matn span (not the nominal span). This prevents a non-Hadith ayah recited right after a Hadith from losing its 📖 card. Prereq (fix #17) already landed.
 
-### quran-detector Augmenting Layer (TODO — next session)
-`quran-detector` (PyPI, Python ≥3.12, `.venv`) evaluated 2026-05-22. Decision: AUGMENT (not replace). Add as a recall layer like `buildZoneRefs`: merge overlapping spans, pick one ayah per span (longest match, fewest errors), filter ritual phrases (isti'adha, basmala), map word-ranges to zones. Target `min_match≈4`. Catches du'a partials (e.g. Ibrahim 14:35) and consecutive-ayah ranges (20:43-44) that our pipeline misses. See `quran_detect.py` + `compare_quran.js`.
+### quran-detector Augmenting Layer (idea)
+`quran-detector` (PyPI, Python ≥3.12) evaluated 2026-05-22. Decision: AUGMENT (not replace). Add as a recall layer like `buildZoneRefs`: merge overlapping spans, pick one ayah per span (longest match, fewest errors), filter ritual phrases (isti'adha, basmala), map word-ranges to zones. Target `min_match≈4`. Catches du'a partials (e.g. Ibrahim 14:35) and consecutive-ayah ranges (20:43-44) that our pipeline misses. The eval scripts (`scripts/quran_detect.py`, `scripts/compare_quran.js`) were removed 3 Oct 2026; restore them from git history (`git log --all -- scripts/compare_quran.js`).
 
 ---
 
@@ -310,7 +308,7 @@ July 2026) and the Speechmatics stream (`live/`, `/stream`). Neither worked well
 time is to be rebuilt fresh, measured by replaying recorded khutbahs. What was learned (hold back
 zones touching the transcript end, since a 4-gram zone is only detectable a chunk later; fail fast on
 a slow Groq chunk rather than stall the queue; rolling AR/EN context for Claude) is in git history
-and `docs/STREAMING.md`.
+(including `docs/STREAMING.md`, removed 3 Oct 2026).
 
 ## Public Listening Site Mode (2026-05-22)
 
@@ -339,13 +337,8 @@ site**. The offline pipeline (`pipeline.js`, `reanalyze.js`, CLI) is unchanged �
   border). Play/pause button uses inline SVG (not Unicode `▶`/`⏸` which render as emoji on iOS).
   The old sessionStorage hand-off is gone.
 - **`public/results.html`**: reduced to a redirect to `/` (preserves `?folder=`).
-- **Featured khutbah**: `outputs/2026-05-22T11-30-04_khutbah-2026-05-22-masjid` (audio
-  `audio_files/khutbah-2026-05-22-masjid.m4a`). Second published: Sudais —
-  `outputs/2026-05-22T21-05-05_makkah_sudais_ramadan_ummah` (audio
-  `audio_files/makkah_sudais_ramadan_ummah.mp3`, 5.9 MB, now shipped). Also published:
-  Arafah, Eid al-Adha, and `outputs/2026-09-11T11-00-24_khutbah-2026-09-11-masjid`
-  ("The Blessing of Water", 11 Sep 2026 — audio trimmed 35 s to drop the adhan tail;
-  untrimmed original kept locally as `khutbah-2026-09-11-masjid-full.m4a`, not committed).
+- **Published khutbahs**: the list is the database on Render's disk; `server/khutbahs.seed.json`
+  is its copy in the repo (autopublish.js commits it after each publish).
 - **Audio ingest (manual step)**: `pipeline.js` never rewrites the source file, so whatever
   lands in `audio_files/` is what the browser streams. Phone/WhatsApp recordings put the
   `moov` atom *after* `mdat`, which means the player shows 0:00 until the whole file
@@ -356,8 +349,10 @@ site**. The offline pipeline (`pipeline.js`, `reanalyze.js`, CLI) is unchanged �
   fails there with no console error. Test the player in Firefox/Safari/Chrome.
 - **In-memory cache** (`server/khutbahs.js`): `resultCache` (Map, keyed by folder) + `listCache` pre-warmed at
   server startup so zero file I/O on any request. Safe because files never change at runtime.
-- **Deploy**: Render Starter plan (see `docs/DEPLOY.md`, `render.yaml`). `.gitignore` bundles both
-  audio files + the two published `outputs/` text folders (~12 MB total). Persistent disk
+- **Deploy**: Render Starter plan (see `docs/DEPLOY.md`, `render.yaml`). No audio or pipeline runs
+  in git. `render.yaml`'s `buildFilter` deploys only when the server, the pages,
+  `core/reader_chunks.js` or the packages change: a deploy is ~75 s of 502 (a disk service cannot
+  overlap deploys; Render offers no zero-downtime deploy with a disk). Persistent disk
   mounts `data/` at `/opt/render/project/src/data` — views + feedback survive redeploys.
   `data/` and `hadith_data/` are not committed. `npm start` runs `node server/server.js`
   (`npm run pipeline` for the CLI).
@@ -366,7 +361,7 @@ site**. The offline pipeline (`pipeline.js`, `reanalyze.js`, CLI) is unchanged �
 
 ```bash
 npm install                    # Node 22.13+ (node:sqlite); deps include the quran-json corpus
-cp .env.example .env           # ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY (+ ADMIN_TOKEN, ELEVEN_LABS_API_KEY; see the file)
+cp .env.example .env           # ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY (+ ADMIN_TOKEN, VERTEX_API_KEY; see the file)
 node scripts/setup_hadith.js   # Downloads Hadith collections to hadith_data/
 npm start                      # the site at http://localhost:3000
 npm test                       # reader checks, server, pipeline end to end (free, offline)
@@ -378,7 +373,6 @@ node pipeline.js audio.mp3                   # Gemini text + Groq timing (defaul
 node pipeline.js audio.mp3 --groq            # Groq alone: free, fast, rougher text
 node pipeline.js --transcript outputs/<run>/transcript.txt   # reuse a transcript and its timings
 node scripts/reanalyze.js outputs/<folder>   # Re-run analysis without re-transcribing
-node scripts/compare_quran.js outputs/<folder>   # Eval: current Quran pipeline vs quran-detector
 ```
 
 **Transcription modes:**
@@ -388,7 +382,7 @@ node scripts/compare_quran.js outputs/<folder>   # Eval: current Quran pipeline 
 
 The **25 MB Whisper limit** is checked AFTER preprocessing (which compresses to ~48kbps mono MP3), so large raw files run fine.
 
-**API keys (`.env`):** `ANTHROPIC_API_KEY` (required), `GEMINI_API_KEY`, `GROQ_API_KEY`; `ELEVEN_LABS_API_KEY` for the ElevenLabs voice; `ADMIN_TOKEN` for the admin pages and the upload worker. (hadithapi.com was never used: it can't produce sunnah.com numbers, see fix #17.)
+**API keys (`.env`):** `ANTHROPIC_API_KEY` (required), `GEMINI_API_KEY`, `GROQ_API_KEY`; `GEMINI_API_KEY2`… and `VERTEX_API_KEY` for more voice requests (see the quota note below); `ADMIN_TOKEN` for the admin pages and the upload worker. (hadithapi.com was never used: it can't produce sunnah.com numbers, see fix #17.)
 
 **Gemini voice quota (2–3 Oct 2026):** `gemini-3.8-flash-tts` on the Gemini API allows **100 requests per day per Google project** on Tier 1 (10 a minute, 10K tokens a minute); paying more does not raise it, and requests turned away for the per-minute limit still count toward the 100 (3 Oct: both voices at once, 21 a minute, the day gone after 31 passages). Since 3 Oct `voice/tts_gemini.mjs`: (1) voices a passage of ~4,000 characters (~5 min) per request, about 4 per voice per khutbah; (2) paces itself to 8 requests and 9,000 tokens a minute per key; (3) uses `GEMINI_API_KEY`, `GEMINI_API_KEY2`, … in turn (one per project: Default Gemini Project = gen-lang-client-0711520646, and meerhusam-mynotes), remembering a spent key in `.tts_cache/gemini/limits.json` until the reset the API gave; (4) then the **same model on Google Cloud's Agent Platform** (`VERTEX_API_KEY`, pay per use, no daily quota; with an API key each sentence's direction goes as a 5-word `[cue]`, since a full direction in brackets is read aloud); (5) a passage Gemini refuses (`content_blocked`) is voiced again without directions, then block by block. autopublish voices Urdu first, then English, never both at once. Test: `tests/voice_routes.test.js`. The Gemini SDK must keep `maxRetries: 0` (it otherwise sleeps the ~14 h `retry-after` silently).
 

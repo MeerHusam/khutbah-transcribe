@@ -18,6 +18,20 @@ services:
     buildCommand: npm install
     startCommand: node server/server.js
     healthCheckPath: /api/results
+    # Deploy only when what the site runs changes. A deploy takes the site down for ~75 s (a
+    # service with a disk cannot run two copies at once), and most commits are the Mac's pipeline,
+    # docs, tests or a publish's list (server/khutbahs.seed.json, read only by a fresh database).
+    # The server imports core/reader_chunks.js alone from core/: list any other file it comes to need.
+    buildFilter:
+      paths:
+        - server/**/*.js
+        - server/admin/**
+        - public/**
+        - core/reader_chunks.js
+        - server.js
+        - package.json
+        - package-lock.json
+        - render.yaml
     envVars:
       - key: NODE_VERSION
         value: "22"

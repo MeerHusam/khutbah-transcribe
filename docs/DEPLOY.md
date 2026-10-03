@@ -14,14 +14,14 @@ can't hold a long-lived connection or local disk. This app needs both:
 - **local file reads** for audio + result JSON.
 
 So it needs a real always-on host. **Render** is recommended (simplest setup, native
-WebSocket support, a usable free tier). Railway, Fly.io, or a small VPS also work —
-a `Dockerfile` is included for those.
+WebSocket support, a usable free tier). Railway, Fly.io, or a small VPS also work
+(`npm ci && npm start`, Node 22.13+).
 
 | Host | Setup effort | WebSocket | Notes |
 |------|-------------|-----------|-------|
 | **Render** (recommended) | Lowest — connect repo, done | ✅ native | Free tier spins down after ~15 min idle (~50 s cold start); `starter` ($7/mo) is always-on. Uses `render.yaml`. |
-| Railway | Low | ✅ | No idle spin-down on hobby (~$5/mo credit). Build from `Dockerfile`. |
-| Fly.io | Medium | ✅ | Global container + volumes; needs `fly.toml`. Build from `Dockerfile`. |
+| Railway | Low | ✅ | No idle spin-down on hobby (~$5/mo credit). |
+| Fly.io | Medium | ✅ | Global container + volumes; needs `fly.toml` and a Dockerfile. |
 | VPS (DO/Hetzner) | Highest | ✅ (via Caddy/nginx) | ~$4–6/mo, full control; you manage TLS + a process manager. |
 
 ## Deploy to Render (recommended)

@@ -8,13 +8,13 @@ data/
 logs/
 *.log
 .DS_Store
-# All local Python environments (.venv, .venv-align, .venv-clean, .venv-tts, .venv-omni)
+# All local Python environments (.venv-align, .venv-clean)
 .venv*
 __pycache__/
 
 # faster-whisper / HuggingFace model cache
 models/
-# Paid TTS audio kept per block (tts_elevenlabs.py), so no block is paid for twice.
+# Paid voice audio kept per request (voice/tts_gemini.mjs), so nothing is paid for twice.
 .tts_cache/
 *.bin
 *.safetensors
@@ -23,50 +23,15 @@ models/
 # each result.json, so it does not need hadith_data/ at runtime.
 hadith_data/
 
-# ── Audio ────────────────────────────────────────────────────────────────────
-# Ignore all audio by default, then bundle ONLY the featured masjid khutbah
-# (~5.5 MB). To also ship the Sudais audio (~5.9 MB) and make it playable on the
-# deploy, add:  !audio_files/makkah_sudais_ramadan_ummah.mp3
+# ── Recordings and pipeline runs: on the Mac only ─────────────────────────────
+# The site's copies are on Render's disk (text) and Cloudflare R2 (audio), put there by the
+# publish API (worker/site.js). tests/fixture/ is one run's text, for the tests.
+audio_files/
+outputs/
 *.mp3
 *.m4a
 *.ogg
 *.wav
 *.mp4
 *.flac
-!audio_files/khutbah-2026-05-22-masjid.m4a
-!audio_files/makkah_sudais_ramadan_ummah.mp3
-!audio_files/arafah_khutbah_2026.m4a
-!audio_files/eid_khutbah_2026.m4a
-!audio_files/khutbah-2026-09-11-masjid.m4a
-!audio_files/khutbah-2026-09-25-masjid.m4a
-!audio_files/khutbah-2026-09-25-masjid-clean.m4a
-!audio_files/makkah_dosari_2026-09-25.m4a
-
-# ── Pipeline output runs ──────────────────────────────────────────────────────
-# Ignore all runs, then bundle ONLY the two published khutbahs. Each folder is
-# ~150 KB of text (result.json + reader.txt) — this is what the site renders.
-outputs/*
-!outputs/2026-05-22T11-30-04_khutbah-2026-05-22-masjid/
-!outputs/2026-05-22T21-05-05_makkah_sudais_ramadan_ummah/
-!outputs/2026-05-26T20-14-57_arafah_khutbah_2026/
-!outputs/2026-09-11T15-48-51_arafah_khutbah_2026/
-!outputs/2026-05-27T03-50-41_eid_khutbah_2026/
-!outputs/2026-09-11T13-55-21_khutbah-2026-09-11-masjid/
-!outputs/2026-09-25T10-04-57_khutbah-2026-09-25-masjid/
-# The 25 Sep Urdu edition (its own entry; reader-ur.html), with the Urdu voice track.
-!outputs/2026-09-25T10-04-57_khutbah-2026-09-25-masjid-urdu/
-# The 25 Sep Makkah khutbah (Sheikh al-Dosari): one page with English and Urdu (reader-ur.html).
-!outputs/2026-09-27T16-37-16_makkah_dosari_2026-09-25/
-
-# Voice tracks are mp3, ignored above by *.mp3: ship the Urdu edition's.
-!outputs/2026-09-25T10-04-57_khutbah-2026-09-25-masjid-urdu/tts_ur.mp3
-!outputs/2026-09-25T10-04-57_khutbah-2026-09-25-masjid-urdu/tts_en.mp3
-!outputs/2026-09-27T16-37-16_makkah_dosari_2026-09-25/tts_ur.mp3
-!outputs/2026-10-02T07-44-06_khutbah-2026-10-02-madinah-munawwarah/
-!audio_files/khutbah-2026-10-02-madinah-munawwarah-clean.m4a
-!audio_files/khutbah-2026-10-02.m4a
-!outputs/2026-10-02T07-44-06_khutbah-2026-10-02-madinah-munawwarah/tts_ur.mp3
-!outputs/2026-10-02T07-44-06_khutbah-2026-10-02-madinah-munawwarah/tts_en.mp3
-!outputs/2026-10-02T09-05-36_khutbah-2026-10-02/
-!outputs/2026-10-02T09-05-36_khutbah-2026-10-02/tts_ur.mp3
-!outputs/2026-10-02T09-05-36_khutbah-2026-10-02/tts_en.mp3
+.claude/settings.local.json

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // tts_gemini.mjs — Speak a khutbah's blocks with Gemini TTS (gemini-3.8-flash-tts). Called by
-// tts.js --engine gemini; the same job protocol as tts_common.py (JSON job on stdin, one WAV
-// written to job.out with the blocks in order, [{ i, start, end }] as the last stdout line).
+// tts.js (JSON job on stdin, one WAV written to job.out with the blocks in order,
+// [{ i, start, end }] as the last stdout line).
 //
 // Gemini reads the text word for word — an instruction placed in the text is spoken aloud —
 // so the delivery goes in a speech_metadata "style" annotation. It pronounces Allah, Muhammad,
@@ -18,7 +18,8 @@
 // heard back with Groq Whisper (free) and voiced again, up to three takes, if words are missing
 // or added; then the word aligner (align_words.py, .venv-align) finds where each block starts.
 //
-// Job (tts_common.py) plus: { model, voice, style, concurrency?, passages?, lang? }
+// Job: { out, blocks: [{ i, text, parts?, pause_before? }], block_pause,
+//        model, voice, style, concurrency?, passages?, lang? }
 
 import 'dotenv/config';
 import { GoogleGenAI } from '@google/genai';
@@ -27,7 +28,6 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { createHash } from 'crypto';
 import { spawnSync } from 'child_process';
-import { askCloud, CLOUD_MODEL } from './tts_cloud.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CACHE = process.env.TTS_CACHE_DIR || join(ROOT, '.tts_cache', 'gemini'); // the test points it elsewhere
@@ -35,9 +35,6 @@ const PRICE_IN = 0.5 / 1e6, PRICE_OUT = 9 / 1e6; // USD per token, gemini-3.8-fl
 const SR = 24000;
 
 const job = JSON.parse(readFileSync(0, 'utf8'));
-// TTS_BACKEND=cloud: the same voices through Cloud Text-to-Speech (tts_cloud.mjs), no daily cap.
-const CLOUD = process.env.TTS_BACKEND === 'cloud';
-if (CLOUD) job.model = CLOUD_MODEL; // also keeps its cached audio apart from the Gemini API's
 mkdirSync(CACHE, { recursive: true });
 
 // Keys: GEMINI_API_KEY, GEMINI_API_KEY2, … one per Google project, each with its own 100 voice
@@ -102,7 +99,7 @@ function pcmOf(wav) {
   throw new Error('no audio data in the WAV');
 }
 
-const usage = { calls: 0, cached: 0, input: 0, output: 0, chars: 0, vertex: 0 };
+const usage = { calls: 0, cached: 0, input: 0, output: 0, vertex: 0 };
 
 // The last route, when every Gemini key has used its day: the same model on Google Cloud's Agent
 // Platform (VERTEX_API_KEY), paid per use with no daily quota (tested 3 Oct 2026). With an API
@@ -151,11 +148,6 @@ async function ask(content) {
   for (let attempt = 1; ; attempt++) {
     let onVertex = false;
     try {
-      if (CLOUD) {
-        const pcm = pcmOf(await askCloud(content, { lang: job.lang, voice: job.voice, sampleRate: SR }));
-        usage.calls++; usage.chars += content.reduce((n, c) => n + c.text.length, 0);
-        return pcm;
-      }
       const ai = client();
       if (!ai && process.env.VERTEX_API_KEY) {
         if (!usage.vertex++) console.error('  every Gemini key has used its day: on to the Agent Platform (VERTEX_API_KEY)');
@@ -192,7 +184,7 @@ async function ask(content) {
       const msg = String(e.message ?? e);
       // The daily limit (100 requests per Google project on Tier 1) does not pass in minutes:
       // on to the next key (client() above stops the run when none is left).
-      if (/per day/i.test(msg) && !CLOUD && !onVertex) { dailyLimitReached(msg); attempt--; continue; }
+      if (/per day/i.test(msg) && !onVertex) { dailyLimitReached(msg); attempt--; continue; }
       // A request that cannot succeed (a bad key, a bad request) is not tried again.
       if (attempt >= 6 || (e.status >= 400 && e.status < 500 && e.status !== 429)) throw e;
       // The per-minute limit (10 requests) or a busy server: wait what the API asks, at most 90 s.
@@ -380,8 +372,7 @@ const began = Date.now();
 const parts = [];
 let times = [], t = 0;
 if (job.passages) {
-  // Cloud takes at most 4,000 bytes of text (Urdu is ~1.8 bytes a letter): shorter passages there.
-  const groups = passagesOf(blocks, CLOUD ? Math.min(job.passages, 1100) : job.passages);
+  const groups = passagesOf(blocks, job.passages);
   console.error(`  ${blocks.length} blocks in ${groups.length} passages`);
   const audio = await inTurn(groups, (g, n) => speakPassage(g, n));
   const spans = [];
@@ -417,6 +408,5 @@ if (job.passages) {
 }
 
 const cost = usage.input * PRICE_IN + usage.output * PRICE_OUT;
-if (CLOUD) console.error(`  ${usage.calls} Cloud TTS call(s) (${CLOUD_MODEL}), ${usage.cached} from cache, ${usage.chars} characters; cost per the Cloud billing page`);
-else console.error(`  ${usage.calls} Gemini call(s)${usage.vertex ? ` (${usage.vertex} on the Agent Platform)` : ''}, ${usage.cached} from cache, ${usage.input} in / ${usage.output} out tokens, about $${cost.toFixed(3)}`);
+console.error(`  ${usage.calls} Gemini call(s)${usage.vertex ? ` (${usage.vertex} on the Agent Platform)` : ''}, ${usage.cached} from cache, ${usage.input} in / ${usage.output} out tokens, about $${cost.toFixed(3)}`);
 console.log('\n' + JSON.stringify(times));

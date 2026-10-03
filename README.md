@@ -43,20 +43,19 @@ core/                  the pipeline library
   check_english.js       English checks used by the gate
   review_blocks.js       a second model reviews every block and flags problems
 urdu/                  the Urdu translation and its review
-voice/                 voice tracks (Gemini, ElevenLabs), word alignment, the imam's recitation,
+voice/                 voice tracks (Gemini), word alignment, the imam's recitation,
                        echo removal (Node + Python)
 worker/                publish.js (one khutbah to publishable), autopublish.js (recording to
                        live page), upload_worker.js (runs autopublish for each upload)
 server/                the website: Express routes, viewer counts, admin, upload and publish
                        API; the published khutbahs are in SQLite (db.js) on Render's disk
 public/                the pages (home, reader)
-scripts/               maintenance: reanalyze an old run, set up the hadith corpus, evaluations
+scripts/               maintenance: reanalyze an old run, set up the hadith corpus, check keys
 tests/                 npm test: reader checks per khutbah, server, pipeline end to end
 requirements/          the Python environments
-docs/                  architecture proposal, fix history, deployment, recordings
-outputs/, audio_files/ pipeline runs and recordings (in git only those published before the
-                       publish API; new ones go to the site's disk, their audio to R2; the
-                       site plays all seven older ones' audio from R2 too)
+docs/                  fix history, deployment, recordings
+outputs/, audio_files/ pipeline runs and recordings, on the Mac only (not in git): the
+                       publish API puts a khutbah's text on the site's disk and its audio on R2
 ```
 
 ## Setup
@@ -75,7 +74,6 @@ Python environments, only for the voice and audio steps (each file has its setup
 |---|---|---|
 | `.venv-align` | word timings (`voice/align_words.py`, `voice/align_imam.js`), the imam's delivery | `requirements/align.txt` + the MMS model in `models/mms_fa/` |
 | `.venv-clean` | echo removal (`voice/clean_audio.py`) | `requirements/clean.txt` |
-| `.venv` | the ElevenLabs engine, the quran-detector evaluation | `requirements/base.txt` |
 
 Run every command from the repo root: scripts read `.env` and `outputs/…` from there.
 
@@ -138,5 +136,3 @@ Groq timing is on the free tier. The site itself has no per-visit cost.
 
 - [CLAUDE.md](CLAUDE.md): working notes on every part of the pipeline and the fixes behind it
 - [docs/FIXES.md](docs/FIXES.md): root causes of each fix
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): the scalability proposal (content out of git,
-  multi-language data model)
