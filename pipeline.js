@@ -18,7 +18,7 @@ import { writeFileSync, mkdirSync, readFileSync, existsSync, statSync } from 'fs
 import { fileURLToPath } from 'url';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
-import { stripAyahMarkup, prescanForQuranZones, buildProseChunks, scanTranscriptForQuran, buildZoneRefs, annotateRefAyahRange, yieldTailToLaterRefs, matchClaudeQuranRef } from './core/arabic.js';
+import { stripAyahMarkup, prescanForQuranZones, dropBorrowedPhrases, buildProseChunks, scanTranscriptForQuran, buildZoneRefs, annotateRefAyahRange, yieldTailToLaterRefs, matchClaudeQuranRef } from './core/arabic.js';
 import { loadHadithCorpus, deduplicateHadithRefs, scanTranscriptForHadith, resolveSunnahLinksForRefs, matchClaudeHadithRef } from './core/hadith.js';
 import { KHUTBAH_TYPES, buildAnalysisPrompt, locateSecondKhutbah, splitChunkAtKhutbahBoundary } from './core/analyze.js';
 import { buildReadableOutput, buildReaderView } from './core/reader.js';
@@ -304,7 +304,7 @@ async function main() {
   const CHUNK_SIZE = 30;
   const transcriptWords = transcript.split(/\s+/).filter(Boolean);
   process.stdout.write('Pre-scanning Quran zones...');
-  const quranZones = prescanForQuranZones(transcriptWords);
+  const quranZones = dropBorrowedPhrases(prescanForQuranZones(transcriptWords), transcriptWords);
   console.log(` ${quranZones.length} zones detected`);
 
   const proseChunks = buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSegments);

@@ -22,6 +22,7 @@ import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import {
   prescanForQuranZones,
+  dropBorrowedPhrases,
   buildZoneRefs,
   buildProseChunks,
   scanTranscriptForQuran,
@@ -89,7 +90,7 @@ async function retranslateEnglish(indices) {
 function recomputeChunksAndZones() {
   // Step 1: Re-run prescan with improved alignment
   console.log('Pre-scanning Quran zones with canonical-span alignment...');
-  const quranZones = prescanForQuranZones(transcriptWords);
+  const quranZones = dropBorrowedPhrases(prescanForQuranZones(transcriptWords), transcriptWords);
   console.log(`  ${quranZones.length} zones detected`);
 
   // Step 2: Rebuild prose chunks
