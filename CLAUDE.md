@@ -47,7 +47,9 @@ Run every script from the repo root (each loads `.env` from the working director
 | `core/verify_reader.js` | The publish gate: asserts on what the reader actually renders (`node core/verify_reader.js outputs/<folder>`). |
 | `core/check_english.js` | English checks run by `verify_reader.js`: swapped-in quotes (no new proper noun, no doubled framing, no dropped words, verse coverage), chunk/translation pairing by length ratio, planned swaps that drop numbers/names. |
 | `core/quote_swaps.js` | Plans published-translation swaps for quotes inside prose (one claude-sonnet-5-5 call per quote, answers cached in `hadith_data/.swap_answers.json`); stores `english_swap` per ref. Run by `scripts/reanalyze.js` and the pipeline. |
-| `core/review_blocks.js` | Stage C: second-model review of every reader block (claude-sonnet-5-5, ~$0.07/khutbah). Writes `review.json` flags; changes nothing. |
+| `core/review_english.js` | Stage C for the English (4 Oct 2026): corrects every chunk's English against the Arabic (Urdu as a second reference when there), keeps the glossed Islamic terms (`GLOSSED_TERMS`, core/analyze.js); writes `review_en.json`, then rebuilds reader.txt with `scripts/reanalyze.js --keep-chunks`. claude-opus-5-5, high. autopublish runs it before the Urdu. |
+| `core/review_chunks.js` | The review loop the English and Urdu reviews share: batches, two rounds, high/medium applied, low logged, wild-length rewrites refused. Test: `tests/review.test.js`. |
+| `core/review_blocks.js` | Second-model review of every reader block (claude-sonnet-5-5, ~$0.07/khutbah, `publish.js --review`). Writes `review.json` flags; changes nothing (the English is corrected by `review_english.js`). |
 | `core/verse_excerpts.js` | For a verse the imam recited only in part, the matching part of each published translation, so the card (and the voice) shows just that part. |
 | `server/server.js` | The site's wiring only (`npm start`): Express routers, static files, the viewer WebSocket, cache warm-up. |
 | `server/db.js` | The site database (2 Oct 2026, phase 2): SQLite via Node's built-in `node:sqlite` at `DATA_DIR/site.db` (Render's disk). Table `khutbahs` (folder, slug, position, featured, title … old_slugs/old_folders as JSON, note, media_url: where its audio is on R2). `publishKhutbah` upserts by folder: a new one goes on top, featured moves, a changed slug is kept as a redirect, unsent old_slugs/old_folders/note are kept; a slug owned by another folder (or its old slug) is a 409. All SQL is here, so a move to Postgres changes this file only. |
@@ -289,6 +291,8 @@ Each is exported by its `core/` module and imported from there (`pipeline.js` no
 | 42 | 49:17 stopped short at هَدَىٰكُمْ | `normalizeArabicDeep`: ىٰ inside a word is an alef |
 | 43 | 65:3's card before 65:2's; isti'adha cut to "I seek refuge" | `splitAtCitations`, `trimIstiadha` in the pre-scan |
 | 44 | Urdu عنہم for two Companions | Urdu prompts: عنہما |
+| 45 | English errors stayed on the page: the English review only flagged (2 Oct Makkah block 29, subject swapped) | `core/review_english.js` corrects, as the Urdu review does (shared loop `core/review_chunks.js`) |
+| 46 | English translated Islamic terms the Haramain's English keeps ("faith", "Satan") | `GLOSSED_TERMS`: Iman (faith), Taqwa, Shaytan (Satan) … glossed the first time, then alone |
 
 ---
 
