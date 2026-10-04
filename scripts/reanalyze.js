@@ -33,6 +33,7 @@ import { buildReaderView } from '../core/reader.js';
 import { deduplicateHadithRefs, resolveSunnahLinksForRefs } from '../core/hadith.js';
 import { settleLoneWords } from '../core/transcribe.js';
 import { planQuoteSwaps } from '../core/quote_swaps.js';
+import { translateChunk } from '../core/analyze.js';
 
 const folder = process.argv[2];
 if (!folder || !existsSync(folder)) {
@@ -63,25 +64,13 @@ if (moved.length) {
   console.log(`  then: node urdu/translate_urdu.js ${folder} --chunks ${moved.join(',')} && node urdu/review_urdu.js ${folder} --chunks ${moved.join(',')}`);
 }
 
-// English for the chunks whose boundaries moved, one call each, with the whole khutbah and the
-// English on either side so it reads on; the model of the first analysis (pipeline.js).
+// English for the chunks whose boundaries moved, one call each (translateChunk, core/analyze.js).
 async function retranslateEnglish(indices) {
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 300_000, maxRetries: 4 });
   const map = result.prose_chunk_map, en = result.chunk_translations;
   for (const i of indices) {
     const arabic = transcriptWords.slice(map[i].wordStart, map[i].wordEnd).join(' ');
-    const msg = await anthropic.messages.create({
-      model: 'claude-sonnet-5-5', max_tokens: 4000, output_config: { effort: 'low' },
-      messages: [{ role: 'user', content:
-        `The transcript of an Arabic Friday khutbah, for context:\n${transcript}\n\n` +
-        'Translate one chunk of it into natural, fluent English: exactly its own words, no more and no less (Quran verses are ' +
-        'shown separately on the page, so never add the words of a verse next to the chunk). Match the style of the English ' +
-        'around it (honorifics such as صلى الله عليه وسلم stay in Arabic) and make it read on from the English before it. ' +
-        '«متفق عليه» after a hadith is "Narrated by al-Bukhari and Muslim", never "Agreed upon". ' +
-        'Do not use em dashes or en dashes. Reply with the English only.\n\n' +
-        `English before: ${en[i - 1] ?? '(start of the khutbah)'}\nChunk: ${arabic}\nEnglish after: ${en[i + 1] ?? '(end)'}` }],
-    });
-    en[i] = msg.content.find(b => b.type === 'text')?.text.trim() || en[i];
+    en[i] = await translateChunk(anthropic, { transcript, arabic, before: en[i - 1], after: en[i + 1] }) || en[i];
     console.log(`  chunk ${i}: boundaries moved, English translated again: ${en[i].slice(0, 70)}…`);
   }
 }

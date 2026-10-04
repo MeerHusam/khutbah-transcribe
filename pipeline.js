@@ -20,7 +20,7 @@ import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
 import { stripAyahMarkup, prescanForQuranZones, dropBorrowedPhrases, buildProseChunks, scanTranscriptForQuran, buildZoneRefs, annotateRefAyahRange, yieldTailToLaterRefs, matchClaudeQuranRef } from './core/arabic.js';
 import { loadHadithCorpus, deduplicateHadithRefs, scanTranscriptForHadith, resolveSunnahLinksForRefs, matchClaudeHadithRef } from './core/hadith.js';
-import { KHUTBAH_TYPES, buildAnalysisPrompt, locateSecondKhutbah, splitChunkAtKhutbahBoundary } from './core/analyze.js';
+import { KHUTBAH_TYPES, buildAnalysisPrompt, locateSecondKhutbah, splitChunkAtKhutbahBoundary, completeChunkTranslations } from './core/analyze.js';
 import { buildReadableOutput, buildReaderView } from './core/reader.js';
 import { preprocessAudio, transcribeWithGroq, transcribeWithGemini, SILENCE_PREPEND_SEC } from './core/transcribe.js';
 import { planQuoteSwaps } from './core/quote_swaps.js';
@@ -188,10 +188,10 @@ async function getTranscript({ existingTranscriptPath, audioPath, useGroq }) {
 async function analyzeWithClaude({ transcript, proseChunks, khutbahType, outDir }) {
   const numberedChunks = proseChunks.map((c, i) => `[${i + 1}] ${c.text}`).join('\n');
   const chunkInstruction = `\n\nThe transcript has been divided into ${proseChunks.length} prose chunks below ` +
-    `(Quranic verses are excluded and handled separately). ` +
+    `(the verses the khatib recites are cut out and shown separately; Quranic words left inside a chunk are translated with it). ` +
     `Using your full understanding of the whole khutbah for context, translate each numbered chunk into natural, ` +
-    `fluent English. Return these as "chunk_translations" — an array of exactly ${proseChunks.length} strings, ` +
-    `one per chunk in order.\n\n${numberedChunks}`;
+    `fluent English. Return these as "chunk_translations": an object with one key for every chunk number, ` +
+    `"1" to "${proseChunks.length}", each holding that chunk's English only.\n\n${numberedChunks}`;
 
   let claudeRaw;
   try {
@@ -232,6 +232,9 @@ async function analyzeWithClaude({ transcript, proseChunks, khutbahType, outDir 
     );
     process.exit(1);
   }
+  const { list, missing } = await completeChunkTranslations(anthropic, analysis.chunk_translations, proseChunks, transcript, ANALYSIS_MODEL);
+  if (missing.length) console.log(`  ${missing.length} chunk(s) had no English from the analysis, translated on their own: ${missing.join(', ')}`);
+  analysis.chunk_translations = list;
   return analysis;
 }
 

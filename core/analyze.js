@@ -34,8 +34,11 @@ IMPORTANT STYLE RULE (applies to ALL English text you produce — chunk_translat
 ATTRIBUTION RULE: When the khatib says «متفق عليه» after a hadith, translate it as "Narrated by al-Bukhari and Muslim" (what the term means), never "Agreed upon".
 
 PROSE-CHUNK RULE: A prose chunk may END with a lead-in to a Quranic verse (e.g. "قال الله تعالى", "وقال سبحانه", or the first words of a verse the khatib is about to recite). Translate ONLY the literal Arabic words present in that chunk. Do NOT complete the sentence with, or paraphrase, the content of the Quranic verse that follows — those verses are displayed separately with their own translation. For example, if a chunk ends with "وكيف يدعو", translate just "And how can he invoke", not the full meaning of the verse.
+Quranic words that ARE inside a chunk are part of it: translate them like the rest of the chunk, together with whatever the khatib says about them. Only verses outside the chunks are shown separately.
 
-1. Translate the full text into natural, readable English. Preserve Islamic terms untranslated: Allah, Rasulullah, Salah, Zakat, Ummah, Sunnah, Hadith, Quran, Surah, Ayah, Jummah, Khatib, and any Arabic honorifics like صلى الله عليه وسلم or رضي الله عنه
+RESTART RULE: When the khatib repeats a phrase while speaking (a restart, "ليأمن الناس في بيوتهم ليأمن الناس في بيوتهم"), translate it once, also when the repeat runs on into the next chunk.
+
+1. Translate the full text into natural, readable English. Preserve Islamic terms untranslated: Allah, Rasulullah, Salah, Zakat, Ummah, Sunnah, Hadith, Quran, Surah, Ayah, Jummah, Khatib, and any Arabic honorifics like صلى الله عليه وسلم or رضي الله عنه. Every other Arabic word is translated, never left in transliteration (مخموم القلب is "a clean heart", not "makhmum").
 
 2. Write two summaries:
    a. "share_summary": A ONE-SENTENCE TL;DR — ABSOLUTE MAXIMUM 30 WORDS. State the khutbah's topic and its single biggest takeaway, nothing more. Simple, friendly English; no academic language; do NOT list multiple points or describe both khutbah parts. This is a one-line hook, not a summary. (The detailed "summary" field below carries the full content.)
@@ -84,7 +87,7 @@ For each one found, extract ONLY the hadith text (the Prophet's actual words or 
 
 Return ONLY a valid JSON object with no markdown formatting, no backticks, no preamble. Exactly this structure:
 {
-  "chunk_translations": ["natural English translation of chunk [1]", "translation of chunk [2]", "...one string per numbered chunk, in order"],
+  "chunk_translations": {"1": "natural English translation of chunk [1] only", "2": "translation of chunk [2] only", "...": "one key for every chunk number, from 1 to the last, never two chunks under one key"},
   "share_summary": "2-3 sentence simple community-friendly summary",
   "summary": "3-5 sentence detailed summary",
   "quran_references": [
@@ -238,8 +241,47 @@ Return ONLY valid JSON, no markdown: {"part1":"English of PART 1","part2":"Engli
   }
 }
 
+// ---- Chunk translations --------------------------------------------------------
+
+// The analysis returns the English keyed by chunk number ({"1": …, "2": …}), so a chunk it
+// skipped or merged leaves a gap at its own number instead of shifting every later block onto
+// its neighbour's English (18 Sep 2026, Madinah: 57 translations for 58 chunks, an array).
+// Each gap is translated on its own (translateChunk). An array of the wrong length cannot be
+// paired at all, so then every chunk is.
+async function completeChunkTranslations(anthropic, raw, chunks, transcript, model) {
+  const n = chunks.length;
+  const list = (Array.isArray(raw) ? (raw.length === n ? raw : []) : Array.from({ length: n }, (_, i) => raw?.[i + 1]))
+    .concat(Array(n).fill('')).slice(0, n).map(t => (typeof t === 'string' ? t.trim() : ''));
+  const missing = list.map((t, i) => (t ? -1 : i)).filter(i => i >= 0);
+  for (const i of missing) {
+    list[i] = await translateChunk(anthropic, { transcript, arabic: chunks[i].text, before: list[i - 1] || undefined, after: list[i + 1] || undefined, model });
+  }
+  return { list, missing };
+}
+
+// English for one chunk, with the whole khutbah and the English on either side so it reads on.
+// Used for a chunk the analysis left out, and by scripts/reanalyze.js for a chunk whose
+// boundaries moved.
+async function translateChunk(anthropic, { transcript, arabic, before, after, model = 'claude-sonnet-5-5' }) {
+  const msg = await anthropic.messages.create({
+    model, max_tokens: 4000, output_config: { effort: 'low' },
+    messages: [{ role: 'user', content:
+      `The transcript of an Arabic Friday khutbah, for context:\n${transcript}\n\n` +
+      'Translate one chunk of it into natural, fluent English: exactly its own words, no more and no less, Quranic words ' +
+      'inside it included (verses outside the chunk are shown separately on the page, so never add the words of a verse ' +
+      'next to the chunk). Match the style of the English around it (honorifics such as صلى الله عليه وسلم stay in Arabic; ' +
+      'every other Arabic word is translated) and make it read on from the English before it; a phrase the khatib repeats ' +
+      'is translated once. «متفق عليه» after a hadith is "Narrated by al-Bukhari and Muslim", never "Agreed upon". ' +
+      'Do not use em dashes or en dashes. Reply with the English only.\n\n' +
+      `English before: ${before ?? '(start of the khutbah)'}\nChunk: ${arabic}\nEnglish after: ${after ?? '(end)'}` }],
+  });
+  return msg.content.find(b => b.type === 'text')?.text.trim() ?? '';
+}
+
 export {
   KHUTBAH_TYPES,
+  completeChunkTranslations,
+  translateChunk,
   buildAnalysisPrompt,
   locateSecondKhutbah,
   splitChunkAtKhutbahBoundary,

@@ -9,6 +9,7 @@ import { mkdtempSync, copyFileSync, readFileSync, writeFileSync, existsSync, rmS
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { verifyReader } from '../core/verify_reader.js';
+import { completeChunkTranslations } from '../core/analyze.js';
 
 const RUN = 'tests/fixture';
 
@@ -20,7 +21,8 @@ test('pipeline.js --transcript with a stub Claude: every stage runs and the read
   const fromClaude = x => x.detection_method === 'signal_phrase';
   const quran = r.quran_references.filter(fromClaude);
   writeFileSync(join(dir, 'analysis.json'), JSON.stringify({
-    share_summary: r.share_summary, summary: r.summary, chunk_translations: r.chunk_translations,
+    share_summary: r.share_summary, summary: r.summary,
+    chunk_translations: Object.fromEntries(r.chunk_translations.map((t, i) => [i + 1, t])), // keyed by chunk number
     second_khutbah_start: r.second_khutbah?.marker_text ?? null,
     quran_references: quran.map(q => ({ arabic_text: q.detected_text, surah_number: q.surah_number, ayah_number: q.ayah_number, surah_name: q.surah_name })),
     hadith_references: r.hadith_references.filter(fromClaude).map(h => ({ arabic_text: h.detected_text, narrator: h.narrator, collection: h.collection })),
@@ -46,4 +48,18 @@ test('pipeline.js --transcript with a stub Claude: every stage runs and the read
     rmSync(dir, { recursive: true, force: true });
     if (out?.startsWith('outputs/') && out.includes('_pipeline-test-')) rmSync(out, { recursive: true, force: true });
   }
+});
+
+// 18 Sep 2026 (Madinah): the analysis gave 57 translations for 58 chunks and every later block
+// showed its neighbour's English. A chunk missing from the keyed answer is translated on its own.
+test('a chunk the analysis left out is translated on its own; the others keep their place', async () => {
+  const asked = [];
+  const client = { messages: { create: async ({ messages }) => { asked.push(messages[0].content.match(/Chunk: (.*)/)[1]); return { content: [{ type: 'text', text: 'English of B' }] }; } } };
+  const chunks = [{ text: 'أ' }, { text: 'ب' }, { text: 'ج' }];
+  const { list, missing } = await completeChunkTranslations(client, { 1: 'English of A', 3: 'English of C' }, chunks, 'أ ب ج');
+  assert.deepEqual(list, ['English of A', 'English of B', 'English of C']);
+  assert.deepEqual(missing, [1]);
+  assert.deepEqual(asked, ['ب']);
+  // An array of the wrong length cannot be paired: every chunk is translated again.
+  assert.deepEqual((await completeChunkTranslations(client, ['x', 'y'], chunks, '')).missing, [0, 1, 2]);
 });
