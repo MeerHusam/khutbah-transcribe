@@ -47,7 +47,7 @@ async function next() {
     if (!d.ok) { await status(job.id, 'failed', `download: ${d.status}`); continue; }
     await pipeline(Readable.fromWeb(d.body), createWriteStream(file));
     await status(job.id, 'downloaded', 'on the Mac');
-    const args = ['worker/autopublish.js', file, '--job', job.id, ...(job.masjid ? ['--masjid', job.masjid] : []), ...(job.single ? ['--single'] : []), ...(job.date ? ['--date', job.date] : []), ...EXTRA];
+    const args = ['worker/autopublish.js', file, '--job', job.id, ...(job.masjid ? ['--masjid', job.masjid] : []), ...(job.speaker ? ['--speaker', job.speaker] : []), ...(job.single ? ['--single'] : []), ...(job.date ? ['--date', job.date] : []), ...EXTRA];
     const code = await new Promise(res => spawn('node', args, { cwd: ROOT, stdio: 'inherit', env: process.env }).on('close', res));
     log(`job ${job.id}: autopublish exited ${code}`);
     return true; // ask again straight away

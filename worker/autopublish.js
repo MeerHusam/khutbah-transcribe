@@ -43,7 +43,7 @@ const flag = f => argv.includes(f);
 const resume = opt('--resume')?.replace(/\/+$/, '');
 const input = resume ?? argv[0];
 if (!input || input.startsWith('--') || !existsSync(input) || (resume && !existsSync(join(resume, 'result.json')))) {
-  console.error('usage: node worker/autopublish.js <recording> [--masjid "Name"] [--single] [--date YYYY-MM-DD] [--job <id>] [--no-push]\n'
+  console.error('usage: node worker/autopublish.js <recording> [--masjid "Name"] [--speaker "Sheikh …"] [--single] [--date YYYY-MM-DD] [--job <id>] [--no-push]\n'
     + '       node worker/autopublish.js --resume outputs/<folder> [--masjid "Name"] [--no-push]');
   process.exit(1);
 }
@@ -58,6 +58,7 @@ const riyadhDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh', y
 const dateISO = opt('--date', resumedSlug?.slice(0, 10) ?? riyadhDate);
 const dateText = new Date(`${dateISO}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 const masjidIn = (opt('--masjid') || '').trim();
+const speaker = (opt('--speaker') || '').trim(); // the imam's name, from the upload page; else publish.js says "Friday Khutbah"
 const home = !masjidIn || /ma'?ather|معذر/i.test(masjidIn);
 const masjid = home ? HOME.masjid : masjidIn;
 const masjidSlug = masjidIn.normalize('NFKD').replace(/[^\x00-\x7f]/g, '').toLowerCase().replace(/\b(masjid|mosque|jami|jamia)\b/g, '')
@@ -233,7 +234,7 @@ async function main() {
   // imam's recording (the echo-removed one with --clean).
   await report('publishing', { message: push ? 'checks, then the site' : 'checks (not publishing: --no-push)' });
   await run('checks and site entry', 'node', ['worker/publish.js', audioOut, '--from-folder', F, '--keep-audio', '--slug', slug, '--title', title, '--date', dateText,
-    '--name', name, '--masjid', masjid, ...(place.masjid_ar ? ['--masjid-ar', place.masjid_ar] : []), '--maps-url', place.maps_url, ...(home ? [] : ['--no-feature']),
+    '--name', name, '--masjid', masjid, ...(speaker ? ['--speaker', speaker] : []), ...(place.masjid_ar ? ['--masjid-ar', place.masjid_ar] : []), '--maps-url', place.maps_url, ...(home ? [] : ['--no-feature']),
     ...(cleanAudio ? ['--audio', cleanAudio] : []), ...(single ? ['--single'] : []),
     ...(push ? ['--site', SITE] : ['--no-site'])]);
   const link = `${SITE}/${slug}`;
@@ -284,7 +285,7 @@ function voicesPending(failed, key) {
   all[key] = {
     job: jobId, slug, why: failed, tries: all[key]?.tries ?? 0,
     next: all[key]?.next ?? new Date(Date.now() + 60 * 60_000).toISOString(),
-    args: ['--resume', key, ...(jobId ? ['--job', jobId] : []), ...(masjidIn ? ['--masjid', masjidIn] : []), '--date', dateISO,
+    args: ['--resume', key, ...(jobId ? ['--job', jobId] : []), ...(masjidIn ? ['--masjid', masjidIn] : []), ...(speaker ? ['--speaker', speaker] : []), '--date', dateISO,
       ...(single ? ['--single'] : []), ...(push ? [] : ['--no-push']), ...(flag('--clean') ? ['--clean'] : [])],
   };
   writeFileSync(file, JSON.stringify(all, null, 1));

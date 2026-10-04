@@ -52,6 +52,9 @@
   <label for="masjid">Masjid (leave empty for Askan AlMaather Mosque)</label>
   <input type="text" id="masjid" list="masjids" placeholder="Askan AlMaather Mosque" autocomplete="off">
   <datalist id="masjids"></datalist>
+  <label for="speaker">Imam (optional, e.g. Sheikh Faisal Ghazzawi)</label>
+  <input type="text" id="speaker" list="speakers" placeholder="Friday Khutbah" autocomplete="off">
+  <datalist id="speakers"></datalist>
   <label for="date">Date of the khutbah (change it only for an older recording)</label>
   <input type="date" id="date">
   <label class="check"><input type="checkbox" id="single"> One khutbah only (Eid, Arafah, a lecture)</label>
@@ -82,6 +85,7 @@
   $('date').value = new Date().toLocaleDateString('sv');
   fetch('/api/results').then(r => r.json()).then(d => {
     $('masjids').innerHTML = [...new Set(d.items.map(k => k.masjid).filter(Boolean))].map(m => `<option value="${esc(m)}">`).join('');
+    $('speakers').innerHTML = [...new Set(d.items.map(k => k.speaker).filter(s => /^Sheikh /.test(s || '')))].map(s => `<option value="${esc(s)}">`).join('');
   }).catch(() => {});
 
   let file = null;
@@ -100,6 +104,7 @@
     xhr.setRequestHeader('x-admin-key', key);
     xhr.setRequestHeader('x-file-name', encodeURIComponent(file.name));
     xhr.setRequestHeader('x-masjid', encodeURIComponent(masjid));
+    xhr.setRequestHeader('x-speaker', encodeURIComponent($('speaker').value.trim()));
     xhr.setRequestHeader('x-single', $('single').checked ? '1' : '0');
     xhr.setRequestHeader('x-date', $('date').value);
     xhr.setRequestHeader('content-type', file.type || 'application/octet-stream');

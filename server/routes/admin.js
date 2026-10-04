@@ -103,6 +103,7 @@ router.post('/admin/upload', (req, res) => {
     const job = {
       id, file, name, bytes, uploaded_at: now, status: 'uploaded',
       masjid: decodeURIComponent(req.get('x-masjid') || '').trim().slice(0, 120),
+      speaker: decodeURIComponent(req.get('x-speaker') || '').trim().slice(0, 120),
       single: req.get('x-single') === '1',
       date: /^\d{4}-\d{2}-\d{2}$/.test(req.get('x-date') || '') ? req.get('x-date') : null,
       log: [{ at: now, status: 'uploaded', message: `${(bytes / 1048576).toFixed(1)} MB received` }],
