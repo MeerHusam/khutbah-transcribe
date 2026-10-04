@@ -260,3 +260,26 @@ Full root-cause analyses and implementation notes for every fix. New fixes go he
 **Root cause:** `imamAttributionSlug` expected the collection name straight after رواه/أخرجه. A title or "in" before it ("الامام", "في") hid the name, and "الشيخان"/"الصحيحين" (Bukhari and Muslim) had no mapping, so the lookup fell back to Claude's guess.
 
 **Fix:** Skip a leading "الامام"/"في"; map "الشيخان" and "الصحيحين" to Bukhari. 11 Sep and Sudais now link Bukhari 7138 and Bukhari 1901.
+
+### 35. Verse words repeated in the prose next to their card (2 Oct 2026 Makkah)
+
+**Symptom:** three English and Urdu blocks opened or closed with words of the verse card beside them ("O people of insight.", "And a reminder for the believers.", "Indeed in that is a reminder for whoever has a heart"), and 25:62's card began a word late.
+
+**Root cause:** the Quran corpus is in the mushaf's spelling. The verse match compared words after `normalizeArabicDeep`, which still told apart يااولي (joined vocative) from يا أولي, وذكرىا (small alef made a full alef) from وذكرى, ذالك from ذلك, and اليل from الليل. The match stopped short at those words; they stayed in the prose chunk sent to Claude, and the reader then gave them to the card while the chunk's English kept them.
+
+**Fix:** `normalizeArabicDeep` drops every alef, folds ى/ي and ة/ه, splits the joined vocative (338 verses have one) and maps الليل to the mushaf's اليل. Across the 12 test-set transcripts the change moves 20 zone edges, all onto the right word, and identifies 28:60 and 106:3 correctly; the shahada's 4-word matches with 21:87 and 37:35 stay under the 5-word minimum, so they never leave the prose. `verify_reader` 2f fails a prose chunk with two or more words rendered in a verse card; it also found the same defect in Arafah, Eid, Sudais and 21 Aug (reprocess them). Test: `tests/verse_zones.test.js`.
+
+### 36. Hadith linked to the first collection listed
+
+**Symptom:** "لا يلدغ المؤمن من جحر واحد مرتين" (Bukhari 6133, Muslim 2998) was carded as Abu Dawud 4862.
+
+**Root cause:** with no collection named by the imam, the link was the best-scoring sunnah.com result, and all three scored the same; the first listed won.
+
+**Fix:** `pickSunnahResult` takes Bukhari, then Muslim, then the Sunan, among results within 0.1 of the best score, and the search without a named collection runs before Claude's guess of one. The sunnah.com cache key for that search moved to v3. Test in `tests/narrator.test.js`.
+
+### 37. Urdu honorific and du'a conventions
+
+**Symptom:** the shahada read "محمد اس کے بندے…" with no صلی اللہ علیہ وسلم (the official Urdu has it), and "أصلح الأئمة" became اماموں, heard as prayer leaders.
+
+**Fix:** the Urdu prompt writes صلی اللہ علیہ وسلم and رضی اللہ عنہ/عنہم by Urdu convention even where the imam doesn't say them, and حکمران for الأئمة in a du'a for those in authority; the Urdu review keeps them rather than marking them as additions.
+

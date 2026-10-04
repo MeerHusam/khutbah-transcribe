@@ -279,6 +279,9 @@ Each is exported by its `core/` module and imported from there (`pipeline.js` no
 | 32 | Sudais English one block off from chunk 59 | Translations re-paired; length-ratio pairing check |
 | 33 | Second khutbah's first word timed in the sitting pause | Pause-aware `interpolateAnchors`; `settleLoneWords` |
 | 34 | Hadith carded from a collection the imam didn't name ("رواه الامام البخاري", "الشيخان") | `imamAttributionSlug` skips "الامام"/"في"; "الشيخان"/"الصحيحين" = Bukhari |
+| 35 | Verse edges missed where the mushaf's spelling differs (يااولي, ذِكْرَىٰ, ذَٰلِكَ, ٱلَّيْل): the verse's words stayed in the prose and the English repeated them beside the card (2 Oct Makkah, 3 blocks) | `normalizeArabicDeep`: alefs dropped, ى/ة folded, the joined vocative split, الليل; `verify_reader` 2f fails a chunk whose words render in a card |
+| 36 | Hadith linked to the first collection sunnah.com listed (Abu Dawud 4862 for a hadith in Bukhari and Muslim) | `pickSunnahResult`: with no collection named by the imam, Bukhari, then Muslim, … among results within 0.1 of the best |
+| 37 | Urdu without صلی اللہ علیہ وسلم after the Prophet's name where the imam didn't say it, and امام for الأئمة (rulers) | `translate_urdu.js` / `review_urdu.js` prompts |
 
 ---
 
