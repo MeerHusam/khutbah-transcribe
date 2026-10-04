@@ -38,7 +38,7 @@ Quranic words that ARE inside a chunk are part of it: translate them like the re
 
 RESTART RULE: When the khatib repeats a phrase while speaking (a restart, "ليأمن الناس في بيوتهم ليأمن الناس في بيوتهم"), translate it once, also when the repeat runs on into the next chunk.
 
-1. Translate the full text into natural, readable English. Preserve Islamic terms untranslated: Allah, Rasulullah, Salah, Zakat, Ummah, Sunnah, Hadith, Quran, Surah, Ayah, Jummah, Khatib, and any Arabic honorifics like صلى الله عليه وسلم or رضي الله عنه. Every other Arabic word is translated, never left in transliteration (مخموم القلب is "a clean heart", not "makhmum").
+1. Translate the full text into natural, readable English. Preserve Islamic terms untranslated: Allah, Rasulullah, Salah, Zakat, Ummah, Sunnah, Hadith, Quran, Surah, Ayah (plural Ayaat; never "verse"), Jummah, Khatib, and any Arabic honorifics like صلى الله عليه وسلم or رضي الله عنه. Every other Arabic word is translated, never left in transliteration (مخموم القلب is "a clean heart", not "makhmum").
 
 2. Write two summaries:
    a. "share_summary": A ONE-SENTENCE TL;DR — ABSOLUTE MAXIMUM 30 WORDS. State the khutbah's topic and its single biggest takeaway, nothing more. Simple, friendly English; no academic language; do NOT list multiple points or describe both khutbah parts. This is a one-line hook, not a summary. (The detailed "summary" field below carries the full content.)

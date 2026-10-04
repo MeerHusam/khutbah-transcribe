@@ -139,7 +139,7 @@ function cleanUrdu(text) {
 }
 
 // The verse translation a card shows: the recited part when the page cuts the verse to it,
-// otherwise the whole verse (or passage). Mirrors enhanceQuranRefs in public/index.html.
+// otherwise the whole verse (or passage). Mirrors enhanceQuranRefs in public/reader.html.
 function verseSpeech(chunk, s, a, e, excerpts) {
   const nums = [];
   for (let n = a; n <= e && nums.length < 25; n++) nums.push(n);

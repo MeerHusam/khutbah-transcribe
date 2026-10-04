@@ -3,23 +3,27 @@
     "folder": "2026-10-03T23-14-37_khutbah-2026-10-02-al-haram-makkah",
     "slug": "2026-10-02-al-haram-makkah",
     "title": "Learning From Others' Lessons",
-    "speaker": "Friday Khutbah",
+    "speaker": "Sheikh Faisal Ghazzawi",
     "masjid": "Masjid al-Haram, Makkah",
     "date": "2 October 2026",
     "page": "reader-ur.html",
     "audio": "khutbah-2026-10-02-al-haram-makkah.mp3",
-    "media_url": "https://media.khutbah.dev/2026-10-03T23-14-37_khutbah-2026-10-02-al-haram-makkah/"
+    "media_url": "https://media.khutbah.dev/2026-10-03T23-14-37_khutbah-2026-10-02-al-haram-makkah/",
+    "masjid_ar": "المسجد الحرام",
+    "maps_url": "https://www.google.com/maps/search/?api=1&query=Masjid+al-Haram+Makkah"
   },
   {
     "folder": "2026-10-03T19-45-57_khutbah-2026-10-02-an-nabawi-madinah",
     "slug": "2026-10-02-madinah-munawwarah",
     "title": "The Wealth of Contentment",
-    "speaker": "Friday Khutbah",
+    "speaker": "Sheikh Abdullah al-Bu'ayjan",
     "masjid": "Masjid an-Nabawi, Madinah",
     "date": "2 October 2026",
     "page": "reader-ur.html",
     "audio": "khutbah-2026-10-02-an-nabawi-madinah.mp3",
-    "media_url": "https://media.khutbah.dev/2026-10-03T19-45-57_khutbah-2026-10-02-an-nabawi-madinah/"
+    "media_url": "https://media.khutbah.dev/2026-10-03T19-45-57_khutbah-2026-10-02-an-nabawi-madinah/",
+    "masjid_ar": "المسجد النبوي",
+    "maps_url": "https://www.google.com/maps/search/?api=1&query=Masjid+an-Nabawi+Madinah"
   },
   {
     "folder": "2026-10-02T09-05-36_khutbah-2026-10-02",
@@ -39,12 +43,14 @@
     "folder": "2026-10-02T07-44-06_khutbah-2026-10-02-madinah-munawwarah",
     "slug": "2026-09-25-madinah-munawwarah",
     "title": "Paradise: The Eternal Abode",
-    "speaker": "Friday Khutbah",
+    "speaker": "Sheikh Salah al-Budair",
     "masjid": "Masjid an-Nabawi, Madinah",
     "date": "25 September 2026",
     "audio": "khutbah-2026-10-02-madinah-munawwarah-clean.m4a",
     "page": "reader-ur.html",
-    "media_url": "https://media.khutbah.dev/2026-10-02T07-44-06_khutbah-2026-10-02-madinah-munawwarah/"
+    "media_url": "https://media.khutbah.dev/2026-10-02T07-44-06_khutbah-2026-10-02-madinah-munawwarah/",
+    "masjid_ar": "المسجد النبوي",
+    "maps_url": "https://www.google.com/maps/search/?api=1&query=Masjid+an-Nabawi+Madinah"
   },
   {
     "folder": "2026-09-25T10-04-57_khutbah-2026-09-25-masjid-urdu",

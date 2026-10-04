@@ -180,9 +180,10 @@ test('unknown pages get the 404 page, unknown /api paths a JSON 404', async () =
 test('upload API: upload, claim once, download, and the recording is removed', async () => {
   const headers = { 'x-admin-key': KEY };
   assert.equal((await get('/admin/upload', { method: 'POST', body: Buffer.alloc(200 * 1024) })).status, 401);
-  const job = await (await get('/admin/upload', { method: 'POST', headers: { ...headers, 'x-file-name': 'khutbah.m4a', 'x-masjid': 'Test', 'x-date': '2026-09-25' }, body: Buffer.alloc(200 * 1024) })).json();
+  const job = await (await get('/admin/upload', { method: 'POST', headers: { ...headers, 'x-file-name': 'khutbah.m4a', 'x-masjid': 'Test', 'x-speaker': encodeURIComponent("Sheikh Abdullah al-Bu'ayjan"), 'x-date': '2026-09-25' }, body: Buffer.alloc(200 * 1024) })).json();
   assert.equal(job.status, 'uploaded');
   assert.equal(job.masjid, 'Test');
+  assert.equal(job.speaker, "Sheikh Abdullah al-Bu'ayjan");
   assert.equal(job.date, '2026-09-25');
   const queued = await (await get('/admin/uploads?status=uploaded', { headers })).json();
   assert.deepEqual(queued.map(j => j.id), [job.id]);
@@ -206,7 +207,7 @@ test('publishing: a new khutbah is live at once, with its files, recording and v
   writeFileSync(join(folderPath, 'tts_ur.mp3'), Buffer.alloc(1000, 2));
   const recording = join(tmp, 'khutbah-test-publish.m4a');
   writeFileSync(recording, Buffer.alloc(1000, 1));
-  const entry = { slug: 'test-publish', title: 'Test Publish', date: '2 October 2026', page: 'reader-ur.html', featured: true };
+  const entry = { slug: 'test-publish', title: 'Test Publish', date: '2 October 2026', featured: true };
   try {
     await assert.rejects(publishToSite({ site: BASE, key: 'wrong-key', folderPath, recording, entry }), /401/);
     const seed = join(tmp, 'seed.json');

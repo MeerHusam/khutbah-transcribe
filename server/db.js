@@ -23,7 +23,7 @@ const MIGRATIONS = [
      maps_url     TEXT,
      date         TEXT,
      audio        TEXT,                  -- the recording in audio_files/, when not named after the folder
-     page         TEXT,                  -- the reader page, when not index.html
+     page         TEXT,                  -- unused since 4 Oct 2026: every khutbah opens public/reader.html
      old_slugs    TEXT,                  -- JSON array: earlier short links that redirect here
      old_folders  TEXT,                  -- JSON array: earlier folders whose ?folder= links open this
      note         TEXT,

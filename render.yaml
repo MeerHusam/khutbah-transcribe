@@ -28,7 +28,6 @@ services:
         - server/admin/**
         - public/**
         - core/reader_chunks.js
-        - server.js
         - package.json
         - package-lock.json
         - render.yaml
