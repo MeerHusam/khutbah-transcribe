@@ -726,7 +726,49 @@ function prescanForQuranZones(transcriptWords, n = 4) {
       settled.push(z);
     }
   }
-  return settled;
+  return splitAtCitations(trimIstiadha(settled), transcriptWords);
+}
+
+// The ayah words of a zone, deep-normalized.
+const zoneAyahWords = z => new Set((z.ayah_spans ?? []).flatMap(s =>
+  normalizeArabicDeep(quranData[s.surah_id - 1]?.verses.find(v => v.id === s.ayah_id)?.text ?? '').split(' ')));
+
+// "أعوذ بالله من الشيطان الرجيم" before a recitation matches 16:98 and joined the verse's zone,
+// leaving "أعوذ" alone in the prose ("I seek refuge", 18 Sep 2026 Madinah, before 17:21). The
+// isti'adha is the imam's, not the verse: it starts the zone no more, and stays in the prose whole.
+function trimIstiadha(zones) {
+  for (const z of zones) {
+    const spans = (z.ayah_spans ?? []).slice().sort((a, b) => a.start - b.start);
+    const [first, next] = spans;
+    if (!next || first.surah_id !== 16 || first.ayah_id !== 98 || first.end - first.start > 5 || first.start !== z.start) continue;
+    z.start = next.start;
+    z.ayah_spans = spans.slice(1);
+    ({ surah_id: z.surah_id, ayah_id: z.ayah_id, surah_name: z.surah_name } = next);
+    z.extra_ayahs = (z.extra_ayahs ?? []).filter(e => !(e.surah_id === 16 && e.ayah_id === 98) && !(e.surah_id === next.surah_id && e.ayah_id === next.ayah_id));
+  }
+  return zones;
+}
+
+// A zone that runs across the imam's citing phrase joined his own words to the verse he then
+// cites: "ورزق الآخرة من حيث لا يحتسب، قال تعالى: ومن يتق الله يجعل له مخرجاً ويرزقه من حيث لا
+// يحتسب" was one 65:3 zone from the first "من حيث", so 65:3's card came before 65:2's (18 Sep 2026,
+// Madinah). Split at the citing word (one the verse does not have) and scan each side again.
+function splitAtCitations(zones, transcriptWords) {
+  const letters = w => normalizeArabic(w).replace(/[^\u0621-\u064A]/g, '');
+  const out = [];
+  for (const z of zones) {
+    const ayah = zoneAyahWords(z);
+    const words = transcriptWords.slice(z.start, z.end);
+    const isCiting = w => CITES_VERSE.test(letters(w)) && !ayah.has(normalizeArabicDeep(w));
+    const p = words.findIndex(isCiting);
+    if (p < 0 || words.slice(0, p).filter(w => !isCiting(w)).length < 2) { out.push(z); continue; }
+    for (const [a, b] of [[z.start, z.start + p], [z.start + p + 1, z.end]]) {
+      for (const y of prescanForQuranZones(transcriptWords.slice(a, b))) {
+        out.push({ ...y, start: y.start + a, end: y.end + a, ayah_spans: (y.ayah_spans ?? []).map(s => ({ ...s, start: s.start + a, end: s.end + a })) });
+      }
+    }
+  }
+  return out;
 }
 
 // Surface Quranic ayahs that the n-gram zones identified but Claude + Jaccard scan both missed.

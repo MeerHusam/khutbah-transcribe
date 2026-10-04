@@ -48,3 +48,15 @@ const QUOTED = [
 ];
 for (const [text, ref] of BORROWED) test(`no ${ref} card for the imam's own phrase`, () => assert.ok(!zonesOf(text).includes(ref)));
 for (const [text, ref] of QUOTED) test(`${ref} quoted briefly keeps its card`, () => assert.ok(zonesOf(text).includes(ref), zonesOf(text).join()));
+
+// 18 Sep 2026 (Madinah): the imam's own "من حيث لا يحتسب" and his "قال تعالى" were inside 65:3's
+// zone, so 65:3's card came before 65:2's; the isti'adha joined 17:21's, leaving "أعوذ" alone.
+const zoneAt = text => { const w = text.split(' '); return prescanForQuranZones(w).filter(z => z.end - z.start >= 5).map(z => [w[z.start], z.ayah_spans.map(s => `${s.surah_id}:${s.ayah_id}`).join(',')]); };
+test('a citing phrase inside a zone splits it: 65:2–3 starts after "قال تعالى"', () => {
+  assert.deepEqual(zoneAt('بما ييسره له من رزق الدنيا ورزق الآخرة من حيث لا يحتسب، قال تعالى: ومن يتق الله يجعل له مخرجاً ويرزقه من حيث لا يحتسب. وفتنة الغنى أعظم'),
+    [['ومن', '65:2,65:3']]);
+});
+test("the isti'adha stays in the prose: 17:21 starts at its first word", () => {
+  assert.deepEqual(zoneAt('والمنعم عليه حقاً من يموت على الإيمان. أعوذ بالله من الشيطان الرجيم: انظر كيف فضلنا بعضهم على بعض وللآخرة أكبر درجات وأكبر تفضيلاً. بارك الله لي ولكم'),
+    [['انظر', '17:21']]);
+});
