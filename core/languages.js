@@ -3,8 +3,9 @@
 // hadith editions, the voice, the page's words and the prompts. A new language is a file there and a
 // line here; the scripts, the voice, the site and the page read it from this list.
 import ur from './langs/ur.js';
+import bn from './langs/bn.js';
 
-export const LANGS = [ur];
+export const LANGS = [ur, bn];
 export const langOf = code => LANGS.find(L => L.code === code);
 
 // What the reader page needs to show a language (sent with the khutbah; no prompts, no functions).

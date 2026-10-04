@@ -4,7 +4,7 @@
 //
 //   node worker/autopublish.js <recording> [--masjid "Masjid Name"] [--single] [--date 2026-10-02]
 //        [--job <upload id>] [--langs ur,bn] [--no-push] [--clean]   --no-push: everything but publishing; --clean: the page plays the recording with the hall's echo taken out
-//        --langs: the languages besides English (core/languages.js; default ur, or LANGS in .env)
+//        --langs: the languages besides English (core/languages.js; default ur,bn, or LANGS in .env)
 //   node worker/autopublish.js --resume outputs/<folder> [--masjid …] [--no-push]
 //        after a failed run: the steps already done are kept (the voices come from the cache)
 //
@@ -55,7 +55,7 @@ const resumedSlug = resume ? basename(resume).replace(/^[^_]*_khutbah-/, '') : n
 const jobId = opt('--job');
 const single = flag('--single');
 const push = !flag('--no-push');
-const langs = (opt('--langs') ?? process.env.LANGS ?? 'ur').split(',').filter(Boolean).map(c => langOf(c) ?? (console.error(`unknown language ${c}`), process.exit(1)));
+const langs = (opt('--langs') ?? process.env.LANGS ?? 'ur,bn').split(',').filter(Boolean).map(c => langOf(c) ?? (console.error(`unknown language ${c}`), process.exit(1)));
 
 // ── Names ──────────────────────────────────────────────────────────────────────
 const riyadhDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
