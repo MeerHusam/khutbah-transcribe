@@ -29,7 +29,7 @@ import { spawn, spawnSync } from 'child_process';
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync, appendFileSync } from 'fs';
 import { join, extname, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
-import { siteSlugs } from './site.js';
+import { siteItems } from './site.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SITE = process.env.SITE_URL || 'https://khutbah.dev';
@@ -62,7 +62,12 @@ const home = !masjidIn || /ma'?ather|معذر/i.test(masjidIn);
 const masjid = home ? HOME.masjid : masjidIn;
 const masjidSlug = masjidIn.normalize('NFKD').replace(/[^\x00-\x7f]/g, '').toLowerCase().replace(/\b(masjid|mosque|jami|jamia)\b/g, '')
   .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);
-const taken = resume || !push ? [] : await siteSlugs(SITE).catch(e => { console.error(`cannot reach ${SITE}: ${e.message}`); process.exit(1); });
+const items = !push ? [] : await siteItems(SITE).catch(e => { console.error(`cannot reach ${SITE}: ${e.message}`); process.exit(1); });
+const taken = resume ? [] : items.map(i => i.slug);
+// Another masjid's map link: a page of it already on the site has one, else a map search for its
+// name (2 Oct 2026: the Haramain pages went up with none).
+const place = home ? HOME : { maps_url: items.find(i => i.masjid === masjid && i.maps_url)?.maps_url
+  ?? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(masjid)}` };
 let slug = resumedSlug ?? (home ? dateISO : `${dateISO}-${masjidSlug || 'masjid'}`);
 for (let n = 2; taken.includes(slug); n++) slug = `${home ? dateISO : `${dateISO}-${masjidSlug || 'masjid'}`}-${n}`;
 const name = `khutbah-${slug}`;
@@ -228,7 +233,7 @@ async function main() {
   // imam's recording (the echo-removed one with --clean).
   await report('publishing', { message: push ? 'checks, then the site' : 'checks (not publishing: --no-push)' });
   await run('checks and site entry', 'node', ['worker/publish.js', audioOut, '--from-folder', F, '--keep-audio', '--slug', slug, '--title', title, '--date', dateText,
-    '--name', name, '--masjid', masjid, ...(home ? ['--masjid-ar', HOME.masjid_ar, '--maps-url', HOME.maps_url] : ['--no-feature']),
+    '--name', name, '--masjid', masjid, ...(place.masjid_ar ? ['--masjid-ar', place.masjid_ar] : []), '--maps-url', place.maps_url, ...(home ? [] : ['--no-feature']),
     ...(cleanAudio ? ['--audio', cleanAudio] : []), ...(single ? ['--single'] : []),
     ...(push ? ['--site', SITE] : ['--no-site'])]);
   const link = `${SITE}/${slug}`;
