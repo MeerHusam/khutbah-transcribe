@@ -11,7 +11,7 @@
 //   1. the recording into audio_files/ (streamable), then pipeline.js --gemini: the Arabic,
 //      the English, the Quran and hadith cards
 //   2. a short title from the summary (one small Claude call)
-//   3. side by side: the Urdu (translate_urdu.js, review_urdu.js) and, locally, the imam's word
+//   3. side by side: the English review, then the Urdu (review_english.js, translate_urdu.js, review_urdu.js) and, locally, the imam's word
 //      times and his delivery (with --clean, also the recording with the hall's echo taken out)
 //   4. verse_excerpts.js: a verse he recited only in part shows (and is voiced) only in part
 //   5. the voices, side by side: Urdu (Orus, a direction per sentence, a passage at a time) and
@@ -175,11 +175,13 @@ async function main() {
   title ||= (result.share_summary || 'Friday Khutbah').split(/\s+/).slice(0, 5).join(' ');
   await report('english', { title, message: title });
 
-  // 3. Urdu (API) beside the imam's timing (local).
+  // 3. The English review, then the Urdu (API), beside the imam's timing (local). The review
+  // corrects the English the Urdu then uses as its second reference; both write result.json.
   await report('urdu');
   let cleanAudio = null;
   await Promise.all([
     (async () => {
+      await step(() => has('review_en.json'), 'English review', 'node', ['core/review_english.js', F]);
       await step(() => result.urdu, 'Urdu translation', 'node', ['urdu/translate_urdu.js', F]);
       await step(() => has('review_ur.json'), 'Urdu review', 'node', ['urdu/review_urdu.js', F]);
     })(),

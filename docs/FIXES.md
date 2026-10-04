@@ -327,3 +327,17 @@ Full root-cause analyses and implementation notes for every fix. New fixes go he
 ### 44. Urdu: عنہم for two Companions
 
 **Fix:** the Urdu prompts ask for the dual, رضی اللہ عنہما, for two (ابوبکر و عمر).
+
+### 45. English errors stayed on the page (2 Oct 2026 Makkah)
+
+**Symptom:** block 29 read "do not take admonition from what befell others, nor from what happened to those around them" for بما حل بهم ولا بما جرى لغيرهم (what befell them, nor what befell others). The Urdu had it right; the same happened on 25 Sep Makkah.
+
+**Root cause:** the Urdu review corrects against the Arabic; the English review (`review_blocks.js`) only reported.
+
+**Fix:** `core/review_english.js` corrects every chunk's English against the Arabic (the Urdu as a second reference when there), with the loop the Urdu review uses, now shared in `core/review_chunks.js` (the Urdu review's requests and results are byte-for-byte unchanged, checked with a recording stand-in for Claude). It writes `review_en.json` and rebuilds reader.txt with `reanalyze.js --keep-chunks`. autopublish runs it before the Urdu, which then works from the corrected English. About $0.30 and a minute or two a khutbah (claude-opus-5-5, high). Test: `tests/review.test.js`.
+
+### 46. Islamic terms in English
+
+**Symptom:** the English said "faith", "Satan", "disbelief", "fear Allah" where the Haramain's official English keeps iman, Shaytan, kufr, taqwa.
+
+**Fix:** the analysis prompt keeps `GLOSSED_TERMS` (Iman, Taqwa, Kufr, Shirk, Shaytan, Jannah, Jahannam, Dhikr, Awliya, Ummah), each with a short gloss the first time it appears ("Iman (faith)") and alone after; the English review holds the English to the same list.
