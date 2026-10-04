@@ -263,13 +263,15 @@ function scanTranscriptForQuran(transcript, alreadyFound, keepPositions = false)
 //    so a key without alefs matches both; recited.js aligns the cards the same way;
 //  - ى/ي and ة/ه, and the mushaf's single lam in ٱلَّيْل for "الليل";
 //  - the vocative, written joined in the mushaf (يَٰٓأَيُّهَا, يَٰٓأُو۟لِى, يَٰقَوْمِ) and as two words by
-//    the imam's transcript (يا أيها, يا أولي, يا قوم).
+//    the imam's transcript (يا أيها, يا أولي, يا قوم);
+//  - ى with a small alef inside a word, an alef in ordinary spelling (هَدَىٰكُمْ / هداكم).
 // Until 4 Oct 2026 only the hamza seats were handled: on 2 Oct (Makkah) the matches of 59:2,
 // 11:120 and 50:37 stopped short of يا أولي / وذكرى / ذلك, those words stayed in the prose sent to
 // Claude, and three blocks repeated them beside the cards; 25:62's card began a word late.
 const splitVocative = text => text.replace(/(^|\s)ي\u064E?\u0640?\u0670\u0653?(?=\S)/g, '$1يا ');
+const midWordAlefMaqsura = text => text.replace(/ى\u0670(?=[\u0653\u0654]?[\u0621-\u064A])/g, 'ا');
 function normalizeArabicDeep(text) {
-  return normalizeArabic(splitVocative(text))
+  return normalizeArabic(midWordAlefMaqsura(splitVocative(text)))
     .replace(/ء/g, '')   // strip bare hamza ("ءامنوا" → "امنوا")
     .replace(/ئ/g, '')   // strip hamza-on-ya': in the corpus the ya' is already present
                          // separately, so replacing with ي would double it ("سيئاتكم" → "سياتكم")
