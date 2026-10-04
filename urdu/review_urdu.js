@@ -23,12 +23,11 @@ import Anthropic from '@anthropic-ai/sdk';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { spawnSync } from 'child_process';
+import { REVIEW_MODEL as MODEL, reviewRequest, reviewChunks } from '../core/review_chunks.js';
 
-// Opus 5.5 at high: on the hard parts of 25 Sep (1 Oct 2026) its first draft needed the fewest
-// fixes; Sonnet 5.5 cost the same in practice (twice the output, more review rounds) and slipped.
-const MODEL = 'claude-opus-5-5';
-const PRICE_IN = 4 / 1e6, PRICE_OUT = 20 / 1e6; // USD per token, claude-opus-5-5
-const FALLBACK = { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' };
+// Opus 5.5 at high (core/review_chunks.js): on the hard parts of 25 Sep (1 Oct 2026) its first
+// draft needed the fewest fixes; Sonnet 5.5 cost the same in practice (twice the output, more
+// review rounds) and slipped.
 
 const args = process.argv.slice(2);
 const folder = args[0];
@@ -71,58 +70,11 @@ Severity: high, the meaning is wrong or missing; medium, a broken sentence, the 
 
 For each chunk that needs a change, return the chunk number, its issues, and "corrected_urdu": the whole corrected Urdu of that chunk. A correction stays within its chunk, except that it may move the few words needed to make a sentence that runs across two chunks read correctly (then correct both chunks). Most chunks need no change: return only those that do.`;
 
-const SCHEMA = {
-  type: 'object',
-  properties: {
-    chunks: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          chunk: { type: 'integer' },
-          issues: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                type: { type: 'string', enum: ['omission', 'addition', 'mistranslation', 'boundary', 'register', 'unnatural', 'bookish', 'inconsistent', 'other'] },
-                severity: { type: 'string', enum: ['high', 'medium', 'low'] },
-                problem: { type: 'string' },
-              },
-              required: ['type', 'severity', 'problem'],
-              additionalProperties: false,
-            },
-          },
-          corrected_urdu: { type: 'string' },
-        },
-        required: ['chunk', 'issues', 'corrected_urdu'],
-        additionalProperties: false,
-      },
-    },
-  },
-  required: ['chunks'],
-  additionalProperties: false,
-};
-
 const show = i => `### Chunk ${i}\nArabic: ${arabic[i]}\nEnglish: ${english[i] ?? ''}\nUrdu: ${urdu[i]}`;
 
-// One request: the whole Urdu for consistency (the same for every batch, so it is cached), then
-// the chunks to review in full, with a neighbour on each side for sentences that run across.
-function request(indices) {
-  const set = new Set(indices);
-  const before = indices[0] - 1, after = indices.at(-1) + 1;
-  const ctx = i => (i >= 0 && i < urdu.length && !set.has(i) ? `${show(i)}\n(context only: do not review)` : '');
-  const body = [ctx(before), ...indices.map(show), ctx(after)].filter(Boolean).join('\n\n');
-  return {
-    model: MODEL, max_tokens: 32000, ...FALLBACK,
-    system: [
-      { type: 'text', text: SYSTEM },
-      { type: 'text', text: `The whole Urdu reading, for consistency of terms and spelling:\n${urdu.map((u, i) => `(${i}) ${u}`).join('\n')}`, cache_control: { type: 'ephemeral' } },
-    ],
-    output_config: { effort: 'high', format: { type: 'json_schema', schema: SCHEMA } },
-    messages: [{ role: 'user', content: `Review chunks ${indices.join(', ')}.\n\n${body}` }],
-  };
-}
+const TYPES = ['omission', 'addition', 'mistranslation', 'boundary', 'register', 'unnatural', 'bookish', 'inconsistent', 'other'];
+const request = reviewRequest({ system: SYSTEM, field: 'corrected_urdu', types: TYPES, texts: urdu, show,
+  whole: 'The whole Urdu reading, for consistency of terms and spelling:' });
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 600_000, maxRetries: 3 });
 if (dryRun) {
@@ -132,43 +84,9 @@ if (dryRun) {
   process.exit(0);
 }
 
-const usage = { calls: 0, input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0 };
 const before = [...urdu];
-const log = [];
-let toReview = only ?? urdu.map((_, i) => i);
-for (let round = 1; round <= ROUNDS && toReview.length; round++) {
-  const changed = new Set();
-  for (let k = 0; k < toReview.length; k += BATCH) {
-    const indices = toReview.slice(k, k + BATCH);
-    const response = await anthropic.beta.messages.create(request(indices));
-    usage.calls++;
-    usage.input_tokens += response.usage.input_tokens + (response.usage.cache_creation_input_tokens ?? 0);
-    usage.cache_read_input_tokens += response.usage.cache_read_input_tokens ?? 0;
-    usage.output_tokens += response.usage.output_tokens;
-    if (response.stop_reason === 'refusal') { console.log(`  round ${round}, chunks ${indices[0]}-${indices.at(-1)}: refused`); continue; }
-    let out = null;
-    try { out = JSON.parse(response.content.find(b => b.type === 'text')?.text ?? ''); } catch { /* below */ }
-    if (!out) { console.log(`  round ${round}, chunks ${indices[0]}-${indices.at(-1)}: no usable answer (${response.stop_reason})`); continue; }
-    let applied = 0;
-    for (const c of out.chunks) {
-      if (!(c.chunk >= 0 && c.chunk < urdu.length) || !c.issues.length) continue;
-      const serious = c.issues.some(x => x.severity !== 'low');
-      const text = c.corrected_urdu.trim();
-      // A correction that changes the length wildly is more likely a slip than an edit.
-      const ratio = text.length / Math.max(urdu[c.chunk].length, 1);
-      const apply = serious && text && text !== urdu[c.chunk] && ratio > 0.5 && ratio < 1.8;
-      log.push({ round, chunk: c.chunk, issues: c.issues, applied: apply, urdu_before: urdu[c.chunk], urdu_after: apply ? text : null,
-        ...(serious && !apply && text ? { not_applied_because: `length ratio ${ratio.toFixed(2)}` } : {}) });
-      if (apply) { urdu[c.chunk] = text; changed.add(c.chunk); applied++; }
-    }
-    console.log(`  round ${round}, chunks ${indices[0]}-${indices.at(-1)}: ${out.chunks.length} flagged, ${applied} corrected`);
-  }
-  toReview = [...changed].sort((a, b) => a - b);
-}
+const { log, usage } = await reviewChunks({ anthropic, request, field: 'corrected_urdu', key: 'urdu', texts: urdu, batch: BATCH, rounds: ROUNDS, only });
 
-usage.input_usd = Math.round((usage.input_tokens * PRICE_IN + usage.cache_read_input_tokens * PRICE_IN * 0.1) * 10000) / 10000;
-usage.output_usd = Math.round(usage.output_tokens * PRICE_OUT * 10000) / 10000;
-usage.cost_usd = Math.round((usage.input_usd + usage.output_usd) * 10000) / 10000;
 const earlier = only && existsSync(join(folder, 'review_ur.json'))
   ? JSON.parse(readFileSync(join(folder, 'review_ur.json'), 'utf8')).log.filter(l => !only.includes(l.chunk)) : [];
 log.unshift(...earlier);
