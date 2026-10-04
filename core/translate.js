@@ -176,7 +176,7 @@ for (const h of result.hadith_references ?? []) {
   try {
     const d = await getJson(`https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/${L.hadith.edition}-${slug}/${best.number}.json`);
     const text = d.hadiths?.[0]?.text;
-    hadith[`${slug}:${num}`] = { text: text != null ? L.hadithText(text) : null, edition: `${L.hadith.edition}-${slug}`, number: best.number, match: +best.score.toFixed(2) };
+    hadith[`${slug}:${num}`] = { text: text != null ? L.hadithText(text, best.number) : null, edition: `${L.hadith.edition}-${slug}`, number: best.number, match: +best.score.toFixed(2) };
   } catch (e) { console.log(`  ⚠ ${slug}:${num}: ${e.message}`); }
 }
 

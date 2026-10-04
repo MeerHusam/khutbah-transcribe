@@ -386,6 +386,11 @@ export function verifyReader(folder, { readerRaw: readerOverride = null, result:
       flag('a word of another religion', new RegExp(L.checks.forbid.join('|'), 'u'));
       flag('old literary forms', new RegExp(L.checks.sadhu, 'u'));
       flag(`letters outside the ${L.checks.script} script`, new RegExp(`(?!\\p{Script=${L.checks.script}})\\p{L}`, 'u'));
+      for (const [word, use] of Object.entries(L.checks.avoid ?? {})) {
+        const re = new RegExp(word.normalize('NFC'), 'u');
+        const hits = prose.filter(([, t]) => re.test(t.normalize('NFC'))).map(([i]) => i);
+        if (hits.length) warn(`${L.name}: ${word} (this reading writes ${use}) in block(s) ${hits.slice(0, 10).join(', ')}`);
+      }
     }
     for (let i = 1; i < rc.length; i++) {
       const a = rc[i - 1].start_time, b = rc[i].start_time;

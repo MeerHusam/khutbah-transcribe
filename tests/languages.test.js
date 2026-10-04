@@ -39,4 +39,7 @@ test('Bengali clean-up: footnote marks, Assamese ra, a hadith edition\'s notes',
   assert.equal(bn.verseText('শ্ৰেষ্ঠ'), 'শ্রেষ্ঠ');
   const t = bn.hadithText('। আবূ হুরাইরাহ (রাঃ) সূত্রে বর্ণিত। নবী সাল্লাল্লাহু আলাইহি ওয়াসাল্লাম বলেছেনঃ মু‘মিন ব্যক্তি একই গর্তে দু’ বার দংশিত হয় না।[1] সহীহ। ');
   assert.equal(t.slice(0, t.search(bn.hadith.end)), 'আবূ হুরাইরাহ (রাঃ) সূত্রে বর্ণিত। নবী সাল্লাল্লাহু আলাইহি ওয়াসাল্লাম বলেছেনঃ মু‘মিন ব্যক্তি একই গর্তে দু’ বার দংশিত হয় না।');
+  // Bukhari 6724: the chapter heading before the hadith's own number goes.
+  assert.ok(bn.hadithText('وَقَالَ عُقْبَةُ بْنُ عَامِرٍ ‘উকবাহ ইবনু আমির (রাঃ) বলেন, … শিখে নাও। ৬৭২৪. আবূ হুরাইরাহ (রাঃ) হতে বর্ণিত। তিনি বলেন, রাসূলুল্লাহ্ সাল্লাল্লাহু আলাইহি ওয়াসাল্লাম বলেছেনঃ', 6724)
+    .startsWith('আবূ হুরাইরাহ (রাঃ) হতে বর্ণিত।'));
 });

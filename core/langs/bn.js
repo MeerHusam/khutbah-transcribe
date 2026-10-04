@@ -32,7 +32,9 @@ export default {
   },
   // Free checks (verify_reader.js): words of another religion for Islamic things, and the old
   // literary forms (সাধু), neither of which a khateeb in Bangladesh uses.
-  checks: { script: 'Bengali', forbid: ['ঈশ্বর', 'ভগবান', 'স্বর্গ', 'নরক', 'ধর্মভীরু'], sadhu: 'িয়াছ|িতেছ|তাহাদের|াদিগ' },
+  checks: { script: 'Bengali', forbid: ['ঈশ্বর', 'ভগবান', 'স্বর্গ', 'নরক', 'ধর্মভীরু'], sadhu: 'িয়াছ|িতেছ|তাহাদের|াদিগ',
+    // A form this reading does not use, and the one it does (test run 1, 5 Oct 2026).
+    avoid: { 'তায়ালা': 'তাআলা', 'সর্দার': 'নেতা' } },
 
   // Ayah cards: Abu Bakr Zakaria (King Fahd Complex; QuranEnc), via fawazahmed0/quran-api. Its
   // footnote marks ([১], 5,301 of them) are left out, as the footnotes are not shown, and the
@@ -43,8 +45,16 @@ export default {
   // open with a stray dari and end with notes the card does not show: a footnote mark ([1]), the
   // other printed editions' numbers ("(আধুনিক প্রকাশনী- ৫৯৯৬, ইসলামিক ফাউন্ডেশন)"), a grading
   // ("সহীহ।") and, in Tirmidhi, the Imam's notes ("আবূ ঈসা বলেন…"). 26 of 26 cards clean (4 Oct).
+  // Bukhari's can open with the chapter heading (the Arabic, then its Bengali) and then the hadith's own
+  // number, "৬৭২৪. আবূ হুরাইরাহ…": the card starts after that number (5 Oct, Bukhari 6724; 5 of the
+  // live pages' 26 hadith have a heading).
   hadith: { edition: 'ben', end: /\s*(?:\[\d+\]|\[[০-৯]+\]|\((?:[০-৯]|আধুনিক|ইসলামিক|তাওহীদ|হাদীস একাডেমি|মুসলিম|বুখারী|আহমাদ)|(?:সহীহ|হাসান|যঈফ|দুর্বল|জাল)(?:\s*সহীহ)?\s*[ঃ:।,]|আবূ ঈসা বলেন)/u },
-  hadithText: t => t.replace(/^[\s।]+/, '').replace(/ৰ/g, 'র'),
+  hadithText: (t, number) => {
+    const own = `${String(number).replace(/\d/g, d => '০১২৩৪৫৬৭৮৯'[+d])}. `;
+    const at = number != null ? t.indexOf(own) : -1;
+    if (at >= 0 && t.length - at > 40) t = t.slice(at + own.length);
+    return t.replace(/^[\s।]+/, '').replace(/ৰ/g, 'র');
+  },
   surahNames: 'model', // asked for with the summaries: quran.com's Bengali names are meanings ("বকনা-বাছুর")
 
   voice: {
@@ -64,7 +74,7 @@ export default {
 - Translate every chunk completely and faithfully: every command, phrase, name and condition the imam says ("اتقوا الله" must appear as its Bengali). Do not summarise, explain or add.
 - Translate exactly the words of each chunk, so that the chunks read on from one another; never move words into a neighbouring chunk.
 - Write the standard colloquial Bengali of Bangladesh (চলিত ভাষা) that a good khateeb in Bangladesh speaks from the minbar: respectful and religious, but in the words ordinary worshippers use at home and in the market, so that someone with no schooling in Arabic follows every sentence when it is read aloud. Never the old literary forms (সাধু ভাষা: করিয়াছেন, তাহাদের, আমাদিগকে). Never a word of another religion for an Islamic thing: আল্লাহ (never ঈশ্বর or ভগবান), জান্নাত (never স্বর্গ), জাহান্নাম (never নরক), নামাজ for salah (never প্রার্থনা, which is any prayer), মুত্তাকি (never ধর্মভীরু). Keep the Islamic words Bangladeshi Muslims know: ঈমান, তাকওয়া, জান্নাত, জাহান্নাম, আখিরাত, রাসূল, সাহাবি, সুন্নাহ, হাদিস, নামাজ, রোজা, জাকাত, হজ, দোয়া, তাওবা. For everything else choose the everyday word over the bookish Sanskrit-derived one. It stays a khutbah: dignified, never slang, and no English word where a Bengali one is common.
-- Spell Arabic loanwords as the Bangla Academy does, with জ (নামাজ, রোজা, জাকাত, অজু), and keep one spelling for a word or a name throughout.
+- Spell Arabic loanwords as the Bangla Academy does, with জ (নামাজ, রোজা, জাকাত, অজু), and keep one spelling for a word or a name throughout: তাআলা (never তায়ালা); মুসলমান for Muslims, the people (মুসলিম only in the names Imam Muslim and Sahih Muslim).
 - Put a Quran verse or a hadith that the imam quotes in quotation marks “…”, translated faithfully.
 - «متفق عليه» after a hadith is always «বুখারী ও মুসলিম বর্ণনা করেছেন».
 - Write numbers in Bengali digits (০–৯), and end a sentence with the dari (।).
@@ -75,12 +85,12 @@ Chunks are cut at the imam's pauses, so one sentence often runs across two chunk
 Register and wording, as in a published Bengali khutbah:
 - Allah, the Prophet ﷺ, the Companions and scholars take the honorific pronouns and verbs (তিনি, তাঁর, তাঁরা, তাঁদের, বলেছেন), never সে, তার, বলল. Allah's favours are "অনুগ্রহ করেছেন". In a du'a Allah is addressed with আপনি, as the published translation on the ayah cards does: "হে আল্লাহ! আপনি আমাদের ক্ষমা করুন" (not "তুমি … করো").
 - As Bengali Muslim readers expect, write সাল্লাল্লাহু আলাইহি ওয়াসাল্লাম after the Prophet's name even where the imam does not say it there, and রাদিয়াল্লাহু আনহু / আনহা / আনহুম after a Companion or the Companions, আনহুমা for two (আবু বকর ও উমর রাদিয়াল্লাহু আনহুমা); always in full, never abbreviated as (সা.) or (রা.); once per mention, never twice in a row; and not where a du'a already asks Allah to be pleased with them.
-- Prefer words an ordinary Bengali reader knows: শাসক for ولاة الأمر, and for الأئمة in a du'a for those in authority ("أصلح الأئمة وولاة الأمور"), where ইমাম would be heard as a prayer leader; উমরা পালনকারী for المعتمرون; পবিত্র স্থানসমূহ for المقدسات.
+- Prefer words an ordinary Bengali reader knows: আমাদের নেতা for سيدنا before the Prophet's name (never সর্দার, which a Bangladeshi reader hears as a village headman); শাসক for ولاة الأمر, and for الأئمة in a du'a for those in authority ("أصلح الأئمة وولاة الأمور"), where ইমাম would be heard as a prayer leader; উমরা পালনকারী for المعتمرون; পবিত্র স্থানসমূহ for المقدسات.
 - When the imam repeats a phrase while speaking (a restart, "ليأمن الناس في بيوتهم ليأمن الناس في بيوتهم"), translate it once.
 Return one Bengali translation per chunk number given, and nothing for the context chunks.`,
     extras: {
       system: 'You prepare the Bengali edition of a khutbah reader for Bengali-speaking worshippers from Bangladesh. Reply with JSON only.',
-      ask: (shareSummary, summary) => `Translate into the everyday, respectful standard Bengali of Bangladesh a khateeb speaks (চলিত, never সাধু; the Islamic words Bangladeshi Muslims know: আল্লাহ, ঈমান, তাকওয়া, জান্নাত, নামাজ; সাল্লাল্লাহু আলাইহি ওয়াসাল্লাম and রাদিয়াল্লাহু আনহু in full; Bengali digits), otherwise the words ordinary worshippers use, not bookish Bengali:\n"share_summary" (a two-sentence WhatsApp message): ${shareSummary}\n"summary": ${summary}`,
+      ask: (shareSummary, summary) => `Translate into the everyday, respectful standard Bengali of Bangladesh a khateeb speaks (চলিত, never সাধু; the Islamic words Bangladeshi Muslims know: আল্লাহ, ঈমান, তাকওয়া, জান্নাত, নামাজ; সাল্লাল্লাহু আলাইহি ওয়াসাল্লাম and রাদিয়াল্লাহু আনহু in full; তাআলা and মুসলমান, one spelling throughout; Bengali digits), otherwise the words ordinary worshippers use, not bookish Bengali:\n"share_summary" (a two-sentence WhatsApp message): ${shareSummary}\n"summary": ${summary}`,
       hadith: `For each hadith below, give "narrator": the Companion's name as Bengali readers in Bangladesh know it, with রাদিয়াল্লাহু আনহু / আনহা (for a family chain such as "Amr ibn Shu'ayb from his father from his grandfather", write that chain in Bengali). And give "from_companion": copied character for character from its Bengali text, the part that starts where the Companion (or the Prophet ﷺ, if the Companion is not named) is first mentioned, leaving out any chain of narrators or chapter heading before; the whole text if it already starts there, "" if it has no Bengali text.`,
       surahs: `And give "surahs": for each surah number below, its name as Bengali readers in Bangladesh write it, without the word সূরা (আল-বাকারা, আত-তালাক).`,
     },
@@ -95,12 +105,12 @@ Correct what a careful bilingual scholar-editor would:
 - mistranslation: Bengali that says something different from the Arabic.
 - boundary: read in order, the Bengali of neighbouring chunks does not join into one grammatical sentence with natural word order where the Arabic sentence runs on (a dari too early, a sentence left without its verb, a question split so that it loses its question mark).
 - register: the wrong pronoun or verb for Allah, the Prophet ﷺ, the Companions or scholars (তিনি, তাঁর, বলেছেন; never সে, তার, বলল); Allah addressed with তুমি in a du'a (this reading uses আপনি: দিন, করুন); an honorific doubled; the old literary forms (সাধু: করিয়াছেন, তাহাদের) mixed into the colloquial (চলিত).
-- unnatural: wording an educated Bangladeshi reader would find odd, obscure or misleading.
-- inconsistent: one word or name spelled or rendered two ways in the khutbah (নামাজ and নামায: this reading spells Arabic loanwords as the Bangla Academy does, with জ).
+- unnatural: wording an educated Bangladeshi reader would find odd, obscure or misleading (সর্দার for سيدنا before the Prophet's name, which is heard as a village headman: it is আমাদের নেতা).
+- inconsistent: one word or name spelled or rendered two ways in the khutbah. This reading writes তাআলা (never তায়ালা); মুসলমান for Muslims, the people (মুসলিম only in the names Imam Muslim and Sahih Muslim); Arabic loanwords with জ as the Bangla Academy does (নামাজ, not নামায).
 - bookish: a literary Sanskrit-derived word where a khateeb in Bangladesh uses an everyday or Islamic one, or a word of another religion for an Islamic thing (ঈশ্বর, ভগবান, স্বর্গ, নরক, প্রার্থনা for salah, ধর্মভীরু). The Islamic words Bangladeshi Muslims know (আল্লাহ, ঈমান, তাকওয়া, জান্নাত, নামাজ, দোয়া, সাল্লাল্লাহু আলাইহি ওয়াসাল্লাম) stay. Do not make it casual: a khutbah stays dignified, never slang, and no English word where a Bengali one is common.
 Leave the translator's wording alone where it is correct and natural: change only what is wrong. The transcript can contain speech-recognition slips; do not flag them unless the Bengali follows a slip into a wrong meaning. When the imam repeats a phrase while speaking, rendering it once is correct. Keep quoted verses and hadith in “…”, and numbers in Bengali digits.
 
-Severity: high, the meaning is wrong or missing; medium, a broken sentence, the wrong register, wording a reader would stumble on, or a bookish word a listener would not use; low, a matter of taste.
+Severity: high, the meaning is wrong or missing; medium, a broken sentence, the wrong register, wording a reader would stumble on, a bookish word a listener would not use, or a word or name spelled two ways in the khutbah (correct every chunk that has the other form); low, a matter of taste.
 
 For each chunk that needs a change, return the chunk number, its issues, and "corrected_bengali": the whole corrected Bengali of that chunk. A correction stays within its chunk, except that it may move the few words needed to make a sentence that runs across two chunks read correctly (then correct both chunks). Most chunks need no change: return only those that do.`,
     types: ['omission', 'addition', 'mistranslation', 'boundary', 'register', 'unnatural', 'bookish', 'inconsistent', 'other'],
