@@ -358,6 +358,17 @@ function parseSunnahNarrator(narrated, lead = '') {
   if (heard && !/messenger|prophet|apostle|allah\b/i.test(heard[1])) {
     return { narrator: first, companion: cut(heard[1].replace(/^[\s"'“‘]+/, '')), successor: true };
   }
+  // The Successor tells what he saw of a Companion or heard from them (18 Sep 2026): Bukhari 7324
+  // "Narrated Muhammad: We were with Abu Huraira …" is Abu Hurairah's own account, and Abu Dawud
+  // 5004 "Narrated AbdurRahman ibn AbuLayla: The Companions of the Prophet (ﷺ) told us …" is theirs.
+  const text = (lead ?? '').replace(/<[^>]+>/g, '').replace(/^[\s"'“‘]+/, '');
+  if (/^the companions of the prophet\b[^.]{0,12} (?:told|informed|narrated to) us/i.test(text)) {
+    return { narrator: first, companion: 'Companions of the Prophet ﷺ', successor: true };
+  }
+  const withC = text.match(/^(?:we|i) (?:were|was) (?:sitting )?with (.+?)(?: while| when| in| at|,|\.| and)/i);
+  if (withC && !/messenger|prophet|apostle|allah\b/i.test(withC[1])) {
+    return { narrator: first, companion: cut(withC[1]), successor: true };
+  }
   return { narrator: first, companion: first, successor: false };
 }
 
@@ -389,9 +400,9 @@ function chooseNarrator(page, claudeNarrator) {
   // "<name> ibn <the page's name>", the page dropped the first name: Claude's is shown.
   if (claudeNarrator && plainName(claudeNarrator).endsWith(` ibn ${plainName(page.narrator)}`)) return claudeNarrator;
   if (!page.successor) return page.narrator;
-  if (claudeNarrator && (sameName(claudeNarrator, page.companion) || sameName(claudeNarrator, page.narrator))) {
-    return claudeNarrator;
-  }
+  if (claudeNarrator && sameName(claudeNarrator, page.companion)) return claudeNarrator;
+  // Claude naming the Successor too is no reason to show him when the page names the Companion.
+  if (claudeNarrator && !page.companion && sameName(claudeNarrator, page.narrator)) return claudeNarrator;
   return page.companion ?? page.narrator;
 }
 

@@ -19,6 +19,17 @@ test('the forms that already worked still do', () => {
   assert.equal(shown("Narrated Muhammad bin Ka'b Al-Qurazi:", "I heard 'Abdullah bin Mas'ud saying"), "Abdullah bin Mas'ud");
 });
 
+test('a Successor telling what he saw of a Companion, or heard from the Companions (18 Sep 2026)', () => {
+  const b7324 = 'We were with Abu Huraira while he was wearing two linen garments dyed with red clay.';
+  assert.equal(shown('Narrated Muhammad:', b7324), 'Abu Huraira');
+  assert.equal(shown('Narrated Muhammad:', b7324, 'Abu Hurayrah'), 'Abu Hurayrah');
+  const d5004 = 'The Companions of the Prophet (ﷺ) told us that they were travelling with the Prophet (ﷺ).';
+  assert.equal(shown('Narrated AbdurRahman ibn AbuLayla:', d5004), 'Companions of the Prophet ﷺ');
+  assert.equal(shown('Narrated AbdurRahman ibn AbuLayla:', d5004, "Abd al-Rahman ibn Abi Layla"), 'Companions of the Prophet ﷺ');
+  // "We were with the Prophet" is the narrator's own account.
+  assert.equal(shown('Narrated Anas:', 'We were with the Prophet (ﷺ) on a journey'), 'Anas');
+});
+
 test("sunnah.com naming the father for the son: Claude's fuller name is shown", () => {
   assert.equal(shown("'Amr b. al-'As reported Allah's Messenger (ﷺ) as saying:", '', 'Abdullah ibn Amr ibn al-As'), 'Abdullah ibn Amr ibn al-As');
   // A different person entirely is not overruled.
