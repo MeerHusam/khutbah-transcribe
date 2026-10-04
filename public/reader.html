@@ -489,6 +489,8 @@
        is bold and the rest recedes, in the Arabic and (by sentence) in the translation. */
     .recited { font-weight: 700; }
     .not-recited { opacity: 0.55; }
+    /* Short-form honorifics (ﷺ ﵁ …): Noto Naskh Arabic has all of them; Amiri, Lora and Noto Nastaliq only ﷺ. */
+    .hon { font-family: 'Noto Naskh Arabic', serif; font-style: normal; font-weight: 400; font-size: 1.15em; line-height: 1; }
     .chunk-quran-cite {
       display: inline-flex; align-items: center; gap: 7px; margin-top: 8px;
       padding: 5px 12px 5px 10px; background: rgba(217,184,106,0.08); border: 1px solid var(--border);
@@ -964,6 +966,7 @@
     quranRefs = result.quran_references || [];
     hadithRefList = result.hadith_references || [];
     document.getElementById('app').innerHTML = renderResults(result);
+    shortenHonorifics(document.getElementById('app'));
     // ?lang=ur in a shared link opens the Urdu; otherwise the reader's last choice.
     let lang = new URLSearchParams(location.search).get('lang');
     if (!lang) lang = 'ur'; // Urdu unless the link says ?lang=en (English when the khutbah has no Urdu, below)
@@ -1943,6 +1946,50 @@
     paintWord();
   }
 
+  // Short-form honorifics (4 Oct 2026): صلى الله عليه وسلم shows as ﷺ, رضي الله عنه as ﵁ and so on,
+  // in the imam's Arabic, the English and the Urdu. Display only: the voices say the words, and the
+  // sign lights with the first of them (shownWords). Never in the Quran's own text or a published
+  // translation of it: 9:100 says رضي الله عنهم and 10:18 سبحانه وتعالى.
+  const HONORIFICS = [
+    ['\uFDFA', 'صلى الله عليه وسلم|صلی اللہ علیہ وسلم|ﷺ'],
+    ['\uFD4A', 'عليه الصلاة والسلام|علیہ الصلاۃ والسلام'],
+    ['\uFD47', 'عليه السلام|علیہ السلام'], ['\uFD48', 'عليهم السلام|علیہم السلام'],
+    ['\uFD44', 'رضي الله عنهما|رضی اللہ عنہما'], ['\uFD43', 'رضي الله عنهم|رضی اللہ عنہم'],
+    ['\uFD42', 'رضي الله عنها|رضی اللہ عنہا'], ['\uFD41', 'رضي الله عنه|رضی اللہ عنہ'],
+    ['\uFD4F', 'رحمهم الله|رحمہم اللہ'], ['\uFD40', 'رحمه الله|رحمہ اللہ'],
+    ['\uFDFE', 'سبحانه وتعالى|سبحانہ وتعالیٰ|سبحانہ و تعالیٰ'], ['\uFDFF', 'عز وجل|عزوجل'],
+    ['\uFDFB', 'جل جلاله|جل جلالہ'], ['\uFD4E', 'تبارك وتعالى|تبارک وتعالیٰ'],
+  ];
+  const HON_SIGN = new Map(HONORIFICS.flatMap(([sign, forms]) => forms.split('|').map(f => [f, sign])));
+  const HON_RE = new RegExp(`(?<![\\p{L}\\p{M}])(${[...HON_SIGN.keys()].join('|')})(?![\\p{L}\\p{M}])`, 'gu');
+  const NOT_HONORIFIC = '.chunk-arabic[data-surah], .inline-ayah, .inline-ayah-en, .chunk-quran-translation, .ref-english, script, style';
+  function shortenHonorifics(root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    for (let n; (n = walker.nextNode());) {
+      HON_RE.lastIndex = 0;
+      if (HON_RE.test(n.data) && !n.parentElement.closest(NOT_HONORIFIC)) nodes.push(n);
+    }
+    for (const n of nodes) {
+      const frag = document.createDocumentFragment();
+      let last = 0;
+      for (const m of n.data.matchAll(HON_RE)) {
+        frag.append(n.data.slice(last, m.index));
+        const s = document.createElement('span');
+        const full = m[1] === 'ﷺ' ? 'صلى الله عليه وسلم' : m[1];
+        s.className = 'hon';
+        s.textContent = HON_SIGN.get(m[1]);
+        s.title = full;
+        s.setAttribute('aria-label', full);
+        s.dataset.said = m[1] === 'ﷺ' ? '' : m[1].split(' ')[0];
+        frag.append(s);
+        last = m.index + m[0].length;
+      }
+      frag.append(n.data.slice(last));
+      n.replaceWith(frag);
+    }
+  }
+
   // A word as compared: no diacritics, tatweel or punctuation, lower case; for Arabic also one
   // form of alif, ya and ta marbuta, as the transcript and the Quran's text spell them differently.
   const wordKey = (w, lang) => {
@@ -1968,7 +2015,8 @@
         const p = n.parentElement;
         if (p.closest('.ur-source, .ref-en-source, .trans-ours') || !p.getClientRects().length) continue;
         for (const m of n.data.matchAll(/\S+/g)) {
-          const key = wordKey(m[0], lang);
+          // An honorific sign stands for its words: it lights with the first one said.
+          const key = p.classList.contains('hon') ? wordKey(p.dataset.said, lang) : wordKey(m[0], lang);
           if (!key) continue;
           const range = document.createRange();
           range.setStart(n, m.index);
