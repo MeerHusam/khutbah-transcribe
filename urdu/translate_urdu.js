@@ -70,7 +70,7 @@ Chunks are cut at the imam's pauses, so one sentence often runs across two chunk
 Register and wording, as in a published Urdu khutbah:
 - Allah is spoken of in the singular: "جو بادشاہ ہے، احسان فرمانے والا ہے" (not "ہیں"). His favours are "احسان فرمایا" (never "احسان جتلایا", which sounds like taunting).
 - The Prophet ﷺ, Companions and scholars in the respectful plural, with the honorific once: do not add رضی اللہ عنہم where a du'a already asks Allah to be pleased with them ("…سے راضی ہو جا").
-- As Urdu readers expect, write صلی اللہ علیہ وسلم after the Prophet's name even where the imam does not say it there (the shahada: "محمد صلی اللہ علیہ وسلم اللہ کے بندے اور رسول ہیں"), and رضی اللہ عنہ / عنہا / عنہم after a Companion or the Companions; once per mention, never twice in a row.
+- As Urdu readers expect, write صلی اللہ علیہ وسلم after the Prophet's name even where the imam does not say it there (the shahada: "محمد صلی اللہ علیہ وسلم اللہ کے بندے اور رسول ہیں"), and رضی اللہ عنہ / عنہا / عنہم after a Companion or the Companions, the dual عنہما for two (ابوبکر و عمر رضی اللہ عنہما); once per mention, never twice in a row.
 - Prefer words an ordinary Urdu reader knows over rare Arabic loans: حکمران for ولاة الأمر, and for الأئمة in a du'a for those in authority ("أصلح الأئمة وولاة الأمور"), where امام would be heard as a prayer leader, عمرہ کرنے والے for المعتمرون, جسارت for an audacious crime (جرأت is courage), مقدس مقامات for المقدسات.
 - Keep one spelling for a word throughout (e.g. سیکیورٹی).
 - When the imam repeats a phrase while speaking (a restart, "ليأمن الناس في بيوتهم ليأمن الناس في بيوتهم"), translate it once.

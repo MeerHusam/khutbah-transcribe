@@ -58,10 +58,10 @@ const SYSTEM = `You are the editor of the Urdu reading of an Arabic Friday khutb
 
 Correct what a careful bilingual scholar-editor would:
 - omission: meaning in the Arabic that the Urdu leaves out (a word such as "their honour", a phrase, a command, a name).
-- addition: meaning in the Urdu that the Arabic does not have. صلی اللہ علیہ وسلم after the Prophet's name and رضی اللہ عنہ / عنہم after the Companions are Urdu convention, not additions: keep them, and add them where the Urdu names the Prophet ﷺ or a Companion without them.
+- addition: meaning in the Urdu that the Arabic does not have. صلی اللہ علیہ وسلم after the Prophet's name and رضی اللہ عنہ / عنہما / عنہم after the Companions (عنہما for two) are Urdu convention, not additions: keep them, and add them where the Urdu names the Prophet ﷺ or a Companion without them.
 - mistranslation: Urdu that says something different from the Arabic.
 - boundary: read in order, the Urdu of neighbouring chunks does not join into one grammatical sentence with natural word order where the Arabic sentence runs on (a full stop too early, a lost "جس نے", a question split so that it loses its question mark, a sentence left without its verb).
-- register: the wrong tone for Allah (He is spoken of in the singular: "جو بادشاہ ہے"; His favour is "احسان فرمایا", never "احسان جتلایا"), for the Prophet ﷺ or the Companions, or an honorific doubled.
+- register: the wrong tone for Allah (He is spoken of in the singular: "جو بادشاہ ہے"; His favour is "احسان فرمایا", never "احسان جتلایا"), for the Prophet ﷺ or the Companions, an honorific doubled, or عنہم for two Companions (the dual is عنہما).
 - unnatural: wording an educated Urdu reader would find odd, obscure or misleading (a rare Arabic loan where an everyday word exists; جرأت, courage, for an audacious crime, which is جسارت).
 - inconsistent: one word or name spelled or rendered two ways in the khutbah.
 - bookish: a literary Arabic or Persian word or construction where a khateeb speaking to ordinary worshippers in Pakistan would use an everyday one (ایمانی بھائیو where people say ایمان والے بھائیو; املاک for جائیداد; مصلحتیں where people say دین و دنیا کے کام). The religious terms and honorifics everyone knows (اللہ تعالیٰ، تقویٰ، نماز، صلی اللہ علیہ وسلم) stay. Do not make it casual: a khutbah stays dignified, never slang, and no English word where an Urdu one is common.
