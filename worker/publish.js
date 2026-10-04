@@ -22,7 +22,7 @@
 //        [--from-folder outputs/<run>]   reuse a finished pipeline run instead of step 2
 //        [--no-feature] [--review]        --review also runs review_blocks.js (about $0.07)
 //        [--keep-audio]                   audio_files/<name>.<ext> is already in place (autopublish.js)
-//        [--page reader-ur.html] [--audio <file in audio_files/>]   the entry's own page and recording
+//        [--audio <file in audio_files/>]   the entry's own recording
 //        [--site https://khutbah.dev]     where to publish (default http://localhost:3000)
 //        [--no-site]                      stop after the checks and the test set
 //        [--dry-run]                      print the plan, change nothing
@@ -177,7 +177,7 @@ if (site) {
   const fields = [
     ['slug', slug], ['title', title], ['speaker', opt('--speaker', 'Friday Khutbah')],
     ['masjid', opt('--masjid')], ['masjid_ar', opt('--masjid-ar')], ['maps_url', opt('--maps-url')], ['date', date],
-    ['audio', opt('--audio')], ['page', opt('--page')],
+    ['audio', opt('--audio')],
   ].filter(([, val]) => val);
   const entry = { ...Object.fromEntries(fields), ...(feature ? { featured: true } : {}) };
   // The recording the page plays: --audio names it, else it is the one made in step 1.

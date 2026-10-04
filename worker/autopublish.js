@@ -229,7 +229,7 @@ async function main() {
   await report('publishing', { message: push ? 'checks, then the site' : 'checks (not publishing: --no-push)' });
   await run('checks and site entry', 'node', ['worker/publish.js', audioOut, '--from-folder', F, '--keep-audio', '--slug', slug, '--title', title, '--date', dateText,
     '--name', name, '--masjid', masjid, ...(home ? ['--masjid-ar', HOME.masjid_ar, '--maps-url', HOME.maps_url] : ['--no-feature']),
-    '--page', 'reader-ur.html', ...(cleanAudio ? ['--audio', cleanAudio] : []), ...(single ? ['--single'] : []),
+    ...(cleanAudio ? ['--audio', cleanAudio] : []), ...(single ? ['--single'] : []),
     ...(push ? ['--site', SITE] : ['--no-site'])]);
   const link = `${SITE}/${slug}`;
   const summary = times.map(([l, s]) => `${l} ${s}s`).join(', ');

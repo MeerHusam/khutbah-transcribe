@@ -206,7 +206,7 @@ test('publishing: a new khutbah is live at once, with its files, recording and v
   writeFileSync(join(folderPath, 'tts_ur.mp3'), Buffer.alloc(1000, 2));
   const recording = join(tmp, 'khutbah-test-publish.m4a');
   writeFileSync(recording, Buffer.alloc(1000, 1));
-  const entry = { slug: 'test-publish', title: 'Test Publish', date: '2 October 2026', page: 'reader-ur.html', featured: true };
+  const entry = { slug: 'test-publish', title: 'Test Publish', date: '2 October 2026', featured: true };
   try {
     await assert.rejects(publishToSite({ site: BASE, key: 'wrong-key', folderPath, recording, entry }), /401/);
     const seed = join(tmp, 'seed.json');

@@ -1,8 +1,7 @@
 <!DOCTYPE html>
-<!-- reader-ur.html — the Urdu edition's reader (25 Sep 2026): public/index.html from the
-     english-tts branch (Urdu reading, voice button) plus main's view/listening stats. It serves
-     only the entries that name it (an entry's "page"), so the live reader
-     (index.html) is untouched. Fold back into index.html when trust-fixes is merged. -->
+<!-- reader.html — the reader: one page for every khutbah (4 Oct 2026; index.html, the English-only
+     reader, was folded in). The Arabic with its English and Urdu, the imam's recording and the voices;
+     a khutbah without Urdu or voices simply shows no switch for them. -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -967,7 +966,7 @@
     document.getElementById('app').innerHTML = renderResults(result);
     // ?lang=ur in a shared link opens the Urdu; otherwise the reader's last choice.
     let lang = new URLSearchParams(location.search).get('lang');
-    if (!lang) lang = 'ur'; // reader-ur.html is the Urdu edition: Urdu unless the link says ?lang=en
+    if (!lang) lang = 'ur'; // Urdu unless the link says ?lang=en (English when the khutbah has no Urdu, below)
     // The language switch lives in the player only; it shows when the khutbah has Urdu.
     const hasUrdu = (result.reader_chunks || []).some(c => c.urdu);
     document.getElementById('readGroup').hidden = !hasUrdu;
@@ -1007,7 +1006,7 @@
   function viewParams() {
     const q = new URLSearchParams({ d: deviceId(), p: 'reader' });
     const slug = decodeURIComponent(location.pathname.replace(/^\/+|\/+$/g, ''));
-    const k = slug && slug !== 'index.html' && slug !== 'reader-ur.html' ? slug : new URLSearchParams(location.search).get('folder');
+    const k = slug && slug !== 'index.html' && slug !== 'reader.html' ? slug : new URLSearchParams(location.search).get('folder');
     if (k) q.set('k', k);
     const s = new URLSearchParams(location.search).get('s');
     if (s) q.set('s', s);
