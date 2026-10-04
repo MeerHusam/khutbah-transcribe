@@ -24,3 +24,12 @@ test("sunnah.com naming the father for the son: Claude's fuller name is shown", 
   // A different person entirely is not overruled.
   assert.equal(shown('Narrated Abu Huraira:', '', 'Abdullah ibn Umar'), 'Abu Huraira');
 });
+
+test('a hadith in several collections links to Bukhari, then Muslim, unless the imam named one', async () => {
+  const { pickSunnahResult } = await import('../core/hadith.js');
+  const results = [{ slug: 'abudawud', number: '4862', score: 1 }, { slug: 'muslim', number: '2998', score: 1 }, { slug: 'bukhari', number: '6133', score: 0.95 }];
+  assert.equal(pickSunnahResult(results).slug, 'bukhari');
+  assert.equal(pickSunnahResult(results, 'abudawud').number, '4862');
+  assert.equal(pickSunnahResult(results, 'tirmidhi'), null);
+  assert.equal(pickSunnahResult([{ slug: 'abudawud', number: '1', score: 1 }, { slug: 'bukhari', number: '2', score: 0.6 }]).slug, 'abudawud');
+});

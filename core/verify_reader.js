@@ -58,14 +58,14 @@ function lcsMatch(a, b) {
         : Math.max(dp[(i + 1) * W + j], dp[i * W + j + 1]);
     }
   }
-  const aHit = new Uint8Array(n), bHit = new Uint8Array(m);
+  const aHit = new Uint8Array(n), bHit = new Uint8Array(m), aTo = new Int32Array(n).fill(-1);
   let i = 0, j = 0;
   while (i < n && j < m) {
-    if (a[i] === b[j]) { aHit[i] = bHit[j] = 1; i++; j++; }
+    if (a[i] === b[j]) { aHit[i] = bHit[j] = 1; aTo[i] = j; i++; j++; }
     else if (dp[(i + 1) * W + j] >= dp[i * W + j + 1]) i++;
     else j++;
   }
-  return { aHit, bHit };
+  return { aHit, bHit, aTo };
 }
 const runsOf = (hits, list) => {
   const runs = [];
@@ -113,7 +113,7 @@ export function verifyReader(folder, { readerRaw: readerOverride = null, result:
   // against the reader's Arabic, in order, shows both lost words and doubled words.
   const tWords = words(transcript);
   const rWords = words(blocks.map(b => b.arabic).join(' '));
-  const { aHit, bHit } = lcsMatch(tWords, rWords);
+  const { aHit, bHit, aTo } = lcsMatch(tWords, rWords);
   for (const run of runsOf(aHit, tWords)) {
     const msg = `text missing from the reader (${run.words.length} word${run.words.length > 1 ? 's' : ''} at transcript word ${run.at}): "${run.words.join(' ').slice(0, 70)}"`;
     run.words.length >= 2 ? fail(msg) : warn(msg);
@@ -151,6 +151,25 @@ export function verifyReader(folder, { readerRaw: readerOverride = null, result:
     if (english <= 6) return;
     fail(`a ${ws.length}-word block beside a verse card, likely a verse word the match missed: "${b.arabic}"`);
   });
+
+  // ── 2f. A prose block's English translates only words shown in prose ───────────
+  // The reader gives the words at a card's edge to the card, but the chunk Claude translated
+  // still had them, so its English repeated them beside the card: "O people of insight." after
+  // 59:2, "And a reminder for the believers." after 11:120 (2 Oct 2026 Makkah; the verse match
+  // stopped short of the mushaf's spellings). Each chunk's words (prose_chunk_map, transcript
+  // word indexes) are followed through the alignment above to the block that shows them.
+  const blockOfR = blocks.flatMap((b, k) => words(b.arabic).map(() => k));
+  const tOfRaw = [];
+  for (const w of transcript.split(/\s+/).filter(Boolean)) tOfRaw.push(tOfRaw.length ? tOfRaw.at(-1) + words(w).length : words(w).length);
+  const tIndex = i => (i ? tOfRaw[i - 1] : 0); // transcript word i -> first tWords index
+  for (const c of result.prose_chunk_map ?? []) {
+    const inCard = [];
+    for (let i = c.wordStart; i < c.wordEnd; i++) {
+      const r = aTo[tIndex(i)];
+      if (r >= 0 && isVerse(blocks[blockOfR[r]])) inCard.push(tWords[tIndex(i)]);
+    }
+    if (inCard.length >= 2) fail(`the English of chunk ${c.proseIdx} translates ${inCard.length} words shown in a verse card: "${inCard.join(' ').slice(0, 60)}"`);
+  }
 
   // ── 2d. No block break inside "صلى الله عليه وسلم" or a like phrase ───────────────
   // A block ended "يقول النبي صلى" and the next began "الله عليه وسلم:", so its English began

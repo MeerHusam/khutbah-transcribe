@@ -131,6 +131,21 @@ const SUNNAH_SLUGS = new Set([
   'malik', 'ahmad', 'darimi', 'nawawi40', 'riyadussalihin', 'adab', 'mishkat',
 ]);
 
+// Which search result a card links to. The collection the imam or Claude named comes first,
+// best-scoring within it (none there: null, so the local link stays). With none named, the
+// best-ranked collection among results scoring within 0.1 of the best: "لا يلدغ المؤمن من جحر
+// واحد مرتين" is in Bukhari 6133, Muslim 2998 and Abu Dawud 4862 alike, and the card named
+// Abu Dawud only because sunnah.com listed it first (2 Oct 2026 Makkah).
+const COLLECTION_RANK = ['bukhari', 'muslim', 'abudawud', 'tirmidhi', 'nasai', 'ibnmajah', 'malik', 'ahmad', 'darimi', 'riyadussalihin', 'mishkat', 'nawawi40', 'adab'];
+function pickSunnahResult(results, preferredSlug = null) {
+  const pool = preferredSlug ? results.filter(r => r.slug === preferredSlug) : results;
+  if (!pool.length) return null;
+  const best = Math.max(...pool.map(r => r.score));
+  const rank = r => (preferredSlug ? 0 : COLLECTION_RANK.indexOf(r.slug) + 1 || COLLECTION_RANK.length + 1);
+  return pool.filter(r => r.score >= best - (preferredSlug ? 0 : 0.1))
+    .sort((a, b) => rank(a) - rank(b) || b.score - a.score)[0];
+}
+
 const SLUG_DISPLAY = {
   bukhari: 'Sahih al-Bukhari', muslim: 'Sahih Muslim', abudawud: 'Sunan Abu Dawud',
   nasai: "Sunan an-Nasa'i", ibnmajah: 'Sunan Ibn Majah', tirmidhi: 'Jami` at-Tirmidhi',
@@ -177,7 +192,8 @@ async function resolveSunnahLink(detectedText, preferredSlug = null) {
   if (words.length < 4) return null; // too short to search reliably
 
   const cache = loadSunnahCache();
-  const cacheKey = 'v2::' + (preferredSlug ?? '*') + '::' + norm; // v2: results text-verified
+  // v2: results text-verified; v3 (4 Oct 2026): with no collection named, ranked by collection
+  const cacheKey = (preferredSlug ? 'v2::' : 'v3::') + (preferredSlug ?? '*') + '::' + norm;
   if (Object.prototype.hasOwnProperty.call(cache, cacheKey)) return cache[cacheKey];
 
   let resolved = null;
@@ -212,11 +228,7 @@ async function resolveSunnahLink(detectedText, preferredSlug = null) {
         const score = qPairs.filter(p => have.has(p)).length / Math.max(qPairs.length, 1);
         if (score >= 0.5) results.push({ slug: m[1], number: m[2], score });
       }
-      // Prefer the collection the imam or Claude named, best-scoring within it; with no
-      // expectation, the best-scoring result. If the expected collection has no verified
-      // hit, return null and keep the local link rather than risk a different hadith.
-      const inPreferred = preferredSlug ? results.filter(r => r.slug === preferredSlug) : results;
-      const pick = inPreferred.reduce((best, r) => (!best || r.score > best.score ? r : best), null);
+      const pick = pickSunnahResult(results, preferredSlug);
       if (pick) {
         resolved = {
           collection_slug: pick.slug,
@@ -430,6 +442,9 @@ async function resolveSunnahLinksForRefs(refs, transcript = null) {
     const imamSlug = imam?.slug ?? null;
     let sunnah = null;
     if (imamSlug) sunnah = await resolveSunnahLink(ref.detected_text, imamSlug);
+    // The imam named none: the best-ranked collection holding his words (Bukhari, then
+    // Muslim, …; pickSunnahResult) before Claude's own guess of a collection.
+    if (!sunnah && !imamSlug) sunnah = await resolveSunnahLink(ref.detected_text, null);
     if (!sunnah) sunnah = await resolveSunnahLink(ref.detected_text, claudeSlug);
     // A link confirmed on an earlier run stays when today's search finds nothing: search
     // results drift, and three published links (Ibn Majah 425, 1642, Tirmidhi 3585) no
@@ -666,6 +681,7 @@ function matchClaudeHadithRef(ref, hadithCorpus) {
 }
 
 export {
+  pickSunnahResult,
   matchClaudeHadithRef,
   loadHadithCorpus,
   deduplicateHadithRefs,

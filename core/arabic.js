@@ -254,18 +254,30 @@ function scanTranscriptForQuran(transcript, alreadyFound, keepPositions = false)
   );
 }
 
-// Extended normalisation used only for n-gram index building and pre-scan matching.
-// More aggressive than normalizeArabic: also collapses hamza seats and strips
-// bare hamza so corpus encoding differences (ئ vs dropped, ء vs آ, ياايها vs يا+أيها)
-// don't prevent 4-gram matches.
+// Extended normalisation used for matching the imam's words against the Quran corpus (the
+// n-gram index, the pre-scan, the reader's verse checks). Both sides go through it, so it
+// erases the differences between the mushaf's spelling and ordinary spelling:
+//  - hamza seats ("ءامنوا" / "آمنوا", "سيئاتكم" / "سياتكم", "رءوف" / "رؤوف");
+//  - every alef. The mushaf has a small alef where ordinary spelling has none (ذَٰلِكَ, ذِكْرَىٰ,
+//    أُو۟لَٰٓئِكَ) and none where it has one (ٱلْكِتَٰب is fine, but so is the plural "جاءو"),
+//    so a key without alefs matches both; recited.js aligns the cards the same way;
+//  - ى/ي and ة/ه, and the mushaf's single lam in ٱلَّيْل for "الليل";
+//  - the vocative, written joined in the mushaf (يَٰٓأَيُّهَا, يَٰٓأُو۟لِى, يَٰقَوْمِ) and as two words by
+//    the imam's transcript (يا أيها, يا أولي, يا قوم).
+// Until 4 Oct 2026 only the hamza seats were handled: on 2 Oct (Makkah) the matches of 59:2,
+// 11:120 and 50:37 stopped short of يا أولي / وذكرى / ذلك, those words stayed in the prose sent to
+// Claude, and three blocks repeated them beside the cards; 25:62's card began a word late.
+const splitVocative = text => text.replace(/(^|\s)ي\u064E?\u0640?\u0670\u0653?(?=\S)/g, '$1يا ');
 function normalizeArabicDeep(text) {
-  return normalizeArabic(text)
+  return normalizeArabic(splitVocative(text))
     .replace(/ء/g, '')   // strip bare hamza ("ءامنوا" → "امنوا")
     .replace(/ئ/g, '')   // strip hamza-on-ya': in the corpus the ya' is already present
                          // separately, so replacing with ي would double it ("سيئاتكم" → "سياتكم")
     .replace(/ؤ/g, 'و') // hamza-on-waw → waw
     .replace(/وو/g, 'و') // "رؤوف" → "رووف", the corpus "رءوف" → "روف"
-    .replace(/وا(?=\s|$)/g, 'و') // the alif after a plural waw, absent in the corpus ("جاءو" for "جاءوا")
+    .replace(/(^|\s)الل(?!ه)/g, '$1ال') // "الليل" → "اليل"; "الله", "اللهم" kept
+    .replace(/ا/g, '')
+    .replace(/ى/g, 'ي').replace(/ة/g, 'ه')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -590,10 +602,10 @@ function extendZonesByConsecutiveAyahs(zones, tNorm) {
 }
 
 // A verse's first word or two that the match missed because the imam's form differs from the
-// corpus only by a leading و ("ويكفر" for the Quran's "يكفر", "من" for "ومن"), or because the
-// corpus writes يا أيها as one word, ياايها. Left out, they became one-word prose blocks beside a
-// full sentence of translation ("ويكفر", "يا"; 2 Oct 2026 Madinah). A word joins the verse only
-// if it is the verse's own preceding word, so a lead-in like "قال تعالى" stays in the prose.
+// corpus only by a leading و ("ويكفر" for the Quran's "يكفر", "من" for "ومن"). Left out, they
+// became one-word prose blocks beside a full sentence of translation ("ويكفر"; 2 Oct 2026
+// Madinah; the joined يا أيها that also did is now split by normalizeArabicDeep). A word joins
+// the verse only if it is the verse's own preceding word, so "قال تعالى" stays in the prose.
 const noWaw = w => w.replace(/^و(?=..)/, '');
 function extendZoneStarts(zones, tNorm) {
   for (const z of zones) {
@@ -605,7 +617,6 @@ function extendZoneStarts(zones, tNorm) {
     for (let taken = 0; taken < 2 && k > 0 && start > 0; taken++) {
       const want = words[k - 1], have = tNorm[start - 1];
       if (noWaw(want) === noWaw(have)) { start--; k--; }
-      else if (want === `يا${have}` && tNorm[start - 2] === 'يا') { start -= 2; k--; }
       else break;
     }
     if (start === z.start) continue;
