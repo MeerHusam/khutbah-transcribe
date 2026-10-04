@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // tts.js — A voice track for a khutbah (30 Sep 2026): reads each reader block's English
-// (--lang en) or Urdu (--lang ur) aloud and writes one audio track the page can play in place of
+// (--lang en) or another language's text (--lang ur, bn …; core/languages.js) aloud and writes one audio track the page can play in place of
 // the imam's, with Gemini TTS (gemini-3.8-flash-tts, tts_gemini.mjs), voice Charon or Orus.
 // (The ElevenLabs engine, unused since 1 Oct 2026, was removed on 3 Oct; it is in git history.)
 //
@@ -30,6 +30,7 @@ import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
 import { loadResult } from '../core/reader_chunks.js';
 import { directions } from './voice_directions.js';
+import { LANGS, langOf } from '../core/languages.js';
 import '../public/recited.js';
 
 const { recitedSpans } = globalThis.KTRecited;
@@ -39,18 +40,15 @@ const args = process.argv.slice(2);
 const folder = args[0];
 const opt = (name, dflt) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : dflt; };
 const lang = opt('--lang', 'en');
+const L = langOf(lang); // undefined for English
 const model = opt('--model', 'gemini-3.8-flash-tts');
 const voice = opt('--voice', 'Charon');
-// Gemini's delivery, given as a style note (text in the transcript itself would be spoken).
-const GEMINI_STYLE = {
-  en: 'calm, clear and reverent, at a steady pace, like a translator reading a Friday sermon; Arabic names and Islamic terms (Allah, Muhammad, taqwa, Quraysh, Makkah) pronounced the Arabic way, as a Muslim scholar would',
-  ur: 'calm, clear and reverent, like a scholar reading the Urdu translation of a Friday sermon in standard Pakistani Urdu; Arabic names and Quranic terms pronounced the Arabic way',
-};
-// With --direct each sentence's note follows this ("… For this sentence: raised, indignant…").
-const GEMINI_BASE = {
-  en: 'The English translation of a Friday khutbah, read from the minbar; Arabic names and Islamic terms (Allah, Muhammad, taqwa, Quraysh, Makkah) pronounced the Arabic way, as a Muslim scholar would',
-  ur: 'The Urdu translation of a Friday khutbah, read from the minbar in standard Pakistani Urdu; Arabic words and Quranic terms pronounced the Arabic way',
-};
+// Gemini's delivery, given as a style note (text in the transcript itself would be spoken); another
+// language's is in its file (voice.style).
+const GEMINI_STYLE = 'calm, clear and reverent, at a steady pace, like a translator reading a Friday sermon; Arabic names and Islamic terms (Allah, Muhammad, taqwa, Quraysh, Makkah) pronounced the Arabic way, as a Muslim scholar would';
+// With --direct each sentence's note follows this ("… For this sentence: raised, indignant…"); another
+// language's is voice.base.
+const GEMINI_BASE = 'The English translation of a Friday khutbah, read from the minbar; Arabic names and Islamic terms (Allah, Muhammad, taqwa, Quraysh, Makkah) pronounced the Arabic way, as a Muslim scholar would';
 const limit = +opt('--limit', '0');
 // Faster delivery without re-generating: ffmpeg's atempo keeps the pitch; times scale with it.
 const tempo = +opt('--tempo', '1');
@@ -65,9 +63,9 @@ const directEffort = opt('--direct-effort', 'high');
 // per voice instead of 13–16, under the 100 a day per Google project (a request can return up to
 // ~655 s of audio; 6,000 characters is about 8 min).
 const PASSAGE_CHARS = 4000;
-if (!folder || !existsSync(join(folder, 'result.json')) || !['en', 'ur'].includes(lang)) {
-  console.error('Usage: node voice/tts.js outputs/<folder> [--lang en|ur] [--voice Charon] [--direct [--direct-effort high]] [--limit N] [--tempo 1.15] [--dry-run]\n'
-    + '  --direct: a note per sentence, voiced a passage at a time');
+if (!folder || !existsSync(join(folder, 'result.json')) || (lang !== 'en' && !L)) {
+  console.error(`Usage: node voice/tts.js outputs/<folder> [--lang en|${LANGS.map(l => l.code).join('|')}] [--voice Charon] [--direct [--direct-effort high]] [--limit N] [--tempo 1.15] [--dry-run]\n'
+    + '  --direct: a note per sentence, voiced a passage at a time`);
   process.exit(1);
 }
 
@@ -75,13 +73,13 @@ const quran = JSON.parse(readFileSync(join(ROOT, 'node_modules/quran-json/dist/q
 const quranEn = JSON.parse(readFileSync(join(ROOT, 'node_modules/quran-json/dist/quran_en.json'), 'utf8'));
 const verseAr = (s, a) => quran[s - 1]?.verses?.find(v => v.id === a)?.text ?? '';
 const verseEn = (s, a) => quranEn[s - 1]?.verses?.find(v => v.id === a)?.translation?.trim() ?? '';
-// The Urdu verse translation the page shows (translate_urdu.js; Junagarhi, a placeholder).
-const verseUr = (s, a) => result.urdu?.verses?.[`${s}:${a}`]?.trim() ?? '';
+// The language's verse translation the page shows (core/translate.js; core/langs/<code>.js).
+const verseTr = (s, a) => result[L.field]?.verses?.[`${s}:${a}`]?.trim() ?? '';
 const words = t => (t ?? '').split(/\s+/).filter(Boolean);
 // The English Quran text often ends a verse without punctuation ("…of the elephant"); read a
 // passage as separate sentences rather than one run.
 const joinVerses = texts => texts.filter(Boolean).map(t => t.trim())
-  .map(t => (/[.!?,;:"”’۔]$/.test(t) ? t : t + (lang === 'ur' ? '۔' : '.'))).join(' ');
+  .map(t => (/[.!?,;:"”’۔।]$/.test(t) ? t : t + (L ? L.sentenceEnd[0] : '.'))).join(' ');
 
 // Arabic the English keeps, as it is said in English. Supplications are set off by commas
 // ("Ibrahim, peace be upon him, called"); epithets are not ("Allah the Most High says").
@@ -127,12 +125,13 @@ function cleanEnglish(text) {
     .trim();
 }
 
-// Urdu keeps the Arabic honorifics as Urdu speakers say them; only the symbol is spelled out.
-function cleanUrdu(text) {
+// Another language keeps the Arabic honorifics as its speakers say them; only a symbol is spelled
+// out (voice.spoken in its file), and a dash becomes its comma.
+function cleanTranslation(text) {
+  for (const [sign, said] of Object.entries(L.voice.spoken)) text = text.split(sign).join(said);
   return text
-    .replace(/ﷺ/g, ' صلی اللہ علیہ وسلم ')
     .replace(/[[\]]/g, '')
-    .replace(/\s*[—–]\s*|\s+-\s+/g, '، ')
+    .replace(/\s*[—–]\s*|\s+-\s+/g, L.comma)
     .replace(/·/g, ' ')
     .replace(/\s{2,}/g, ' ')
     .trim();
@@ -144,7 +143,7 @@ function verseSpeech(chunk, s, a, e, excerpts) {
   const nums = [];
   for (let n = a; n <= e && nums.length < 25; n++) nums.push(n);
   const ar = nums.map(n => verseAr(s, n));
-  const en = nums.map(n => (lang === 'ur' ? verseUr : verseEn)(s, n));
+  const en = nums.map(n => (L ? verseTr : verseEn)(s, n));
   if (ar.some(t => !t)) return joinVerses(en);
   const spans = recitedSpans(chunk.arabic, ar);
   const lens = ar.map(t => words(t).length);
@@ -170,10 +169,10 @@ function verseSpeech(chunk, s, a, e, excerpts) {
 // introduces himself ("…and He said, Glorified and Exalted:"), or one that carries on the
 // verse quoted just before it, is left as he said it. Hadith need none: the imam's own "The
 // Prophet ﷺ said" is already in the prose.
-const VERSE_INTRO = { en: 'Allah says:', ur: 'ارشادِ باری تعالیٰ ہے:' };
+const VERSE_INTRO = { en: 'Allah says:', ...Object.fromEntries(LANGS.map(l => [l.code, l.voice.intro])) };
 // Only after a finished sentence: text ending in ":" or "said," introduces the verse itself,
 // and text ending mid-sentence ("And how can he invoke") runs on into it.
-const introduced = text => !/[.!?۔]["”’)]?\s*$/u.test(text);
+const introduced = text => !/[.!?۔।]["”’)]?\s*$/u.test(text);
 const lastAyah = chunk => {
   const refs = [...(chunk?.english ?? '').matchAll(/^[📖📑]\s+.+?\s+(\d+):(\d+)(?:\s*-\s*(\d+))?\s+—/gmu)];
   const m = refs.at(-1);
@@ -182,7 +181,7 @@ const lastAyah = chunk => {
 
 function blockSpeech(chunk, excerpts, before, prevChunk) {
   const out = [];
-  for (const part of (lang === 'ur' ? chunk.urdu ?? '' : chunk.english).split(/\n\n+/)) {
+  for (const part of (L ? chunk[L.field] ?? '' : chunk.english).split(/\n\n+/)) {
     const verse = part.match(/^📖\s+.+?\s+(\d+):(\d+)(?:\s*-\s*(\d+))?\s+—/);
     if (verse) {
       const [s, a] = [+verse[1], +verse[2]];
@@ -196,7 +195,7 @@ function blockSpeech(chunk, excerpts, before, prevChunk) {
     } else if (/^\s*[📖📑📚]/u.test(part)) continue; // badge line: the reference, not speech
     else out.push(part);
   }
-  return (lang === 'ur' ? cleanUrdu : cleanEnglish)(out.join(' '));
+  return (L ? cleanTranslation : cleanEnglish)(out.join(' '));
 }
 
 const result = loadResult(folder);
@@ -235,8 +234,8 @@ const job = {
   out: resolve(wav),
   blocks: blocks.map(({ i, text }) => ({ i, text, ...(i === secondBlock ? { pause_before: KHUTBAH_PAUSE } : {}),
     ...(notes ? { parts: notes.get(i) } : {}) })),
-  model, voice, style: (direct ? GEMINI_BASE : GEMINI_STYLE)[lang], concurrency: 2,
-  ...(direct ? { passages: PASSAGE_CHARS, lang } : {}),
+  model, voice, style: direct ? (L?.voice.base ?? GEMINI_BASE) : (L?.voice.style ?? GEMINI_STYLE), concurrency: 2,
+  ...(direct ? { passages: PASSAGE_CHARS, lang, iso: L?.voice.iso ?? 'eng', whisper: L?.voice.whisper ?? 'en', hear: L ? L.voice.hear : true } : {}),
 };
 const chars = blocks.reduce((n, b) => n + b.text.length, 0);
 console.log(`Speaking ${blocks.length} blocks (${chars} characters) with Gemini ${model} (${voice}, ${lang})...`);

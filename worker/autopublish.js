@@ -3,7 +3,8 @@
 // Run by upload_worker.js for each recording sent from the upload page, or by hand.
 //
 //   node worker/autopublish.js <recording> [--masjid "Masjid Name"] [--single] [--date 2026-10-02]
-//        [--job <upload id>] [--no-push] [--clean]   --no-push: everything but publishing; --clean: the page plays the recording with the hall's echo taken out
+//        [--job <upload id>] [--langs ur,bn] [--no-push] [--clean]   --no-push: everything but publishing; --clean: the page plays the recording with the hall's echo taken out
+//        --langs: the languages besides English (core/languages.js; default ur, or LANGS in .env)
 //   node worker/autopublish.js --resume outputs/<folder> [--masjid …] [--no-push]
 //        after a failed run: the steps already done are kept (the voices come from the cache)
 //
@@ -11,12 +12,13 @@
 //   1. the recording into audio_files/ (streamable), then pipeline.js --gemini: the Arabic,
 //      the English, the Quran and hadith cards
 //   2. a short title from the summary (one small Claude call)
-//   3. side by side: the English review, then the Urdu (review_english.js, translate_urdu.js, review_urdu.js) and, locally, the imam's word
-//      times and his delivery (with --clean, also the recording with the hall's echo taken out)
+//   3. side by side: the English review, then each language's translation and review side by side
+//      (review_english.js, translate.js, review_translation.js) and, locally, the imam's word times
+//      and his delivery (with --clean, also the recording with the hall's echo taken out)
 //   4. verse_excerpts.js: a verse he recited only in part shows (and is voiced) only in part
-//   5. the voices, side by side: Urdu (Orus, a direction per sentence, a passage at a time) and
-//      English (Charon); each then gets its word times (the Urdu's come with its voice) and his
-//      recitation before each verse
+//   5. the voices, one after another: each language's (Urdu and Bengali in Orus, a direction per
+//      sentence, a passage at a time), then English (Charon); each then gets its word times (they
+//      come with the voice) and his recitation before each verse
 //   6. publish.js: the checks, the test set, then the site's publish API (one page with English
 //      and Urdu); the page is live at once, with no commit and no deploy, and is checked.
 // With --job, every stage is reported to the upload page (/admin/uploads/<id>/status).
@@ -26,10 +28,11 @@
 import 'dotenv/config';
 import Anthropic from '@anthropic-ai/sdk';
 import { spawn, spawnSync } from 'child_process';
-import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync, appendFileSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync, appendFileSync, copyFileSync, rmSync } from 'fs';
 import { join, extname, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { siteItems } from './site.js';
+import { langOf } from '../core/languages.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SITE = process.env.SITE_URL || 'https://khutbah.dev';
@@ -43,7 +46,7 @@ const flag = f => argv.includes(f);
 const resume = opt('--resume')?.replace(/\/+$/, '');
 const input = resume ?? argv[0];
 if (!input || input.startsWith('--') || !existsSync(input) || (resume && !existsSync(join(resume, 'result.json')))) {
-  console.error('usage: node worker/autopublish.js <recording> [--masjid "Name"] [--speaker "Sheikh …"] [--single] [--date YYYY-MM-DD] [--job <id>] [--no-push]\n'
+  console.error('usage: node worker/autopublish.js <recording> [--masjid "Name"] [--speaker "Sheikh …"] [--single] [--date YYYY-MM-DD] [--job <id>] [--langs ur,bn] [--no-push]\n'
     + '       node worker/autopublish.js --resume outputs/<folder> [--masjid "Name"] [--no-push]');
   process.exit(1);
 }
@@ -52,6 +55,7 @@ const resumedSlug = resume ? basename(resume).replace(/^[^_]*_khutbah-/, '') : n
 const jobId = opt('--job');
 const single = flag('--single');
 const push = !flag('--no-push');
+const langs = (opt('--langs') ?? process.env.LANGS ?? 'ur').split(',').filter(Boolean).map(c => langOf(c) ?? (console.error(`unknown language ${c}`), process.exit(1)));
 
 // ── Names ──────────────────────────────────────────────────────────────────────
 const riyadhDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
@@ -175,15 +179,22 @@ async function main() {
   title ||= (result.share_summary || 'Friday Khutbah').split(/\s+/).slice(0, 5).join(' ');
   await report('english', { title, message: title });
 
-  // 3. The English review, then the Urdu (API), beside the imam's timing (local). The review
-  // corrects the English the Urdu then uses as its second reference; both write result.json.
-  await report('urdu');
+  // 3. The English review, then each language's translation and review side by side (API), beside
+  // the imam's timing (local). The review corrects the English the languages then use as their
+  // second reference. All write result.json, so each language works on its own copy of the folder's
+  // result and the copies are merged back (two writers to one file would lose one's work).
+  // A language that fails does not hold back the page: it goes live without it and the language
+  // waits with the voices (logs/voices_pending.json).
+  await report('translations', { message: langs.map(L => L.name).join(', ') });
   let cleanAudio = null;
+  const failed = [];
   await Promise.all([
     (async () => {
       await step(() => has('review_en.json'), 'English review', 'node', ['core/review_english.js', F]);
-      await step(() => result.urdu, 'Urdu translation', 'node', ['urdu/translate_urdu.js', F]);
-      await step(() => has('review_ur.json'), 'Urdu review', 'node', ['urdu/review_urdu.js', F]);
+      await Promise.all(langs.map(L => translateLang(L, F, has).catch(e => {
+        failed.push({ L, why: `${L.name} text: ${whyFailed(e)}` });
+        log(`✗ ${L.name}: the page goes up without it for now`);
+      })));
     })(),
     (async () => {
       await step(() => has('words_imam.json'), 'imam word timing', 'node', ['voice/align_imam.js', F, audioOut]);
@@ -208,26 +219,26 @@ async function main() {
   //    sentence (--direct): about 4 Gemini requests each since 3 Oct (13 before; one per block,
   //    67 for the English, on 2 Oct, when two runs in a day hit the 100-a-day limit), and the word
   //    times come with the passage split, so align_words.py runs only if that failed.
-  await report('voices', { message: 'Urdu (Orus) and English (Charon)' });
+  const voiced = langs.filter(L => !failed.some(f => f.L === L));
+  await report('voices', { message: [...voiced.map(L => `${L.name} (${L.voice.name})`), 'English (Charon)'].join(', ') });
   const recitation = cleanAudio ? join('audio_files', `${name}-clean.wav`) : audioOut;
-  let voiced = 0;
+  const voices = [...voiced.map(L => [L.code, L.name, ['--voice', L.voice.name, '--direct']]), ['en', 'English', ['--direct']]];
+  let done = 0;
   const voice = async (lang, label, args) => {
     await run(`${label} voice`, 'node', ['voice/tts.js', F, '--lang', lang, ...args, '--tempo', '1.15']);
-    if (++voiced === 2) await report('timing');
+    if (++done === voices.length) await report('timing');
     const m = JSON.parse(readFileSync(join(ROOT, F, `tts_${lang}.json`), 'utf8'));
-    if (!m.blocks.every(b => b.words?.length)) await run(`${lang} word timing`, PY_ALIGN, ['voice/align_words.py', F, lang]);
+    if (!m.blocks.every(b => b.words?.length)) await run(`${lang} word timing`, PY_ALIGN, ['voice/align_words.py', F, lang, ...(langOf(lang) ? [langOf(lang).voice.iso] : [])]);
     await run(`${lang} recitation`, 'node', ['voice/recite.js', F, lang, recitation, '--lift', '2']);
   };
-  // One after the other, Urdu first: side by side they sent 21 requests in a minute against a
-  // limit of 10 (3 Oct), and the turned-away requests counted toward the 100 a day.
+  // One after the other: side by side they sent 21 requests in a minute against a limit of 10
+  // (3 Oct), and the turned-away requests counted toward the 100 a day.
   // A voice that cannot be made now (every key spent, a refusal) does not hold back the page:
   // it goes live with its text, and the worker adds the voice later (logs/voices_pending.json).
-  const voiceFailed = [];
-  for (const [lang, label, args] of [['ur', 'Urdu', ['--voice', 'Orus', '--direct']], ['en', 'English', ['--direct']]]) {
+  const voiceFailed = failed.map(f => f.why);
+  for (const [lang, label, args] of voices) {
     try { await voice(lang, label, args); } catch (e) {
-      // The line of its output that says what went wrong ("✗ …", "…Error: …"), not the stack.
-      const why = (e.tail ?? '').split('\n').map(l => l.trim()).filter(l => /✗|Error\b/.test(l)).pop() ?? e.message;
-      voiceFailed.push(`${label}: ${why}`.slice(0, 240));
+      voiceFailed.push(`${label}: ${whyFailed(e)}`.slice(0, 240));
       log(`✗ ${label} voice: the page goes up without it for now`);
     }
   }
@@ -255,6 +266,32 @@ async function main() {
   await report('live', { link, message: `${mins()} min from upload start${pendingNote}` });
   if (voiceFailed.length) process.exit(4);
 }
+
+// One language's text: its translation, then its review. Each runs on a copy of the folder's
+// result.json (they would overwrite each other's), merged back as <field> once both steps are done.
+async function translateLang(L, F, has) {
+  const dir = join(ROOT, F), work = join(dir, `.${L.code}`);
+  const done = () => JSON.parse(readFileSync(join(dir, 'result.json'), 'utf8'))[L.field];
+  if (resume && done() && has(`review_${L.code}.json`)) { log(`= ${L.name} translation and review (kept)`); return; }
+  mkdirSync(work, { recursive: true });
+  for (const f of ['result.json', 'transcript.txt', 'reader.txt']) copyFileSync(join(dir, f), join(work, f));
+  const w = join(F, `.${L.code}`);
+  await run(`${L.name} translation`, 'node', ['core/translate.js', w, '--lang', L.code]);
+  await run(`${L.name} review`, 'node', ['core/review_translation.js', w, '--lang', L.code]);
+  const own = JSON.parse(readFileSync(join(work, 'result.json'), 'utf8'))[L.field];
+  mergeLock = mergeLock.then(() => {
+    const r = JSON.parse(readFileSync(join(dir, 'result.json'), 'utf8'));
+    r[L.field] = own;
+    writeFileSync(join(dir, 'result.json'), JSON.stringify(r, null, 2), 'utf8');
+    for (const f of [`reader_${L.code}.txt`, `review_${L.code}.json`]) copyFileSync(join(work, f), join(dir, f));
+    rmSync(work, { recursive: true, force: true });
+  });
+  await mergeLock;
+}
+let mergeLock = Promise.resolve();
+
+// The line of a failed step's output that says what went wrong ("✗ …", "…Error: …"), not the stack.
+const whyFailed = e => (e.tail ?? '').split('\n').map(l => l.trim()).filter(l => /✗|Error\b/.test(l)).pop() ?? e.message;
 
 // One commit on main per khutbah: the list publish.js wrote (server/khutbahs.seed.json) and the
 // test set. Render's build filter (render.yaml) skips the deploy for these files, so the site
@@ -288,7 +325,8 @@ function voicesPending(failed, key) {
     job: jobId, slug, why: failed, tries: all[key]?.tries ?? 0,
     next: all[key]?.next ?? new Date(Date.now() + 60 * 60_000).toISOString(),
     args: ['--resume', key, ...(jobId ? ['--job', jobId] : []), ...(masjidIn ? ['--masjid', masjidIn] : []), ...(speaker ? ['--speaker', speaker] : []), '--date', dateISO,
-      ...(single ? ['--single'] : []), ...(push ? [] : ['--no-push']), ...(flag('--clean') ? ['--clean'] : [])],
+      ...(single ? ['--single'] : []), ...(push ? [] : ['--no-push']), ...(flag('--clean') ? ['--clean'] : []),
+      '--langs', langs.map(L => L.code).join(',')],
   };
   writeFileSync(file, JSON.stringify(all, null, 1));
   log(`voices pending (${failed.join('; ')}); the worker tries again at ${all[key].next}`);

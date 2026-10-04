@@ -73,8 +73,8 @@
     ['claimed', 'Picked up by the Mac'],
     ['transcribing', 'Writing down the Arabic'],
     ['english', 'English translation and references'],
-    ['urdu', 'Urdu translation and review'],
-    ['voices', 'Recording the English and Urdu voices'],
+    ['translations', 'Translations and review'],
+    ['voices', 'Recording the voices'],
     ['timing', 'Word-by-word timing'],
     ['publishing', 'Publishing to the site'],
     ['live', 'Live'],
@@ -126,7 +126,7 @@
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
   function render(job) {
-    const at = {}; for (const l of job.log) at[l.status] = l;
+    const at = {}; for (const l of job.log) at[l.status === 'urdu' ? 'translations' : l.status] = l; // 'urdu' before 5 Oct 2026
     const failed = job.status === 'failed';
     const cur = ORDER.indexOf(job.status);
     const steps = STEPS.map(([s, label], k) => {

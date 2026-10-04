@@ -12,22 +12,24 @@ import 'dotenv/config';
 import Anthropic from '@anthropic-ai/sdk';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import { langOf } from '../core/languages.js';
 
 const MODEL = 'claude-sonnet-5-5';
 const PRICE_IN = 2 / 1e6, PRICE_OUT = 10 / 1e6; // USD per token, claude-sonnet-5-5
 const FALLBACK = { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' };
-const LANGUAGE = { ur: 'Urdu', en: 'English' };
+const LANGUAGE = lang => (lang === 'en' ? 'English' : langOf(lang).name);
 
 // A block's sentences, each with its end mark (and a closing quote), in order. Text that would
 // not split back into itself exactly stays one piece.
 export function sentences(text, lang) {
-  const re = lang === 'ur' ? /[^۔!؟?]+[۔!؟?]*["”’)]?/gu : /[^.!?]+[.!?]*["”’)]?/gu;
+  const ends = lang === 'en' ? '.!?' : langOf(lang).sentenceEnd;
+  const re = new RegExp(`[^${ends}]+[${ends}]*["”’)]?`, 'gu');
   const parts = (text.match(re) ?? []).map(s => s.trim()).filter(Boolean);
   const same = (a, b) => a.replace(/\s+/g, '') === b.replace(/\s+/g, '');
   return parts.length && same(parts.join(''), text) ? parts : [text];
 }
 
-const system = lang => `You direct a voice actor reading the ${LANGUAGE[lang]} translation of an Arabic Friday khutbah (sermon) aloud, sentence by sentence, so the listener feels what the congregation felt. You get the whole khutbah in order: for each block its ${LANGUAGE[lang]} sentences, the imam's Arabic, and, where measured, how the imam delivered it, from his recording against his own average in this khutbah (z-scores: 0 his average; +1 clearly louder, higher, wider in pitch movement, faster).
+const system = lang => `You direct a voice actor reading the ${LANGUAGE(lang)} translation of an Arabic Friday khutbah (sermon) aloud, sentence by sentence, so the listener feels what the congregation felt. You get the whole khutbah in order: for each block its ${LANGUAGE(lang)} sentences, the imam's Arabic, and, where measured, how the imam delivered it, from his recording against his own average in this khutbah (z-scores: 0 his average; +1 clearly louder, higher, wider in pitch movement, faster).
 
 For every sentence write one short English direction for a text-to-speech model (its style note): how loud and how high, how urgent or how tender, the pace, which words to lean on, where to slow or pause. Follow the imam and the meaning, and match his intensity rather than holding back:
 - Where he is raised and stirred (a warning, a condemnation, an exclamation, a rhetorical question), the voice is clearly raised, urgent and earnest, not calm or measured; let it land with force.

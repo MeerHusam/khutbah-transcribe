@@ -28,6 +28,8 @@ services:
         - server/admin/**
         - public/**
         - core/reader_chunks.js
+        - core/languages.js
+        - core/langs/**
         - package.json
         - package-lock.json
         - render.yaml

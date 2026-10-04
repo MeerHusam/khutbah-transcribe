@@ -221,7 +221,7 @@ async function inTurn(items, work) {
 // Blocks in passages of about job.passages characters, each ending where a sentence ends (a
 // block often stops mid-sentence at the imam's pause), never across the break between the
 // two khutbahs.
-const endsSentence = t => /[۔.!?؟]["”’)]?\s*$/u.test(t);
+const endsSentence = t => /[۔.!?؟।]["”’)]?\s*$/u.test(t);
 function passagesOf(blocks, size) {
   const out = [];
   let cur = [], chars = 0;
@@ -252,7 +252,7 @@ function heardShare(text, heard) {
 // The passage as Whisper hears it (Groq, free); null when it cannot be checked.
 async function hear(pcm) {
   const key = process.env.GROQ_API_KEY;
-  if (!key) return null;
+  if (!key || job.hear === false) return null; // off for a language Whisper hears poorly (core/langs/bn.js)
   const form = new FormData();
   // As mp3: a passage of 8 minutes is 23 MB as a WAV, and Groq takes at most 25 MB.
   const mp3 = spawnSync('ffmpeg', ['-v', 'error', '-f', 's16le', '-ar', String(SR), '-ac', '1', '-i', 'pipe:0', '-b:a', '48k', '-f', 'mp3', 'pipe:1'],
@@ -260,7 +260,7 @@ async function hear(pcm) {
   if (mp3.status === 0) form.append('file', new Blob([mp3.stdout], { type: 'audio/mpeg' }), 'passage.mp3');
   else form.append('file', new Blob([wavOf(pcm)], { type: 'audio/wav' }), 'passage.wav');
   form.append('model', 'whisper-large-v3');
-  form.append('language', job.lang ?? 'ur');
+  form.append('language', job.whisper ?? job.lang ?? 'ur');
   form.append('response_format', 'text');
   for (let attempt = 1; attempt <= 4; attempt++) {
     try {
@@ -336,7 +336,7 @@ function splitPassages(spans) {
   const py = join(ROOT, '.venv-align', 'bin', 'python');
   if (existsSync(py)) {
     const r = spawnSync(py, [join(ROOT, 'voice', 'align_words.py'), '-'], {
-      input: JSON.stringify({ audio: job.out, lang: job.lang ?? 'ur', blocks: spans.map((s, k) => ({ i: k, start: s.start, end: s.end, text: s.blocks.map(b => b.text).join(' ') })) }),
+      input: JSON.stringify({ audio: job.out, lang: job.lang ?? 'ur', iso: job.iso, blocks: spans.map((s, k) => ({ i: k, start: s.start, end: s.end, text: s.blocks.map(b => b.text).join(' ') })) }),
       encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['pipe', 'pipe', 'ignore'],
     });
     if (r.status === 0) words = JSON.parse(r.stdout.trim().split('\n').at(-1)).map(x => x.words);

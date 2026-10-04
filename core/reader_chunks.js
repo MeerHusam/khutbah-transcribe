@@ -5,6 +5,7 @@
 import { readFileSync, existsSync } from 'fs';
 import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
+import { LANGS } from './languages.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -194,29 +195,29 @@ export function loadResult(folder, readerRawOverride = null) {
       if (target >= 0) chunks[target].second_khutbah_start = true;
     }
 
-    attachUrdu(resolve(__dirname, '..', folder), chunks);
+    for (const L of LANGS) attachTranslation(resolve(__dirname, '..', folder), chunks, L);
     result.reader_chunks = chunks;
   } catch (_) {}
   return result;
 }
 
-// The Urdu reader (translate_urdu.js) has the same blocks as reader.txt with Urdu in place of
-// English. Urdu is written in Arabic script, so its blocks are split by position (the imam's
-// Arabic is always the first paragraph), not by script as above. Each chunk gets its block's
-// Urdu when the Arabic is the same; a chunk without one simply has no Urdu. Folders without a
-// reader_ur.txt (every khutbah published before the 25 Sep Urdu edition) are untouched.
-function attachUrdu(dir, chunks) {
-  const p = join(dir, 'reader_ur.txt');
+// A language's reader (translate.js: reader_ur.txt, reader_bn.txt …) has the same blocks as
+// reader.txt with the language in place of English. Urdu is written in Arabic script, so blocks are
+// split by position (the imam's Arabic is always the first paragraph), not by script as above.
+// Each chunk gets its block's text as c.<field> (c.urdu, c.bengali) when the Arabic is the same; a
+// chunk without one simply has none. Folders without the file are untouched.
+function attachTranslation(dir, chunks, L) {
+  const p = join(dir, `reader_${L.code}.txt`);
   if (!existsSync(p)) return;
   const blocks = readFileSync(p, 'utf8').split(/─{20,}/)
     .map(b => b.replace(/^ANNOTATED READER VIEW\s*=+\s*/i, '').trim()).filter(Boolean)
-    .map(b => { const paras = b.split(/\n\n+/).map(x => x.trim()).filter(Boolean); return { arabic: paras[0], urdu: paras.slice(1).join('\n\n') }; })
-    .filter(b => b.arabic && b.urdu);
+    .map(b => { const paras = b.split(/\n\n+/).map(x => x.trim()).filter(Boolean); return { arabic: paras[0], text: paras.slice(1).join('\n\n') }; })
+    .filter(b => b.arabic && b.text);
   let j = 0;
   for (const c of chunks) {
     const k = blocks.slice(j, j + 4).findIndex(b => b.arabic === c.arabic);
     if (k < 0) continue;
-    c.urdu = blocks[j + k].urdu;
+    c[L.field] = blocks[j + k].text;
     j += k + 1;
   }
 }

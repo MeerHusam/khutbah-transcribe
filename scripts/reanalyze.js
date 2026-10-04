@@ -3,7 +3,7 @@
 // using the improved canonical-span alignment. No API calls needed, except: when a fix moves
 // some chunk boundaries but keeps the number of chunks (a Quran zone that now ends where the
 // verse does), the English of just those chunks is translated again, and the Urdu commands
-// for the same chunks are printed (translate_urdu.js / review_urdu.js --chunks).
+// for the same chunks are printed for each language (translate.js / review_translation.js --chunks).
 //
 // Usage: node scripts/reanalyze.js outputs/<folder> [--keep-chunks] [--no-swaps]
 //
@@ -34,6 +34,7 @@ import { deduplicateHadithRefs, resolveSunnahLinksForRefs } from '../core/hadith
 import { settleLoneWords } from '../core/transcribe.js';
 import { planQuoteSwaps } from '../core/quote_swaps.js';
 import { translateChunk } from '../core/analyze.js';
+import { LANGS } from '../core/languages.js';
 
 const folder = process.argv[2];
 if (!folder || !existsSync(folder)) {
@@ -61,7 +62,9 @@ let moved = [];
 const allQuranRefs = keepChunks ? (result.quran_references || []) : recomputeChunksAndZones();
 if (moved.length) {
   await retranslateEnglish(moved);
-  console.log(`  then: node urdu/translate_urdu.js ${folder} --chunks ${moved.join(',')} && node urdu/review_urdu.js ${folder} --chunks ${moved.join(',')}`);
+  for (const L of LANGS.filter(L => result[L.field])) {
+    console.log(`  then: node core/translate.js ${folder} --lang ${L.code} --chunks ${moved.join(',')} && node core/review_translation.js ${folder} --lang ${L.code} --chunks ${moved.join(',')}`);
+  }
 }
 
 // English for the chunks whose boundaries moved, one call each (translateChunk, core/analyze.js).
