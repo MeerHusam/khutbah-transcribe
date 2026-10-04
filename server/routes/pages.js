@@ -33,7 +33,7 @@ function withShareMeta(file, req, { title, description, path }) {
     .replace(/<meta name="description"[^>]*>\s*/, '')
     .replace(/<title>[^<]*<\/title>/, tags);
 }
-const HOME_DESCRIPTION = 'Arabic Friday Khutbahs with English and Urdu translations, every Quran verse and Hadith cited and linked.';
+const HOME_DESCRIPTION = 'Arabic Friday Khutbahs with English and Urdu translations, every Quran ayah and Hadith cited and linked.';
 
 router.get('/', (req, res) => res.type('html').send(withShareMeta('home.html', req, {
   title: 'Khutbah.dev · Friday Khutbahs in Arabic, English & Urdu', description: HOME_DESCRIPTION, path: '/',

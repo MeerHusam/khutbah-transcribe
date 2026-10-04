@@ -1121,7 +1121,7 @@
           <div class="sidebar-header">Stats</div>
           <div class="sidebar-body">
             <div class="stat-row"><span class="stat-label">Words transcribed</span><span class="stat-value">${wordCount.toLocaleString()}</span></div>
-            <div class="stat-row"><span class="stat-label">Quran verses</span><span class="stat-value stat-green">${matched}/${qRefs.length}</span></div>
+            <div class="stat-row"><span class="stat-label">Quran ayaat</span><span class="stat-value stat-green">${matched}/${qRefs.length}</span></div>
             <div class="stat-row"><span class="stat-label">Hadith references</span><span class="stat-value">${hadithRefs.length}</span></div>
             <div class="stat-row"><span class="stat-label">Transcription</span><span class="stat-value">${modeLabel}</span></div>
           </div>
@@ -1129,7 +1129,7 @@
         <div class="sidebar-card">
           <div class="sidebar-header">About</div>
           <div class="sidebar-body" style="font-size:13px;color:var(--text-muted);line-height:1.65;">
-            Quranic verses are verified using dual-verification: Claude AI + a local matching algorithm. Hadith references are matched against a local corpus and linked to sunnah.com.
+            Quran ayaat are verified using dual-verification: Claude AI + a local matching algorithm. Hadith references are matched against a local corpus and linked to sunnah.com.
             <div class="about-credit">
               Built by <strong style="color:var(--cream);">Meer Husamuddin</strong> ·
               <a href="https://www.linkedin.com/in/meerhusam" target="_blank" rel="noopener">LinkedIn</a> ·
@@ -1294,7 +1294,7 @@
           if (partEn) {
             const btn = document.createElement('button');
             btn.className = 'verse-toggle';
-            btn.innerHTML = `<span class="lbl-part"><span class="en-inline">Show full verse</span><span class="ur-inline" lang="ur">مکمل آیت دیکھیں</span></span>`
+            btn.innerHTML = `<span class="lbl-part"><span class="en-inline">Show full ayah</span><span class="ur-inline" lang="ur">مکمل آیت دیکھیں</span></span>`
               + `<span class="lbl-full"><span class="en-inline">Show recited part</span><span class="ur-inline" lang="ur">صرف تلاوت شدہ حصہ</span></span>`;
             btn.onclick = ev => { ev.stopPropagation(); btn.closest('.reader-chunk').classList.toggle('show-full-verse'); };
             lastEl.insertAdjacentElement('afterend', btn);
