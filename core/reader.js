@@ -2,7 +2,7 @@
 // renders, and readable.txt.
 
 import { createRequire } from 'module';
-import { quranData, normalizeArabicDeep, normalizeArabic, prescanForQuranZones, MIN_ZONE_WORDS } from './arabic.js';
+import { quranData, normalizeArabicDeep, normalizeArabic, prescanForQuranZones, MIN_ZONE_WORDS, CITES_VERSE } from './arabic.js';
 
 const require = createRequire(import.meta.url);
 
@@ -116,9 +116,6 @@ const wordInVerse = (w, set) => set.has(w) || (w.length >= 4 && [...set].some(v 
 // (the same rule the minimum-word gate enforces for zone refs).
 const RITUAL_RECITATION = /بالله من الشيطان الرجيم|بسم الله الرحمن الرحيم/;
 const RITUAL_WHOLE = new Set(['الحمد لله رب العالمين'].map(p => normalizeArabicDeep(p)));
-// The imam introducing a verse ("كما قال جل وعلا:") versus asking in du'a: the closing du'a
-// borrows Quranic wording ("وجنبهم الفواحش … ما ظهر منها وما بطن", 6:151) without citing it.
-const CITES_VERSE = /(^| )(قال|وقال|فقال|يقول|ويقول|تعالى|وتعالى|وعلا|سبحانه|وجل|قوله|وقوله|لقوله)( |$)/;
 
 // Name the verse a run of uncovered words recites, or null when it is not a citation.
 // `before` is the few transcript words just ahead of the run.
@@ -128,6 +125,7 @@ function identifyRecitation(words, before = []) {
   if (RITUAL_RECITATION.test(deep) || RITUAL_WHOLE.has(deep.replace(/^و/, ''))) return null;
   const lead = before.map(w => normalizeArabic(w)).join(' ');
   const cited = CITES_VERSE.test(lead.split(' ').slice(-4).join(' '));
+  // The closing du'a borrows Quranic wording ("وجنبهم الفواحش … ما ظهر منها وما بطن", 6:151) without citing it.
   if (!cited && lead.split(' ').slice(-15).includes('اللهم')) return null;
 
   let best = null;

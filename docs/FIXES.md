@@ -283,3 +283,47 @@ Full root-cause analyses and implementation notes for every fix. New fixes go he
 
 **Fix:** the Urdu prompt writes صلی اللہ علیہ وسلم and رضی اللہ عنہ/عنہم by Urdu convention even where the imam doesn't say them, and حکمران for الأئمة in a du'a for those in authority; the Urdu review keeps them rather than marking them as additions.
 
+
+### 38. English one block off from a skipped chunk (18 Sep 2026 Madinah)
+
+**Symptom:** from block 55 on, every block showed the next block's English and the last had none. The publish gate failed the page.
+
+**Root cause:** the analysis returned `chunk_translations` as an array, and Sonnet 5.5 merged two chunks into one translation: 57 strings for 58 chunks. Paired by position, everything after the merge slid one place.
+
+**Fix:** the prompt asks for the English keyed by chunk number (`{"1": …, "2": …}`), so a skipped chunk leaves a gap at its own number. `completeChunkTranslations` (core/analyze.js) translates each gap on its own with `translateChunk` (the function `reanalyze.js` already used, now shared); an array of the wrong length cannot be paired, so then every chunk is. Test in `tests/pipeline.test.js`.
+
+### 39. English left out Quranic words inside a chunk, repeated restarts, kept "makhmum"
+
+**Symptom:** "as Allah said:" with nothing after it (ليحزن الذين آمنوا, too short for a card); 21:35's quote and the imam's explanation missing; the imam's restarts translated twice; مخموم القلب left as "makhmum".
+
+**Root cause:** the prompt said verses are shown separately, true only for verses that get a card; it had no restart rule (the Urdu prompt did) and no rule against transliteration.
+
+**Fix:** three rules in the analysis prompt and in `translateChunk`: Quranic words inside a chunk are translated with it, a restart once, every Arabic word outside the kept terms translated.
+
+### 40. Ayah cards for the imam's own Quranic phrasing
+
+**Symptom:** a 43:85 card in the middle of "…العزيز الغفار من له ملك السماوات والأرض وما بينهما العظيم الجبار", 6:151 twice for the du'a's "ما ظهر منها وما بطن", and 19:93 cutting "وما من ذرة في السماوات والأرض إلا وهي شاهدة" in two.
+
+**Root cause:** the pre-scan makes a zone of any 5 words that match an ayah; the reader's citing-phrase and du'a rules applied only to its own gap check.
+
+**Fix:** `dropBorrowedPhrases` (core/arabic.js) drops, before the chunks are cut, a zone of 5–6 words that nothing cites, that does not run on from another recitation, that is neither the start nor the end of its ayah, and whose words are a common Quranic phrase (every 4 words of it in other ayahs too) or include a word the ayah lacks. Its words stay in the prose. The literal rule (no card without a citing phrase) would have dropped 4:131, 43:32, 59:18, 25:62 and other real quotations. Across 36 transcripts it drops the four above and the same 6:151 du'a in two May test runs, and no zone of a published page. Tests in `tests/verse_zones.test.js`.
+
+### 41. Narrator: the Successor who tells the story
+
+**Symptom:** Bukhari 7324 (Abu Hurairah's own account) showed "Muhammad" (Ibn Sirin); Abu Dawud 5004 showed "AbdurRahman ibn AbuLayla", who reports it from the Companions.
+
+**Fix:** `parseSunnahNarrator` reads "We were with X …" and "The Companions of the Prophet (ﷺ) told us …" as a Successor reporting from X / the Companions, and `chooseNarrator` no longer keeps Claude's name when it is the Successor's and the page names the Companion. Of the 48 cached sunnah.com pages only these two change. Tests in `tests/narrator.test.js`.
+
+### 42. 49:17's card stopped short at هَدَىٰكُمْ
+
+**Fix:** `normalizeArabicDeep` reads ى with a small alef inside a word as an alef (هَدَىٰكُمْ / هداكم, يَتَوَفَّىٰكُمْ / يتوفاكم). Also Sudais's "على ما هداكم" (2:185). Test in `tests/verse_zones.test.js`.
+
+### 43. 65:3's card before 65:2's; the isti'adha cut to "I seek refuge"
+
+**Root cause:** the fuzzy ayah alignment ran 65:3's zone back over the imam's own "من حيث لا يحتسب، قال تعالى:"; "بالله من الشيطان الرجيم" matched 16:98 and joined the next verse's zone, leaving "أعوذ" alone in the prose.
+
+**Fix:** the pre-scan splits a zone at a citing word the verse does not have and scans each side again (`splitAtCitations`), and an isti'adha no longer starts a zone (`trimIstiadha`). Across 36 transcripts: 65:2–3 on 18 Sep, and the isti'adha before 17:21, 22:37 (Eid), 2:185 (Sudais) and 47:7. Tests in `tests/verse_zones.test.js`. Not fixed: a lone "كلا" (89:17's first word) after 89:15–16 stays in the prose as "No!": a card for one word would need the recitation check to trust single-word matches.
+
+### 44. Urdu: عنہم for two Companions
+
+**Fix:** the Urdu prompts ask for the dual, رضی اللہ عنہما, for two (ابوبکر و عمر).

@@ -263,13 +263,15 @@ function scanTranscriptForQuran(transcript, alreadyFound, keepPositions = false)
 //    so a key without alefs matches both; recited.js aligns the cards the same way;
 //  - ى/ي and ة/ه, and the mushaf's single lam in ٱلَّيْل for "الليل";
 //  - the vocative, written joined in the mushaf (يَٰٓأَيُّهَا, يَٰٓأُو۟لِى, يَٰقَوْمِ) and as two words by
-//    the imam's transcript (يا أيها, يا أولي, يا قوم).
+//    the imam's transcript (يا أيها, يا أولي, يا قوم);
+//  - ى with a small alef inside a word, an alef in ordinary spelling (هَدَىٰكُمْ / هداكم).
 // Until 4 Oct 2026 only the hamza seats were handled: on 2 Oct (Makkah) the matches of 59:2,
 // 11:120 and 50:37 stopped short of يا أولي / وذكرى / ذلك, those words stayed in the prose sent to
 // Claude, and three blocks repeated them beside the cards; 25:62's card began a word late.
 const splitVocative = text => text.replace(/(^|\s)ي\u064E?\u0640?\u0670\u0653?(?=\S)/g, '$1يا ');
+const midWordAlefMaqsura = text => text.replace(/ى\u0670(?=[\u0653\u0654]?[\u0621-\u064A])/g, 'ا');
 function normalizeArabicDeep(text) {
-  return normalizeArabic(splitVocative(text))
+  return normalizeArabic(midWordAlefMaqsura(splitVocative(text)))
     .replace(/ء/g, '')   // strip bare hamza ("ءامنوا" → "امنوا")
     .replace(/ئ/g, '')   // strip hamza-on-ya': in the corpus the ya' is already present
                          // separately, so replacing with ي would double it ("سيئاتكم" → "سياتكم")
@@ -724,7 +726,49 @@ function prescanForQuranZones(transcriptWords, n = 4) {
       settled.push(z);
     }
   }
-  return settled;
+  return splitAtCitations(trimIstiadha(settled), transcriptWords);
+}
+
+// The ayah words of a zone, deep-normalized.
+const zoneAyahWords = z => new Set((z.ayah_spans ?? []).flatMap(s =>
+  normalizeArabicDeep(quranData[s.surah_id - 1]?.verses.find(v => v.id === s.ayah_id)?.text ?? '').split(' ')));
+
+// "أعوذ بالله من الشيطان الرجيم" before a recitation matches 16:98 and joined the verse's zone,
+// leaving "أعوذ" alone in the prose ("I seek refuge", 18 Sep 2026 Madinah, before 17:21). The
+// isti'adha is the imam's, not the verse: it starts the zone no more, and stays in the prose whole.
+function trimIstiadha(zones) {
+  for (const z of zones) {
+    const spans = (z.ayah_spans ?? []).slice().sort((a, b) => a.start - b.start);
+    const [first, next] = spans;
+    if (!next || first.surah_id !== 16 || first.ayah_id !== 98 || first.end - first.start > 5 || first.start !== z.start) continue;
+    z.start = next.start;
+    z.ayah_spans = spans.slice(1);
+    ({ surah_id: z.surah_id, ayah_id: z.ayah_id, surah_name: z.surah_name } = next);
+    z.extra_ayahs = (z.extra_ayahs ?? []).filter(e => !(e.surah_id === 16 && e.ayah_id === 98) && !(e.surah_id === next.surah_id && e.ayah_id === next.ayah_id));
+  }
+  return zones;
+}
+
+// A zone that runs across the imam's citing phrase joined his own words to the verse he then
+// cites: "ورزق الآخرة من حيث لا يحتسب، قال تعالى: ومن يتق الله يجعل له مخرجاً ويرزقه من حيث لا
+// يحتسب" was one 65:3 zone from the first "من حيث", so 65:3's card came before 65:2's (18 Sep 2026,
+// Madinah). Split at the citing word (one the verse does not have) and scan each side again.
+function splitAtCitations(zones, transcriptWords) {
+  const letters = w => normalizeArabic(w).replace(/[^\u0621-\u064A]/g, '');
+  const out = [];
+  for (const z of zones) {
+    const ayah = zoneAyahWords(z);
+    const words = transcriptWords.slice(z.start, z.end);
+    const isCiting = w => CITES_VERSE.test(letters(w)) && !ayah.has(normalizeArabicDeep(w));
+    const p = words.findIndex(isCiting);
+    if (p < 0 || words.slice(0, p).filter(w => !isCiting(w)).length < 2) { out.push(z); continue; }
+    for (const [a, b] of [[z.start, z.start + p], [z.start + p + 1, z.end]]) {
+      for (const y of prescanForQuranZones(transcriptWords.slice(a, b))) {
+        out.push({ ...y, start: y.start + a, end: y.end + a, ayah_spans: (y.ayah_spans ?? []).map(s => ({ ...s, start: s.start + a, end: s.end + a })) });
+      }
+    }
+  }
+  return out;
 }
 
 // Surface Quranic ayahs that the n-gram zones identified but Claude + Jaccard scan both missed.
@@ -736,6 +780,43 @@ function prescanForQuranZones(transcriptWords, n = 4) {
 // is carved out but not cited leaves its words in no chunk and no ref, and they vanish
 // from the reader entirely.
 const MIN_ZONE_WORDS = 5;
+
+// The imam introducing a verse ("كما قال جل وعلا:"), in the few words before it.
+const CITES_VERSE = /(^| )(قال|وقال|فقال|يقول|ويقول|تعالى|وتعالى|وعلا|سبحانه|وجل|قوله|وقوله|لقوله)( |$)/;
+
+// Zones that are the imam's own sentence or du'a in Quranic words, not a recitation.
+// 18 Sep 2026: "إلى العزيز الغفار من له ملك السماوات والأرض وما بينهما العظيم الجبار" got a
+// 43:85 card mid-sentence, "اللهم جنبنا الفتن ما ظهر منها وما بطن" a 6:151 card in the du'a,
+// and "وما من ذرة في السماوات والأرض إلا وهي شاهدة" a 19:93 card that cut the sentence in two.
+// Such a zone is short (5–6 words), nothing cites it, no recitation runs just before it, it is
+// neither the start nor the end of its ayah, and its words are a common Quranic phrase (every
+// 4 words of it are in other ayahs too) or include a word the ayah does not have. Dropped
+// here, before the chunks are cut, so its words stay in the prose and are translated with it.
+// A short quotation found in one ayah only ("إن أكرمكم عند الله أتقاكم", 49:13) stays a card,
+// as does a Quranic du'a run to the ayah's end ("ربنا آتنا في الدنيا حسنة …", 2:201).
+// ponytail: a heuristic; across 36 transcripts it drops these four and the same 6:151 du'a in
+// two May test runs, and no zone of a published page.
+const BORROWED_MAX_WORDS = 6;
+function dropBorrowedPhrases(zones, transcriptWords) {
+  const index = getQuranNgramIndex();
+  const deep = w => normalizeArabicDeep(w).split(' ').filter(Boolean);
+  return zones.filter((z, k) => {
+    const n = z.end - z.start;
+    if (n < MIN_ZONE_WORDS || n > BORROWED_MAX_WORDS || z.extra_ayahs?.length) return true;
+    const lead = transcriptWords.slice(Math.max(0, z.start - 6), z.start).map(w => normalizeArabic(w)).join(' ');
+    if (CITES_VERSE.test(lead)) return true;
+    if (k > 0 && z.start - zones[k - 1].end <= 3) return true; // the recitation goes on
+    const ayah = deep(quranData[z.surah_id - 1]?.verses.find(v => v.id === z.ayah_id)?.text ?? '');
+    const said = transcriptWords.slice(z.start, z.end).flatMap(deep);
+    if (!ayah.length || n >= ayah.length) return true;
+    const bare = w => w?.replace(/^و/, '');
+    if (bare(said[0]) === bare(ayah[0]) || said.at(-1) === ayah.at(-1)) return true;
+    const stray = said.some(w => !ayah.includes(w));
+    const grams = said.slice(0, -3).map((_, j) => new Set((index.get(said.slice(j, j + 4).join(' ')) ?? []).map(h => `${h.surah_id}:${h.ayah_id}`)));
+    const common = grams.some(g => g.size) && grams.every(g => !g.size || g.size >= 2);
+    return !(stray || common);
+  });
+}
 
 function buildZoneRefs(zones, transcriptWords, existingRefs) {
   const index = getQuranNgramIndex();
@@ -1101,6 +1182,8 @@ export {
   getQuranAyahWords,
   scanTranscriptForQuran,
   buildZoneRefs,
+  dropBorrowedPhrases,
+  CITES_VERSE,
   annotateRefAyahRange,
   yieldTailToLaterRefs,
   getQuranNgramIndex,

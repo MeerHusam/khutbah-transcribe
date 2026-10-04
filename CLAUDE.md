@@ -282,6 +282,13 @@ Each is exported by its `core/` module and imported from there (`pipeline.js` no
 | 35 | Verse edges missed where the mushaf's spelling differs (يااولي, ذِكْرَىٰ, ذَٰلِكَ, ٱلَّيْل): the verse's words stayed in the prose and the English repeated them beside the card (2 Oct Makkah, 3 blocks) | `normalizeArabicDeep`: alefs dropped, ى/ة folded, the joined vocative split, الليل; `verify_reader` 2f fails a chunk whose words render in a card |
 | 36 | Hadith linked to the first collection sunnah.com listed (Abu Dawud 4862 for a hadith in Bukhari and Muslim) | `pickSunnahResult`: with no collection named by the imam, Bukhari, then Muslim, … among results within 0.1 of the best |
 | 37 | Urdu without صلی اللہ علیہ وسلم after the Prophet's name where the imam didn't say it, and امام for الأئمة (rulers) | `translate_urdu.js` / `review_urdu.js` prompts |
+| 38 | English one block off: 57 translations for 58 chunks (18 Sep Madinah) | `chunk_translations` keyed by chunk number; `completeChunkTranslations` translates a missing one alone |
+| 39 | English dropped Quranic words inside a chunk, translated restarts twice, kept "makhmum" | Analysis prompt and `translateChunk` rules |
+| 40 | Ayah cards for the imam's own Quranic phrasing (43:85, 6:151, 19:93) | `dropBorrowedPhrases` before the chunks are cut |
+| 41 | Narrator: the Successor who tells the story (Bukhari 7324, Abu Dawud 5004) | `parseSunnahNarrator`: "We were with X", "The Companions … told us" |
+| 42 | 49:17 stopped short at هَدَىٰكُمْ | `normalizeArabicDeep`: ىٰ inside a word is an alef |
+| 43 | 65:3's card before 65:2's; isti'adha cut to "I seek refuge" | `splitAtCitations`, `trimIstiadha` in the pre-scan |
+| 44 | Urdu عنہم for two Companions | Urdu prompts: عنہما |
 
 ---
 
