@@ -268,16 +268,16 @@ function findQuranRefs({ analysis, transcript, transcriptWords, quranZones }) {
 
 // Steps 7, 8c, 8d for hadith: Claude's references matched to the corpus, the ones a scan finds,
 // then sunnah.com links.
-async function findHadithRefs({ analysis, transcript }) {
+async function findHadithRefs({ analysis, transcript, quranZones }) {
   const hadithCorpus = loadHadithCorpus();
   const claudeHadithRefs = deduplicateHadithRefs(
     (analysis.hadith_references ?? []).map(ref => matchClaudeHadithRef(ref, hadithCorpus))
   );
 
-  // Step 8c: Scan for Hadith references
-  process.stdout.write('Scanning transcript for Hadith references...');
-  const hadithScanRefs = scanTranscriptForHadith(transcript, claudeHadithRefs, hadithCorpus);
-  console.log(` found ${hadithScanRefs.length} additional`);
+  // Step 8c: hadith the imam quotes without naming them (core/hadith.js)
+  process.stdout.write('Scanning transcript for Hadith the imam does not name...');
+  const hadithScanRefs = scanTranscriptForHadith(transcript, claudeHadithRefs, hadithCorpus, quranZones);
+  console.log(` found ${hadithScanRefs.length}`);
   const allHadithRefs = deduplicateHadithRefs([...claudeHadithRefs, ...hadithScanRefs]);
 
   // Step 8d: Replace corpus numbers/links with canonical sunnah.com permalinks
@@ -315,7 +315,7 @@ async function main() {
   const proseChunks = buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSegments);
   const analysis = await analyzeWithClaude({ transcript, proseChunks, khutbahType, outDir });
   const { quranRefs, scanRefs, allQuranRefs } = findQuranRefs({ analysis, transcript, transcriptWords, quranZones });
-  const { hadithScanRefs, allHadithRefs } = await findHadithRefs({ analysis, transcript });
+  const { hadithScanRefs, allHadithRefs } = await findHadithRefs({ analysis, transcript, quranZones });
 
   // Step 9: Assemble final output object
   const matchedCount = allQuranRefs.filter(r => r.matched).length;
@@ -337,8 +337,6 @@ async function main() {
     second_khutbah: secondKhutbah,
     quran_references: allQuranRefs,
     hadith_references: allHadithRefs,
-    // Corpus-scan finds, not shown (see deduplicateHadithRefs); kept for review.
-    hadith_scan_suggestions: hadithScanRefs,
     transcript_segments: transcriptSegments,
     transcript_words: transcriptWordTimes,
     metadata: {
@@ -369,7 +367,7 @@ async function main() {
   console.log(`✓ Transcription complete -- ${wordCount} words`);
   console.log('✓ Translation complete');
   console.log(`✓ ${allQuranRefs.length} Quranic references detected (${quranRefs.length} signal-phrase + ${scanRefs.length} scan), ${matchedCount} matched`);
-  console.log(`✓ ${allHadithRefs.length} Hadith references detected (${hadithScanRefs.length} more corpus-scan suggestions not shown)`);
+  console.log(`✓ ${allHadithRefs.length} Hadith references detected (${hadithScanRefs.length} the imam did not name)`);
   console.log(`✓ Results saved to outputs/${timestamp}_${audioBasename}/  (transcript.txt, result.json, readable.txt, reader.txt)`);
 }
 

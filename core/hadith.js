@@ -4,7 +4,7 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
-import { normalizeArabic, wordOverlapScore } from './arabic.js';
+import { normalizeArabic, wordOverlapScore, MIN_ZONE_WORDS } from './arabic.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -529,86 +529,113 @@ function extractMatn(text) {
   return norm;
 }
 
-// Slide a window across the transcript and score every chunk against every
-// hadith matn. Same O(1)-per-slide algorithm as the Quran scan.
-function scanTranscriptForHadith(transcript, claudeHadithRefs, hadithCorpus) {
+// ---- Hadith the imam does not name -----------------------------------------
+//
+// Imams weave hadith into their own sentences without "قال رسول الله ﷺ", and those got no card
+// (about 16 in Madinah's 25 Sep khutbah: Muslim 2834, Bukhari 3327, Tirmidhi 2526 …). Runs of
+// 4-grams shared with one hadith of the local collections find them, as the Quran pre-scan finds
+// ayaat. This replaced (5 Oct 2026) a sliding Jaccard window whose finds were wrong in all seven
+// test khutbahs; each filter answers one of those:
+//  - a 4-gram found in more than HADITH_COMMON hadith says nothing about which one ("صلى الله
+//    عليه وسلم", "قال رسول الله"), and a find needs HADITH_MIN_WORDS matched words besides the
+//    formula words (21 Aug: the imam's own sentences matched pieces of "النبي ﷺ");
+//  - ritual formulas (isLiturgicalFormula) and the Eid takbir;
+//  - words in a Quran zone (a verse a hadith also quotes: 2:201, 37:180, Sudais's 2:185 as Abu
+//    Dawud 2316);
+//  - a span a hadith the imam introduced already covers.
+// transcript: the transcript as pipeline.js splits it into words (quranZones index those words).
+const HADITH_GRAM = 4, HADITH_MIN_WORDS = 8, HADITH_COMMON = 150;
+const HADITH_FORMULA = new Set(['صلي', 'الله', 'عليه', 'وسلم', 'رسول', 'النبي', 'قال', 'يقول', 'عن', 'رضي', 'عنه',
+  'عنها', 'اكبر', 'سبحانه', 'تعالي', 'وتعالي', 'عز', 'وجل']);
+const hadithKey = w => normalizeArabic(w).replace(/[^\u0621-\u064A]/g, '').replace(/ى/g, 'ي').replace(/ة/g, 'ه');
+
+function scanTranscriptForHadith(transcript, claudeHadithRefs, hadithCorpus, quranZones = []) {
   if (!hadithCorpus.length) return [];
+  const words = transcript.split(/\s+/).filter(Boolean);
+  const keys = words.map(hadithKey);
+  const inZone = new Uint8Array(words.length);
+  for (const z of quranZones) if (z.end - z.start >= MIN_ZONE_WORDS) inZone.fill(1, z.start, z.end);
+  // The words of the hadith the imam introduced (Claude's): every transcript 4-gram its text has,
+  // so a word Claude cleaned up ("عينان لا تمس لا تمسهما") does not hide it.
+  const claimed = new Uint8Array(words.length);
+  const claudeGrams = new Set();
+  for (const r of claudeHadithRefs) {
+    const k = (r.detected_text ?? '').split(/\s+/).map(hadithKey).filter(Boolean);
+    for (let p = 0; p + HADITH_GRAM <= k.length; p++) claudeGrams.add(k.slice(p, p + HADITH_GRAM).join(' '));
+  }
+  for (let i = 0; i + HADITH_GRAM <= keys.length; i++) {
+    if (claudeGrams.has(keys.slice(i, i + HADITH_GRAM).join(' '))) claimed.fill(1, i, i + HADITH_GRAM);
+  }
 
-  const tWords = normalizeArabic(transcript).split(/\s+/).filter(Boolean);
-  const tLen = tWords.length;
-
-  const claudeNorm = new Set(
-    claudeHadithRefs.map(r => normalizeArabic(r.detected_text ?? ''))
-  );
+  const tGrams = new Map();
+  for (let i = 0; i + HADITH_GRAM <= keys.length; i++) {
+    if (inZone.subarray(i, i + HADITH_GRAM).some(Boolean)) continue;
+    const g = keys.slice(i, i + HADITH_GRAM).join(' ');
+    if (!keys[i]) continue;
+    (tGrams.get(g) ?? tGrams.set(g, []).get(g)).push(i);
+  }
+  // One pass over the corpus: which hadith share which transcript 4-grams, and how many hadith
+  // carry each of them.
+  const df = new Map(), hits = new Map(); // hit: [transcript position, position in the hadith]
+  hadithCorpus.forEach((h, hi) => {
+    const k = h._keys ??= h.matnWords.map(hadithKey);
+    const seen = new Set();
+    for (let p = 0; p + HADITH_GRAM <= k.length; p++) {
+      const g = k.slice(p, p + HADITH_GRAM).join(' ');
+      const at = tGrams.get(g);
+      if (!at) continue;
+      if (!seen.has(g)) { seen.add(g); df.set(g, (df.get(g) ?? 0) + 1); }
+      for (const i of at) (hits.get(hi) ?? hits.set(hi, []).get(hi)).push([i, p, g]);
+    }
+  });
 
   const candidates = [];
-
-  for (const h of hadithCorpus) {
-    const aWords = h.matnWords;
-    const aLen = aWords.length;
-    // Very short matn entries are too prone to matching common Islamic phrases
-    // (e.g. the shahada). Short hadiths are reliably caught by Claude's signal-phrase
-    // detection, so skip them in the scan.
-    if (aLen < 8 || aLen > tLen) continue;
-
-    const aWordSet = new Set(aWords);
-    let freq = {}, uniqueCount = 0, intersect = 0;
-
-    const addW = w => {
-      if (!freq[w]) { freq[w] = 0; uniqueCount++; if (aWordSet.has(w)) intersect++; }
-      freq[w]++;
+  for (const [hi, list] of hits) {
+    const useful = list.filter(([, , g]) => df.get(g) <= HADITH_COMMON).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    // Runs: hits close together in the transcript and in the same order in the hadith (the
+    // imam may add or drop a word or two).
+    let run = null;
+    const close = () => {
+      if (!run) return;
+      const matched = [...run.words].filter(i => !HADITH_FORMULA.has(keys[i]));
+      if (matched.length >= HADITH_MIN_WORDS) candidates.push({ hi, start: run.start, end: run.end, matched: matched.length });
+      run = null;
     };
-    const remW = w => {
-      freq[w]--;
-      if (freq[w] === 0) { delete freq[w]; uniqueCount--; if (aWordSet.has(w)) intersect--; }
-    };
-    const score = () => intersect / (uniqueCount + aWordSet.size - intersect);
-
-    for (let j = 0; j < aLen; j++) addW(tWords[j]);
-
-    let bestScore = score(), bestStart = 0;
-    for (let i = 1; i <= tLen - aLen; i++) {
-      remW(tWords[i - 1]);
-      addW(tWords[i + aLen - 1]);
-      const s = score();
-      if (s > bestScore) { bestScore = s; bestStart = i; }
+    for (const [i, p] of useful) {
+      if (run && i - run.lastI <= 6 && Math.abs((i - p) - (run.lastI - run.lastP)) <= 2 && p >= run.lastP) {
+        run.end = Math.max(run.end, i + HADITH_GRAM);
+      } else { close(); run = { start: i, end: i + HADITH_GRAM, words: new Set() }; }
+      for (let w = i; w < i + HADITH_GRAM; w++) run.words.add(w);
+      run.lastI = i; run.lastP = p;
     }
+    close();
+  }
 
-    if (bestScore < 0.6) continue;
-
-    const detectedText = tWords.slice(bestStart, bestStart + aLen).join(' ');
-    if ([...claudeNorm].some(cn => cn.includes(detectedText) || detectedText.includes(cn))) continue;
-
-    // Reject windows that are mostly attribution chain with little actual hadith content.
-    // extractMatn strips the isnad; if fewer than 5 words remain, the window landed on
-    // an attribution phrase, not a real hadith quote.
-    const contentAfterIsnad = extractMatn(detectedText).split(/\s+/).filter(Boolean).length;
-    if (contentAfterIsnad < 5) continue;
-
-    candidates.push({
-      detected_text: detectedText,
+  // The longest find wins a stretch of transcript; a tie goes to Bukhari, then Muslim, …
+  const rank = h => { const r = COLLECTION_RANK.indexOf(h.collectionId.replace('ara-', '')); return r < 0 ? 99 : r; };
+  candidates.sort((a, b) => b.matched - a.matched || rank(hadithCorpus[a.hi]) - rank(hadithCorpus[b.hi]));
+  const taken = new Uint8Array(words.length), found = [];
+  for (const c of candidates) {
+    if (taken.subarray(c.start, c.end).some(Boolean)) continue;
+    const span = c.end - c.start;
+    if (claimed.subarray(c.start, c.end).filter(Boolean).length > span * 0.3) continue;
+    const text = words.slice(c.start, c.end).join(' ');
+    if (isLiturgicalPart(text)) continue;
+    taken.fill(1, c.start, c.end);
+    const h = hadithCorpus[c.hi];
+    found.push({
+      detected_text: text,
+      narrator: null,
       collection: h.collection,
       hadith_number: h.number,
       link: h.link,
-      confidence: Math.round(bestScore * 100) / 100,
-      detection_method: 'scan',
-      _start: bestStart,
-      _end: bestStart + aLen,
+      confidence: Math.round((c.matched / span) * 100) / 100,
+      detection_method: 'ngram',
+      note: 'Found in the local corpus: the imam did not name it',
+      _start: c.start,
     });
   }
-
-  candidates.sort((a, b) => a._start - b._start);
-  const deduped = [];
-  for (const c of candidates) {
-    const prev = deduped[deduped.length - 1];
-    if (prev && c._start < prev._end) {
-      if (c.confidence > prev.confidence) deduped[deduped.length - 1] = c;
-    } else {
-      deduped.push(c);
-    }
-  }
-
-  return deduped.map(({ _start, _end, ...rest }) => rest);
+  return found.sort((a, b) => a._start - b._start).map(({ _start, ...r }) => r);
 }
 
 // ---- Hadith deduplication ---------------------------------------------------
@@ -637,6 +664,15 @@ const LITURGICAL_FORMULAS = [
   'ربنا آتنا في الدنيا حسنة وفي الآخرة حسنة وقنا عذاب النار',
   // Standard closing supplications
   'اللهم اغفر للمسلمين والمسلمات والمؤمنين والمؤمنات الأحياء منهم والأموات',
+  // The khutbah's opening: the praise (khutbat al-haja), the shahada, and the hawqala and
+  // istiftah the imam says as dhikr; each is a hadith's text too (Ibn Majah 1892, Muslim 868,
+  // Nasa'i 3278, Ibn Majah 3878 and 1355), which the scan for hadith the imam doesn't name
+  // would card (5 Oct 2026).
+  'إن الحمد لله نحمده ونستعينه ونستغفره ونعوذ بالله من شرور أنفسنا ومن سيئات أعمالنا من يهده الله فلا مضل له ومن يضلل فلا هادي له',
+  'وأشهد أن لا إله إلا الله وحده لا شريك له وأشهد أن محمدا عبده ورسوله',
+  'وأشهد أن محمدا عبده ورسوله أرسله بالحق بشيرا ونذيرا بين يدي الساعة',
+  'ولا حول ولا قوة إلا بالله العلي العظيم',
+  'سبحانك اللهم وبحمدك وتبارك اسمك وتعالى جدك ولا إله غيرك ولا حول ولا قوة إلا بك',
   'سبحان ربك رب العزة عما يصفون وسلام على المرسلين والحمد لله رب العالمين',
 ].map(f => new Set(normalizeArabic(f).split(/\s+/).filter(Boolean)));
 
@@ -652,6 +688,16 @@ function isLiturgicalFormula(text) {
   });
 }
 
+// A piece of one of them, or of two said one after the other: the scan finds parts ("من يهده الله
+// فلا مضل له، ومن يضلل فلا هادي له") and runs ("… فلا هادي له، وأشهد أن لا إله إلا الله وحده").
+const LITURGICAL_WORDS = new Set(LITURGICAL_FORMULAS.flatMap(f => [...f]));
+function isLiturgicalPart(text) {
+  const words = [...new Set((text ?? '').split(/\s+/).map(w => normalizeArabic(w).replace(/[^\u0621-\u064A]/g, '')).filter(Boolean))];
+  if (!words.length) return false;
+  return LITURGICAL_FORMULAS.some(f => words.filter(w => f.has(w)).length >= words.length * 0.75)
+    || words.filter(w => LITURGICAL_WORDS.has(w)).length >= words.length * 0.85;
+}
+
 function deduplicateHadithRefs(refs) {
   const kept = [];
   for (const ref of refs) {
@@ -660,7 +706,8 @@ function deduplicateHadithRefs(refs) {
     // fragments on "النبي صلى الله عليه وسلم" (21 Aug), his dhikr and Eid takbir matched the
     // hadith containing them (Eid), a verse matched a hadith quoting it (Sudais 2:185 as Abu
     // Dawud 2316), and a paraphrase of the pillars of Islam got an unrelated Bukhari link
-    // (Arafah). The scan's finds are kept in result.json as hadith_scan_suggestions.
+    // (Arafah). Old results keep those finds as detection_method 'scan'; the scan that replaced it
+    // (5 Oct 2026, scanTranscriptForHadith) marks its finds 'ngram'.
     if (ref.detection_method === 'scan') continue;
 
     // Ritual closing formulas are matched correctly by the corpus but are not citations.
