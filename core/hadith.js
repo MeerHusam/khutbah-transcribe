@@ -690,11 +690,18 @@ function isLiturgicalFormula(text) {
 
 // A piece of one of them, or of two said one after the other: the scan finds parts ("من يهده الله
 // فلا مضل له، ومن يضلل فلا هادي له") and runs ("… فلا هادي له، وأشهد أن لا إله إلا الله وحده").
-const LITURGICAL_WORDS = new Set(LITURGICAL_FORMULAS.flatMap(f => [...f]));
+// Also, for the scan only, the five pillars said as a list in the imam's own words (Arafah 2026):
+// the content of "بني الإسلام على خمس" (Tirmidhi 2609), not a quotation of it (Meer, 5 Oct 2026).
+// A hadith the imam introduces keeps its card: this is not in LITURGICAL_FORMULAS.
+const foldKey = w => normalizeArabic(w).replace(/[^\u0621-\u064A]/g, '').replace(/ى/g, 'ي').replace(/ة/g, 'ه');
+const foldSet = text => new Set(text.split(/\s+/).map(foldKey).filter(Boolean));
+const OWN_WORDS = [...LITURGICAL_FORMULAS.map(f => new Set([...f].map(foldKey))),
+  foldSet('شهادة أن لا إله إلا الله وأن محمدا رسول الله وإقام الصلاة وإيتاء الزكاة وصوم رمضان وحج البيت من استطاع إليه سبيلا')];
+const LITURGICAL_WORDS = new Set(OWN_WORDS.slice(0, -1).flatMap(f => [...f]));
 function isLiturgicalPart(text) {
-  const words = [...new Set((text ?? '').split(/\s+/).map(w => normalizeArabic(w).replace(/[^\u0621-\u064A]/g, '')).filter(Boolean))];
+  const words = [...foldSet(text ?? '')];
   if (!words.length) return false;
-  return LITURGICAL_FORMULAS.some(f => words.filter(w => f.has(w)).length >= words.length * 0.75)
+  return OWN_WORDS.some(f => words.filter(w => f.has(w)).length >= words.length * 0.75)
     || words.filter(w => LITURGICAL_WORDS.has(w)).length >= words.length * 0.85;
 }
 
