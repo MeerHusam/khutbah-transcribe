@@ -868,7 +868,9 @@
           .map(([m, label, n]) => `<button type="button" data-m="${escAttr(m)}" title="${escAttr(m || 'All masjids')}">${esc(label)}<span>${n}</span></button>`).join('');
         bar.addEventListener('click', e => { const b = e.target.closest('button'); if (b) show(b.dataset.m); });
       }
-      show('');
+      // /?masjid=1 opens on one masjid's khutbahs (its id: server/db.js).
+      const want = new URLSearchParams(location.search).get('masjid');
+      show(ordered.find(k => want && String(k.masjid_id) === want)?.masjid ?? '');
     })
     .then(() => {
       // Masjid name opens the map instead of the reader behind it.
