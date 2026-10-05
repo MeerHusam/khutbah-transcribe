@@ -114,6 +114,8 @@ function listItem(k, r) {
   return {
     folder: k.folder,
     slug: k.slug || '',
+    id: k.id || '',
+    masjid_id: k.masjid_id ?? null,
     title: k.title,
     speaker: k.speaker || '',
     masjid: k.masjid || '',

@@ -31,6 +31,22 @@ const MIGRATIONS = [
    )`,
   // Where a khutbah's audio is when it is not on this server (R2), ending in '/'.
   'ALTER TABLE khutbahs ADD COLUMN media_url TEXT',
+  // Masjid and khutbah ids (5 Oct 2026). A masjid's id is its number in the order it was first
+  // published (1 Makkah, 2 Madinah, 3 ours, as Meer numbered them); a khutbah's is its masjid's
+  // id and its date as DDMMYY: Makkah on 2 Oct 2026 is 1021026. Links stay the slugs.
+  `CREATE TABLE masjids (
+     id       INTEGER PRIMARY KEY,
+     name     TEXT NOT NULL UNIQUE,
+     name_ar  TEXT,
+     maps_url TEXT
+   );
+   INSERT INTO masjids (id, name, name_ar, maps_url) VALUES
+     (1, 'Masjid al-Haram, Makkah', 'المسجد الحرام', NULL),
+     (2, 'Masjid an-Nabawi, Madinah', 'المسجد النبوي', NULL),
+     (3, 'Askan AlMaather Mosque', 'جامع إسكان المعذر', 'https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6');
+   ALTER TABLE khutbahs ADD COLUMN masjid_id INTEGER REFERENCES masjids (id);
+   ALTER TABLE khutbahs ADD COLUMN id TEXT;
+   CREATE UNIQUE INDEX khutbahs_id ON khutbahs (id);`,
 ];
 const version = db.prepare('PRAGMA user_version').get().user_version;
 for (let v = version; v < MIGRATIONS.length; v++) {
@@ -40,7 +56,7 @@ for (let v = version; v < MIGRATIONS.length; v++) {
   db.exec('COMMIT');
 }
 
-const FIELDS = ['folder', 'slug', 'title', 'speaker', 'masjid', 'masjid_ar', 'maps_url', 'date', 'audio', 'page', 'old_slugs', 'old_folders', 'note', 'media_url'];
+const FIELDS = ['folder', 'slug', 'title', 'speaker', 'masjid', 'masjid_ar', 'maps_url', 'date', 'audio', 'page', 'old_slugs', 'old_folders', 'note', 'media_url', 'masjid_id', 'id'];
 const LISTS = new Set(['old_slugs', 'old_folders']);
 // Kept when publishing again without them (publish.js never sends the first three; media_url
 // stays so a republish from a machine without R2 settings cannot orphan the audio).
@@ -64,6 +80,29 @@ export function dayOf(k) {
   const month = MONTHS.indexOf(m);
   if (month >= 0 && +d && +y) return Date.UTC(+y, month, +d);
   return Date.parse((k.folder ?? '').slice(0, 10)) || 0;
+}
+
+// The masjid's id, found by its name or Arabic name; a masjid not seen before gets the next number.
+function masjidId(k) {
+  if (!k.masjid) return null;
+  const row = db.prepare('SELECT id, maps_url FROM masjids WHERE lower(name) = lower(?) OR name_ar = ?').get(k.masjid, k.masjid_ar ?? null);
+  if (!row) return Number(db.prepare('INSERT INTO masjids (name, name_ar, maps_url) VALUES (?, ?, ?)').run(k.masjid, k.masjid_ar ?? null, k.maps_url ?? null).lastInsertRowid);
+  if (!row.maps_url && k.maps_url) db.prepare('UPDATE masjids SET maps_url = ? WHERE id = ?').run(k.maps_url, row.id);
+  return row.id;
+}
+
+// A khutbah's masjid id and id (see MIGRATIONS). An id once given stays; a second khutbah of the
+// same masjid and day gets "-2". No masjid or no date: no id.
+function withIds(k) {
+  const masjid_id = masjidId(k);
+  const kept = db.prepare('SELECT id FROM khutbahs WHERE folder = ?').get(k.folder)?.id;
+  const day = dayOf(k);
+  if (kept || masjid_id == null || !day) return { ...k, masjid_id, id: kept ?? null };
+  const d = new Date(day), two = n => String(n).padStart(2, '0');
+  const base = `${masjid_id}${two(d.getUTCDate())}${two(d.getUTCMonth() + 1)}${two(d.getUTCFullYear() % 100)}`;
+  let id = base;
+  for (let n = 2; db.prepare('SELECT 1 FROM khutbahs WHERE id = ? AND folder != ?').get(id, k.folder); n++) id = `${base}-${n}`;
+  return { ...k, masjid_id, id };
 }
 
 export function listKhutbahs() {
@@ -96,7 +135,7 @@ export function publishKhutbah(entry) {
     }
     const top = db.prepare('SELECT MIN(position) AS p FROM khutbahs').get().p;
     if (entry.featured) db.exec('UPDATE khutbahs SET featured = 0');
-    upsert.run({ ...toColumns(entry), position: top == null ? 0 : top - 1, featured: entry.featured ? 1 : 0, published_at: new Date().toISOString() });
+    upsert.run({ ...toColumns(withIds(entry)), position: top == null ? 0 : top - 1, featured: entry.featured ? 1 : 0, published_at: new Date().toISOString() });
   });
 }
 
@@ -104,6 +143,14 @@ export function publishKhutbah(entry) {
 export function seedIfEmpty(entries) {
   if (db.prepare('SELECT COUNT(*) AS n FROM khutbahs').get().n) return;
   transaction(() => entries.forEach((k, i) => upsert.run({
-    ...toColumns(k), position: i, featured: k.featured ? 1 : 0, published_at: new Date().toISOString(),
+    ...toColumns(withIds(k)), position: i, featured: k.featured ? 1 : 0, published_at: new Date().toISOString(),
   })));
 }
+
+// Khutbahs published before the ids (the live database on 5 Oct 2026) get theirs once, oldest first.
+transaction(() => {
+  for (const row of db.prepare('SELECT * FROM khutbahs WHERE id IS NULL AND masjid IS NOT NULL ORDER BY position DESC').all()) {
+    const k = withIds(toEntry(row));
+    db.prepare('UPDATE khutbahs SET masjid_id = ?, id = ? WHERE folder = ?').run(k.masjid_id, k.id, k.folder);
+  }
+});
