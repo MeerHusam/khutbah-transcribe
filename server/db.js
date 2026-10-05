@@ -33,7 +33,8 @@ const MIGRATIONS = [
   'ALTER TABLE khutbahs ADD COLUMN media_url TEXT',
   // Masjid and khutbah ids (5 Oct 2026). A masjid's id is its number in the order it was first
   // published (1 Makkah, 2 Madinah, 3 ours, as Meer numbered them); a khutbah's is its masjid's
-  // id and its date as DDMMYY: Makkah on 2 Oct 2026 is 1021026. Links stay the slugs.
+  // id and its date as YYMMDD, year first as ISO 8601 (it sorts by date and reads the same in every
+  // country): Makkah on 2 Oct 2026 is 1261002. Links stay the slugs.
   `CREATE TABLE masjids (
      id       INTEGER PRIMARY KEY,
      name     TEXT NOT NULL UNIQUE,
@@ -99,7 +100,7 @@ function withIds(k) {
   const day = dayOf(k);
   if (kept || masjid_id == null || !day) return { ...k, masjid_id, id: kept ?? null };
   const d = new Date(day), two = n => String(n).padStart(2, '0');
-  const base = `${masjid_id}${two(d.getUTCDate())}${two(d.getUTCMonth() + 1)}${two(d.getUTCFullYear() % 100)}`;
+  const base = `${masjid_id}${two(d.getUTCFullYear() % 100)}${two(d.getUTCMonth() + 1)}${two(d.getUTCDate())}`;
   let id = base;
   for (let n = 2; db.prepare('SELECT 1 FROM khutbahs WHERE id = ? AND folder != ?').get(id, k.folder); n++) id = `${base}-${n}`;
   return { ...k, masjid_id, id };
