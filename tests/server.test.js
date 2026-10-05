@@ -97,11 +97,11 @@ test('/api/results lists the published khutbahs, and each one loads', async () =
   assert.equal((await get('/api/results/not-a-published-folder')).status, 404);
 });
 
-test('each khutbah has its masjid\'s id and an id of masjid + DDMMYY; a new masjid gets the next number', async () => {
+test('each khutbah has its masjid\'s id and an id of masjid + YYMMDD; a new masjid gets the next number', async () => {
   const ids = Object.fromEntries((await (await get('/api/results')).json()).items.map(i => [i.slug, [i.masjid_id, i.id]]));
-  assert.deepEqual(ids['2026-10-02-al-haram-makkah'], [1, '1021026']);
-  assert.deepEqual(ids['2026-10-02-madinah-munawwarah'], [2, '2021026']);
-  assert.deepEqual(ids['2026-10-02'], [3, '3021026']);
+  assert.deepEqual(ids['2026-10-02-al-haram-makkah'], [1, '1261002']);
+  assert.deepEqual(ids['2026-10-02-madinah-munawwarah'], [2, '2261002']);
+  assert.deepEqual(ids['2026-10-02'], [3, '3261002']);
   assert.deepEqual(ids['arafah-2026'], [4, '4260526']);
   const headers = { 'x-admin-key': KEY, 'content-type': 'application/octet-stream' };
   const post = async (folder, slug) => {
@@ -113,8 +113,8 @@ test('each khutbah has its masjid\'s id and an id of masjid + DDMMYY; a new masj
   await post('2026-01-01T13-00-00_khutbah-test-ids-2', 'test-ids-2');
   await post('2026-01-01T12-00-00_khutbah-test-ids', 'test-ids'); // published again: same id
   const after = Object.fromEntries((await (await get('/api/results')).json()).items.map(i => [i.slug, [i.masjid_id, i.id]]));
-  assert.deepEqual(after['test-ids'], [5, '5010126']);
-  assert.deepEqual(after['test-ids-2'], [5, '5010126-2']);
+  assert.deepEqual(after['test-ids'], [5, '5260101']);
+  assert.deepEqual(after['test-ids-2'], [5, '5260101-2']);
 });
 
 test('/api/quran gives a verse with its translation', async () => {
