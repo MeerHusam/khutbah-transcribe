@@ -29,7 +29,10 @@ const KHUTBAH_TYPES = {
 // the first time it appears; core/review_english.js holds the English to the same list.
 const GLOSSED_TERMS = 'Iman (faith), Taqwa (mindfulness of Allah), Kufr (disbelief), Shirk (associating partners with Allah), '
   + 'Shaytan (Satan), Jannah (Paradise), Jahannam (Hellfire), Dhikr (remembrance of Allah), Awliya (allies of Allah), '
-  + 'Ummah (the Muslim community)';
+  + 'Ummah (the Muslim community), Tawhid (the Oneness of Allah), Ihsan (excellence in worship)';
+// A kept term stands only for that Arabic word in that sense: الذكر الحكيم (the Qur'an) was
+// rendered "Dhikr (remembrance of Allah)" (18 Sep 2026 Madinah).
+const TERMS_SENSE = 'Use a kept term only where the Arabic has that word in that sense: «الذكر الحكيم» is "the Wise Reminder" (the Qur\'an), never Dhikr.';
 
 const ANALYSIS_PROMPT_TEMPLATE = `You are an Islamic scholar assistant processing {{KHUTBAH_DESC}}.
 
@@ -42,11 +45,11 @@ ATTRIBUTION RULE: When the khatib says «متفق عليه» after a hadith, tra
 PROSE-CHUNK RULE: A prose chunk may END with a lead-in to a Quranic verse (e.g. "قال الله تعالى", "وقال سبحانه", or the first words of a verse the khatib is about to recite). Translate ONLY the literal Arabic words present in that chunk. Do NOT complete the sentence with, or paraphrase, the content of the Quranic verse that follows — those verses are displayed separately with their own translation. For example, if a chunk ends with "وكيف يدعو", translate just "And how can he invoke", not the full meaning of the verse.
 Quranic words that ARE inside a chunk are part of it: translate them like the rest of the chunk, together with whatever the khatib says about them. Only verses outside the chunks are shown separately.
 
-TERMS RULE: Keep these Islamic terms, as the Haramain's own English does, with a short gloss in parentheses the first time each appears in the khutbah and the term alone after that: {{GLOSSED_TERMS}}. For example "Iman (faith)" the first time, then "Iman".
+TERMS RULE: Keep these Islamic terms, as the Haramain's own English does, with a short gloss in parentheses the first time each appears in the khutbah and the term alone after that: {{GLOSSED_TERMS}}. For example "Iman (faith)" the first time, then "Iman". {{TERMS_SENSE}}
 
 RESTART RULE: When the khatib repeats a phrase while speaking (a restart, "ليأمن الناس في بيوتهم ليأمن الناس في بيوتهم"), translate it once, also when the repeat runs on into the next chunk.
 
-1. Translate the full text into natural, readable English. Preserve Islamic terms untranslated: Allah, Rasulullah, Salah, Zakat, Ummah, Sunnah, Hadith, Quran, Surah, Ayah (plural Ayaat; never "verse"), Jummah, Khatib, and any Arabic honorifics like صلى الله عليه وسلم or رضي الله عنه. Every other Arabic word is translated, never left in transliteration (مخموم القلب is "a clean heart", not "makhmum").
+1. Translate the full text into natural, readable English. Preserve Islamic terms untranslated: Allah, Salah, Zakat, Ummah, Sunnah, Hadith, Quran, Surah, Ayah (plural Ayaat; never "verse"), Jummah, Khatib, and any Arabic honorifics like صلى الله عليه وسلم or رضي الله عنه. Every other Arabic word is translated, never left in transliteration (مخموم القلب is "a clean heart", not "makhmum").
 
 2. Write two summaries:
    a. "share_summary": A ONE-SENTENCE TL;DR — ABSOLUTE MAXIMUM 30 WORDS. State the khutbah's topic and its single biggest takeaway, nothing more. Simple, friendly English; no academic language; do NOT list multiple points or describe both khutbah parts. This is a one-line hook, not a summary. (The detailed "summary" field below carries the full content.)
@@ -131,7 +134,8 @@ function buildAnalysisPrompt(khutbahType = 'friday') {
     .replace('{{KHUTBAH_DESC}}', t.desc)
     .replace('{{KHUTBAH_REF}}', t.ref)
     .replace('{{SPLIT_INSTRUCTION}}', t.twoPart ? SPLIT_INSTRUCTION_TWO_PART : SPLIT_INSTRUCTION_SINGLE)
-    .replace('{{GLOSSED_TERMS}}', GLOSSED_TERMS);
+    .replace('{{GLOSSED_TERMS}}', GLOSSED_TERMS)
+    .replace('{{TERMS_SENSE}}', TERMS_SENSE);
 }
 
 // ---- Two-khutbah split ------------------------------------------------------
@@ -290,6 +294,7 @@ async function translateChunk(anthropic, { transcript, arabic, before, after, mo
 export {
   KHUTBAH_TYPES,
   GLOSSED_TERMS,
+  TERMS_SENSE,
   completeChunkTranslations,
   translateChunk,
   buildAnalysisPrompt,

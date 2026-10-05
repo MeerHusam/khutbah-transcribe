@@ -27,7 +27,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { buildReaderView } from './reader.js';
-import { normalizeArabic } from './arabic.js';
+import { normalizeArabic, findRestarts, restartNotes } from './arabic.js';
 import { LANGS, langOf, cliArgs } from './languages.js';
 
 
@@ -55,6 +55,7 @@ const transcript = readFileSync(join(folder, 'transcript.txt'), 'utf8').trim();
 const words = transcript.split(/\s+/).filter(Boolean);
 const chunks = (result.prose_chunk_map ?? []).map(c => words.slice(c.wordStart, c.wordEnd).join(' '));
 const quran = JSON.parse(readFileSync(new URL('../node_modules/quran-json/dist/quran.json', import.meta.url), 'utf8'));
+const restarts = findRestarts(chunks);
 
 const SCHEMA = {
   type: 'object',
@@ -84,9 +85,11 @@ async function translate(indices, done) {
   const last = indices.at(-1);
   const after = [last + 1, last + 2].filter(i => i < chunks.length)
     .map(i => `(${i}, context only) ${chunks[i]}`).join('\n');
-  const content = (context ? `Context, already translated:\n${context}\n\n` : '') +
+  let content = (context ? `Context, already translated:\n${context}\n\n` : '') +
     `Translate chunks ${indices.join(', ')}:\n` + indices.map(i => `(${i}) ${chunks[i]}`).join('\n') +
     (after ? `\n\nWhat follows, for context only (do not translate):\n${after}` : '');
+  const notes = restartNotes(restarts.filter(r => indices.includes(r.chunk) || indices.includes(r.from)));
+  if (notes) content += `\n\n${notes}`;
   if (dryRun) { console.log(content.slice(0, 1500)); return {}; }
   const response = await anthropic.beta.messages.create({
     model: MODEL, max_tokens: 16000, system: L.translate.system, ...FALLBACK,
@@ -235,7 +238,8 @@ if (!extras) {
   extras = { share_summary: out.share_summary, summary: out.summary, narrators: {},
     surahs: Object.fromEntries((out.surahs ?? []).filter(s => s.name?.trim()).map(s => [s.n, s.name.trim()])) };
   for (const x of out.hadith ?? []) {
-    extras.narrators[x.key] = x.narrator;
+    // A hadith whose card names no narrator (core/hadith.js) gets none in this language either.
+    if (hadithList.find(h => h.key === x.key)?.narrator) extras.narrators[x.key] = x.narrator;
     const full = hadith[x.key]?.text;
     const cut = (x.from_companion ?? '').trim();
     if (full && cut && full.includes(cut) && cut.length > 20) hadith[x.key].from_companion = cut;

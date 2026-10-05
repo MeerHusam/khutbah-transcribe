@@ -324,6 +324,11 @@ export function verifyReader(folder, { readerRaw: readerOverride = null, result:
     if (h.link && h.verification !== 'sunnah_search') {
       warn(`hadith link not confirmed on sunnah.com, from the local copy (${h.link}): "${(h.detected_text ?? '').slice(0, 40)}"`);
     }
+    // A narrator only from a sunnah.com page (core/hadith.js, since 5 Oct 2026; 18 Sep Madinah
+    // named the wrong Companion). A warning: pages made before then still show Claude's.
+    if (h.narrator && h.narrator !== 'unknown' && h.verification !== 'sunnah_search') {
+      warn(`hadith card names a narrator sunnah.com did not confirm (${h.narrator}, ${h.collection}): "${(h.detected_text ?? '').slice(0, 40)}"`);
+    }
   }
 
   // ── 5a. Every hadith card must be confirmed by sunnah.com ─────────────────────

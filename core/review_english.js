@@ -19,7 +19,8 @@ import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { spawnSync } from 'child_process';
 import { REVIEW_MODEL as MODEL, reviewRequest, reviewChunks } from './review_chunks.js';
-import { GLOSSED_TERMS } from './analyze.js';
+import { GLOSSED_TERMS, TERMS_SENSE } from './analyze.js';
+import { findRestarts, restartNotes } from './arabic.js';
 
 const args = process.argv.slice(2);
 const folder = args[0];
@@ -52,7 +53,7 @@ Correct what a careful bilingual scholar-editor would:
 - register: the wrong tone for Allah, the Prophet ﷺ or the Companions.
 - unnatural: wording a fluent English reader would find odd or misleading.
 - transliteration: an Arabic word left in Latin letters that is not one of the kept terms (مخموم القلب is "a clean heart", not "makhmum").
-- terms: these Islamic terms are kept, as the Haramain's own English keeps them, each with its short gloss in parentheses the first time it appears in the khutbah and alone after that: ${GLOSSED_TERMS}. Allah, Quran, Surah, Ayah (plural Ayaat; never "verse"), Hadith, Sunnah, Salah, Zakat, Du'a and Khatib need no gloss.
+- terms: these Islamic terms are kept, as the Haramain's own English keeps them, each with its short gloss in parentheses the first time it appears in the khutbah and alone after that: ${GLOSSED_TERMS}. Allah, Quran, Surah, Ayah (plural Ayaat; never "verse"), Hadith, Sunnah, Salah, Zakat, Du'a and Khatib need no gloss. ${TERMS_SENSE}
 - inconsistent: one word or name spelled or rendered two ways in the khutbah.
 Leave the translator's wording alone where it is correct and natural: change only what is wrong. The transcript can contain speech-recognition slips; do not flag them unless the English follows a slip into a wrong meaning. When the imam repeats a phrase while speaking, rendering it once is correct. Keep quoted verses and hadith in quotation marks. «متفق عليه» after a hadith is "Narrated by al-Bukhari and Muslim". No em dashes or en dashes.
 
@@ -62,7 +63,8 @@ For each chunk that needs a change, return the chunk number, its issues, and "co
 
 const TYPES = ['omission', 'addition', 'mistranslation', 'boundary', 'register', 'unnatural', 'transliteration', 'terms', 'inconsistent', 'other'];
 const show = i => `### Chunk ${i}\nArabic: ${arabic[i]}${urdu.length ? `\nUrdu: ${urdu[i] ?? ''}` : ''}\nEnglish: ${english[i]}`;
-const request = reviewRequest({ system: SYSTEM, field: 'corrected_english', types: TYPES, texts: english, show,
+const restarts = restartNotes(findRestarts(arabic));
+const request = reviewRequest({ system: SYSTEM + (restarts ? `\n\n${restarts}` : ''), field: 'corrected_english', types: TYPES, texts: english, show,
   whole: 'The whole English reading, for consistency of terms and spelling:' });
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 600_000, maxRetries: 3 });

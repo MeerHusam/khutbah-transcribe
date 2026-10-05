@@ -393,8 +393,9 @@ const sameName = (a, b) => { const B = nameKeys(b); return [...nameKeys(a)].some
 // "'Amr b. al-'As" → "amr ibn al-as": names compared without quote marks, with b./bin as ibn.
 const plainName = s => (s ?? '').toLowerCase().replace(/[`'’ʿʾ]/g, '').replace(/\b(?:b\.|bin)\s/g, 'ibn ').replace(/\s+/g, ' ').trim();
 
+// No narrator line on the page: none at all, rather than Claude's guess (see resolveSunnahLinksForRefs).
 function chooseNarrator(page, claudeNarrator) {
-  if (!page?.narrator) return claudeNarrator ?? null;
+  if (!page?.narrator) return null;
   // sunnah.com can name the father for the son: "'Amr b. al-'As reported" on Muslim 1054, whose
   // chain ends عن عبد الله بن عمرو (2 Oct 2026 Madinah). When Claude's narrator is
   // "<name> ibn <the page's name>", the page dropped the first name: Claude's is shown.
@@ -464,6 +465,13 @@ async function resolveSunnahLinksForRefs(refs, transcript = null) {
     const kept = !sunnah && ref.verification === 'sunnah_search'
       && (ref.link ?? '').match(/sunnah\.com\/([a-z]+):(\w+)$/);
     if (kept) sunnah = { collection_slug: kept[1], hadith_number: kept[2], link: ref.link };
+    // No sunnah.com page to confirm a narrator: the card names none rather than Claude's guess
+    // (18 Sep 2026 Madinah: Sa'd ibn Abi Waqqas for an-Nasa'i's "whoever terrifies the people of
+    // Madinah", which is as-Sa'ib ibn Khallad's). Claude's stays in narrator_claude.
+    if (!sunnah) {
+      if (!('narrator_claude' in ref)) ref.narrator_claude = ref.narrator ?? null;
+      ref.narrator = null;
+    }
     if (!sunnah && SLUG_DISPLAY[(ref.collection ?? '').trim().toLowerCase()]) {
       ref.collection = SLUG_DISPLAY[ref.collection.trim().toLowerCase()];
     }
@@ -477,8 +485,7 @@ async function resolveSunnahLinksForRefs(refs, transcript = null) {
       // own narrator is kept in narrator_claude, so a re-run still has it to compare with
       // after ref.narrator has been overwritten.
       if (!('narrator_claude' in ref)) ref.narrator_claude = ref.narrator ?? null;
-      const narr = chooseNarrator(await fetchSunnahNarrator(sunnah.collection_slug, sunnah.hadith_number), ref.narrator_claude);
-      if (narr) ref.narrator = narr;
+      ref.narrator = chooseNarrator(await fetchSunnahNarrator(sunnah.collection_slug, sunnah.hadith_number), ref.narrator_claude);
       // Always prefer the published translation over Claude's paraphrase of the prose.
       const page = await fetchSunnahPage(sunnah.collection_slug, sunnah.hadith_number);
       if (page?.english) ref.translation = page.english;

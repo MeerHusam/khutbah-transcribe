@@ -1167,7 +1167,71 @@ function matchClaudeQuranRef(ref) {
   };
 }
 
+// The imam's restarts (18 Sep 2026). Each chunk is translated, and reviewed, apart from the
+// next, so a sentence he broke off and said again in the next chunk was translated twice
+// although every prompt says to translate a restart once. Two kinds:
+//  - broken: a chunk ends where he broke off ("…", as the transcript marks it) and the next one
+//    starts that sentence again ("فهو سيد الأغنياء الشاكر..." | "فهو سيد الأغنياء الشاكرين");
+//  - repeat: a run of 5+ words he says again within 30 words ("فلا تندم عبد الله على حسن ظن
+//    بذلته…", 25 words, said twice across a chunk edge).
+// chunks: each chunk's Arabic, in order. Returns [{ kind, chunk, from, words }]: chunk `chunk`
+// says again `words` that chunk `from` already has (from === chunk inside one chunk).
+const RESTART_FORMULA = new Set(['صلى', 'الله', 'عليه', 'وسلم', 'رسول', 'النبي', 'سبحانه', 'وتعالى', 'تعالى', 'عز', 'وجل',
+  'رضي', 'عنه', 'عنها', 'عنهم', 'قال']);
+// Repeated on purpose: a du'a ("اللهم احفظ …" twice), the salawat's "على محمد وعلى آل محمد كما …
+// على إبراهيم", the Eid takbir, a refrain ("فعلو الهمة يا عباد الله").
+const RESTART_DELIBERATE = /(?:^| )(?:و?اللهم|يا|ربنا|اكبر|محمد|ابراهيم|احفظ|واحفظ|وانصر)(?= |$)/;
+function findRestarts(chunks, { min = 5, within = 30 } = {}) {
+  const seq = [];
+  chunks.forEach((c, ci) => (c ?? '').split(/\s+/).filter(Boolean)
+    .forEach(raw => seq.push({ ci, raw, w: normalizeArabic(raw).replace(/[^\u0621-\u064A]/g, '') })));
+  const same = (i, j, n) => { for (let k = 0; k < n; k++) if (!seq[i + k].w || seq[i + k].w !== seq[j + k].w) return false; return true; };
+  const out = [];
+  for (let i = 0; i + min <= seq.length; i++) {
+    for (let j = i + min; j <= i + min + within && j + min <= seq.length; j++) {
+      if (!same(i, j, min)) continue;
+      let n = min;
+      while (j + n < seq.length && i + n < j && seq[i + n].w === seq[j + n].w) n++;
+      const run = seq.slice(j, j + n), gap = j - i - n;
+      // A short run counts only when said again at once, a word between at most ("في دار أسامة بن زيد، في دار أسامة بن
+      // زيد"); with words between, a short run is the imam's parallelism ("ويظهر الوفاء كذلك في
+      // نبذ …، ويظهر الوفاء كذلك في نبذ …").
+      if ((n >= 8 || gap <= 1) && run.filter(x => !RESTART_FORMULA.has(x.w)).length >= 3
+        && !RESTART_DELIBERATE.test(run.map(x => x.w).join(' '))) {
+        out.push({ kind: 'repeat', chunk: seq[j].ci, from: seq[i].ci, words: run.map(x => x.raw).join(' '), gap });
+      }
+      i += n - 1;
+      break;
+    }
+  }
+  for (let c = 0; c + 1 < chunks.length; c++) {
+    const text = (chunks[c] ?? '').trim();
+    if (!/(\.\.\.|…)$/.test(text) || out.some(r => r.from === c && r.chunk === c + 1)) continue;
+    const tail = text.split(/[.،؟!:؛]\s/).pop().replace(/(\.\.\.|…)$/, '').split(/\s+/).filter(Boolean);
+    const next = new Set((chunks[c + 1] ?? '').split(/\s+/).slice(0, tail.length + 3).map(w => normalizeArabic(w)));
+    // The last word is the one he cut ("الشاكر" for "الشاكرين"): the others must come again.
+    const whole = tail.slice(0, -1);
+    if (whole.length >= 2 && whole.filter(w => next.has(normalizeArabic(w))).length >= Math.max(2, whole.length * 0.6)) {
+      out.push({ kind: 'broken', chunk: c + 1, from: c, words: tail.join(' ') });
+    }
+  }
+  return out;
+}
+
+// findRestarts' finds as lines for a translator's prompt; label(i): chunk i as that prompt numbers it.
+function restartNotes(restarts, label = i => String(i)) {
+  if (!restarts.length) return '';
+  return 'Where the imam restarted (found in his Arabic; translate each of these once):\n' + restarts.map(r =>
+    r.kind === 'broken'
+      ? `- Chunk ${label(r.from)} ends where he broke off («${r.words}…») and chunk ${label(r.chunk)} says that sentence again in full: leave the broken-off words out of chunk ${label(r.from)}.`
+      : r.chunk === r.from
+        ? `- Chunk ${label(r.chunk)} says «${r.words}» twice: translate it once.`
+        : `- Chunk ${label(r.chunk)} says again «${r.words}», which chunk ${label(r.from)} already has: translate it in chunk ${label(r.from)} only.`).join('\n');
+}
+
 export {
+  findRestarts,
+  restartNotes,
   splitsPhrase,
   matchClaudeQuranRef,
   normalizeArabic,

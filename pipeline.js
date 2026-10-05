@@ -18,7 +18,7 @@ import { writeFileSync, mkdirSync, readFileSync, existsSync, statSync } from 'fs
 import { fileURLToPath } from 'url';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
-import { stripAyahMarkup, prescanForQuranZones, dropBorrowedPhrases, buildProseChunks, scanTranscriptForQuran, buildZoneRefs, annotateRefAyahRange, yieldTailToLaterRefs, matchClaudeQuranRef } from './core/arabic.js';
+import { stripAyahMarkup, prescanForQuranZones, dropBorrowedPhrases, buildProseChunks, scanTranscriptForQuran, buildZoneRefs, annotateRefAyahRange, yieldTailToLaterRefs, matchClaudeQuranRef, findRestarts, restartNotes } from './core/arabic.js';
 import { loadHadithCorpus, deduplicateHadithRefs, scanTranscriptForHadith, resolveSunnahLinksForRefs, matchClaudeHadithRef } from './core/hadith.js';
 import { KHUTBAH_TYPES, buildAnalysisPrompt, locateSecondKhutbah, splitChunkAtKhutbahBoundary, completeChunkTranslations } from './core/analyze.js';
 import { buildReadableOutput, buildReaderView } from './core/reader.js';
@@ -187,11 +187,13 @@ async function getTranscript({ existingTranscriptPath, audioPath, useGroq }) {
 // Steps 5-6: Claude translates the numbered prose chunks and names the references it hears.
 async function analyzeWithClaude({ transcript, proseChunks, khutbahType, outDir }) {
   const numberedChunks = proseChunks.map((c, i) => `[${i + 1}] ${c.text}`).join('\n');
+  const restarts = restartNotes(findRestarts(proseChunks.map(c => c.text)), i => i + 1);
   const chunkInstruction = `\n\nThe transcript has been divided into ${proseChunks.length} prose chunks below ` +
     `(the verses the khatib recites are cut out and shown separately; Quranic words left inside a chunk are translated with it). ` +
     `Using your full understanding of the whole khutbah for context, translate each numbered chunk into natural, ` +
     `fluent English. Return these as "chunk_translations": an object with one key for every chunk number, ` +
-    `"1" to "${proseChunks.length}", each holding that chunk's English only.\n\n${numberedChunks}`;
+    `"1" to "${proseChunks.length}", each holding that chunk's English only.\n\n${numberedChunks}` +
+    (restarts ? `\n\n${restarts}` : '');
 
   let claudeRaw;
   try {

@@ -26,6 +26,7 @@ import { join } from 'path';
 import { spawnSync } from 'child_process';
 import { REVIEW_MODEL as MODEL, reviewRequest, reviewChunks } from './review_chunks.js';
 import { LANGS, langOf, cliArgs } from './languages.js';
+import { findRestarts, restartNotes } from './arabic.js';
 
 // Opus 5.5 at high (core/review_chunks.js): on the hard parts of 25 Sep (1 Oct 2026) its first
 // draft needed the fewest fixes; Sonnet 5.5 cost the same in practice (twice the output, more
@@ -58,7 +59,8 @@ if (!texts.length || texts.length !== arabic.length) {
 
 const show = i => `### Chunk ${i}\nArabic: ${arabic[i]}\nEnglish: ${english[i] ?? ''}\n${L.name}: ${texts[i]}`;
 const field = `corrected_${F}`;
-const request = reviewRequest({ system: L.review.system, field, types: L.review.types, texts, show, whole: L.review.whole });
+const restarts = restartNotes(findRestarts(arabic));
+const request = reviewRequest({ system: L.review.system + (restarts ? `\n\n${restarts}` : ''), field, types: L.review.types, texts, show, whole: L.review.whole });
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 600_000, maxRetries: 3 });
 if (dryRun) {
