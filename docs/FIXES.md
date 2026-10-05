@@ -341,3 +341,25 @@ Full root-cause analyses and implementation notes for every fix. New fixes go he
 **Symptom:** the English said "faith", "Satan", "disbelief", "fear Allah" where the Haramain's official English keeps iman, Shaytan, kufr, taqwa.
 
 **Fix:** the analysis prompt keeps `GLOSSED_TERMS` (Iman, Taqwa, Kufr, Shirk, Shaytan, Jannah, Jahannam, Dhikr, Awliya, Ummah), each with a short gloss the first time it appears ("Iman (faith)") and alone after; the English review holds the English to the same list.
+
+### 47. A kept term where the Arabic meant something else (18 Sep 2026 Madinah)
+
+**Symptom:** block 47: "benefit me and you by the Ayaat and the wise Dhikr (remembrance of Allah)" for الذكر الحكيم, which is the Qur'an. The analysis also kept "Rasulullah" while the review (and the official English) said "the Messenger of Allah", and the review translated away Tawhid and Ihsan, which the official keeps.
+
+**Fix:** one list: Rasulullah dropped, Tawhid and Ihsan added to `GLOSSED_TERMS`, and `TERMS_SENSE` in both prompts: a term only where the Arabic has that word in that sense. `check_english.js` fails "Dhikr" for الذكر الحكيم and warns on "Rasulullah".
+
+### 48. The imam's restarts translated twice across a chunk edge (18 Sep 2026)
+
+**Root cause:** the restart rule ("translate a repeat once") works inside a chunk, but each chunk is translated and reviewed on its own, so a sentence broken off at a chunk's end and said again in the next, or a passage said twice across the edge, came out twice (Makkah 26–28 and 35, Madinah 24–25 and 38–39).
+
+**Fix:** `findRestarts` (core/arabic.js) finds them in the Arabic: a chunk ending in "…" whose broken-off words open the next one, and a run of 5+ words said again at once (8+ within 30 words), never a du'a, the salawat, the takbir or a refrain. `restartNotes` tells the English analysis, the English review, `translate.js` and `review_translation.js` where they are. Across the 14 khutbahs on disk: 15 finds, all real. Tests: `tests/restarts.test.js`; `check_english.js` warns where the English still says one twice.
+
+### 49. Wrong narrator on a hadith sunnah.com has no page for (18 Sep 2026 Madinah)
+
+**Fix:** with no sunnah.com page (or no narrator line on it), the card names no narrator rather than Claude's guess (Sa'd ibn Abi Waqqas for as-Sa'ib ibn Khallad); Claude's is kept in `narrator_claude`. `verify_reader` warns on an unconfirmed narrator (4 old cards).
+
+### 50. Hadith the imam weaves in without naming them had no card
+
+**Root cause:** only hadith the imam introduces ("قال رسول الله ﷺ") were carded; the corpus scan (a sliding Jaccard window) found woven-in ones, but its finds were wrong in all seven test khutbahs and never shown.
+
+**Fix:** `scanTranscriptForHadith` is now a 4-gram scan over the local collections, as the Quran pre-scan: runs of 4-grams shared with one hadith, 8+ matched words besides formula words, 4-grams in 150+ hadith skipped, outside Quran zones and the imam's own hadith, never the khutbah's liturgy (`isLiturgicalPart`). Across the 14 khutbahs on disk: 18 finds, 17 real (12 in Madinah 25 Sep). Tests: `tests/hadith_scan.test.js`.
