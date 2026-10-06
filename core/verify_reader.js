@@ -15,6 +15,7 @@ import { pathToFileURL } from 'url';
 import { normalizeArabic, normalizeArabicDeep, splitsPhrase } from './arabic.js';
 import { loadResult } from './reader_chunks.js';
 import { checkEnglish } from './check_english.js';
+import { LANGS } from './languages.js';
 import '../public/recited.js';
 
 const { recitedSpans } = globalThis.KTRecited;
@@ -369,10 +370,27 @@ export function verifyReader(folder, { readerRaw: readerOverride = null, result:
   try {
     const served = loadResult(folder, readerOverride);
     const rc = served.reader_chunks ?? [];
-    // An Urdu reader (translate_urdu.js) must give every block its Urdu.
-    if (existsSync(join(folder, 'reader_ur.txt'))) {
-      const without = rc.map((c, i) => (c.urdu ? null : i)).filter(i => i !== null);
-      if (without.length) warn(`${without.length} block(s) have no Urdu: ${without.slice(0, 10).join(', ')}`);
+    // A reader in another language (translate.js) must give every block its text; where the
+    // language's file lists checks (core/langs/bn.js), its prose is checked too: no word of another
+    // religion for an Islamic thing, no old literary forms, no letters of another script.
+    for (const L of LANGS) {
+      if (!existsSync(join(folder, `reader_${L.code}.txt`))) continue;
+      const without = rc.map((c, i) => (c[L.field] ? null : i)).filter(i => i !== null);
+      if (without.length) warn(`${without.length} block(s) have no ${L.name}: ${without.slice(0, 10).join(', ')}`);
+      if (!L.checks) continue;
+      const prose = rc.map((c, i) => [i, (c[L.field] ?? '').split(/\n\n+/).filter(p => !/^\s*[📖📑📚❝]/u.test(p)).join(' ')]);
+      const flag = (what, re) => {
+        const hits = prose.filter(([, t]) => re.test(t)).map(([i]) => i);
+        if (hits.length) warn(`${L.name}: ${what} in block(s) ${hits.slice(0, 10).join(', ')}`);
+      };
+      flag('a word of another religion', new RegExp(L.checks.forbid.join('|'), 'u'));
+      flag('old literary forms', new RegExp(L.checks.sadhu, 'u'));
+      flag(`letters outside the ${L.checks.script} script`, new RegExp(`(?!\\p{Script=${L.checks.script}})\\p{L}`, 'u'));
+      for (const [word, use] of Object.entries(L.checks.avoid ?? {})) {
+        const re = new RegExp(word.normalize('NFC'), 'u');
+        const hits = prose.filter(([, t]) => re.test(t.normalize('NFC'))).map(([i]) => i);
+        if (hits.length) warn(`${L.name}: ${word} (this reading writes ${use}) in block(s) ${hits.slice(0, 10).join(', ')}`);
+      }
     }
     for (let i = 1; i < rc.length; i++) {
       const a = rc[i - 1].start_time, b = rc[i].start_time;

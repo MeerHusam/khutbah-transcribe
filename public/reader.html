@@ -13,7 +13,7 @@
   <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Amiri:ital,wght@0,400;0,700;1,400&family=Reem+Kufi:wght@400;500;600;700&family=Noto+Naskh+Arabic:wght@400;500;600&family=Noto+Nastaliq+Urdu:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Amiri:ital,wght@0,400;0,700;1,400&family=Reem+Kufi:wght@400;500;600;700&family=Noto+Naskh+Arabic:wght@400;500;600&family=Noto+Nastaliq+Urdu:wght@400;500&family=Noto+Serif+Bengali:wght@400;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -195,7 +195,6 @@
       line-height: 16px; /* Nastaliq's tall line would otherwise make the اردو side a circle */
     }
     .seg button.on { color: var(--bg); background: var(--gold); }
-    .seg button[lang="ur"] { font-family: 'Noto Nastaliq Urdu', serif; font-size: 12px; }
 
     .audio-time {
       font-size: 12px;
@@ -328,17 +327,13 @@
       opacity: 0.07;
       pointer-events: none;
     }
-    /* Urdu (groundwork): each block carries both translations; the switch shows one. */
-    .chunk-ur { display: none; }
-    body.lang-ur .chunk-ur { display: block; }
-    body.lang-ur .chunk-en { display: none; }
-    .chunk-ur { direction: rtl; text-align: right; }
-    .chunk-ur .chunk-english, .chunk-ur .chunk-hadith-trans, .chunk-quran-translation.chunk-ur,
-    .hadith-english.chunk-ur, .ref-english.chunk-ur {
-      font-family: 'Noto Nastaliq Urdu', serif; font-size: 16px; line-height: 2.5; font-style: normal;
-    }
-    .chunk-ur .trans-ours { display: none; }
-    .chunk-ur .chunk-quran-cite, .chunk-ur .chunk-hadith-cite { font-family: 'Noto Nastaliq Urdu', var(--font-ui); line-height: 2; }
+    /* Translations besides English (Urdu, Bengali …; core/languages.js): each block carries every
+       translation and the switch shows one (body.lang-<code>, and body.tr for any but English). Each
+       language's font, sizes and direction come from its file (langStyles below). */
+    .chunk-tr { display: none; }
+    body.tr .chunk-en { display: none; }
+    .chunk-tr[dir="rtl"] { text-align: right; }
+    .chunk-tr .trans-ours { display: none; }
     /* A verse card shows the recited part; the button swaps in the full verse. */
     .v-full { display: none; }
     .show-full-verse .v-full { display: inline; }
@@ -350,11 +345,9 @@
       border: 1px solid rgba(217,184,106,0.35); border-radius: 7px; padding: 3px 10px; cursor: pointer;
     }
     .verse-toggle:hover { background: rgba(217,184,106,0.1); }
-    .ur-inline { display: none; }
-    body.lang-ur .ur-inline { display: inline; font-family: 'Noto Nastaliq Urdu', serif; letter-spacing: 0; text-transform: none; font-size: 14px; }
-    body.lang-ur .en-inline { display: none; }
-    .share-text.chunk-ur { font-family: 'Noto Nastaliq Urdu', serif; font-size: 16px; line-height: 2.4; }
-    .ur-source { font-family: var(--font-ui); font-size: 11px; color: var(--text-dim); margin-right: 4px; white-space: nowrap; }
+    .tr-inline { display: none; }
+    body.tr .en-inline { display: none; }
+    .tr-source { font-family: var(--font-ui); font-size: 11px; color: var(--text-dim); margin-right: 4px; white-space: nowrap; }
     .share-label {
       font-family: var(--font-kufi);
       font-size: 11px; text-transform: uppercase; letter-spacing: 0.18em;
@@ -414,14 +407,14 @@
        words already said are bright, the rest dim, and the word being said gold and heavier.
        CSS Custom Highlight API, so no markup is added to the text; the heavier weight is an
        outline (-webkit-text-stroke), because real bold would widen the word and shift the line.
-       data-follow names the text that follows the audio: ar (the imam), en or ur (a voice). */
+       data-follow names the text that follows the audio: ar (the imam), en, ur, bn … (a voice). */
     ::highlight(kt-said) { color: #efe6cf; }
     ::highlight(kt-word) { color: #f0cf7a; -webkit-text-stroke-width: 0.7px; -webkit-text-stroke-color: #f0cf7a; }
     .reader-chunk[data-follow="ar"] .chunk-arabic, .reader-chunk[data-follow="ar"] .chunk-arabic *,
-    .reader-chunk[data-follow="en"] :is(.chunk-en .chunk-english, .chunk-en .chunk-hadith-trans, .chunk-quran-translation:not(.chunk-ur)),
-    .reader-chunk[data-follow="en"] :is(.chunk-en .chunk-english, .chunk-en .chunk-hadith-trans, .chunk-quran-translation:not(.chunk-ur)) *,
-    .reader-chunk[data-follow="ur"] :is(.chunk-ur .chunk-english, .chunk-ur .chunk-hadith-trans, .chunk-quran-translation.chunk-ur),
-    .reader-chunk[data-follow="ur"] :is(.chunk-ur .chunk-english, .chunk-ur .chunk-hadith-trans, .chunk-quran-translation.chunk-ur) * {
+    .reader-chunk[data-follow="en"] :is(.chunk-en .chunk-english, .chunk-en .chunk-hadith-trans, .chunk-quran-translation:not(.chunk-tr)),
+    .reader-chunk[data-follow="en"] :is(.chunk-en .chunk-english, .chunk-en .chunk-hadith-trans, .chunk-quran-translation:not(.chunk-tr)) *,
+    .reader-chunk[data-follow]:not([data-follow="ar"], [data-follow="en"]) :is(.chunk-tr .chunk-english, .chunk-tr .chunk-hadith-trans, .chunk-quran-translation.chunk-tr),
+    .reader-chunk[data-follow]:not([data-follow="ar"], [data-follow="en"]) :is(.chunk-tr .chunk-english, .chunk-tr .chunk-hadith-trans, .chunk-quran-translation.chunk-tr) * {
       color: rgba(214, 204, 178, 0.42);
     }
     .reader-chunk[data-start]:hover { background: var(--surface-2); }
@@ -754,7 +747,6 @@
       .ap-group { flex-direction: column; align-items: flex-start; gap: 3px; }
       .ap-label { padding-left: 4px; }
       .seg button { min-height: 40px; padding: 0 12px; font-size: 13px; }
-      .seg button[lang="ur"] { font-size: 14px; }
       .audio-scrubber { grid-area: bar; width: 100%; min-width: 0; height: 26px; }
       .audio-time { display: none; }
       .ap-cur, .ap-dur { display: block; font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; margin-top: -2px; }
@@ -854,13 +846,13 @@
       <div class="ap-group" id="readGroup" role="group" aria-labelledby="readLabel">
         <span class="ap-label" id="readLabel">Read in</span>
         <span class="seg" id="readSwitch">
-          <button type="button" data-lang="en" aria-pressed="false" onclick="setLang('en')" title="The English translation on screen" aria-label="English">EN</button><button type="button" data-lang="ur" lang="ur" aria-pressed="false" onclick="setLang('ur')" title="The Urdu translation on screen">اردو</button>
+          <button type="button" data-lang="en" aria-pressed="false" onclick="setLang('en')" title="The English translation on screen" aria-label="English">EN</button>
         </span>
       </div>
       <div class="ap-group" id="hearGroup" role="group" aria-labelledby="hearLabel" hidden>
         <span class="ap-label" id="hearLabel">Hear in</span>
         <span class="seg" id="voiceSwitch">
-          <button type="button" data-voice="imam" class="on" aria-pressed="true" onclick="pickVoice('imam')" title="The imam's recording, in Arabic">Imam (Arabic)</button><button type="button" data-voice="en" aria-pressed="false" onclick="pickVoice('en')" title="The English translation, read aloud by an AI voice" aria-label="English" hidden>EN</button><button type="button" data-voice="ur" lang="ur" aria-pressed="false" onclick="pickVoice('ur')" title="The Urdu translation, read aloud by an AI voice" hidden>اردو</button>
+          <button type="button" data-voice="imam" class="on" aria-pressed="true" onclick="pickVoice('imam')" title="The imam's recording, in Arabic">Imam (Arabic)</button><button type="button" data-voice="en" aria-pressed="false" onclick="pickVoice('en')" title="The English translation, read aloud by an AI voice" aria-label="English" hidden>EN</button>
         </span>
       </div>
     </div>
@@ -924,6 +916,35 @@
   const { normArWord, looseAr, recitedSpans } = KTRecited;
   let result = null;
   let quranRefs = [];
+  // The khutbah's languages besides English (core/languages.js; sent with the khutbah).
+  let TR = [];
+  const localNum = (n, L) => String(n).replace(/\d/g, d => L.digits[+d]);
+  // A label in English and in every language; the switch shows one.
+  const uiText = en => `<span class="en-inline">${en}</span>` + TR.map(L => `<span class="tr-inline tr-${L.code}" lang="${L.code}">${L.ui[en] ?? en}</span>`).join('');
+  // Each language's font, sizes and direction (from its file), and its buttons in Read and Hear.
+  function langStyles(langs) {
+    const css = langs.map(L => {
+      const c = L.code, f = L.font;
+      return `body.lang-${c} .chunk-tr.tr-${c} { display: block; }
+    body.lang-${c} .tr-inline.tr-${c} { display: inline; font-family: ${f.family}; letter-spacing: 0; text-transform: none; font-size: ${f.inlineSize}; }
+    .chunk-tr.tr-${c} :is(.chunk-english, .chunk-hadith-trans), .chunk-quran-translation.tr-${c}, .hadith-english.tr-${c}, .ref-english.tr-${c} { font-family: ${f.family}; font-size: ${f.size}; line-height: ${f.lineHeight}; font-style: normal; }
+    .chunk-tr.tr-${c} :is(.chunk-quran-cite, .chunk-hadith-cite) { font-family: ${f.family.replace(/,\s*serif$/, '')}, var(--font-ui); line-height: ${f.citeLineHeight}; }
+    .share-text.tr-${c} { font-family: ${f.family}; font-size: ${f.size}; line-height: ${f.shareLineHeight}; }
+    .seg button[lang="${c}"] { font-family: ${f.family}; font-size: ${f.switchSize}; }
+    @media (max-width: 600px) { .seg button[lang="${c}"] { font-size: ${f.phoneSwitchSize}; } }`;
+    }).join('\n    ');
+    document.getElementById('langStyles')?.remove();
+    document.head.insertAdjacentHTML('beforeend', `<style id="langStyles">\n    ${css}\n  </style>`);
+    const links = [...document.querySelectorAll('link[rel="stylesheet"]')].map(l => l.href).join(' ');
+    for (const L of langs) if (L.font.google && !links.includes(L.font.google.split(':')[0])) {
+      document.head.insertAdjacentHTML('beforeend', `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=${L.font.google}&display=swap">`);
+    }
+    document.querySelectorAll('#readSwitch [data-lang]:not([data-lang="en"]), #voiceSwitch [data-voice]:not([data-voice="imam"], [data-voice="en"])').forEach(b => b.remove());
+    for (const L of langs) {
+      document.getElementById('readSwitch').insertAdjacentHTML('beforeend', `<button type="button" data-lang="${L.code}" lang="${L.code}" aria-pressed="false" onclick="setLang('${L.code}')" title="The ${L.name} translation on screen">${L.native}</button>`);
+      document.getElementById('voiceSwitch').insertAdjacentHTML('beforeend', `<button type="button" data-voice="${L.code}" lang="${L.code}" aria-pressed="false" onclick="pickVoice('${L.code}')" title="The ${L.name} translation, read aloud by an AI voice" hidden>${L.native}</button>`);
+    }
+  }
   let hadithRefList = [];
 
   // ── Boot: load the curated list + the requested (or featured) khutbah ──
@@ -965,15 +986,20 @@
 
     quranRefs = result.quran_references || [];
     hadithRefList = result.hadith_references || [];
+    TR = result.languages || [];
+    langStyles(TR);
     document.getElementById('app').innerHTML = renderResults(result);
     shortenHonorifics(document.getElementById('app'));
-    // ?lang=ur in a shared link opens the Urdu; otherwise the reader's last choice.
-    let lang = new URLSearchParams(location.search).get('lang');
-    if (!lang) lang = 'ur'; // Urdu unless the link says ?lang=en (English when the khutbah has no Urdu, below)
-    // The language switch lives in the player only; it shows when the khutbah has Urdu.
-    const hasUrdu = (result.reader_chunks || []).some(c => c.urdu);
-    document.getElementById('readGroup').hidden = !hasUrdu;
-    setLang(hasUrdu ? lang : 'en', false);
+    // The language a page opens in: ?lang= in a shared link, else the reader's last choice, else the
+    // phone's language when the khutbah has it, else the first translation (Urdu), else English.
+    const has = l => l === 'en' || TR.some(L => L.code === l);
+    let saved = null;
+    try { saved = localStorage.getItem('kt-lang'); } catch {}
+    const phone = (navigator.languages || []).map(l => l.slice(0, 2)).find(l => l !== 'en' && has(l));
+    const lang = [new URLSearchParams(location.search).get('lang'), saved, phone, TR[0]?.code].find(l => l && has(l)) || 'en';
+    // The language switch lives in the player only; it shows when the khutbah has a translation.
+    document.getElementById('readGroup').hidden = !TR.length;
+    setLang(lang, false);
     enhanceQuranRefs(quranRefs);
     if (result.audio_url) initAudio(result.audio_url);
   }
@@ -1038,9 +1064,10 @@
   }
 
   function renderResults(r) {
-    const ur = r.urdu || {};
-    // A heading in both languages; the language switch shows one.
-    const bi = (en, urText) => r.urdu ? `<span class="en-inline">${en}</span><span class="ur-inline" lang="ur">${urText}</span>` : en;
+    // A heading in every language; the language switch shows one.
+    const bi = uiText;
+    // The khutbah's In Short or Summary in each language that has one.
+    const trShare = key => TR.filter(L => r[L.field]?.[key]).map(L => `<p class="share-text chunk-tr tr-${L.code}" lang="${L.code}" dir="${L.dir}">${escHtml(r[L.field][key])}</p>`).join('');
     const qRefs = r.quran_references || [];
     const hadithRefs = r.hadith_references || [];
     const matched = qRefs.filter(q => q.matched).length;
@@ -1070,20 +1097,20 @@
 
 
         <div class="share-card">
-          <div class="share-label">${bi('In Short', 'مختصر')}</div>
-          <p class="share-text${ur.share_summary ? ' chunk-en' : ''}">${escHtml(r.share_summary || r.summary || '')}</p>
-          ${ur.share_summary ? `<p class="share-text chunk-ur" lang="ur">${escHtml(ur.share_summary)}</p>` : ''}
-          <button class="copy-btn" onclick="copyShare()">${bi('Copy for WhatsApp', 'واٹس ایپ کے لیے کاپی کریں')}</button>
+          <div class="share-label">${bi('In Short')}</div>
+          <p class="share-text${TR.length ? ' chunk-en' : ''}">${escHtml(r.share_summary || r.summary || '')}</p>
+          ${trShare('share_summary')}
+          <button class="copy-btn" onclick="copyShare()">${bi('Copy for WhatsApp')}</button>
         </div>
 
         <div class="share-card">
-          <div class="share-label">${bi('Summary', 'خلاصہ')}</div>
-          <p class="share-text${ur.summary ? ' chunk-en' : ''}">${escHtml(r.summary || 'No summary available.')}</p>
-          ${ur.summary ? `<p class="share-text chunk-ur" lang="ur">${escHtml(ur.summary)}</p>` : ''}
+          <div class="share-label">${bi('Summary')}</div>
+          <p class="share-text${TR.length ? ' chunk-en' : ''}">${escHtml(r.summary || 'No summary available.')}</p>
+          ${trShare('summary')}
         </div>
 
         <div class="share-card" style="padding-bottom: 8px;">
-          <div class="share-label">${bi('Full Translation', 'مکمل ترجمہ')}</div>
+          <div class="share-label">${bi('Full Translation')}</div>
           ${renderTranslation(r)}
         </div>
 
@@ -1157,12 +1184,13 @@
         if (en && d.translation) {
           en.innerHTML = `${escHtml(d.translation)} <span class="ref-en-source">Sahih International</span>`;
           en.hidden = false;
-          const ur = result && result.urdu;
-          const urText = ur && ur.verses && ur.verses[`${s}:${a}`];
-          if (urText) {
+          let after = en;
+          for (const L of TR) {
+            const tr = result[L.field], text = tr && tr.verses && tr.verses[`${s}:${a}`];
+            if (!text) continue;
             en.classList.add('chunk-en');
-            const src = ur.verse_source || {};
-            en.insertAdjacentHTML('afterend', `<p class="ref-english chunk-ur" lang="ur">${escHtml(urText)} <span class="ur-source">${escHtml(src.name || '')}</span></p>`);
+            after.insertAdjacentHTML('afterend', `<p class="ref-english chunk-tr tr-${L.code}" lang="${L.code}" dir="${L.dir}">${escHtml(text)} <span class="tr-source">${escHtml(tr.verse_source?.name || '')}</span></p>`);
+            after = after.nextElementSibling;
           }
         }
         const pop = document.getElementById(`popup-arabic-${i}`);
@@ -1264,38 +1292,38 @@
           if (partEn) el.innerHTML = both(partAr, fullAr);
           el.insertAdjacentElement('afterend', enEl);
           let lastEl = enEl;
-          // The verse in Urdu, from the published translation chosen for Urdu (a placeholder
-          // edition until one is picked).
-          const ur = result && result.urdu;
-          const urTexts = ayahNums.map(n => ur && ur.verses && ur.verses[`${s}:${n}`]);
-          if (urTexts.every(Boolean)) {
+          // The verse in each other language, from its published translation (core/langs/).
+          for (const L of TR) {
+            const tr = result[L.field];
+            const trTexts = ayahNums.map(n => tr && tr.verses && tr.verses[`${s}:${n}`]);
+            if (!trTexts.every(Boolean)) continue;
             enEl.classList.add('chunk-en');
-            const src = ur.verse_source || {};
-            const urEl = document.createElement('div');
-            urEl.className = 'chunk-quran-translation chunk-ur';
-            urEl.lang = 'ur';
+            const trEl = document.createElement('div');
+            trEl.className = `chunk-quran-translation chunk-tr tr-${L.code}`;
+            trEl.lang = L.code;
+            trEl.dir = L.dir;
+            const num = n => localNum(n, L);
             // Bold the recited part, as the English does, by clause.
-            const urVerse = (t, i) => {
+            const trVerse = (t, i) => {
               if (!partial) return escHtml(t);
               if (whole[i]) return `<span class="recited">${escHtml(t)}</span>`;
               if (!spans[i]) return `<span class="not-recited">${escHtml(t)}</span>`;
-              const r = recitedSentences(t, spans[i], vLen[i], CLAUSE_UR);
+              const r = recitedSentences(t, spans[i], vLen[i], L);
               if (!r) return escHtml(t);
               return r.sents.map((x, k) => `<span class="${k >= r.first && k <= r.last ? 'recited' : 'not-recited'}">${escHtml(x)}</span>`).join(' ');
             };
-            const fullUr = ayahNums.length > 1
-              ? urTexts.map((t, i) => `(${arabicNum(ayahNums[i])}) ${urVerse(t, i)}`).join(' ')
-              : urVerse(urTexts[0], 0);
-            urEl.innerHTML = both(partEn && partOf(urTexts, 'ur', arabicNum), fullUr)
-              + ` <span class="ur-source">${escHtml(src.name || '')}</span>`;
-            enEl.insertAdjacentElement('afterend', urEl);
-            lastEl = urEl;
+            const fullTr = ayahNums.length > 1
+              ? trTexts.map((t, i) => `(${num(ayahNums[i])}) ${trVerse(t, i)}`).join(' ')
+              : trVerse(trTexts[0], 0);
+            trEl.innerHTML = both(partEn && partOf(trTexts, L.code, num), fullTr)
+              + ` <span class="tr-source">${escHtml(tr.verse_source?.name || '')}</span>`;
+            lastEl.insertAdjacentElement('afterend', trEl);
+            lastEl = trEl;
           }
           if (partEn) {
             const btn = document.createElement('button');
             btn.className = 'verse-toggle';
-            btn.innerHTML = `<span class="lbl-part"><span class="en-inline">Show full ayah</span><span class="ur-inline" lang="ur">مکمل آیت دیکھیں</span></span>`
-              + `<span class="lbl-full"><span class="en-inline">Show recited part</span><span class="ur-inline" lang="ur">صرف تلاوت شدہ حصہ</span></span>`;
+            btn.innerHTML = `<span class="lbl-part">${uiText('Show full ayah')}</span><span class="lbl-full">${uiText('Show recited part')}</span>`;
             btn.onclick = ev => { ev.stopPropagation(); btn.closest('.reader-chunk').classList.toggle('show-full-verse'); };
             lastEl.insertAdjacentElement('afterend', btn);
           }
@@ -1327,14 +1355,15 @@
   // Clauses, not sentences: Al-A'raf 7:31's recited half ("eat and drink, but be not
   // excessive…") starts mid-sentence. Returns the clause range, or null when it would not
   // single out a strict subset.
-  // Urdu translations (Junagarhi) use little punctuation, so an Urdu clause also starts at "اور".
-  const CLAUSE_EN = /(?<=[,;:.!?])\s+/, CLAUSE_UR = /(?<=[،۔؛:!?,.])\s+|\s+(?=اور\s)/;
-  function recitedSentences(enText, span, nWords, splitRe = CLAUSE_EN) {
-    let sents = enText.split(splitRe).filter(Boolean);
-    // "زمین اور آسمان" is one phrase, not two clauses: an Urdu piece under 3 words joins the next.
-    if (splitRe === CLAUSE_UR) sents = sents.reduce((out, t) => {
+  // Another language (L, core/langs/) splits by its own clause rule: Urdu translations (Junagarhi)
+  // use little punctuation, so an Urdu clause also starts at "اور", and a piece under L.clauseMinWords
+  // ("زمین اور آسمان") joins the next.
+  const CLAUSE_EN = /(?<=[,;:.!?])\s+/;
+  function recitedSentences(enText, span, nWords, L = null) {
+    let sents = enText.split(L ? new RegExp(L.clause) : CLAUSE_EN).filter(Boolean);
+    if (L && L.clauseMinWords) sents = sents.reduce((out, t) => {
       const prev = out[out.length - 1];
-      if (prev && prev.split(/\s+/).length < 3) out[out.length - 1] = prev + ' ' + t; else out.push(t);
+      if (prev && prev.split(/\s+/).length < L.clauseMinWords) out[out.length - 1] = prev + ' ' + t; else out.push(t);
       return out;
     }, []);
     if (sents.length < 2 || !span) return null;
@@ -1378,10 +1407,11 @@
     </div>`;
   }
 
-  // The hadith's published Urdu (translate_urdu.js), keyed like its sunnah.com link.
-  function urduOf(h) {
+  // The hadith's published text in language L (core/translate.js), keyed like its sunnah.com link.
+  function hadithIn(h, L) {
     const m = (h.link || '').match(/sunnah\.com\/([a-z]+):(\d+)/);
-    return m && result && result.urdu && result.urdu.hadith ? result.urdu.hadith[`${m[1]}:${m[2]}`] || null : null;
+    const tr = result && result[L.field];
+    return m && tr && tr.hadith ? tr.hadith[`${m[1]}:${m[2]}`] || null : null;
   }
 
   function renderHadithRef(h) {
@@ -1395,8 +1425,8 @@
         ${collection ? `<span class="collection-badge">${escHtml(collection)}${h.hadith_number ? ' · ' + escHtml(String(h.hadith_number)) : ''}</span>` : ''}
       </div>
       <div class="hadith-arabic">${escHtml(h.detected_text || h.arabic || '')}</div>
-      ${h.translation ? `<p class="hadith-english${urduOf(h) ? ' chunk-en' : ''}">${escHtml(h.translation.charAt(0).toUpperCase() + h.translation.slice(1))} <span class="ref-en-source">sunnah.com</span></p>` : ''}
-      ${urduOf(h) ? `<p class="hadith-english chunk-ur" lang="ur">${escHtml(urduOf(h).from_companion || urduOf(h).text)} <span class="ur-source">${escHtml(urduOf(h).edition)} ${escHtml(String(urduOf(h).number))}</span></p>` : ''}
+      ${h.translation ? `<p class="hadith-english${TR.some(L => hadithIn(h, L)) ? ' chunk-en' : ''}">${escHtml(h.translation.charAt(0).toUpperCase() + h.translation.slice(1))} <span class="ref-en-source">sunnah.com</span></p>` : ''}
+      ${TR.map(L => { const t = hadithIn(h, L); return t ? `<p class="hadith-english chunk-tr tr-${L.code}" lang="${L.code}" dir="${L.dir}">${escHtml(t.from_companion || t.text)} <span class="tr-source">${escHtml(t.edition)} ${escHtml(String(t.number))}</span></p>` : ''; }).join('')}
       ${link ? `<a class="ref-link hadith-link" href="${escAttr(link)}" target="_blank" rel="noopener">View on sunnah.com ↗</a>` : ''}
     </div>`;
   }
@@ -1467,9 +1497,10 @@
     return out + escWithSources(text.slice(last));
   }
 
-  // Translation language for the reader blocks (English, or Urdu where the khutbah has it).
+  // Translation language for the reader blocks (English, or a language the khutbah has).
   function setLang(lang, remember = true) {
-    document.body.classList.toggle('lang-ur', lang === 'ur');
+    for (const L of TR) document.body.classList.toggle(`lang-${L.code}`, lang === L.code);
+    document.body.classList.toggle('tr', lang !== 'en');
     for (const b of document.querySelectorAll('#readSwitch button')) {
       const on = b.dataset.lang === lang;
       b.classList.toggle('on', on);
@@ -1487,12 +1518,6 @@
     return `<span class="trans-ours" title="${escAttr(tip)}">direct translation</span>`;
   }
 
-  // Collection names as Urdu readers know them.
-  const COLLECTION_UR = {
-    'Sahih al-Bukhari': 'صحیح بخاری', 'Sahih Muslim': 'صحیح مسلم', 'Jami` at-Tirmidhi': 'جامع ترمذی',
-    'Sunan Abu Dawud': 'سنن ابو داؤد', "Sunan an-Nasa'i": 'سنن نسائی', 'Sunan Ibn Majah': 'سنن ابن ماجہ',
-    'ahmad': 'مسند احمد', 'Musnad Ahmad': 'مسند احمد', 'Muwatta Malik': 'موطا امام مالک',
-  };
   const hadithKeyOf = h => { const m = (h.link || '').match(/sunnah\.com\/([a-z]+):(\d+)/); return m ? `${m[1]}:${m[2]}` : null; };
 
   // The English of each hadith badged in this block, exactly as it appears in the translation:
@@ -1511,10 +1536,10 @@
     return spans;
   }
 
-  // `lang` 'ur' renders the badges in Urdu (the reader's Urdu section).
-  function renderEnglishParts(english, kinds = [], lang = 'en') {
-    const ur = lang === 'ur' && result && result.urdu;
-    const spans = lang === 'en' ? hadithSpansIn(english) : [];
+  // With L (a language of core/langs/) the badges are in that language (the block's L section).
+  function renderEnglishParts(english, kinds = [], L = null) {
+    const ur = L && result && result[L.field];
+    const spans = L ? [] : hadithSpansIn(english);
     return english.split(/\n\n+/).map(part => {
       part = part.trim();
       if (!part) return '';
@@ -1527,8 +1552,8 @@
         const [, label, url, s, a] = quranMatch;
         const q = part.startsWith('📑')
           && (quranRefs || []).find(r => +r.surah_number === +s && +r.ayah_number === +a && r.english_swap);
-        const shown = ur && ur.surahs && ur.surahs[s]
-          ? `${ur.surahs[s]} ${label.slice(label.lastIndexOf(' ') + 1)}` : label;
+        const ref = label.slice(label.lastIndexOf(' ') + 1);
+        const shown = ur && ur.surahs && ur.surahs[s] ? `${ur.surahs[s]} ${L.localBadgeDigits ? localNum(ref, L) : ref}` : label;
         return `<a class="chunk-quran-cite" href="${escAttr(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">۞ <strong>${escHtml(shown)}</strong> ↗</a>`
           + (!ur && q && q.english_swap.status === 'ours' ? oursLabel('Sahih International') : '');
       } else if (hadithTransMatch) {
@@ -1539,7 +1564,7 @@
         const nUr = ur && h && ur.narrators && ur.narrators[hadithKeyOf(h)];
         // The imam said "متفق عليه": the card names both Sahihs (its link goes to one of them).
         const both = h && h.in_both_sahihs;
-        const cUr = ur && h && (both ? 'صحیح بخاری و صحیح مسلم' : COLLECTION_UR[h.collection]);
+        const cUr = ur && h && (both ? L.bothSahihs : L.collections[h.collection]);
         const text = ur && h && (nUr || cUr)
           ? [nUr, cUr || h.collection].filter(Boolean).join('  ·  ')
           : both ? hadithMatch[1].replace(/Collection:.*$/, 'Collection: Sahih al-Bukhari & Sahih Muslim') : hadithMatch[1];
@@ -1720,7 +1745,7 @@
         }
         const startAttr = (c.start_time != null ? `data-start="${c.start_time}"` : '')
           + (c.tts_start != null ? ` data-tts="${c.tts_start}"` : '')
-          + (c.tts_ur_start != null ? ` data-tts-ur="${c.tts_ur_start}"` : '');
+          + TR.map(L => (c[`tts_${L.code}_start`] != null ? ` data-tts-${L.code}="${c[`tts_${L.code}_start`]}"` : '')).join('');
         const marked = arabicAttrs
           ? { html: escHtml(c.arabic), kinds: [] }
           : renderChunkArabic(c.arabic, [...inlineAyahRefs(c.english), ...inlineHadithRefs(c.english)]);
@@ -1731,7 +1756,7 @@
         <div class="reader-chunk" data-i="${ci}" ${startAttr}>
           <div class="chunk-arabic" ${arabicAttrs}>${marked.html}</div>
           <div class="chunk-en">${renderEnglishParts(c.english, marked.kinds)}</div>
-          ${c.urdu ? `<div class="chunk-ur" lang="ur">${renderEnglishParts(c.urdu, marked.kinds, 'ur')}</div>` : ''}
+          ${TR.map(L => (c[L.field] ? `<div class="chunk-tr tr-${L.code}" lang="${L.code}" dir="${L.dir}">${renderEnglishParts(c[L.field], marked.kinds, L)}</div>` : '')).join('')}
         </div>`;
       }).join('');
     }
@@ -1803,12 +1828,13 @@
 
   function copyShare() {
     engage.copies++;
-    const urdu = document.body.classList.contains('lang-ur') && result?.urdu?.share_summary;
-    const text = urdu || result?.share_summary || result?.summary || '';
+    const L = TR.find(L => L.code === pageLang);
+    const own = L && result?.[L.field]?.share_summary;
+    const text = own || result?.share_summary || result?.summary || '';
     navigator.clipboard.writeText(text).then(() => {
       const btn = document.querySelector('.copy-btn');
       const label = btn.innerHTML;
-      btn.textContent = urdu ? '✓ کاپی ہو گیا' : '✓ Copied!';
+      btn.textContent = own ? L.ui.Copied : '✓ Copied!';
       setTimeout(() => btn.innerHTML = label, 2000);
     });
   }
@@ -1827,7 +1853,7 @@
     const body = JSON.stringify({
       id: visitId, open_s: openSecs(), played_s: engage.played, max_pos: engage.maxPos,
       dur: audio && Number.isFinite(audio.duration) ? audio.duration : null,
-      lang: document.body.classList.contains('lang-ur') ? 'ur' : 'en', final,
+      lang: pageLang, final,
       voices: engage.voices, durs: engage.durs, depth: engage.depth, copies: engage.copies, refs: engage.refs,
       heard: Object.fromEntries(Object.entries(engage.heard).map(([v, m]) => [v, [...m]])),
     });
@@ -1859,9 +1885,9 @@
   // ('en', 'ur'; tts.js). Each block holds its start in every track (data-start, data-tts,
   // data-tts-ur), so highlighting and tapping a block follow whichever is playing.
   let voice = 'imam';
-  const TIME_ATTR = { imam: 'start', en: 'tts', ur: 'tts-ur' };
-  const timeKey = () => TIME_ATTR[voice].replace(/-(\w)/g, (_, c) => c.toUpperCase());
-  const timedChunks = () => document.querySelectorAll(`.reader-chunk[data-${TIME_ATTR[voice]}]`);
+  const timeAttr = v => (v === 'imam' ? 'start' : v === 'en' ? 'tts' : `tts-${v}`);
+  const timeKey = () => timeAttr(voice).replace(/-(\w)/g, (_, c) => c.toUpperCase());
+  const timedChunks = () => document.querySelectorAll(`.reader-chunk[data-${timeAttr(voice)}]`);
   // A block's start in the playing track; a block the voice skips starts at the next one.
   function chunkTime(el) {
     for (let e = el; e; e = e.nextElementSibling) {
@@ -1928,7 +1954,7 @@
   // aligner, run offline), fetched once per track, and are matched to the words on screen,
   // which differ a little from what was said: "Allah says:" lead-ins, ﷺ read out in full,
   // verse numbers, and for the imam the Quran's own spelling of a verse he recited.
-  const wordTimes = {};        // 'imam' | 'en' | 'ur' -> { <block>: [[word, start, end], ...] }, once loaded
+  const wordTimes = {};        // 'imam' | 'en' | 'ur' | 'bn' … -> { <block>: [[word, start, end], ...] }, once loaded
   const wordMaps = new Map();  // `${voice}:${block}:${full verse?}` -> [{ range, start }] in reading order
   let litKey = null, followEl = null, wordRaf = 0;
 
@@ -1950,20 +1976,26 @@
   // in the imam's Arabic, the English and the Urdu. Display only: the voices say the words, and the
   // sign lights with the first of them (shownWords). Never in the Quran's own text or a published
   // translation of it: 9:100 says رضي الله عنهم and 10:18 سبحانه وتعالى.
+  // The Arabic forms; each language adds its own (honorifics in core/langs/<code>.js).
   const HONORIFICS = [
-    ['\uFDFA', 'صلى الله عليه وسلم|صلی اللہ علیہ وسلم|ﷺ'],
-    ['\uFD4A', 'عليه الصلاة والسلام|علیہ الصلاۃ والسلام'],
-    ['\uFD47', 'عليه السلام|علیہ السلام'], ['\uFD48', 'عليهم السلام|علیہم السلام'],
-    ['\uFD44', 'رضي الله عنهما|رضی اللہ عنہما'], ['\uFD43', 'رضي الله عنهم|رضی اللہ عنہم'],
-    ['\uFD42', 'رضي الله عنها|رضی اللہ عنہا'], ['\uFD41', 'رضي الله عنه|رضی اللہ عنہ'],
-    ['\uFD4F', 'رحمهم الله|رحمہم اللہ'], ['\uFD40', 'رحمه الله|رحمہ اللہ'],
-    ['\uFDFE', 'سبحانه وتعالى|سبحانہ وتعالیٰ|سبحانہ و تعالیٰ'], ['\uFDFF', 'عز وجل|عزوجل'],
-    ['\uFDFB', 'جل جلاله|جل جلالہ'], ['\uFD4E', 'تبارك وتعالى|تبارک وتعالیٰ'],
+    ['\uFDFA', 'صلى الله عليه وسلم|ﷺ'], ['\uFD4A', 'عليه الصلاة والسلام'],
+    ['\uFD47', 'عليه السلام'], ['\uFD48', 'عليهم السلام'],
+    ['\uFD44', 'رضي الله عنهما'], ['\uFD43', 'رضي الله عنهم'],
+    ['\uFD42', 'رضي الله عنها'], ['\uFD41', 'رضي الله عنه'],
+    ['\uFD4F', 'رحمهم الله'], ['\uFD40', 'رحمه الله'],
+    ['\uFDFE', 'سبحانه وتعالى'], ['\uFDFF', 'عز وجل|عزوجل'],
+    ['\uFDFB', 'جل جلاله'], ['\uFD4E', 'تبارك وتعالى'],
   ];
-  const HON_SIGN = new Map(HONORIFICS.flatMap(([sign, forms]) => forms.split('|').map(f => [f, sign])));
-  const HON_RE = new RegExp(`(?<![\\p{L}\\p{M}])(${[...HON_SIGN.keys()].join('|')})(?![\\p{L}\\p{M}])`, 'gu');
+  let HON_SIGN, HON_RE;
+  function honorificForms() {
+    const forms = HONORIFICS.flatMap(([sign, f]) => f.split('|').map(x => [x, sign]));
+    for (const L of TR) for (const [sign, f] of Object.entries(L.honorifics || {})) forms.push(...f.split('|').map(x => [x, sign]));
+    HON_SIGN = new Map(forms);
+    HON_RE = new RegExp(`(?<![\\p{L}\\p{M}])(${[...HON_SIGN.keys()].join('|')})(?![\\p{L}\\p{M}])`, 'gu');
+  }
   const NOT_HONORIFIC = '.chunk-arabic[data-surah], .inline-ayah, .inline-ayah-en, .chunk-quran-translation, .ref-english, script, style';
   function shortenHonorifics(root) {
+    if (!HON_RE) honorificForms();
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     const nodes = [];
     for (let n; (n = walker.nextNode());) {
@@ -1999,21 +2031,21 @@
       // The Quran's own spelling often drops a long alif (مَلَـٰٓئِكَة for ملائكة) or writes hamza
       // apart: compare without either.
       .replace(/[\u0627\u0621]/g, '');
-    return k.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase();
+    return k.replace(/[^\p{L}\p{M}\p{N}]/gu, '').toLowerCase();
   };
 
   // The words block `el` shows in `lang`, as ranges in reading order: the Arabic, or for a
   // translation the verse (only the version on screen, recited part or whole verse), then the prose.
   function shownWords(el, lang) {
     const out = [];
-    const parts = el.querySelectorAll(lang === 'ar' ? '.chunk-arabic' : lang === 'ur'
-      ? '.chunk-quran-translation.chunk-ur, .chunk-ur .chunk-english, .chunk-ur .chunk-hadith-trans'
-      : '.chunk-quran-translation:not(.chunk-ur), .chunk-en .chunk-english, .chunk-en .chunk-hadith-trans');
+    const parts = el.querySelectorAll(lang === 'ar' ? '.chunk-arabic' : lang === 'en'
+      ? '.chunk-quran-translation:not(.chunk-tr), .chunk-en .chunk-english, .chunk-en .chunk-hadith-trans'
+      : `.chunk-quran-translation.tr-${lang}, .tr-${lang} .chunk-english, .tr-${lang} .chunk-hadith-trans`);
     for (const part of parts) {
       const walker = document.createTreeWalker(part, NodeFilter.SHOW_TEXT);
       for (let n; (n = walker.nextNode());) {
         const p = n.parentElement;
-        if (p.closest('.ur-source, .ref-en-source, .trans-ours') || !p.getClientRects().length) continue;
+        if (p.closest('.tr-source, .ref-en-source, .trans-ours') || !p.getClientRects().length) continue;
         for (const m of n.data.matchAll(/\S+/g)) {
           // An honorific sign stands for its words: it lights with the first one said.
           const key = p.classList.contains('hon') ? wordKey(p.dataset.said, lang) : wordKey(m[0], lang);
@@ -2133,10 +2165,10 @@
   }
 
   function initAudio(url) {
-    // Hear starts in Urdu like Read, where the khutbah has an Urdu voice; each switch then
+    // Hear starts in the language Read opened in, where the khutbah has its voice; each switch then
     // changes only its own side (listen in Urdu, read in English).
-    if (result.tts_ur) voice = 'ur';
-    audio = new Audio(voice === 'ur' ? result.tts_ur.url : url);
+    if (result['tts_' + pageLang]) voice = pageLang;
+    audio = new Audio(voice === 'imam' ? url : result['tts_' + voice].url);
     audio.playbackRate = SPEEDS[speedIdx];
     const player = document.getElementById('audioPlayer');
     const scrubber = document.getElementById('scrubber');

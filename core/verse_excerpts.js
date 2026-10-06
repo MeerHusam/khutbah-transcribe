@@ -6,16 +6,16 @@
 // The Arabic part is exact: the recited words are located in the mushaf text by the same
 // alignment the page uses for its bolding (public/recited.js). No published translation
 // exists for part of a verse, so one model call per khutbah copies out the part of Sahih
-// International (and of the Urdu translation, when the khutbah has one) that renders those
+// International (and of each other language's translation the khutbah has, core/languages.js) that renders those
 // words. A part is kept only when it is a verbatim piece of the published text that starts and
 // ends near where the recited words start and end in the Arabic; otherwise the card keeps
 // the full verse with the recited part in bold, as before.
 //
 // Stored as result.verse_excerpts: [{ arabic, surah, ayah, ayah_end, verses: {
-//   "<n>": { span: [first, last], en, ur } } }], keyed by the card block's Arabic.
+//   "<n>": { span: [first, last], en, ur, bn } } }], keyed by the card block's Arabic.
 // Answers are cached by request hash (hadith_data/.verse_excerpt_answers.json).
 //
-// Usage: node core/verse_excerpts.js outputs/<folder>   (also run by reanalyze.js and translate_urdu.js)
+// Usage: node core/verse_excerpts.js outputs/<folder>   (also run by reanalyze.js)
 
 import 'dotenv/config';
 import Anthropic from '@anthropic-ai/sdk';
@@ -25,6 +25,7 @@ import { join, dirname, resolve } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { parseReaderBlocks } from './verify_reader.js';
 import { publishedVerseEnglish } from './reader.js';
+import { LANGS } from './languages.js';
 import '../public/recited.js';
 
 const { recitedSpans } = globalThis.KTRecited;
@@ -39,22 +40,23 @@ let _cache = null;
 const cache = () => (_cache ??= (() => { try { return JSON.parse(readFileSync(CACHE, 'utf8')); } catch { return {}; } })());
 const saveCache = () => { try { writeFileSync(CACHE, JSON.stringify(_cache, null, 1)); } catch {} };
 
-const SCHEMA = {
+// The answer: for each item the English part and the part of each other language the khutbah has.
+const schema = codes => ({
   type: 'object',
   properties: {
     excerpts: {
       type: 'array',
       items: {
         type: 'object',
-        properties: { id: { type: 'integer' }, en: { type: 'string' }, ur: { type: 'string' } },
-        required: ['id', 'en', 'ur'],
+        properties: { id: { type: 'integer' }, en: { type: 'string' }, ...Object.fromEntries(codes.map(c => [c, { type: 'string' }])) },
+        required: ['id', 'en', ...codes],
         additionalProperties: false,
       },
     },
   },
   required: ['excerpts'],
   additionalProperties: false,
-};
+});
 
 const words = t => (t ?? '').split(/\s+/).filter(Boolean);
 const trimQuotes = t => (t ?? '').trim().replace(/^["'‘“]+|["'’”]+$/g, '').trim();
@@ -74,6 +76,7 @@ function accept(excerpt, full, [from, to]) {
 
 export async function planVerseExcerpts(result, readerRaw, { log = console.log } = {}) {
   const usage = { calls: 0, cached: 0, input_tokens: 0, output_tokens: 0, cost_usd: 0 };
+  const langs = LANGS.filter(L => result[L.field]?.verses);
   const cards = [];
   for (const b of parseReaderBlocks(readerRaw)) {
     const badge = b.englishParas.map(p => p.match(/^📖\s+.+?\s+(\d+):(\d+)(?:-(\d+))?\s+—/)).find(Boolean);
@@ -103,15 +106,18 @@ export async function planVerseExcerpts(result, readerRaw, { log = console.log }
       share: (l - f + 1) / c.lens[i],
       at: [f / c.lens[i], (l + 1) / c.lens[i]],
       en: publishedVerseEnglish({ surah_number: c.s, ayah_number: n }),
-      ur: result.urdu?.verses?.[`${c.s}:${n}`] ?? '',
+      ...Object.fromEntries(langs.map(L => [L.code, result[L.field].verses[`${c.s}:${n}`] ?? ''])),
     });
   });
 
   let answers = {};
   if (items.length) {
     const content = [
-      'Each item is a Quran verse of which the imam recited only part. Copy out, character for character, the part of the English translation ("en") and of the Urdu translation ("ur", when given) that translates exactly the recited words: no more, no less. Keep the translator\'s brackets that fall inside that part. If no part fits, give "".',
-      JSON.stringify(items.map(({ id, ref, arabic, recited, en, ur }) => ({ id, ref, verse: arabic, recited, en, ...(ur ? { ur } : {}) })), null, 1),
+      'Each item is a Quran verse of which the imam recited only part. Copy out, character for character, the part of the English translation ("en")'
+        + langs.map(L => ` and of the ${L.name} translation ("${L.code}", when given)`).join('')
+        + ' that translates exactly the recited words: no more, no less. Keep the translator\'s brackets that fall inside that part. If no part fits, give "".',
+      JSON.stringify(items.map(it => ({ id: it.id, ref: it.ref, verse: it.arabic, recited: it.recited, en: it.en,
+        ...Object.fromEntries(langs.filter(L => it[L.code]).map(L => [L.code, it[L.code]])) })), null, 1),
     ].join('\n\n');
     const hash = createHash('sha1').update(JSON.stringify([MODEL, content])).digest('hex').slice(0, 16);
     let out = cache()[hash];
@@ -121,7 +127,7 @@ export async function planVerseExcerpts(result, readerRaw, { log = console.log }
       const response = await anthropic.messages.create({
         model: MODEL, max_tokens: 16000,
         system: 'You match parts of Quran verses to the same parts of their published translations. Reply with JSON only.',
-        output_config: { effort: 'medium', format: { type: 'json_schema', schema: SCHEMA } },
+        output_config: { effort: 'medium', format: { type: 'json_schema', schema: schema(langs.map(L => L.code)) } },
         messages: [{ role: 'user', content }],
       });
       usage.calls++;
@@ -143,10 +149,10 @@ export async function planVerseExcerpts(result, readerRaw, { log = console.log }
       verses[n] = {
         span: c.spans[i],
         en: accept(ans.en, it.en, it.at),
-        ur: it.ur ? accept(ans.ur, it.ur, it.at) : null,
+        ...Object.fromEntries(langs.map(L => [L.code, it[L.code] ? accept(ans[L.code], it[L.code], it.at) : null])),
       };
       log(`  ${c.s}:${n} recited ${Math.round(it.share * 100)}%: ${verses[n].en ? `“${verses[n].en}”` : 'full verse kept (English)'}` +
-        (it.ur ? ` | ${verses[n].ur ? 'Urdu part found' : 'full verse kept (Urdu)'}` : ''));
+        langs.filter(L => it[L.code]).map(L => ` | ${verses[n][L.code] ? `${L.name} part found` : `full verse kept (${L.name})`}`).join(''));
     });
     return { arabic: c.arabic, surah: c.s, ayah: c.a, ayah_end: c.e, verses };
   });

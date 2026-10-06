@@ -110,10 +110,10 @@ const cue = style => {
   const s = (style ?? '').split('For this sentence: ')[1];
   return s ? `[${s.split(/\s+/).slice(0, 5).join(' ').replace(/[,.;:]+$/, '')}] ` : '';
 };
-async function askVertex(content) {
+async function askVertex(content, signal) {
   const base = process.env.VERTEX_BASE_URL || 'https://aiplatform.googleapis.com';
   const r = await fetch(`${base}/v1/publishers/google/models/${job.model}:generateContent`, {
-    method: 'POST',
+    method: 'POST', signal,
     headers: { 'content-type': 'application/json', 'x-goog-api-key': process.env.VERTEX_API_KEY },
     body: JSON.stringify({
       contents: [{ role: 'user', parts: [{ text: content.map(c => cue(c.annotations?.[0]?.style) + c.text).join('') }] }],
@@ -131,6 +131,19 @@ async function askVertex(content) {
   usage.calls++; usage.input += u.promptTokenCount ?? 0; usage.output += u.candidatesTokenCount ?? 0;
   return pcmOf(Buffer.from(data, 'base64'));
 }
+// A request with no answer in 4 minutes is abandoned (aborted, so no connection is left open) and
+// tried again by ask()'s retries: on 5 Oct 2026 one waited over 10 minutes with nothing coming and
+// would have held the voice step forever. A passage of ~4,000 characters takes 30 s to 2 min. The
+// SDK's own limit (1 minute) covers only the wait for the answer to start, and would cut off a
+// long passage still being made, so it is set to the same 4 minutes.
+const REQUEST_MS = +process.env.TTS_REQUEST_MS || 240_000;
+function deadline(promise, controller) {
+  let timer;
+  const late = new Promise((_, reject) => {
+    timer = setTimeout(() => { controller.abort(); reject(new Error(`no answer in ${REQUEST_MS / 1000} s`)); }, REQUEST_MS);
+  });
+  return Promise.race([promise, late]).finally(() => clearTimeout(timer));
+}
 const cachePath = request => join(CACHE, createHash('sha1').update(JSON.stringify(request)).digest('hex') + '.pcm');
 const annotate = (text, style) => ({ type: 'text', text, annotations: [{ type: 'speech_metadata', style }] });
 
@@ -147,13 +160,14 @@ async function speak(text) {
 async function ask(content) {
   for (let attempt = 1; ; attempt++) {
     let onVertex = false;
+    const controller = new AbortController();
     try {
       const ai = client();
       if (!ai && process.env.VERTEX_API_KEY) {
         if (!usage.vertex++) console.error('  every Gemini key has used its day: on to the Agent Platform (VERTEX_API_KEY)');
         onVertex = true;
         await pace('VERTEX_API_KEY', tokensOf(content));
-        return await askVertex(content);
+        return await deadline(askVertex(content, controller.signal), controller);
       }
       if (!ai) {
         console.error(`✗ Gemini daily voice limit reached on every key (${keys.map(k => k.name).join(', ') || 'none set'}).\n  Add a key from another Google project as GEMINI_API_KEY<n>, or VERTEX_API_KEY, or wait for the reset.`);
@@ -162,12 +176,12 @@ async function ask(content) {
       await pace(current.k.name, tokensOf(content));
       // No SDK retries: it sleeps whatever retry-after the API sends, silently (14 h for the
       // daily limit on 2 Oct). The waits are decided below instead.
-      const r = await ai.interactions.create({
+      const r = await deadline(ai.interactions.create({
         model: job.model,
         input: [{ type: 'user_input', content }],
         response_format: { type: 'audio' },
         generation_config: { speech_config: [{ voice: job.voice }] },
-      }, { maxRetries: 0 });
+      }, { maxRetries: 0, timeout: REQUEST_MS, signal: controller.signal }), controller);
       const find = o => {
         if (!o || typeof o !== 'object') return null;
         if (typeof o.data === 'string' && o.data.length > 1000) return o.data;
@@ -221,7 +235,7 @@ async function inTurn(items, work) {
 // Blocks in passages of about job.passages characters, each ending where a sentence ends (a
 // block often stops mid-sentence at the imam's pause), never across the break between the
 // two khutbahs.
-const endsSentence = t => /[۔.!?؟]["”’)]?\s*$/u.test(t);
+const endsSentence = t => /[۔.!?؟।]["”’)]?\s*$/u.test(t);
 function passagesOf(blocks, size) {
   const out = [];
   let cur = [], chars = 0;
@@ -252,7 +266,7 @@ function heardShare(text, heard) {
 // The passage as Whisper hears it (Groq, free); null when it cannot be checked.
 async function hear(pcm) {
   const key = process.env.GROQ_API_KEY;
-  if (!key) return null;
+  if (!key || job.hear === false) return null; // off for a language Whisper hears poorly (core/langs/bn.js)
   const form = new FormData();
   // As mp3: a passage of 8 minutes is 23 MB as a WAV, and Groq takes at most 25 MB.
   const mp3 = spawnSync('ffmpeg', ['-v', 'error', '-f', 's16le', '-ar', String(SR), '-ac', '1', '-i', 'pipe:0', '-b:a', '48k', '-f', 'mp3', 'pipe:1'],
@@ -260,7 +274,7 @@ async function hear(pcm) {
   if (mp3.status === 0) form.append('file', new Blob([mp3.stdout], { type: 'audio/mpeg' }), 'passage.mp3');
   else form.append('file', new Blob([wavOf(pcm)], { type: 'audio/wav' }), 'passage.wav');
   form.append('model', 'whisper-large-v3');
-  form.append('language', job.lang ?? 'ur');
+  form.append('language', job.whisper ?? job.lang ?? 'ur');
   form.append('response_format', 'text');
   for (let attempt = 1; attempt <= 4; attempt++) {
     try {
@@ -336,7 +350,7 @@ function splitPassages(spans) {
   const py = join(ROOT, '.venv-align', 'bin', 'python');
   if (existsSync(py)) {
     const r = spawnSync(py, [join(ROOT, 'voice', 'align_words.py'), '-'], {
-      input: JSON.stringify({ audio: job.out, lang: job.lang ?? 'ur', blocks: spans.map((s, k) => ({ i: k, start: s.start, end: s.end, text: s.blocks.map(b => b.text).join(' ') })) }),
+      input: JSON.stringify({ audio: job.out, lang: job.lang ?? 'ur', iso: job.iso, blocks: spans.map((s, k) => ({ i: k, start: s.start, end: s.end, text: s.blocks.map(b => b.text).join(' ') })) }),
       encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['pipe', 'pipe', 'ignore'],
     });
     if (r.status === 0) words = JSON.parse(r.stdout.trim().split('\n').at(-1)).map(x => x.words);

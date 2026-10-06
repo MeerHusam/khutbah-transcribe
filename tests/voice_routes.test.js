@@ -81,3 +81,30 @@ test('a spent key moves to the next key, then to the Agent Platform, and is reme
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// 5 Oct 2026: a voice request waited over 10 minutes with nothing coming. Now one that has no answer
+// by the deadline (TTS_REQUEST_MS) is abandoned and asked again, and the voice is made.
+test('a request with no answer is abandoned at the deadline and asked again', async () => {
+  let asked = 0;
+  const server = createServer((req, res) => {
+    req.resume();
+    req.on('end', () => {
+      if (++asked === 1) return; // never answers
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ id: 'x', outputs: [{ type: 'audio', data: wav() }] }));
+    });
+  });
+  await new Promise(r => server.listen(0, r));
+  const dir = mkdtempSync(join(tmpdir(), 'voice-deadline-'));
+  try {
+    const run = await voice({ GEMINI_API_KEY: 'key-a', GEMINI_API_KEY2: '', VERTEX_API_KEY: '', GROQ_API_KEY: '', TTS_CACHE_DIR: dir,
+      TTS_REQUEST_MS: '500', GEMINI_BASE_URL: `http://localhost:${server.address().port}` }, [{ i: 0, text: `slow ${Date.now()}` }], join(dir, 'out.wav'));
+    assert.equal(run.code, 0, run.stderr);
+    assert.match(run.stderr, /no answer in 0.5 s/);
+    assert.equal(asked, 2);
+  } finally {
+    server.closeAllConnections();
+    server.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

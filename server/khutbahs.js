@@ -15,6 +15,7 @@ import { join } from 'path';
 import { loadResult } from '../core/reader_chunks.js';
 import { ROOT, DATA_DIR } from './config.js';
 import { listKhutbahs, publishKhutbah, seedIfEmpty } from './db.js';
+import { LANGS, langOf, forPage } from '../core/languages.js';
 
 seedIfEmpty(JSON.parse(readFileSync(join(ROOT, 'server', 'khutbahs.seed.json'), 'utf8')));
 
@@ -62,10 +63,10 @@ function findAudioUrl(folder) {
   return null;
 }
 
-// The voice tracks (tts.js): English (tts_en) and Urdu (tts_ur), each with every block's place
-// in it. A track is attached only while its manifest still names the reader's blocks, so a
+// The voice tracks (tts.js): English (tts_en) and each other language's (tts_ur, tts_bn …), each with
+// every block's place in it. A track is attached only while its manifest still names the reader's blocks, so a
 // rebuilt reader never plays stale times. Folders without a tts_*.json are untouched.
-export const TTS_LANGS = ['en', 'ur'];
+export const TTS_LANGS = ['en', ...LANGS.map(L => L.code)];
 function attachTts(k, result) {
   const { folder, media_url } = k;
   const dir = contentDir(folder);
@@ -96,6 +97,8 @@ function buildResult(k) {
   const result = loadResult(contentDir(k.folder));
   result.audio_url = findAudioUrl(k.folder);
   attachTts(k, result);
+  // The languages the page can show besides English (core/languages.js), with what it needs for each.
+  result.languages = LANGS.filter(L => (result.reader_chunks || []).some(c => c[L.field])).map(forPage);
   result.title = k.title || '';
   result.speaker = k.speaker || '';
   result.masjid = k.masjid || '';
@@ -123,8 +126,8 @@ function listItem(k, r) {
     hadith: r.metadata?.hadith_references_found || 0,
     mode: r.metadata?.transcription_mode || '',
     // What the page offers: the languages it reads in and the voices it can play (tts.js).
-    languages: ['Arabic', 'English', ...(r.urdu ? ['Urdu'] : [])],
-    voices: TTS_LANGS.filter(l => existsSync(join(contentDir(k.folder), `tts_${l}.json`))).map(l => ({ en: 'English', ur: 'Urdu' })[l]),
+    languages: ['Arabic', 'English', ...LANGS.filter(L => r[L.field]).map(L => L.name)],
+    voices: TTS_LANGS.filter(l => existsSync(join(contentDir(k.folder), `tts_${l}.json`))).map(l => (l === 'en' ? 'English' : langOf(l).name)),
   };
 }
 

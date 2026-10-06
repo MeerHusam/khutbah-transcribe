@@ -134,7 +134,7 @@ def run_job():
     wave = load_audio(job['audio'])
     session = open_model()
     tokenizer = Tokenizer()
-    iso, pad, blocks, out = ISO[job['lang']], job.get('pad', PAD), job['blocks'], []
+    iso, pad, blocks, out = job.get('iso') or ISO[job['lang']], job.get('pad', PAD), job['blocks'], []
     began = time.time()
     for n, b in enumerate(blocks):
         out.append({'i': b['i'], 'words': align_block(session, tokenizer, wave, b['start'], b['end'], b['text'], iso, pad)})
@@ -145,9 +145,11 @@ def run_job():
 def main():
     if sys.argv[1:] == ['-']:
         return run_job()
-    if len(sys.argv) != 3 or sys.argv[2] not in ISO:
-        sys.exit('usage: align_words.py outputs/<folder> en|ur')
+    # A language not in ISO gives its code (from core/langs/<code>.js): align_words.py <folder> bn ben
+    if len(sys.argv) not in (3, 4) or (len(sys.argv) == 3 and sys.argv[2] not in ISO):
+        sys.exit('usage: align_words.py outputs/<folder> en|ur [<ISO 639-3>]')
     folder, lang = Path(sys.argv[1]), sys.argv[2]
+    iso = sys.argv[3] if len(sys.argv) == 4 else ISO[lang]
     manifest_path = folder / f'tts_{lang}.json'
     manifest = json.loads(manifest_path.read_text())
     wave = load_audio(folder / manifest.get('audio', f'tts_{lang}.mp3'))
@@ -156,7 +158,7 @@ def main():
     began = time.time()
     blocks = manifest['blocks']
     for n, block in enumerate(blocks):
-        block['words'] = align_block(session, tokenizer, wave, block['start'], block['end'], block['text'], ISO[lang])
+        block['words'] = align_block(session, tokenizer, wave, block['start'], block['end'], block['text'], iso)
         print(f'  block {n + 1}/{len(blocks)}  {time.time() - began:.0f} s', file=sys.stderr, flush=True)
     manifest['words_by'] = 'mms_fa'
     manifest_path.write_text(dump(manifest))

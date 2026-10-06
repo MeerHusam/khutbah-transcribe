@@ -44,7 +44,7 @@
 </head>
 <body>
 <h1>Send a khutbah</h1>
-<p class="sub">Upload the recording right after the khutbah. Your Mac picks it up and the page goes live with English, Urdu and the voices, usually in about 20 minutes.</p>
+<p class="sub">Upload the recording right after the khutbah. Your Mac picks it up and the page goes live with English, Urdu, Bengali and the voices, usually in about 20 minutes.</p>
 
 <div class="card">
   <label class="file" id="drop"><input type="file" id="file" accept="audio/*,video/*,.m4a,.mp3,.wav,.aac,.caf,.opus"><span id="fileLabel">Tap to choose the recording</span></label>
@@ -73,8 +73,8 @@
     ['claimed', 'Picked up by the Mac'],
     ['transcribing', 'Writing down the Arabic'],
     ['english', 'English translation and references'],
-    ['urdu', 'Urdu translation and review'],
-    ['voices', 'Recording the English and Urdu voices'],
+    ['translations', 'Translations (Urdu, Bengali) and review'],
+    ['voices', 'Recording the voices'],
     ['timing', 'Word-by-word timing'],
     ['publishing', 'Publishing to the site'],
     ['live', 'Live'],
@@ -126,7 +126,7 @@
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
   function render(job) {
-    const at = {}; for (const l of job.log) at[l.status] = l;
+    const at = {}; for (const l of job.log) at[l.status === 'urdu' ? 'translations' : l.status] = l; // 'urdu' before 5 Oct 2026
     const failed = job.status === 'failed';
     const cur = ORDER.indexOf(job.status);
     const steps = STEPS.map(([s, label], k) => {

@@ -9,6 +9,7 @@
 //                 2 Oct 2026 also seconds played per track, the minutes of each track heard,
 //                 how far down the text (depth %), WhatsApp copies and Quran/Hadith link taps
 // Nothing here stores an IP address or a full user-agent.
+import { LANGS, langOf } from '../../core/languages.js';
 
 const RIYADH_MS = 3 * 3600e3; // Riyadh is UTC+3 all year
 const riyadh = iso => new Date(Date.parse(iso) + RIYADH_MS);
@@ -54,8 +55,8 @@ const mins = s => (s == null ? '–' : s < 60 ? `${Math.round(s)} s` : `${(s / 6
 const pct = (a, b) => (b ? `${Math.round((100 * a) / b)}%` : '–');
 const hrs = s => (s < 3600 ? mins(s) : `${(s / 3600).toFixed(1)} h`);
 const sum = xs => xs.reduce((a, x) => a + (x || 0), 0);
-const VOICE_NAME = { imam: 'The imam (Arabic)', en: 'English voice', ur: 'Urdu voice' };
-const VOICE_SHORT = { imam: 'Imam', en: 'EN', ur: 'UR' };
+const VOICE_NAME = { imam: 'The imam (Arabic)', en: 'English voice', ...Object.fromEntries(LANGS.map(L => [L.code, `${L.name} voice`])) };
+const VOICE_SHORT = { imam: 'Imam', en: 'EN', ...Object.fromEntries(LANGS.map(L => [L.code, L.code.toUpperCase()])) };
 const bar = (n, peak, cls = '') => `<span class="bar ${cls}" style="width:${Math.max(2, Math.round((n / Math.max(1, peak)) * 100))}%"></span>`;
 
 function smallTable(title, rows, total) {
@@ -193,7 +194,7 @@ export function buildTrafficPage({ visits, geo, engage, totals, khutbahs, now = 
         <div style="height:16px"></div><p class="note">${notes}</p></div>`;
     });
   }).filter(Boolean).join('');
-  const langRows = count(allEng, e => (e.lang === 'ur' ? 'اردو (Urdu)' : 'English'));
+  const langRows = count(allEng, e => { const L = langOf(e.lang); return L ? `${L.native} (${L.name})` : 'English'; });
 
   const sourceOf = v => (v.src ? `Link tagged “${v.src}”` : v.ref ? `From ${v.ref}` : /app$/.test(v.browser || '') ? `Inside the ${v.browser}` : 'Direct / app link (WhatsApp etc.)');
   const pageRows = count(humans, v => (v.page === 'home' ? 'Home page' : v.page === 'reader' ? 'A khutbah' : null));

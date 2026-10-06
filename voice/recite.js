@@ -19,9 +19,10 @@ import { spawnSync } from 'child_process';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, basename } from 'path';
 import { loadResult } from '../core/reader_chunks.js';
+import { LANGS } from '../core/languages.js';
 
 const SR = 24000;
-const VERSE_INTRO = { en: 'Allah says:', ur: 'ارشادِ باری تعالیٰ ہے:' }; // as tts.js
+const VERSE_INTRO = { en: 'Allah says:', ...Object.fromEntries(LANGS.map(L => [L.code, L.voice.intro])) }; // as tts.js
 const BEFORE = 0.35, AFTER = 0.5; // seconds of quiet either side of the recitation
 // The recitation is a room recording: the same measured loudness as the voice sounds farther
 // and quieter (some of it is the echo, it is duller, and it swings more between loud and soft).
@@ -33,7 +34,7 @@ const [folder, lang, recording] = process.argv.slice(2);
 const lift = process.argv.includes('--lift') ? +process.argv[process.argv.indexOf('--lift') + 1] : 2;
 const manifestPath = join(folder ?? '', `tts_${lang}.json`);
 if (!folder || !VERSE_INTRO[lang] || !recording || !existsSync(manifestPath) || !existsSync(recording)) {
-  console.error('usage: node voice/recite.js outputs/<folder> en|ur <recording>');
+  console.error(`usage: node voice/recite.js outputs/<folder> en|${LANGS.map(L => L.code).join('|')} <recording>`);
   process.exit(1);
 }
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
