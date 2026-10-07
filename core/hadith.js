@@ -87,7 +87,9 @@ function loadHadithCorpus() {
   if (!existsSync(HADITH_DIR)) return [];
 
   const corpus = [];
-  for (const file of readdirSync(HADITH_DIR).filter(f => f.endsWith('.json'))) {
+  // The Arabic collections only: hadith_data/ also holds the Urdu and Bengali editions (urd-*, ben-*)
+  // and the Quran translations since 7 Oct 2026 (scripts/setup_hadith.js).
+  for (const file of readdirSync(HADITH_DIR).filter(f => COLLECTION_NAMES[f.replace('.json', '')])) {
     const id = file.replace('.json', '');
     const collectionName = COLLECTION_NAMES[id] ?? id;
     let data;
