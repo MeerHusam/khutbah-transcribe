@@ -12,6 +12,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Amiri:ital,wght@0,400;0,700;1,400&family=Reem+Kufi:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Only the glyphs of the language names in the hero (text=), a few KB. -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu&family=Noto+Serif+Bengali&text=%D8%A7%D8%B1%D8%AF%D9%88%E0%A6%AC%E0%A6%BE%E0%A6%82%E0%A6%B2%E0%A6%BE&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -159,6 +161,13 @@
       -webkit-text-fill-color: transparent;
       background-clip: text;
     }
+    /* Each language in its own script; a new language is one more word here, the h1 stays. */
+    .hero-langs {
+      font-size: clamp(18px, 3vw, 24px); color: var(--gold); margin: -4px 0 18px; position: relative;
+    }
+    .hero-langs [lang="ar"] { font-family: var(--font-ar); }
+    .hero-langs [lang="ur"] { font-family: 'Noto Nastaliq Urdu', serif; font-size: 0.9em; }
+    .hero-langs [lang="bn"] { font-family: 'Noto Serif Bengali', serif; }
     .hero-sub {
       font-size: clamp(15px, 2.5vw, 18px);
       color: var(--text-muted);
@@ -640,8 +649,9 @@
 <section class="hero">
   <div class="hero-ar" aria-hidden="true">الخطبة</div>
   <span class="hero-ornament">۞ &nbsp; ۞ &nbsp; ۞</span>
-  <h1>Friday <span>Khutbahs</span><br>in Arabic, English&nbsp;&amp;&nbsp;Urdu</h1>
-  <p class="hero-sub">The Friday Khutbah in Arabic, translated to English and Urdu, with every Quran ayah and Hadith citation sourced and linked.</p>
+  <h1>Friday <span>Khutbahs</span><br>in your language</h1>
+  <p class="hero-langs"><span lang="ar">العربية</span> · <span>English</span> · <span lang="ur">اردو</span> · <span lang="bn">বাংলা</span></p>
+  <p class="hero-sub">The Friday Khutbah in Arabic, translated to English, Urdu and Bengali, with every Quran ayah and Hadith citation sourced and linked.</p>
   <div class="hero-divider"></div>
 </section>
 

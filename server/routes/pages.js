@@ -33,10 +33,10 @@ function withShareMeta(file, req, { title, description, path }) {
     .replace(/<meta name="description"[^>]*>\s*/, '')
     .replace(/<title>[^<]*<\/title>/, tags);
 }
-const HOME_DESCRIPTION = 'Arabic Friday Khutbahs with English and Urdu translations, every Quran ayah and Hadith cited and linked.';
+const HOME_DESCRIPTION = 'Arabic Friday Khutbahs with English, Urdu and Bengali translations, every Quran ayah and Hadith cited and linked.';
 
 router.get('/', (req, res) => res.type('html').send(withShareMeta('home.html', req, {
-  title: 'Khutbah.dev · Friday Khutbahs in Arabic, English & Urdu', description: HOME_DESCRIPTION, path: '/',
+  title: 'Khutbah.dev · Friday Khutbahs in Arabic, English, Urdu & Bengali', description: HOME_DESCRIPTION, path: '/',
 })));
 // For search engines: the home page and every khutbah's short link (robots.txt points here).
 router.get('/sitemap.xml', (req, res) => res.type('application/xml').send(
