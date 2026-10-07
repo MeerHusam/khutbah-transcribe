@@ -29,3 +29,24 @@ test('a hadith the imam introduced is not found twice, nor one inside a verse', 
   assert.deepEqual(scan(text, { claude: [{ detected_text: 'من خاف أدلج ومن أدلج بلغ المنزل ألا إن سلعة الله غالية' }] }), []);
   assert.deepEqual(scan(text, { zones: [{ start: 0, end: text.split(' ').length }] }), []);
 });
+
+// 4 Sep 2026 Makkah: the collection the imam names, before or after the hadith, and a short hadith
+// he attributes aloud.
+import { imamAttribution, findAttributedHadith, deduplicateHadithRefs } from '../core/hadith.js';
+const BIRDS = 'كما قال رسول الهدى صلوات الله وسلامه عليه: لو توكلتم على الله حق توكله لرزقكم كما يرزق الطير تغدو خماصاً وتروح بطاناً. أخرجه الترمذي في جامعه بإسناد صحيح.';
+const UMMAH = 'التبكير في طلبه، وذلك في الحديث الذي أخرجه الترمذي في جامعه بإسناد صحيح عن صخر الغامدي رضي الله عنه عن رسول الله صلى الله عليه وسلم أنه قال: اللهم بارك لأمتي في بكورها. وكان صخر رجلاً تاجراً';
+const DUA = 'سيدخلون جهنم داخرين. وقال رسول الله صلى الله عليه وسلم: الدعاء هو العبادة. أخرجه أبو داود والترمذي وابن ماجه بسند صحيح. والدعاء مقام جامع';
+
+test('the collection the imam names right after the hadith, or before it introducing it', () => {
+  assert.equal(imamAttribution(BIRDS, 'لو توكلتم على الله حق توكله لرزقكم كما يرزق الطير تغدو خماصاً وتروح بطاناً')?.slug, 'tirmidhi');
+  assert.equal(imamAttribution(UMMAH, 'اللهم بارك لأمتي في بكورها')?.slug, 'tirmidhi');
+  // The "رواه مسلم." closing the hadith before is not this one's.
+  assert.equal(imamAttribution('إن الله رفيق يحب الرفق. رواه مسلم. وقال صلى الله عليه وسلم: الكلمة الطيبة صدقة. والإحسان', 'الكلمة الطيبة صدقة'), null);
+});
+
+test('a short hadith the imam attributes aloud is carded and kept', { skip }, () => {
+  const found = findAttributedHadith(DUA, [], corpus);
+  assert.deepEqual(found.map(h => `${h.collection} ${h.hadith_number} ${h.detected_text}`), ['Sunan Abu Dawud 1479 الدعاء هو العبادة']);
+  assert.equal(deduplicateHadithRefs(found, DUA).length, 1);
+  assert.equal(findAttributedHadith(DUA, found, corpus).length, 0); // already carded
+});

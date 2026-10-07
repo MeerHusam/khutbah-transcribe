@@ -15,8 +15,11 @@ import { pathToFileURL } from 'url';
 import { normalizeArabic, normalizeArabicDeep, splitsPhrase, prescanForQuranZones, dropBorrowedPhrases } from './arabic.js';
 import { loadResult } from './reader_chunks.js';
 import { checkEnglish } from './check_english.js';
+import { imamAttribution, findAttributedHadith, loadHadithCorpus, slugToDisplay } from './hadith.js';
 import { LANGS } from './languages.js';
 import '../public/recited.js';
+
+let hadithCorpus = null; // loaded once per process (test_khutbahs checks many khutbahs)
 
 const { recitedSpans } = globalThis.KTRecited;
 
@@ -354,7 +357,22 @@ export function verifyReader(folder, { readerRaw: readerOverride = null, result:
     if (h.verification === 'sunnah_search') continue;
     const tag = [h.collection, h.hadith_number].filter(Boolean).join(' ') || 'hadith';
     const msg = `hadith card not confirmed by sunnah.com (${tag}, found by ${h.detection_method ?? '?'}): "${(h.detected_text ?? '').slice(0, 60)}"`;
-    h.detection_method === 'signal_phrase' ? warn(msg) : fail(msg);
+    ['signal_phrase', 'attribution'].includes(h.detection_method) ? warn(msg) : fail(msg);
+  }
+
+  // ── 5c. The imam's own attribution ─────────────────────────────────────────────
+  // The card names the collection he named aloud (4 Sep 2026 Makkah: "أخرجه الترمذي" twice, carded
+  // as Ibn Majah and Abu Dawud), and a hadith he quotes and attributes aloud has a card ("الدعاء هو
+  // العبادة. أخرجه أبو داود…" had none). The second needs hadith_data/ (the Mac; not GitHub's runner).
+  for (const h of result.hadith_references ?? []) {
+    const named = imamAttribution(transcript, h.detected_text);
+    if (!named) continue;
+    const said = [named.slug, ...(named.both ? ['muslim'] : [])].map(slugToDisplay);
+    if (!said.includes(h.collection)) fail(`hadith card names ${h.collection}, the imam said ${said.join(' / ')}: "${(h.detected_text ?? '').slice(0, 50)}"`);
+  }
+  hadithCorpus ??= loadHadithCorpus();
+  for (const h of findAttributedHadith(transcript, result.hadith_references ?? [], hadithCorpus)) {
+    fail(`a hadith the imam quotes and attributes aloud has no card (${h.collection} ${h.hadith_number}): "${h.detected_text.slice(0, 50)}"`);
   }
 
   // ── 5b. An inline (📑) verse must be locatable inside its block's Arabic ──────

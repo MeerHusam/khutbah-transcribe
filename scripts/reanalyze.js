@@ -30,7 +30,7 @@ import {
   yieldTailToLaterRefs,
 } from '../core/arabic.js';
 import { buildReaderView } from '../core/reader.js';
-import { deduplicateHadithRefs, resolveSunnahLinksForRefs } from '../core/hadith.js';
+import { deduplicateHadithRefs, resolveSunnahLinksForRefs, findAttributedHadith, loadHadithCorpus } from '../core/hadith.js';
 import { settleLoneWords } from '../core/transcribe.js';
 import { planQuoteSwaps } from '../core/quote_swaps.js';
 import { translateChunk } from '../core/analyze.js';
@@ -146,7 +146,10 @@ function recomputeChunksAndZones() {
 // is pure and cheap — running it here means a fix to those filters reaches an existing
 // run without re-transcribing. Idempotent on refs that are already clean.
 const hadithBefore = (result.hadith_references || []).length;
-result.hadith_references = deduplicateHadithRefs(result.hadith_references || []);
+const hadithCorpus = loadHadithCorpus();
+const attributedHadith = findAttributedHadith(transcript, result.hadith_references || [], hadithCorpus);
+if (attributedHadith.length) console.log(`  + ${attributedHadith.length} hadith ref(s) the imam quotes and attributes aloud`);
+result.hadith_references = deduplicateHadithRefs([...(result.hadith_references || []), ...attributedHadith], transcript);
 const hadithDropped = hadithBefore - result.hadith_references.length;
 if (hadithDropped) console.log(`  − ${hadithDropped} hadith ref(s) filtered (liturgical / attribution-only)`);
 
@@ -154,7 +157,7 @@ if (hadithDropped) console.log(`  − ${hadithDropped} hadith ref(s) filtered (l
 // Disk-cached, so this is a no-op on a second run.
 if (result.hadith_references.length) {
   console.log('Resolving sunnah.com links + translations...');
-  await resolveSunnahLinksForRefs(result.hadith_references, transcript);
+  await resolveSunnahLinksForRefs(result.hadith_references, transcript, hadithCorpus);
   const withTrans = result.hadith_references.filter(h => h.translation).length;
   console.log(`  ${withTrans}/${result.hadith_references.length} hadith translations fetched`);
 }
