@@ -12,7 +12,7 @@
 // Claude's own wording for the block is recovered from result.chunk_translations.
 
 import { readFileSync } from 'fs';
-import { normalizeArabic } from './arabic.js';
+import { normalizeArabic, findRestarts } from './arabic.js';
 import { publishedVerseEnglish } from './reader.js';
 import { cachedSunnahPage } from './hadith.js';
 
@@ -224,9 +224,10 @@ export function checkEnglish(blocks, result) {
     }
   }
 
+  let rasulullah = 0, prevGrams = null, prevArabic = '';
   for (const b of blocks) {
     const prose = b.englishParas.filter(p => !/^(📖|📑|📚|❝)/.test(p)).join(' ');
-    if (!prose) continue;
+    if (!prose) { prevGrams = null; prevArabic = ''; continue; }
 
     // Claude's English for this block: the chunk translations it was built from.
     const bGrams = new Set(grams(keys(prose)));
@@ -250,6 +251,27 @@ export function checkEnglish(blocks, result) {
     // 5. Framing repeated inside a quote, however it got there.
     const f = prose.match(FRAMING_INSIDE);
     if (f) failures.push(`translation repeats its framing: "…${f[0].slice(0, 70)}"`);
+
+    // 6. A kept term only where the Arabic means it: الذكر الحكيم is the Qur'an, not Dhikr
+    // (18 Sep 2026 Madinah, "the wise Dhikr (remembrance of Allah)").
+    if (normalizeArabic(b.arabic ?? '').includes('الذكر الحكيم') && /\bDhikr\b/.test(prose)) {
+      failures.push(`"Dhikr" for الذكر الحكيم (the Qur'an, "the Wise Reminder"): "${prose.slice(0, 80)}…"`);
+    }
+    if (/\bRasulullah\b/.test(prose)) rasulullah++;
+
+    // 7. A restart translated twice (18 Sep 2026): where the imam restarted (findRestarts, in
+    // this block's Arabic or from the block before), a run of 8+ words the English says twice in
+    // the block, or at the end of the block before and again here. A warning: it is the
+    // translator's call, and a du'a said twice on purpose is not a restart.
+    const pk = keys(prose), g8 = pk.length >= 8 ? grams(pk, 8) : [];
+    const restarts = findRestarts([prevArabic, b.arabic ?? '']);
+    const twice = restarts.some(r => r.from === 1) && g8.find((g, i) => g8.indexOf(g) !== i);
+    if (twice) warnings.push(`English says "${twice}" twice in one block, where the imam restarted`);
+    const shared = prevGrams && restarts.some(r => r.from === 0 && r.chunk === 1) && g8.find(g => prevGrams.has(g));
+    if (shared) warnings.push(`English "${shared}" ends one block and opens the next, where the imam restarted`);
+    prevGrams = new Set(g8);
+    prevArabic = b.arabic ?? '';
   }
+  if (rasulullah) warnings.push(`"Rasulullah" in ${rasulullah} block(s): the English says "the Messenger of Allah", as the Haramain's English does`);
   return { failures, warnings, swaps };
 }

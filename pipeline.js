@@ -18,7 +18,7 @@ import { writeFileSync, mkdirSync, readFileSync, existsSync, statSync } from 'fs
 import { fileURLToPath } from 'url';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
-import { stripAyahMarkup, prescanForQuranZones, dropBorrowedPhrases, buildProseChunks, scanTranscriptForQuran, buildZoneRefs, annotateRefAyahRange, yieldTailToLaterRefs, matchClaudeQuranRef } from './core/arabic.js';
+import { stripAyahMarkup, prescanForQuranZones, dropBorrowedPhrases, buildProseChunks, scanTranscriptForQuran, buildZoneRefs, annotateRefAyahRange, yieldTailToLaterRefs, matchClaudeQuranRef, findRestarts, restartNotes } from './core/arabic.js';
 import { loadHadithCorpus, deduplicateHadithRefs, scanTranscriptForHadith, resolveSunnahLinksForRefs, matchClaudeHadithRef } from './core/hadith.js';
 import { KHUTBAH_TYPES, buildAnalysisPrompt, locateSecondKhutbah, splitChunkAtKhutbahBoundary, completeChunkTranslations } from './core/analyze.js';
 import { buildReadableOutput, buildReaderView } from './core/reader.js';
@@ -187,11 +187,13 @@ async function getTranscript({ existingTranscriptPath, audioPath, useGroq }) {
 // Steps 5-6: Claude translates the numbered prose chunks and names the references it hears.
 async function analyzeWithClaude({ transcript, proseChunks, khutbahType, outDir }) {
   const numberedChunks = proseChunks.map((c, i) => `[${i + 1}] ${c.text}`).join('\n');
+  const restarts = restartNotes(findRestarts(proseChunks.map(c => c.text)), i => i + 1);
   const chunkInstruction = `\n\nThe transcript has been divided into ${proseChunks.length} prose chunks below ` +
     `(the verses the khatib recites are cut out and shown separately; Quranic words left inside a chunk are translated with it). ` +
     `Using your full understanding of the whole khutbah for context, translate each numbered chunk into natural, ` +
     `fluent English. Return these as "chunk_translations": an object with one key for every chunk number, ` +
-    `"1" to "${proseChunks.length}", each holding that chunk's English only.\n\n${numberedChunks}`;
+    `"1" to "${proseChunks.length}", each holding that chunk's English only.\n\n${numberedChunks}` +
+    (restarts ? `\n\n${restarts}` : '');
 
   let claudeRaw;
   try {
@@ -266,16 +268,16 @@ function findQuranRefs({ analysis, transcript, transcriptWords, quranZones }) {
 
 // Steps 7, 8c, 8d for hadith: Claude's references matched to the corpus, the ones a scan finds,
 // then sunnah.com links.
-async function findHadithRefs({ analysis, transcript }) {
+async function findHadithRefs({ analysis, transcript, quranZones }) {
   const hadithCorpus = loadHadithCorpus();
   const claudeHadithRefs = deduplicateHadithRefs(
     (analysis.hadith_references ?? []).map(ref => matchClaudeHadithRef(ref, hadithCorpus))
   );
 
-  // Step 8c: Scan for Hadith references
-  process.stdout.write('Scanning transcript for Hadith references...');
-  const hadithScanRefs = scanTranscriptForHadith(transcript, claudeHadithRefs, hadithCorpus);
-  console.log(` found ${hadithScanRefs.length} additional`);
+  // Step 8c: hadith the imam quotes without naming them (core/hadith.js)
+  process.stdout.write('Scanning transcript for Hadith the imam does not name...');
+  const hadithScanRefs = scanTranscriptForHadith(transcript, claudeHadithRefs, hadithCorpus, quranZones);
+  console.log(` found ${hadithScanRefs.length}`);
   const allHadithRefs = deduplicateHadithRefs([...claudeHadithRefs, ...hadithScanRefs]);
 
   // Step 8d: Replace corpus numbers/links with canonical sunnah.com permalinks
@@ -313,7 +315,7 @@ async function main() {
   const proseChunks = buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSegments);
   const analysis = await analyzeWithClaude({ transcript, proseChunks, khutbahType, outDir });
   const { quranRefs, scanRefs, allQuranRefs } = findQuranRefs({ analysis, transcript, transcriptWords, quranZones });
-  const { hadithScanRefs, allHadithRefs } = await findHadithRefs({ analysis, transcript });
+  const { hadithScanRefs, allHadithRefs } = await findHadithRefs({ analysis, transcript, quranZones });
 
   // Step 9: Assemble final output object
   const matchedCount = allQuranRefs.filter(r => r.matched).length;
@@ -335,8 +337,6 @@ async function main() {
     second_khutbah: secondKhutbah,
     quran_references: allQuranRefs,
     hadith_references: allHadithRefs,
-    // Corpus-scan finds, not shown (see deduplicateHadithRefs); kept for review.
-    hadith_scan_suggestions: hadithScanRefs,
     transcript_segments: transcriptSegments,
     transcript_words: transcriptWordTimes,
     metadata: {
@@ -367,7 +367,7 @@ async function main() {
   console.log(`✓ Transcription complete -- ${wordCount} words`);
   console.log('✓ Translation complete');
   console.log(`✓ ${allQuranRefs.length} Quranic references detected (${quranRefs.length} signal-phrase + ${scanRefs.length} scan), ${matchedCount} matched`);
-  console.log(`✓ ${allHadithRefs.length} Hadith references detected (${hadithScanRefs.length} more corpus-scan suggestions not shown)`);
+  console.log(`✓ ${allHadithRefs.length} Hadith references detected (${hadithScanRefs.length} the imam did not name)`);
   console.log(`✓ Results saved to outputs/${timestamp}_${audioBasename}/  (transcript.txt, result.json, readable.txt, reader.txt)`);
 }
 

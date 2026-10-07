@@ -293,6 +293,10 @@ Each is exported by its `core/` module and imported from there (`pipeline.js` no
 | 44 | Urdu عنہم for two Companions | Urdu prompts: عنہما |
 | 45 | English errors stayed on the page: the English review only flagged (2 Oct Makkah block 29, subject swapped) | `core/review_english.js` corrects, as the Urdu review does (shared loop `core/review_chunks.js`) |
 | 46 | English translated Islamic terms the Haramain's English keeps ("faith", "Satan") | `GLOSSED_TERMS`: Iman (faith), Taqwa, Shaytan (Satan) … glossed the first time, then alone |
+| 47 | "Dhikr" for الذكر الحكيم; Rasulullah kept by one prompt, translated by the other | One term list (+ Tawhid, Ihsan), `TERMS_SENSE`: a term only where the Arabic means it |
+| 48 | Restarts across a chunk edge translated twice (18 Sep) | `findRestarts` + `restartNotes` in the four chunk prompts |
+| 49 | Narrator guessed for a hadith sunnah.com has no page for | No narrator unless sunnah.com names it (`narrator_claude` kept) |
+| 50 | Hadith woven in without "قال رسول الله ﷺ" had no card | 4-gram `scanTranscriptForHadith` (replaces the Jaccard scan), liturgy filtered (`isLiturgicalPart`) |
 
 ---
 

@@ -44,3 +44,8 @@ test('a hadith in several collections links to Bukhari, then Muslim, unless the 
   assert.equal(pickSunnahResult(results, 'tirmidhi'), null);
   assert.equal(pickSunnahResult([{ slug: 'abudawud', number: '1', score: 1 }, { slug: 'bukhari', number: '2', score: 0.6 }]).slug, 'abudawud');
 });
+
+test('no narrator line on the page: none shown, never Claude\'s guess (18 Sep 2026 Madinah)', () => {
+  assert.equal(chooseNarrator(null, "Sa'd ibn Abi Waqqas"), null);
+  assert.equal(chooseNarrator({ narrator: null }, 'Abu Hurayrah'), null);
+});
