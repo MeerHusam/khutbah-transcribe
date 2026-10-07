@@ -796,13 +796,17 @@ const CITES_VERSE = /(^| )(قال|وقال|فقال|يقول|ويقول|تعال
 // as does a Quranic du'a run to the ayah's end ("ربنا آتنا في الدنيا حسنة …", 2:201).
 // ponytail: a heuristic; across 36 transcripts it drops these four and the same 6:151 du'a in
 // two May test runs, and no zone of a published page.
+// Inside a du'a ("اللهم" just before) the same holds at any length: "اللهم احفظهم من بين أيديهم ومن
+// خلفهم وعن أيمانهم وعن شمائلهم" (4 Sep 2026 Makkah, for Palestine) got a 7:17 card, Iblis's
+// words. A Quranic du'a he recites (opening ربنا / رب) stays a card.
 const BORROWED_MAX_WORDS = 6;
+const DUA_LEAD = /(^| )اللهم( |$)/;
 function dropBorrowedPhrases(zones, transcriptWords) {
   const index = getQuranNgramIndex();
   const deep = w => normalizeArabicDeep(w).split(' ').filter(Boolean);
   return zones.filter((z, k) => {
     const n = z.end - z.start;
-    if (n < MIN_ZONE_WORDS || n > BORROWED_MAX_WORDS || z.extra_ayahs?.length) return true;
+    if (n < MIN_ZONE_WORDS || z.extra_ayahs?.length) return true;
     const lead = transcriptWords.slice(Math.max(0, z.start - 6), z.start).map(w => normalizeArabic(w)).join(' ');
     if (CITES_VERSE.test(lead)) return true;
     if (k > 0 && z.start - zones[k - 1].end <= 3) return true; // the recitation goes on
@@ -811,6 +815,8 @@ function dropBorrowedPhrases(zones, transcriptWords) {
     if (!ayah.length || n >= ayah.length) return true;
     const bare = w => w?.replace(/^و/, '');
     if (bare(said[0]) === bare(ayah[0]) || said.at(-1) === ayah.at(-1)) return true;
+    if (DUA_LEAD.test(lead) && !/^و?(?:رب|ربنا)$/.test(normalizeArabic(transcriptWords[z.start]).replace(/[^\u0621-\u064A]/g, ''))) return false;
+    if (n > BORROWED_MAX_WORDS) return true;
     const stray = said.some(w => !ayah.includes(w));
     const grams = said.slice(0, -3).map((_, j) => new Set((index.get(said.slice(j, j + 4).join(' ')) ?? []).map(h => `${h.surah_id}:${h.ayah_id}`)));
     const common = grams.some(g => g.size) && grams.every(g => !g.size || g.size >= 2);

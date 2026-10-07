@@ -12,7 +12,7 @@
 import { readFileSync, existsSync } from 'fs';
 import { join, resolve } from 'path';
 import { pathToFileURL } from 'url';
-import { normalizeArabic, normalizeArabicDeep, splitsPhrase } from './arabic.js';
+import { normalizeArabic, normalizeArabicDeep, splitsPhrase, prescanForQuranZones, dropBorrowedPhrases } from './arabic.js';
 import { loadResult } from './reader_chunks.js';
 import { checkEnglish } from './check_english.js';
 import { LANGS } from './languages.js';
@@ -298,6 +298,18 @@ export function verifyReader(folder, { readerRaw: readerOverride = null, result:
     if (belong < 0.5) {
       fail(`ref labelled ${q.surah_number}:${q.ayah_number} but only ${Math.round(belong * 100)}% of its text is in that verse — "${q.detected_text.slice(0, 55)}"`);
     }
+  }
+
+  // A card on the imam's own words in Quranic wording: the zone dropBorrowedPhrases leaves to
+  // the prose (4 Sep 2026 Makkah: a 7:17 card, Iblis's words, inside his du'a for Palestine).
+  const rawWords = transcript.split(/\s+/).filter(Boolean);
+  const zones = prescanForQuranZones(rawWords), kept = new Set(dropBorrowedPhrases(zones, rawWords));
+  for (const z of zones.filter(z => !kept.has(z))) {
+    const said = normalizeArabicDeep(rawWords.slice(z.start, z.end).join(' '));
+    const card = (result.quran_references ?? []).find(q => q.matched && q.surah_number === z.surah_id
+      && q.ayah_number <= z.ayah_id && z.ayah_id <= (q.ayah_number_end ?? q.ayah_number)
+      && normalizeArabicDeep(q.detected_text ?? '').includes(said.split(' ').slice(0, 4).join(' ')));
+    if (card) fail(`a ${z.surah_id}:${z.ayah_id} card on the imam's own words in Quranic wording: "${rawWords.slice(Math.max(0, z.start - 2), z.end).join(' ').slice(0, 70)}"`);
   }
 
   for (const q of result.quran_references ?? []) {
