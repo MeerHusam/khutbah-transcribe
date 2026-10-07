@@ -158,6 +158,16 @@ export function droppedWords(ours, published) {
   return out;
 }
 
+// The published excerpt speaks as "I/me" where our rendering, following the imam, says
+// "we/us": 4 Sep 2026 Makkah, his du'a "وأن تغفر لنا" came out as Tirmidhi 3235's "and that You
+// forgive me". Returns the singular words the excerpt adds, or [].
+const SINGULAR = /\b(?:I|me|my|mine|myself)\b/g, PLURAL = /\b(?:we|us|our|ours|ourselves)\b/i;
+export function personShift(ours, published) {
+  if (!PLURAL.test(ours ?? '')) return [];
+  const have = new Set((ours ?? '').match(SINGULAR) ?? []);
+  return [...new Set((published ?? '').match(SINGULAR) ?? [])].filter(w => !have.has(w));
+}
+
 // Skeletons of every word of a text, for quoteProblems' claudeSkel.
 export const skeletonSet = text => new Set((text ?? '').split(/\s+/).map(skeleton).filter(Boolean));
 export { keys as englishKeys, verseText };
@@ -221,6 +231,8 @@ export function checkEnglish(blocks, result) {
       if (sw?.status !== 'published') continue;
       const lost = droppedWords(sw.ours, sw.published);
       if (lost.length) failures.push(`swapped ${kind} excerpt “${sw.published.slice(0, 60)}…” drops ${lost.map(w => `"${w}"`).join(', ')} from Claude's rendering`);
+      const shift = personShift(sw.ours, sw.published);
+      if (shift.length) failures.push(`swapped ${kind} excerpt “${sw.published.slice(0, 60)}…” says ${shift.map(w => `"${w}"`).join(', ')} where the imam said we/us`);
     }
   }
 
