@@ -16,6 +16,7 @@ import { loadResult } from '../core/reader_chunks.js';
 import { ROOT, DATA_DIR } from './config.js';
 import { listKhutbahs, publishKhutbah, seedIfEmpty } from './db.js';
 import { LANGS, langOf, forPage } from '../core/languages.js';
+import { quranEnglish } from '../core/quran_en.js';
 
 seedIfEmpty(JSON.parse(readFileSync(join(ROOT, 'server', 'khutbahs.seed.json'), 'utf8')));
 
@@ -99,6 +100,7 @@ function buildResult(k) {
   attachTts(k, result);
   // The languages the page can show besides English (core/languages.js), with what it needs for each.
   result.languages = LANGS.filter(L => (result.reader_chunks || []).some(c => c[L.field])).map(forPage);
+  result.quran_en_name = quranEnglish(result).name; // the label under the ayah cards' English
   result.title = k.title || '';
   result.speaker = k.speaker || '';
   result.masjid = k.masjid || '';

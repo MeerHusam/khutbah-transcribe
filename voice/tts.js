@@ -31,6 +31,7 @@ import { spawnSync } from 'child_process';
 import { loadResult } from '../core/reader_chunks.js';
 import { directions } from './voice_directions.js';
 import { LANGS, langOf } from '../core/languages.js';
+import { quranEnglish, spokenEnglish } from '../core/quran_en.js';
 import '../public/recited.js';
 
 const { recitedSpans } = globalThis.KTRecited;
@@ -70,9 +71,9 @@ if (!folder || !existsSync(join(folder, 'result.json')) || (lang !== 'en' && !L)
 }
 
 const quran = JSON.parse(readFileSync(join(ROOT, 'node_modules/quran-json/dist/quran.json'), 'utf8'));
-const quranEn = JSON.parse(readFileSync(join(ROOT, 'node_modules/quran-json/dist/quran_en.json'), 'utf8'));
 const verseAr = (s, a) => quran[s - 1]?.verses?.find(v => v.id === a)?.text ?? '';
-const verseEn = (s, a) => quranEn[s - 1]?.verses?.find(v => v.id === a)?.translation?.trim() ?? '';
+// The khutbah's English (core/quran_en.js), as the voice says it.
+const verseEn = (s, a) => spokenEnglish(quranEnglish(result).text(s, a), quranEnglish(result).id);
 // The language's verse translation the page shows (core/translate.js; core/langs/<code>.js).
 const verseTr = (s, a) => result[L.field]?.verses?.[`${s}:${a}`]?.trim() ?? '';
 const words = t => (t ?? '').split(/\s+/).filter(Boolean);
@@ -114,6 +115,7 @@ function cleanEnglish(text) {
   return text
     .replace(/[؀-ۿﭐ-﷿ﹰ-﻿][؀-ۿﭐ-﷿ﹰ-﻿\s]*/g, speakArabic)
     .replace(/[[\]]/g, '')             // Sahih International's added words are read as words
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').normalize('NFC') // Hilali & Khan's Allâh, Salât: plain letters
     .replace(/\s*[—–]\s*|\s+-\s+/g, ', ')
     .replace(/,(?=[A-Za-z])/g, ', ')
     .replace(/·/g, ' ')
@@ -155,7 +157,7 @@ function verseSpeech(chunk, s, a, e, excerpts) {
     for (let i = 0; i < nums.length; i++) {
       if (!spans[i]) continue;
       const v = ex.verses?.[nums[i]]; // only an excerpt made for these words
-      const t = whole[i] ? en[i] : String(v?.span) === String(spans[i]) && v[lang];
+      const t = whole[i] ? en[i] : String(v?.span) === String(spans[i]) && (L ? v[lang] : spokenEnglish(v[lang] ?? '', quranEnglish(result).id));
       if (!t) return joinVerses(en);
       out.push(t);
     }

@@ -24,6 +24,7 @@ import { KHUTBAH_TYPES, buildAnalysisPrompt, locateSecondKhutbah, splitChunkAtKh
 import { buildReadableOutput, buildReaderView } from './core/reader.js';
 import { preprocessAudio, transcribeWithGroq, transcribeWithGemini, SILENCE_PREPEND_SEC } from './core/transcribe.js';
 import { planQuoteSwaps } from './core/quote_swaps.js';
+import { QURAN_EN } from './core/quran_en.js';
 
 export const ANALYSIS_MODEL = 'claude-sonnet-5-5';
 
@@ -335,6 +336,7 @@ async function main() {
     chunk_translations: Array.isArray(analysis.chunk_translations) ? analysis.chunk_translations : null,
     prose_chunk_map: proseChunks.map(({ wordStart, wordEnd, proseIdx }) => ({ wordStart, wordEnd, proseIdx })),
     second_khutbah: secondKhutbah,
+    quran_en: QURAN_EN, // the English under the ayah cards (core/quran_en.js)
     quran_references: allQuranRefs,
     hadith_references: allHadithRefs,
     transcript_segments: transcriptSegments,

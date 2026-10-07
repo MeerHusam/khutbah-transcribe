@@ -24,6 +24,7 @@ import { readFileSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { buildReaderView, publishedVerseEnglish, applyQuoteSwaps } from './reader.js';
+import { quranEnglish } from './quran_en.js';
 import { cachedSunnahPage } from './hadith.js';
 import { quoteProblems, droppedWords, skeletonSet, englishKeys, verseText } from './check_english.js';
 
@@ -81,7 +82,7 @@ const trimQuotes = s => (s ?? '').trim().replace(/^["'‘“]+|["'’”]+$/g, '
 const countOf = (hay, needle) => { let n = 0, i = -1; while ((i = hay.indexOf(needle, i + 1)) >= 0) n++; return n; };
 
 // Where a ref's published English and Arabic come from.
-function sourceOf(kind, ref) {
+function sourceOf(kind, ref, result) {
   if (kind === 'hadith') {
     const m = (ref.link ?? '').match(/sunnah\.com\/([a-z]+):(\w+)/);
     return {
@@ -93,7 +94,7 @@ function sourceOf(kind, ref) {
   const end = ref.ayah_number_end ?? ref.ayah_number;
   let arabic = '';
   for (let a = ref.ayah_number; a <= end; a++) arabic += ' ' + verseText(ref.surah_number, a);
-  return { published: publishedVerseEnglish(ref), arabic: arabic.trim(), label: `Sahih International ${ref.surah_number}:${ref.ayah_number}${end !== ref.ayah_number ? '-' + end : ''}` };
+  return { published: publishedVerseEnglish(ref, result), arabic: arabic.trim(), label: `${quranEnglish(result).name} ${ref.surah_number}:${ref.ayah_number}${end !== ref.ayah_number ? '-' + end : ''}` };
 }
 
 // Decide from the model's answer whether the swap is safe; returns the english_swap record.
@@ -133,7 +134,7 @@ export async function planQuoteSwaps(transcript, result, { client = null, log = 
         if (seen.has(key)) continue;
         seen.add(key);
         const target = (kind === 'hadith' ? result.hadith_references : result.quran_references)[ref.refIndex];
-        const src = sourceOf(kind, ref);
+        const src = sourceOf(kind, ref, result);
         let swap, hash = null;
         if (!src.published) {
           swap = { status: 'ours', reason: 'no published English for this reference' };

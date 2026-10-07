@@ -20,7 +20,7 @@
 //
 // Usage: node core/translate.js outputs/<folder> --lang ur|bn [--batch 12] [--retranslate] [--chunks 13,14] [--dry-run]
 //   Block translations already in result.<field> are kept unless --retranslate (all) or --chunks
-//   (those); verses and hadith are always fetched again (free).
+//   (those); verses and hadith are always read again (free, from hadith_data/).
 
 import 'dotenv/config';
 import Anthropic from '@anthropic-ai/sdk';
@@ -128,59 +128,57 @@ for (let k = 0; k < todo.length;) {
 const missing = blocks.map((t, i) => (t ? null : i)).filter(i => i !== null);
 if (missing.length) { console.error(`✗ no ${L.name} for chunk(s) ${missing.join(', ')}; nothing written`); process.exit(1); }
 
-// ── Verses (the language's published translation) ────────────────────────────
-const getJson = async url => { const r = await fetch(url); if (!r.ok) throw new Error(`${r.status} ${url}`); return r.json(); };
-const verses = {};
+// ── Verses and hadith (the language's published translations) ────────────────
+// From the editions' files in hadith_data/ (scripts/setup_hadith.js), never the network: on
+// 7 Oct 2026 a moment's refusal from the CDN dropped an ayah and a hadith from a page. Whatever has
+// no translation goes in `gaps` with the reason, so the publish check can tell a gap the edition
+// really has from one this run made.
+const data = name => join('hadith_data', `${name}.json`);
+const local = name => {
+  if (!existsSync(data(name))) { console.error(`✗ ${data(name)} is missing: run node scripts/setup_hadith.js`); process.exit(1); }
+  return JSON.parse(readFileSync(data(name), 'utf8'));
+};
+const quranTr = new Map(local(`quran-${L.quran.edition}`).quran.map(v => [`${v.chapter}:${v.verse}`, v.text]));
+const verses = {}, gaps = {};
 for (const q of result.quran_references ?? []) {
   if (!q.matched) continue;
   for (let a = q.ayah_number; a <= (q.ayah_number_end ?? q.ayah_number); a++) {
     const key = `${q.surah_number}:${a}`;
-    if (verses[key]) continue;
-    try {
-      verses[key] = L.verseText((await getJson(`https://cdn.jsdelivr.net/gh/fawazahmed0/quran-api@1/editions/${L.quran.edition}/${q.surah_number}/${a}.json`)).text);
-    } catch (e) { console.log(`  ⚠ verse ${key}: ${e.message}`); }
+    if (quranTr.get(key)) verses[key] = L.verseText(quranTr.get(key));
+    else { gaps[key] = `not in ${L.quran.edition}`; console.log(`  ⚠ verse ${key}: ${gaps[key]}`); }
   }
 }
 
-// ── Hadith (fawazahmed0, found by Arabic text) ───────────────────────────────
-// Candidates come from the local ara-* corpus (same numbering as the other editions). A collection
-// that is not downloaded (Tirmidhi) is tried by number on the same CDN: the number and its
-// neighbours, since the two numberings rarely differ by much there.
+// Hadith: found by Arabic text in the local ara-* corpus (same numbering as the other editions),
+// then read from the language's edition of that collection.
 const pairs = t => { const w = normalizeArabic(t ?? '').split(/\s+/).filter(Boolean); return new Set(w.slice(1).map((x, i) => w[i] + ' ' + x)); };
 const overlap = (want, text) => { const have = pairs(text); return [...want].filter(p => have.has(p)).length / Math.max(want.size, 1); };
-const corpora = {};
+const corpora = {}, editions = {};
 const hadith = {};
 for (const h of result.hadith_references ?? []) {
   const m = (h.link ?? '').match(/sunnah\.com\/([a-z]+):(\d+)/);
   if (!m) continue;
   const [, slug, num] = m;
+  const key = `${slug}:${num}`;
+  const gap = why => { gaps[key] = why; console.log(`  ⚠ ${key}: ${why}`); };
+  // A collection setup_hadith.js does not download (Riyad as-Salihin, Ahmad …) has no edition here.
+  if (!existsSync(data(`ara-${slug}`))) { gap(`no ara-${slug} in hadith_data`); continue; }
+  corpora[slug] ??= local(`ara-${slug}`).hadiths;
+  // Candidates: the same number in either numbering; otherwise the whole collection.
   const want = pairs(h.published_arabic || h.detected_text);
+  let cands = corpora[slug].filter(x => String(x.hadithnumber) === num || String(x.arabicnumber ?? '').split('.')[0] === num);
+  if (!cands.length) cands = corpora[slug];
   let best = null;
-  if (existsSync(join('hadith_data', `ara-${slug}.json`))) {
-    corpora[slug] ??= JSON.parse(readFileSync(join('hadith_data', `ara-${slug}.json`), 'utf8')).hadiths;
-    // Candidates: the same number in either numbering; otherwise the whole collection.
-    let cands = corpora[slug].filter(x => String(x.hadithnumber) === num || String(x.arabicnumber ?? '').split('.')[0] === num);
-    if (!cands.length) cands = corpora[slug];
-    for (const c of cands) {
-      const score = overlap(want, c.text);
-      if (!best || score > best.score) best = { number: c.hadithnumber, score };
-    }
-  } else {
-    for (const n of [0, 1, -1, 2, -2, 3, -3].map(d => +num + d).filter(n => n > 0)) {
-      try {
-        const d = await getJson(`https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/ara-${slug}/${n}.json`);
-        const score = overlap(want, d.hadiths?.[0]?.text);
-        if (!best || score > best.score) best = { number: n, score };
-        if (score >= 0.5) break;
-      } catch { /* no such number */ }
-    }
+  for (const c of cands) {
+    const score = overlap(want, c.text);
+    if (!best || score > best.score) best = { number: c.hadithnumber, score };
   }
-  if (!best || best.score < 0.5) { console.log(`  ⚠ ${slug}:${num}: no Arabic match (${best?.score.toFixed(2)})`); continue; }
-  try {
-    const d = await getJson(`https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions/${L.hadith.edition}-${slug}/${best.number}.json`);
-    const text = d.hadiths?.[0]?.text;
-    hadith[`${slug}:${num}`] = { text: text != null ? L.hadithText(text, best.number) : null, edition: `${L.hadith.edition}-${slug}`, number: best.number, match: +best.score.toFixed(2) };
-  } catch (e) { console.log(`  ⚠ ${slug}:${num}: ${e.message}`); }
+  if (!best || best.score < 0.5) { gap(`no Arabic match (${best?.score.toFixed(2)})`); continue; }
+  const edition = `${L.hadith.edition}-${slug}`;
+  editions[edition] ??= new Map(local(edition).hadiths.map(x => [String(x.hadithnumber), x.text]));
+  const text = editions[edition].get(String(best.number)) || null;
+  hadith[key] = { text: text != null ? L.hadithText(text, best.number) : null, edition, number: best.number, match: +best.score.toFixed(2) };
+  if (!text) gap(`${edition} has no text for ${best.number}`);
 }
 
 // ── In Short, Summary, narrator names, and each hadith without its chain ──────
@@ -245,7 +243,7 @@ if (!extras) {
     if (full && cut && full.includes(cut) && cut.length > 20) hadith[x.key].from_companion = cut;
   }
 }
-for (const [key, h] of Object.entries(hadith)) { // a re-fetch keeps the earlier cut when it still fits
+for (const [key, h] of Object.entries(hadith)) { // a re-read keeps the earlier cut when it still fits
   const old = result[F]?.hadith?.[key]?.from_companion;
   if (!h.from_companion && old && h.text?.includes(old)) h.from_companion = old;
   // The card shows the hadith only, not the notes an edition puts after it (core/langs/<code>.js).
@@ -268,7 +266,7 @@ result[F] = {
   chunk_translations: blocks,
   share_summary: extras.share_summary, summary: extras.summary, narrators: extras.narrators, surahs,
   verses, verse_source: L.quran,
-  hadith, hadith_source: `fawazahmed0/hadith-api (${L.hadith.edition}-*)`,
+  hadith, hadith_source: `fawazahmed0/hadith-api (${L.hadith.edition}-*)`, gaps,
   usage: { calls: usage.calls + (reuse ? prev.usage?.calls ?? 0 : 0),
     input_tokens: usage.input_tokens + (reuse ? prev.usage?.input_tokens ?? 0 : 0),
     output_tokens: usage.output_tokens + (reuse ? prev.usage?.output_tokens ?? 0 : 0),

@@ -1174,7 +1174,7 @@
       const s = q.surah_number, a = q.ayah_number || q.ayah;
       if (!s || !a) continue;
       try {
-        const r = await fetch(`/api/quran/${s}/${a}`);
+        const r = await fetch(`/api/quran/${s}/${a}${result.quran_en ? `?en=${encodeURIComponent(result.quran_en)}` : ''}`);
         if (!r.ok) continue;
         const d = await r.json();
         if (!d.text) continue;
@@ -1182,7 +1182,7 @@
         if (el) { el.textContent = `﴿${d.text}﴾`; el.classList.add('ref-arabic-full'); }
         const en = document.querySelector(`.ref-english[data-ref-en="${i}"]`);
         if (en && d.translation) {
-          en.innerHTML = `${escHtml(d.translation)} <span class="ref-en-source">Sahih International</span>`;
+          en.innerHTML = `${escHtml(d.translation)} <span class="ref-en-source">${escHtml(d.source || 'Sahih International')}</span>`;
           en.hidden = false;
           let after = en;
           for (const L of TR) {
@@ -1210,13 +1210,14 @@
       // it with the full verse.
       const recitedText = el.textContent;
       try {
-        const arTexts = [];
+        const arTexts = [], ownEn = [];
         for (const n of ayahNums) {
-          const arRes = await fetch(`/api/quran/${s}/${n}`);
+          const arRes = await fetch(`/api/quran/${s}/${n}${result.quran_en ? `?en=${encodeURIComponent(result.quran_en)}` : ''}`);
           if (!arRes.ok) break;
           const arData = await arRes.json();
           if (!arData.text) break;
           arTexts.push(arData.text);
+          ownEn.push(arData.translation);
         }
         if (!arTexts.length) continue;
         // Close each verse with the mushaf end-of-ayah mark and its number in Arabic-Indic
@@ -1262,8 +1263,10 @@
         };
         const both = (part, full) => part ? `<span class="v-part">${part}</span><span class="v-full">${full}</span>` : full;
 
-        const enTexts = [];
-        for (const n of ayahNums) {
+        // A khutbah made with its own English (result.quran_en, from 7 Oct 2026: Hilali & Khan) gets it
+        // from the site; an older one keeps Sahih International from alquran.cloud, as it always had.
+        const enTexts = result.quran_en ? ownEn.filter(Boolean) : [];
+        if (!result.quran_en) for (const n of ayahNums) {
           const enRes = await fetch(`https://api.alquran.cloud/v1/ayah/${s}:${n}/en.sahih`);
           if (!enRes.ok) break;
           const enData = await enRes.json();
@@ -1555,7 +1558,7 @@
         const ref = label.slice(label.lastIndexOf(' ') + 1);
         const shown = ur && ur.surahs && ur.surahs[s] ? `${ur.surahs[s]} ${L.localBadgeDigits ? localNum(ref, L) : ref}` : label;
         return `<a class="chunk-quran-cite" href="${escAttr(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">۞ <strong>${escHtml(shown)}</strong> ↗</a>`
-          + (!ur && q && q.english_swap.status === 'ours' ? oursLabel('Sahih International') : '');
+          + (!ur && q && q.english_swap.status === 'ours' ? oursLabel(result.quran_en_name || 'Sahih International') : '');
       } else if (hadithTransMatch) {
         return `<div class="chunk-hadith-trans">${escHtml(hadithTransMatch[1])}</div>`;
       } else if (hadithMatch) {

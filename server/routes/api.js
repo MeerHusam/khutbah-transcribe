@@ -5,13 +5,12 @@ import { readFileSync, appendFileSync } from 'fs';
 import { join } from 'path';
 import { ROOT, FEEDBACK_FILE, ENGAGE_FILE } from '../config.js';
 import { catalog, TTS_LANGS, entryForFolder, getList, getResult, getWords, ttsPath } from '../khutbahs.js';
+import { quranEnglish } from '../../core/quran_en.js';
 
 const router = express.Router();
 
 // Load Quran data once at startup
 const quranData = JSON.parse(readFileSync(join(ROOT, 'node_modules/quran-json/dist/quran.json'), 'utf8'));
-// Sahih International, the same translation the pipeline swaps into quoted verses.
-const quranEn = JSON.parse(readFileSync(join(ROOT, 'node_modules/quran-json/dist/quran_en.json'), 'utf8'));
 
 // Word times for the page: a voice track's (align_words.py) or the imam's (align_imam.js).
 const sendWords = (res, folder, file) => {
@@ -62,8 +61,9 @@ router.get('/api/quran/:surah/:ayah', (req, res) => {
   if (!surah) return res.status(404).json({ error: 'Not found' });
   const verse = surah.verses.find(v => v.id === a);
   if (!verse) return res.status(404).json({ error: 'Not found' });
-  const translation = quranEn[s - 1]?.verses.find(v => v.id === a)?.translation?.trim() || '';
-  res.json({ surah: s, ayah: a, surah_name: surah.name, text: verse.text, translation });
+  // ?en=: the khutbah's English (result.quran_en, core/quran_en.js); Sahih International without it.
+  const en = quranEnglish({ quran_en: req.query.en });
+  res.json({ surah: s, ayah: a, surah_name: surah.name, text: verse.text, translation: en.text(s, a), source: en.name });
 });
 
 // Feedback: visitors submit via the box on the page; entries are appended as one JSON object
