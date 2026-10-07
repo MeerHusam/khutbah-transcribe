@@ -185,6 +185,8 @@
       font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
       color: var(--gold); margin-bottom: 20px;
     }
+    /* The cards are centered (each at most 420px), so the label, search and masjid buttons above them are too. */
+    .khutbahs-section > .section-label, .no-match { text-align: center; }
     .khutbahs-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(320px, 420px));
@@ -193,7 +195,7 @@
     }
     /* Search: filters the cards already on the page as you type (title, imam, masjid, date, In Short). */
     .khutbah-search {
-      width: 100%; max-width: 420px; margin: 0 0 14px; padding: 10px 16px;
+      display: block; width: 100%; max-width: 420px; margin: 0 auto 14px; padding: 10px 16px;
       font: 400 15px var(--font-ui); color: var(--cream); background: var(--surface);
       border: 1px solid var(--border-soft); border-radius: 99px;
     }
@@ -201,7 +203,7 @@
     .khutbah-search:focus { outline: none; border-color: var(--gold); }
     .no-match { color: var(--text-dim); font-size: 15px; padding: 20px 0; }
     /* One button per masjid (with its count) above the cards; shown once there are two masjids. */
-    .masjid-filter { display: flex; flex-wrap: wrap; gap: 8px; margin: -6px 0 22px; }
+    .masjid-filter { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: -6px 0 22px; }
     .masjid-filter:empty { display: none; }
     .masjid-filter button {
       font: 500 13px var(--font-ui); color: var(--text-muted); cursor: pointer;
