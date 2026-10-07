@@ -269,6 +269,13 @@ export function checkEnglish(blocks, result) {
     if (normalizeArabic(b.arabic ?? '').includes('الذكر الحكيم') && /\bDhikr\b/.test(prose)) {
       failures.push(`"Dhikr" for الذكر الحكيم (the Qur'an, "the Wise Reminder"): "${prose.slice(0, 80)}…"`);
     }
+    // أئمتنا, إمامنا beside ولاة أمورنا, ولي أمرنا are the rulers: "set right our imams" (4 Sep 2026
+    // Makkah), "our imam" for the King (Sudais).
+    const ar = normalizeArabic(b.arabic ?? '');
+    const imam = prose.match(/[^.]*\bimams?\b[^.]*/i);
+    if (imam && /ائمتنا|الائمة|الائمه|امامنا/.test(ar) && /ولاة|ولاه|ولي امر/.test(ar)) {
+      failures.push(`"imam(s)" for the rulers (أئمتنا, إمامنا beside ولاة أمورنا): "${imam[0].trim().slice(0, 90)}"`);
+    }
     if (/\bRasulullah\b/.test(prose)) rasulullah++;
 
     // 7. A restart translated twice (18 Sep 2026): where the imam restarted (findRestarts, in

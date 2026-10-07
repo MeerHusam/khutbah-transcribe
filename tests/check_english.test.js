@@ -11,3 +11,15 @@ test('a published excerpt saying "me" where the imam said "us" is caught (4 Sep 
   assert.deepEqual(personShift('O Allah, forgive me', 'O Allah, forgive me'), []);
   assert.deepEqual(personShift('Take what is lawful', 'I take what is lawful'), []);
 });
+
+test('"imams" for أئمتنا beside ولاة أمورنا fails; "leaders" passes (4 Sep 2026 Makkah)', async () => {
+  const { checkEnglish } = await import('../core/check_english.js');
+  const block = english => [{ arabic: 'اللهم آمنا في أوطاننا، وأصلح أئمتنا وولاة أمورنا', englishParas: [english] }];
+  const fails = english => checkEnglish(block(english), { chunk_translations: [] }).failures.filter(f => f.includes('imam(s)'));
+  assert.equal(fails('O Allah, set right our imams and those in authority').length, 1);
+  assert.equal(fails('O Allah, set right our leaders and those in authority').length, 0);
+  // The King, «وأيد بالحق إمامنا وولي أمرنا» (Sudais).
+  const king = english => checkEnglish([{ arabic: 'وأيد بالحق إمامنا وولي أمرنا', englishParas: [english] }], { chunk_translations: [] }).failures.length;
+  assert.equal(king('Support with the truth our imam and guardian'), 1);
+  assert.equal(king('Support with the truth our leader and guardian'), 0);
+});

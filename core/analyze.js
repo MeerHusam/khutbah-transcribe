@@ -31,8 +31,10 @@ const GLOSSED_TERMS = 'Iman (faith), Taqwa (mindfulness of Allah), Kufr (disbeli
   + 'Shaytan (Satan), Jannah (Paradise), Jahannam (Hellfire), Dhikr (remembrance of Allah), Awliya (allies of Allah), '
   + 'Ummah (the Muslim community), Tawhid (the Oneness of Allah), Ihsan (excellence in worship)';
 // A kept term stands only for that Arabic word in that sense: الذكر الحكيم (the Qur'an) was
-// rendered "Dhikr (remembrance of Allah)" (18 Sep 2026 Madinah).
-const TERMS_SENSE = 'Use a kept term only where the Arabic has that word in that sense: «الذكر الحكيم» is "the Wise Reminder" (the Qur\'an), never Dhikr.';
+// rendered "Dhikr (remembrance of Allah)" (18 Sep 2026 Madinah). أئمتنا in the du'a for those in
+// authority are the rulers, as the Urdu prompt already said: "set right our imams" (4 Sep Makkah).
+const TERMS_SENSE = 'Use a kept term only where the Arabic has that word in that sense: «الذكر الحكيم» is "the Wise Reminder" (the Qur\'an), never Dhikr. '
+  + '«أئمتنا» / «الأئمة» / «إمامنا» in a du\'a for those in authority («أصلح أئمتنا وولاة أمورنا», «وأيد بالحق إمامنا وولي أمرنا») are the rulers: "our leaders", "our leader", never "imam(s)", which a reader hears as prayer leaders.';
 
 const ANALYSIS_PROMPT_TEMPLATE = `You are an Islamic scholar assistant processing {{KHUTBAH_DESC}}.
 
