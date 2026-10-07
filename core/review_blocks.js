@@ -16,6 +16,7 @@ import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { parseReaderBlocks } from './verify_reader.js';
 import { publishedVerseEnglish } from './reader.js';
+import { quranEnglish } from './quran_en.js';
 
 const MODEL = 'claude-sonnet-5-5';
 const PRICE_IN = 2 / 1e6, PRICE_OUT = 10 / 1e6; // USD per token, claude-sonnet-5-5
@@ -50,7 +51,7 @@ function describe(b, i) {
       const ref = { surah_number: +s, ayah_number: +a, ayah_number_end: e ? +e : undefined };
       let ar = '';
       for (let k = +a; k <= +(e ?? a); k++) ar += ' ' + verseAr(+s, k);
-      cards.push(`${mark === '📖' ? 'Verse card (the block IS the recitation; the page shows the verse text below instead of the imam\'s words)' : 'Inline verse badge (a verse quoted inside the imam\'s sentence)'}: ${name} ${s}:${a}${e ? '-' + e : ''}\n  Verse Arabic: ${ar.trim()}\n  Sahih International: ${publishedVerseEnglish(ref)}`);
+      cards.push(`${mark === '📖' ? 'Verse card (the block IS the recitation; the page shows the verse text below instead of the imam\'s words)' : 'Inline verse badge (a verse quoted inside the imam\'s sentence)'}: ${name} ${s}:${a}${e ? '-' + e : ''}\n  Verse Arabic: ${ar.trim()}\n  ${quranEnglish(result).name}: ${publishedVerseEnglish(ref, result)}`);
       continue;
     }
     const h = p.match(hadithRe);
@@ -77,7 +78,7 @@ Flag only real problems a careful bilingual scholar would correct:
 - mistranslation: English that says something different from the Arabic.
 - wrong_card: a verse card or badge whose verse is not what the imam recited or quoted there; a hadith badge whose hadith does not match the imam's quoted words, or whose narrator/collection contradicts what the imam said.
 - broken_quote: a quotation that reads wrongly in its sentence (doubled "said", cut mid-sentence, framing inside the quote).
-The transcript may contain speech-recognition slips; do not flag those unless the English follows a slip into a wrong meaning. Verse cards replace the imam's words with the canonical verse on the page, so a card block's English is the Sahih International translation, not a translation of the block. Judge meaning, not wording. When in doubt, do not flag. Most blocks have no problem: an empty list is the usual answer.`;
+The transcript may contain speech-recognition slips; do not flag those unless the English follows a slip into a wrong meaning. Verse cards replace the imam's words with the canonical verse on the page, so a card block's English is the published translation, not a translation of the block. Judge meaning, not wording. When in doubt, do not flag. Most blocks have no problem: an empty list is the usual answer.`;
 
 const SCHEMA = {
   type: 'object',

@@ -28,6 +28,8 @@ services:
         - server/admin/**
         - public/**
         - core/reader_chunks.js
+        - core/quran_en.js
+        - core/quran_en_hilali_khan.json
         - core/languages.js
         - core/langs/**
         - package.json

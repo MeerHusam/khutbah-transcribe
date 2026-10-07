@@ -2,6 +2,7 @@
 // renders, and readable.txt.
 
 import { createRequire } from 'module';
+import { quranEnglish } from './quran_en.js';
 import { quranData, normalizeArabicDeep, normalizeArabic, prescanForQuranZones, MIN_ZONE_WORDS, CITES_VERSE } from './arabic.js';
 
 const require = createRequire(import.meta.url);
@@ -29,19 +30,18 @@ function pushQuranBadge(lines, ref, inline = false) {
 }
 
 // The English of a verse quoted inside the imam's prose should be the published translation,
-// the same one the verse cards show (Sahih International), and a hadith's the sunnah.com
+// the same one the verse cards show (core/quran_en.js), and a hadith's the sunnah.com
 // one, not Claude's rendering of them. Matching Claude's English against the published
 // English by word overlap put the wrong clause in (Ashura for Arafah in Muslim 1162a) and
 // clauses the imam never said (Laylat al-Qadr in Nasa'i 2202), so the swap is now planned
 // ahead by quote_swaps.js: it stores on each ref the exact text of Claude's rendering and
 // the exact published excerpt that says the same thing (`english_swap`), or why no
 // excerpt does. Rendering only replaces one exact string with the other.
-let _quranEn = null;
-function publishedVerseEnglish(ref) {
-  try { _quranEn ??= require('quran-json/dist/quran_en.json'); } catch { return ''; }
-  const verses = _quranEn[(ref.surah_number ?? 0) - 1]?.verses ?? [];
-  const end = ref.ayah_number_end ?? ref.ayah_number;
-  return verses.filter(v => v.id >= ref.ayah_number && v.id <= end).map(v => v.translation).join(' ');
+function publishedVerseEnglish(ref, result) {
+  const en = quranEnglish(result);
+  const out = [];
+  for (let a = ref.ayah_number; a <= (ref.ayah_number_end ?? ref.ayah_number); a++) out.push(en.text(ref.surah_number, a));
+  return out.filter(Boolean).join(' ');
 }
 
 // Put each ref's planned published excerpt in place of Claude's rendering: “excerpt”, with

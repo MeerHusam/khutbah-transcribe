@@ -105,7 +105,7 @@ export async function planVerseExcerpts(result, readerRaw, { log = console.log }
       recited: words(c.texts[i]).slice(f, l + 1).join(' '),
       share: (l - f + 1) / c.lens[i],
       at: [f / c.lens[i], (l + 1) / c.lens[i]],
-      en: publishedVerseEnglish({ surah_number: c.s, ayah_number: n }),
+      en: publishedVerseEnglish({ surah_number: c.s, ayah_number: n }, result),
       ...Object.fromEntries(langs.map(L => [L.code, result[L.field].verses[`${c.s}:${n}`] ?? ''])),
     });
   });

@@ -179,7 +179,7 @@ export function checkEnglish(blocks, result) {
   }
   for (const q of result.quran_references ?? []) {
     if (!q.matched) continue;
-    const text = publishedVerseEnglish(q);
+    const text = publishedVerseEnglish(q, result);
     if (!text) continue;
     const end = q.ayah_number_end ?? q.ayah_number;
     let ar = '';
