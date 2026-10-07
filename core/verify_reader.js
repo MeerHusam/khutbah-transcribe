@@ -377,6 +377,22 @@ export function verifyReader(folder, { readerRaw: readerOverride = null, result:
       if (!existsSync(join(folder, `reader_${L.code}.txt`))) continue;
       const without = rc.map((c, i) => (c[L.field] ? null : i)).filter(i => i !== null);
       if (without.length) warn(`${without.length} block(s) have no ${L.name}: ${without.slice(0, 10).join(', ')}`);
+      // Every ayah and hadith card has its text in the language, unless the edition itself lacks
+      // it: translate.js lists those in gaps with the reason (7 Oct 2026: a CDN refusal dropped two
+      // and nothing noticed). A run from before gaps existed is only warned about.
+      const tr = result[L.field] ?? {};
+      const missing = (key, has) => {
+        if (has) return;
+        const why = tr.gaps?.[key];
+        (why || !tr.gaps ? warn : fail)(`${L.name}: the ${key} card has no translation${why ? ` (${why})` : ''}`);
+      };
+      for (const q of (result.quran_references ?? []).filter(q => q.matched)) {
+        for (let a = q.ayah_number; a <= (q.ayah_number_end ?? q.ayah_number); a++) missing(`${q.surah_number}:${a}`, tr.verses?.[`${q.surah_number}:${a}`]);
+      }
+      for (const h of result.hadith_references ?? []) {
+        const m = (h.link ?? '').match(/sunnah\.com\/([a-z]+):(\d+)/);
+        if (m) missing(`${m[1]}:${m[2]}`, tr.hadith?.[`${m[1]}:${m[2]}`]?.text);
+      }
       if (!L.checks) continue;
       const prose = rc.map((c, i) => [i, (c[L.field] ?? '').split(/\n\n+/).filter(p => !/^\s*[📖📑📚❝]/u.test(p)).join(' ')]);
       const flag = (what, re) => {

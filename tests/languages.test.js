@@ -43,3 +43,16 @@ test('Bengali clean-up: footnote marks, Assamese ra, a hadith edition\'s notes',
   assert.ok(bn.hadithText('وَقَالَ عُقْبَةُ بْنُ عَامِرٍ ‘উকবাহ ইবনু আমির (রাঃ) বলেন, … শিখে নাও। ৬৭২৪. আবূ হুরাইরাহ (রাঃ) হতে বর্ণিত। তিনি বলেন, রাসূলুল্লাহ্ সাল্লাল্লাহু আলাইহি ওয়াসাল্লাম বলেছেনঃ', 6724)
     .startsWith('আবূ হুরাইরাহ (রাঃ) হতে বর্ণিত।'));
 });
+
+// 7 Oct 2026: a CDN refusal dropped an ayah from a page and the publish check passed.
+test('a card without its translation fails the check, unless the edition lacks it', async () => {
+  const { verifyReader } = await import('../core/verify_reader.js');
+  const { readFileSync } = await import('node:fs');
+  const folder = new URL('./fixture/', import.meta.url).pathname;
+  const result = JSON.parse(readFileSync(folder + 'result.json', 'utf8'));
+  const key = Object.keys(result.urdu.verses)[0];
+  delete result.urdu.verses[key];
+  const run = gaps => verifyReader(folder, { result: { ...result, urdu: { ...result.urdu, gaps } } });
+  assert.ok(run({}).failures.some(f => f.includes(`the ${key} card has no translation`)));
+  assert.ok(!run({ [key]: 'not in the edition' }).failures.some(f => f.includes(key)));
+});
