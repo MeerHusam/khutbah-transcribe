@@ -298,6 +298,10 @@ Each is exported by its `core/` module and imported from there (`pipeline.js` no
 | 48 | Restarts across a chunk edge translated twice (18 Sep) | `findRestarts` + `restartNotes` in the four chunk prompts |
 | 49 | Narrator guessed for a hadith sunnah.com has no page for | No narrator unless sunnah.com names it (`narrator_claude` kept) |
 | 50 | Hadith woven in without "قال رسول الله ﷺ" had no card | 4-gram `scanTranscriptForHadith` (replaces the Jaccard scan), liturgy filtered (`isLiturgicalPart`) |
+| 51 | 7:17 card (Iblis's words) on the imam's du'a for Palestine | `dropBorrowedPhrases`: Quranic wording after "اللهم" stays prose at any length (not ربنا du'as) |
+| 52 | English "imams" for أئمتنا / إمامنا (the rulers) | `TERMS_SENSE` rule; `check_english` fails it |
+| 53 | Swapped hadith text said "forgive me" for the imam's "لنا" | `personShift`: swap refused, check fails |
+| 54 | Hadith carded under another collection than the imam named; "الدعاء هو العبادة" no card | `imamAttribution` before/after, no fallback off his collection, `findAttributedHadith`, `extractMatn` "عن النبي ﷺ قال" |
 
 ---
 

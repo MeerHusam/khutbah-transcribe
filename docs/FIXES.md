@@ -363,3 +363,31 @@ Full root-cause analyses and implementation notes for every fix. New fixes go he
 **Root cause:** only hadith the imam introduces ("قال رسول الله ﷺ") were carded; the corpus scan (a sliding Jaccard window) found woven-in ones, but its finds were wrong in all seven test khutbahs and never shown.
 
 **Fix:** `scanTranscriptForHadith` is now a 4-gram scan over the local collections, as the Quran pre-scan: runs of 4-grams shared with one hadith, 8+ matched words besides formula words, 4-grams in 150+ hadith skipped, outside Quran zones and the imam's own hadith, never the khutbah's liturgy (`isLiturgicalPart`). Across the 14 khutbahs on disk: 17 finds, all real (12 in Madinah 25 Sep); the pillars listed in the imam's own words (Arafah) are not a quotation. Tests: `tests/hadith_scan.test.js`.
+
+### 51. An ayah card on the imam's du'a (4 Sep 2026 Makkah)
+
+**Symptom:** "اللهم احفظهم من بين أيديهم ومن خلفهم وعن أيمانهم وعن شمائلهم ومن فوقهم…" (his du'a for Palestine, the Prophet's morning du'a for protection) got a 7:17 card: Iblis's words.
+
+**Root cause:** `dropBorrowedPhrases` (fix 40) leaves only 5–6-word zones to the prose; this one is 9 words, found by the 4-gram scan alone.
+
+**Fix:** inside a du'a ("اللهم" in the 6 words before) a zone of any length that neither starts nor ends where its ayah does is the imam's wording, unless it opens with ربنا / رب (a Quranic du'a he recites). Across the 81 transcripts on the Mac it drops that zone only. `verify_reader` fails a card on a zone the filter drops.
+
+### 52. "imams" for the rulers in English (4 Sep 2026 Makkah; Sudais, Makkah 25 Sep)
+
+**Symptom:** "set right our imams and those in authority" (أصلح أئمتنا وولاة أمورنا), "grant success to our imam and guardian, the Custodian of the Two Holy Mosques" (إمامنا وولي أمرنا): a reader hears prayer leaders.
+
+**Fix:** `TERMS_SENSE` (analysis and English review) has the rule the Urdu prompt got in fix 37. `check_english.js` fails "imam(s)" in a block whose Arabic has أئمتنا / إمامنا beside ولاة / ولي أمر. Sudais's and Makkah 25 Sep's published pages have it; they need reprocessing.
+
+### 53. A published hadith text turned the imam's "us" into "me" (4 Sep 2026 Makkah)
+
+**Symptom:** his du'a "وأن تغفر لنا وترحمنا" showed Tirmidhi 3235's published English, "and that You forgive me".
+
+**Fix:** `personShift` (check_english.js): a swap whose excerpt says I/me/my where our rendering says we/us is refused (`quote_swaps.js`) and fails the publish check.
+
+### 54. Hadith cards against the imam's own attribution (4 Sep 2026 Makkah)
+
+**Symptoms:** the birds hadith ("أخرجه الترمذي" after it) carded as Ibn Majah 4164; "اللهم بارك لأمتي في بكورها" ("الحديث الذي أخرجه الترمذي … عن صخر الغامدي … أنه قال") as Abu Dawud 2606; "الدعاء هو العبادة. أخرجه أبو داود والترمذي وابن ماجه" with no card.
+
+**Root causes:** `imamAttribution` read a collection only after the hadith; when sunnah.com's search did not return the hadith in the named collection (Tirmidhi's wording differs), the code fell back to Claude's collection; `deduplicateHadithRefs` drops a matn under 4 words; and `extractMatn` had no pattern for "عن النبي ﷺ قال", so 918 corpus matns were cut at a later قال (Abu Dawud 1479's was the ayah it quotes).
+
+**Fix:** the name is read before the hadith too, when the chain ("عن …") follows it with no sentence end between; once the imam named a collection, a missed search takes the number from our copy of that collection (`imam_collection`), never another; a short hadith he attributes is kept; `findAttributedHadith` cards a quote between "قال رسول الله ﷺ" and "رواه / أخرجه <collection>" when that collection has those words; `extractMatn` reads "عن النبي ﷺ قال". `verify_reader` fails a card naming another collection than his, and an attributed quote with no card. With the matn fix the scan also finds Tirmidhi 3246 and 2538 on Madinah 25 Sep.
