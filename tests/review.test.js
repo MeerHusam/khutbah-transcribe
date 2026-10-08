@@ -2,7 +2,7 @@
 // what it applies, what it only logs, and that a corrected chunk is read again. Free, no model call.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { reviewRequest, reviewChunks } from '../core/review_chunks.js';
+import { reviewRequest, reviewChunks, removesNeighbourText } from '../core/review_chunks.js';
 
 test('high and medium issues are applied, low ones and wild rewrites only logged; a correction is read again', async () => {
   const texts = ['one two three', 'four five six', 'seven eight nine', 'ten eleven twelve'];
@@ -28,4 +28,15 @@ test('high and medium issues are applied, low ones and wild rewrites only logged
   assert.deepEqual(log.map(l => [l.chunk, l.applied]), [[0, true], [1, false], [2, false]]);
   assert.match(log[2].not_applied_because, /length ratio/);
   assert.deepEqual(asked, ['Review chunks 0, 1, 2, 3.', 'Review chunks 0.']);
+});
+
+// 11 Sep 2026 Madinah: chunk 12's English carried chunk 13's ayah and hadith; the review's fix took
+// them out (35% of the length) and was refused as a wild rewrite.
+test('a correction that only takes out the next chunk\'s words is applied, however much shorter', () => {
+  const c12 = "Every cheating in a business dealing or otherwise is a denial of people's rights and an injustice that the Truth, glorified be He, does not accept. The Exalted said: \"Woe to those who give less than due,\" and the Prophet, peace and blessings be upon him, said: \"There is no servant whom Allah has placed in charge of a people, who then does not protect them with sincere care, except that he will not smell the fragrance of Paradise.\"";
+  const c13 = "The Exalted said: \"Woe to those who give less than due,\" and the Prophet said: \"There is no servant whom Allah has placed in charge of a people, who then does not protect them with sincere care, except that he will not smell the fragrance of Paradise.\"";
+  const fixed = "Every act of cheating, in trade or anything else, shortchanges people's rights and is an injustice that the Truth, glorified be He, does not accept.";
+  assert.equal(removesNeighbourText(c12, fixed, ['Those who commit this.', c13]), true);
+  // A short rewrite that drops the chunk's own meaning is still refused.
+  assert.equal(removesNeighbourText(c12, 'Cheating is bad.', ['Those who commit this.', 'Something else entirely here now.']), false);
 });

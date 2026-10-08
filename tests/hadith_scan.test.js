@@ -32,7 +32,7 @@ test('a hadith the imam introduced is not found twice, nor one inside a verse', 
 
 // 4 Sep 2026 Makkah: the collection the imam names, before or after the hadith, and a short hadith
 // he attributes aloud.
-import { imamAttribution, findAttributedHadith, deduplicateHadithRefs } from '../core/hadith.js';
+import { imamAttribution, imamCompanion, companionOnChain, findAttributedHadith, deduplicateHadithRefs } from '../core/hadith.js';
 const BIRDS = 'كما قال رسول الهدى صلوات الله وسلامه عليه: لو توكلتم على الله حق توكله لرزقكم كما يرزق الطير تغدو خماصاً وتروح بطاناً. أخرجه الترمذي في جامعه بإسناد صحيح.';
 const UMMAH = 'التبكير في طلبه، وذلك في الحديث الذي أخرجه الترمذي في جامعه بإسناد صحيح عن صخر الغامدي رضي الله عنه عن رسول الله صلى الله عليه وسلم أنه قال: اللهم بارك لأمتي في بكورها. وكان صخر رجلاً تاجراً';
 const DUA = 'سيدخلون جهنم داخرين. وقال رسول الله صلى الله عليه وسلم: الدعاء هو العبادة. أخرجه أبو داود والترمذي وابن ماجه بسند صحيح. والدعاء مقام جامع';
@@ -58,4 +58,16 @@ test('a short hadith the imam attributes aloud is carded and kept', { skip }, ()
   assert.deepEqual(found.map(h => `${h.collection} ${h.hadith_number} ${h.detected_text}`), ['Sunan Abu Dawud 1479 الدعاء هو العبادة']);
   assert.equal(deduplicateHadithRefs(found, DUA).length, 1);
   assert.equal(findAttributedHadith(DUA, found, corpus).length, 0); // already carded
+});
+
+// 11 Sep 2026 Madinah: "وقد صح عن جرير بن عبد الله رضي الله عنه … بايعنا رسول الله ﷺ على النصح لأهل الإسلام"
+// carded as Ibn 'Umar's Bukhari 7202. The Companion he names must be on the card's chain.
+test('the Companion the imam names before a hadith is on its card\'s chain', { skip }, () => {
+  const JARIR = 'متفق على صحته. وقد صح عن جرير بن عبد الله رضي الله عنه أنه كان إذا أقام سلعة بصر عيوبها ثم خير المشتري فقال له إن شئت فخذ وإن شئت فاترك. فقيل له يرحمك الله إنك إذا فعلت ذلك لم ينفذ لك البيع، فقال: بايعنا رسول الله صلى الله عليه وسلم على النصح لأهل الإسلام. إن كثيراً';
+  const said = 'بايعنا رسول الله صلى الله عليه وسلم على النصح لأهل الإسلام';
+  assert.equal(imamCompanion(JARIR, said), 'جرير');
+  assert.equal(companionOnChain(corpus, 'https://sunnah.com/bukhari:7202', 'جرير'), false);
+  assert.equal(companionOnChain(corpus, 'https://sunnah.com/nasai:4156', 'جرير'), true);
+  // A verse or another attributed hadith between the name and the quote: the name is not this one's.
+  assert.equal(imamCompanion('عن أبي هريرة رضي الله عنه قال النبي كذا رواه مسلم وقال صلى الله عليه وسلم ' + said, said), null);
 });

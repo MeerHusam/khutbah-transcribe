@@ -305,6 +305,9 @@ Each is exported by its `core/` module and imported from there (`pipeline.js` no
 | 54 | Hadith carded under another collection than the imam named; "الدعاء هو العبادة" no card | `imamAttribution` before/after, no fallback off his collection, `findAttributedHadith`, `extractMatn` "عن النبي ﷺ قال" |
 | 55 | "في مسند الإمام أحمد … قال ابن مسعود" not read; card kept another collection's number and link | `imamAttribution`: في + مسند/سنن/جامع/موطأ, chain "قال"; `imam_collection_unlinked` |
 | 56 | Narrator: the asker under his father's name (Muslim 770), "It is naratted…" shown whole | `parseSunnahNarrator`: "I asked X" → X; "naratted" |
+| 57 | Hadith card from another Companion than the one the imam named (Jarir → Ibn 'Umar's Bukhari 7202) | `imamCompanion`, corpus `full` text with chain, `companionOnChain`; gate fails it |
+| 58 | English said an ayah and a hadith twice (chunk folded into its neighbour) | swollen neighbour retranslated; review applies a fix that only removes a neighbour's words |
+| 59 | Lone "في" from a restart inside 2:204 became a chunk; its English was the translator's note | same-ayah zones ≤2 words apart merge; `translateChunk` no notes; gate fails a note |
 
 ---
 
