@@ -406,13 +406,54 @@ const sameName = (a, b) => { const B = nameKeys(b); return [...nameKeys(a)].some
 // "'Amr b. al-'As" → "amr ibn al-as": names compared without quote marks, with b./bin as ibn.
 const plainName = s => (s ?? '').toLowerCase().replace(/[`'’ʿʾ]/g, '').replace(/\b(?:b\.|bin)\s/g, 'ibn ').replace(/\s+/g, ' ').trim();
 
+// Where a person stands on a hadith's chain (the corpus `full` text, normalizeArabicDeep's: no alef or
+// hamza), compared by consonants across the two scripts: "Abu al-Darda" and أبي الدرداء are both d-r-d,
+// "Kathir ibn Qays" is k-t-r k-s as كثير بن قيس. Only the chain before the Prophet ﷺ is first named is
+// read; its transmission words (حدثنا, سمعت, عن …) are no one's name.
+const AR_SOUND = { 'ب': 'b', 'ت': 't', 'ث': 't', 'ج': 'j', 'ح': 'h', 'خ': 'x', 'د': 'd', 'ذ': 'z', 'ر': 'r', 'ز': 'z',
+  'س': 's', 'ش': 'c', 'ص': 's', 'ض': 'd', 'ط': 't', 'ظ': 'z', 'غ': 'g', 'ف': 'f', 'ق': 'k', 'ك': 'k', 'ل': 'l',
+  'م': 'm', 'ن': 'n', 'ه': 'h' };
+const consonants = s => s.replace(/(.)\1+/g, '$1').replace(/(.)h$/, '$1');
+const CHAIN_WORDS = new Set(['حدثن', 'حدثني', 'خبرن', 'خبرني', 'نبن', 'سمعت', 'سمع', 'قل', 'فقل', 'عن', 'ن', 'نه', 'بن',
+  'بي', 'بو', 'ب', 'م', 'بنت', 'عبد', 'لله', 'مع', 'عند', 'في', 'كنت', 'كن', 'يقول', 'يحدث', 'رجل', 'جل']);
+const PROPHET = /^[وفب]?ل{0,2}(?:رسول|نبي)$/;
+function chainNames(chain) {
+  const words = ` ${chain ?? ''} `.split(/\s+/).filter(Boolean);
+  const end = words.findIndex(w => PROPHET.test(w));
+  return words.slice(0, end < 0 ? 0 : end)
+    .map(w => CHAIN_WORDS.has(w) ? '' : consonants([...w].map(c => AR_SOUND[c] ?? '').join('')));
+}
+const nameSounds = name => (name ?? '').replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase().replace(/[^a-z\s-]/g, '')
+  .split(/[\s-]+/).filter(w => w && !NAME_STOP.has(w) && !/^ab[uio][a-z]?$/.test(w))
+  .map(w => consonants(w.replace(/th/g, 't').replace(/dh/g, 'z').replace(/kh/g, 'x').replace(/sh/g, 'c')
+    .replace(/gh/g, 'g').replace(/q/g, 'k').replace(/[aeiouyw]/g, '')))
+  .filter(k => k.length >= 2);
+// The last place on the chain (nearest the Prophet ﷺ) where the name stands; -1 when it is not there.
+function chainPlace(names, name) {
+  const sounds = nameSounds(name);
+  return names.findLastIndex(k => k && sounds.some(s => k === s || k === `l${s}`));
+}
+// Whether `name` stands on the chain nearer the Prophet ﷺ than every one of `others`, all found on it.
+function nearerOnChain(chain, name, others) {
+  if (!chain || !name || !others.length || others.some(o => sameName(name, o))) return false;
+  const names = chainNames(chain), at = chainPlace(names, name);
+  return at >= 0 && others.every(o => { const p = chainPlace(names, o); return p >= 0 && p < at; });
+}
+
 // No narrator line on the page: none at all, rather than Claude's guess (see resolveSunnahLinksForRefs).
-function chooseNarrator(page, claudeNarrator) {
+// chain: the hadith's text with its chain (the corpus `full`), when we have that hadith.
+function chooseNarrator(page, claudeNarrator, chain = null) {
   if (!page?.narrator) return null;
   // sunnah.com can name the father for the son: "'Amr b. al-'As reported" on Muslim 1054, whose
   // chain ends عن عبد الله بن عمرو (2 Oct 2026 Madinah). When Claude's narrator is
   // "<name> ibn <the page's name>", the page dropped the first name: Claude's is shown.
   if (claudeNarrator && plainName(claudeNarrator).endsWith(` ibn ${plainName(page.narrator)}`)) return claudeNarrator;
+  // The hadith is the Companion's who heard it from the Prophet ﷺ: the one nearest him on the chain.
+  // sunnah.com's narrator line can name an earlier link, the Successor who tells the story (Abu Dawud
+  // 3641 "Narrated Kathir ibn Qays: … I was sitting with AbudDarda'", the hadith Abu al-Darda's; 28 Aug
+  // 2026 Makkah). Claude's narrator is shown when the chain has him nearer the Prophet ﷺ than every name
+  // the page gives, whatever the page's wording.
+  if (nearerOnChain(chain, claudeNarrator, [page.narrator, page.successor ? page.companion : null].filter(Boolean))) return claudeNarrator;
   if (!page.successor) return page.narrator;
   if (claudeNarrator && sameName(claudeNarrator, page.companion)) return claudeNarrator;
   // Claude naming the Successor too is no reason to show him when the page names the Companion.
@@ -589,7 +630,8 @@ async function resolveSunnahLinksForRefs(refs, transcript = null, corpus = null)
       // own narrator is kept in narrator_claude, so a re-run still has it to compare with
       // after ref.narrator has been overwritten.
       if (!('narrator_claude' in ref)) ref.narrator_claude = ref.narrator ?? null;
-      ref.narrator = chooseNarrator(await fetchSunnahNarrator(sunnah.collection_slug, sunnah.hadith_number), ref.narrator_claude);
+      const chain = corpus?.find(h => h.link === sunnah.link)?.full ?? null;
+      ref.narrator = chooseNarrator(await fetchSunnahNarrator(sunnah.collection_slug, sunnah.hadith_number), ref.narrator_claude, chain);
       // Always prefer the published translation over Claude's paraphrase of the prose.
       const page = await fetchSunnahPage(sunnah.collection_slug, sunnah.hadith_number);
       if (page?.english) ref.translation = page.english;
@@ -908,6 +950,7 @@ export {
   isLiturgicalFormula,
   parseSunnahNarrator,
   chooseNarrator,
+  nearerOnChain,
   nameKeys,
   fetchSunnahPage,
   cachedSunnahPage,

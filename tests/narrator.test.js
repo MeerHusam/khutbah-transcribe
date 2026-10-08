@@ -57,3 +57,29 @@ test('"I asked X … she said": X is the narrator; a misspelled "naratted" heade
   assert.equal(shown('It is naratted on the authority of Abu Huraira that', 'He who observed prayer'), 'Abu Huraira');
   assert.equal(shown('Narrated Abu Huraira:', 'I asked the Prophet (ﷺ) about'), 'Abu Huraira');
 });
+
+// 28 Aug 2026 Makkah: Abu Dawud 3641's header names Kathir ibn Qays, who tells how he sat with Abu
+// al-Darda'; the hadith is Abu al-Darda's. Decided on the chain, not on the English's wording: the
+// one nearest the Prophet ﷺ on it heard him.
+test("the chain decides: Claude's narrator is shown when he stands nearer the Prophet ﷺ than the page's", async () => {
+  const { normalizeArabicDeep } = await import('../core/arabic.js');
+  const chainOf = ar => ` ${normalizeArabicDeep(ar)} `;
+  const d3641 = chainOf('حدثنا مسدد بن مسرهد حدثنا عبد الله بن داود سمعت عاصم بن رجاء بن حيوة يحدث عن داود بن جميل عن كثير بن قيس قال كنت جالسا مع أبي الدرداء في مسجد دمشق فجاءه رجل فقال يا أبا الدرداء إني جئتك من مدينة الرسول صلى الله عليه وسلم لحديث بلغني أنك تحدثه عن رسول الله صلى الله عليه وسلم قال فإني سمعت رسول الله صلى الله عليه وسلم يقول من سلك طريقا يطلب فيه علما');
+  const page = parseSunnahNarrator('Narrated Kathir ibn Qays:', "Kathir ibn Qays said: I was sitting with AbudDarda' in the mosque of Damascus.");
+  assert.equal(chooseNarrator(page, 'Abu al-Darda', d3641), 'Abu al-Darda');
+  assert.equal(chooseNarrator(page, "Abu ad-Darda'", d3641), "Abu ad-Darda'");
+  // Without the chain, as before.
+  assert.equal(chooseNarrator(page, 'Abu al-Darda'), 'Kathir ibn Qays');
+  // Claude naming an earlier link (a Successor), someone after the Prophet ﷺ is named, or someone off the
+  // chain: the page's narrator stays.
+  const nafi = chainOf('حدثنا قتيبة حدثنا الليث عن نافع عن ابن عمر أن رسول الله صلى الله عليه وسلم قال');
+  assert.equal(chooseNarrator(parseSunnahNarrator("Narrated Ibn 'Umar:"), "Nafi'", nafi), "Ibn 'Umar");
+  const anas = chainOf('حدثنا مسدد حدثنا يحيى عن شعبة عن قتادة عن أنس قال قال رسول الله صلى الله عليه وسلم لأبي بكر');
+  assert.equal(chooseNarrator(parseSunnahNarrator('Narrated Anas:'), 'Abu Bakr', anas), 'Anas');
+  assert.equal(chooseNarrator(parseSunnahNarrator('Narrated Abu Huraira:'), 'Abdullah ibn Umar', anas), 'Abu Huraira');
+  // The earlier English rules' cases come out the same on their chains (Bukhari 7324, Tirmidhi 2910).
+  const b7324 = chainOf('حدثنا سليمان بن حرب حدثنا حماد عن أيوب عن محمد قال كنا عند أبي هريرة وعليه ثوبان فتمخط فقال بخ بخ أبو هريرة لقد رأيتني وإني لأخر فيما بين منبر رسول الله صلى الله عليه وسلم');
+  assert.equal(chooseNarrator(parseSunnahNarrator('Narrated Muhammad:', 'We were with Abu Huraira'), 'Abu Hurairah', b7324), 'Abu Hurairah');
+  const t2910 = chainOf('حدثنا محمد بن بشار حدثنا أبو بكر الحنفي حدثنا الضحاك بن عثمان عن أيوب بن موسى قال سمعت محمد بن كعب القرظي يقول سمعت عبد الله بن مسعود يقول قال رسول الله صلى الله عليه وسلم');
+  assert.equal(chooseNarrator(parseSunnahNarrator("Narrated Muhammad bin Ka'b Al-Qurazi:", "I heard 'Abdullah bin Mas'ud saying"), "Abdullah ibn Mas'ud", t2910), "Abdullah ibn Mas'ud");
+});
