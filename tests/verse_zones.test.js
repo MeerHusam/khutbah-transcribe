@@ -90,3 +90,19 @@ test('look-alike ayaat: the real alef, then what follows, decides', async () => 
   assert.deepEqual(spans('قال له اذهب إلى فرعون إنه طغى قال رب اشرح لي صدري ويسر لي أمري'), ['20:24,20:25,20:26']);
   assert.deepEqual(spans('وقال اذهب إلى فرعون إنه طغى فقل هل لك إلى أن تزكى وأهديك إلى ربك فتخشى'), ['79:17,79:18,79:19']);
 });
+
+// 2 Oct 2026 Makkah, rebuilt 9 Oct: Claude and the matcher both named 69:12 for "إنا لما طغى الماء … وتعيها
+// أذن واعية", 69:11 and 69:12 recited together, and the range only went forward. The label steps back to the
+// ayah the recitation starts in; a passage that starts in the labelled ayah keeps it.
+test('two ayaat recited together are labelled from the first: 69:11-12, 33:70-71', async () => {
+  const { annotateRefAyahRange } = await import('../core/arabic.js');
+  const label = (s, a, text) => {
+    const r = annotateRefAyahRange({ matched: true, surah_number: s, ayah_number: a, quran_link: `https://quran.com/${s}/${a}`, detected_text: text });
+    return `${r.surah_number}:${r.ayah_number}${r.ayah_number_end ? '-' + r.ayah_number_end : ''} ${r.quran_link}`;
+  };
+  assert.equal(label(69, 12, 'إنا لما طغى الماء حملناكم في الجارية لنجعلها لكم تذكرة وتعيها أذن واعية'), '69:11-12 https://quran.com/69/11');
+  assert.equal(label(33, 71, 'يا أيها الذين آمنوا اتقوا الله وقولوا قولا سديدا يصلح لكم أعمالكم ويغفر لكم ذنوبكم ومن يطع الله ورسوله فقد فاز فوزا عظيما'),
+    '33:70-71 https://quran.com/33/70');
+  assert.equal(label(69, 12, 'لنجعلها لكم تذكرة وتعيها أذن واعية'), '69:12 https://quran.com/69/12');
+  assert.equal(label(69, 11, 'إنا لما طغى الماء حملناكم في الجارية'), '69:11 https://quran.com/69/11');
+});
