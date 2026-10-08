@@ -268,7 +268,9 @@ function scanTranscriptForQuran(transcript, alreadyFound, keepPositions = false)
 // Until 4 Oct 2026 only the hamza seats were handled: on 2 Oct (Makkah) the matches of 59:2,
 // 11:120 and 50:37 stopped short of يا أولي / وذكرى / ذلك, those words stayed in the prose sent to
 // Claude, and three blocks repeated them beside the cards; 25:62's card began a word late.
-const splitVocative = text => text.replace(/(^|\s)ي\u064E?\u0640?\u0670\u0653?(?=\S)/g, '$1يا ');
+// The mushaf's quarter-hizb mark "۞" sits against an ayah's first word ("۞يَـٰٓأَيُّهَا ٱلنَّاسُ", 35:15) and hid
+// its vocative from this: 4 Sep 2026 Makkah's "يا أيها" stayed in the prose before the 35:15 card.
+const splitVocative = text => text.replace(/\u06DE\s*/g, '').replace(/(^|\s)ي\u064E?\u0640?\u0670\u0653?(?=\S)/g, '$1يا ');
 const midWordAlefMaqsura = text => text.replace(/ى\u0670(?=[\u0653\u0654]?[\u0621-\u064A])/g, 'ا');
 function normalizeArabicDeep(text) {
   return normalizeArabic(midWordAlefMaqsura(splitVocative(text)))

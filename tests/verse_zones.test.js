@@ -64,3 +64,14 @@ test("the isti'adha stays in the prose: 17:21 starts at its first word", () => {
   assert.deepEqual(zoneAt('والمنعم عليه حقاً من يموت على الإيمان. أعوذ بالله من الشيطان الرجيم: انظر كيف فضلنا بعضهم على بعض وللآخرة أكبر درجات وأكبر تفضيلاً. بارك الله لي ولكم'),
     [['انظر', '17:21']]);
 });
+
+// 4 Sep 2026 Makkah: 35:15 is printed "۞يَـٰٓأَيُّهَا ٱلنَّاسُ", the quarter-hizb mark against its first word, and
+// the vocative was not split for it: "يا أيها" stayed in the prose before the card, and the English said
+// "O mankind," twice.
+test('a vocative behind the quarter-hizb mark is split like any other (35:15)', async () => {
+  const { normalizeArabicDeep, quranData, prescanForQuranZones } = await import('../core/arabic.js');
+  assert.deepEqual(normalizeArabicDeep(quranData[34].verses[14].text).split(' ').slice(0, 2), normalizeArabicDeep('يا أيها').split(' '));
+  const w = 'وهو الغني عنهم وهم الفقراء إليه كما قال سبحانه: يا أيها الناس أنتم الفقراء إلى الله والله هو الغني الحميد. وقال'.split(' ');
+  const z = prescanForQuranZones(w).find(z => z.surah_id === 35 && z.ayah_id === 15);
+  assert.equal(w[z.start], 'يا');
+});

@@ -431,3 +431,11 @@ Full root-cause analyses and implementation notes for every fix. New fixes go he
 **Root causes:** zones merged only when they touched; the single-chunk translator had no instruction for a stray word, and nothing checked for a note in place of a translation.
 
 **Fix:** two zones of the very same ayah at most two words apart are one zone (one card, the restart inside it; across 52 transcripts only this one and a test file's doubled 26:62 change; 2:201 then 2:128, and Arafah's "نعم نعم" between 22:27 and 22:28, stay apart); `translateChunk` replies empty for a stray word and never with a note; `check_english` fails an English that is a note about the text.
+
+### 60. "يا أيها" before 35:15 stayed in the prose (4 Sep 2026 Makkah)
+
+**Symptoms:** block 6 ended "as He, glory be to Him, said: “O mankind,”" and the 35:15 card below began "O mankind!" again (Urdu and Bengali ended on a dangling "اے…" / "হে…"). The publish check failed it.
+
+**Root cause:** 35:15 opens with the quarter-hizb mark against its first word, "۞يَـٰٓأَيُّهَا"; `splitVocative` (fix 35) looks for the vocative only at a word's start, so for ayaat carrying the mark it stayed one joined word and the scan could not reach back over "يا أيها".
+
+**Fix:** the mark is removed before the vocative is split. Across 52 transcripts only this zone changes (it now starts at "يا").
