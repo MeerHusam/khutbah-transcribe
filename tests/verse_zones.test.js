@@ -79,3 +79,14 @@ test('a vocative behind the quarter-hizb mark is split like any other (35:15)', 
   const z = prescanForQuranZones(w).find(z => z.surah_id === 35 && z.ayah_id === 15);
   assert.equal(w[z.start], 'يا');
 });
+
+// 8 Oct 2026, the Sudais test khutbah: with every alef dropped "اذهبا" (20:43, Musa and Harun) matched
+// "اذهب" (20:24, 79:17) as well, and the first in the mushaf won. A tie goes to the ayah whose written
+// alefs agree, then to the one the imam goes on reciting.
+test('look-alike ayaat: the real alef, then what follows, decides', async () => {
+  const { prescanForQuranZones: scan } = await import('../core/arabic.js');
+  const spans = text => { const w = text.split(' '); return scan(w).map(z => z.ayah_spans.map(s => `${s.surah_id}:${s.ayah_id}`).join(',')); };
+  assert.deepEqual(spans('وقال لهما اذهبا إلى فرعون إنه طغى فقولا له قولا لينا لعله يتذكر أو يخشى'), ['20:43,20:44']);
+  assert.deepEqual(spans('قال له اذهب إلى فرعون إنه طغى قال رب اشرح لي صدري ويسر لي أمري'), ['20:24,20:25,20:26']);
+  assert.deepEqual(spans('وقال اذهب إلى فرعون إنه طغى فقل هل لك إلى أن تزكى وأهديك إلى ربك فتخشى'), ['79:17,79:18,79:19']);
+});
