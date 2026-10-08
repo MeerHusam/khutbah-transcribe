@@ -64,7 +64,7 @@
         "22:46",
         "59:2",
         "2:66",
-        "~79:26",
+        "79:26",
         "11:120",
         "12:111",
         "69:11-12",
@@ -72,16 +72,18 @@
         "29:38",
         "9:126",
         "14:45",
-        "~3:13",
+        "3:13",
         "50:37",
         "33:56"
       ],
       "hadith": [
-        "abudawud:4862",
-        "at-tabarani:?"
+        "bukhari:6133",
+        "al-tabarani:?"
       ],
       "hadith_english": {},
-      "corrections": [],
+      "corrections": [
+        "9 Oct 2026: rebuilt on today's code and republished: 25:62 now starts at \"وجعل الليل\" (fix 35); 79:26 and 3:13 have their own cards; \"لا يلدغ المؤمن\" carded Bukhari 6133 (fix 36); 69:11-12 labelled from 69:11 (fix 64)"
+      ],
       "confirmed": false
     },
     {

@@ -1,5 +1,17 @@
 [
   {
+    "folder": "2026-10-03T23-14-37_khutbah-2026-10-02-al-haram-makkah",
+    "slug": "2026-10-02-al-haram-makkah",
+    "title": "Learning From Others' Lessons",
+    "speaker": "Sheikh Faisal Ghazzawi",
+    "masjid": "Masjid al-Haram, Makkah",
+    "masjid_ar": "المسجد الحرام",
+    "maps_url": "https://www.google.com/maps/search/?api=1&query=Masjid+al-Haram+Makkah",
+    "date": "2 October 2026",
+    "audio": "khutbah-2026-10-02-al-haram-makkah.mp3",
+    "media_url": "https://media.khutbah.dev/2026-10-03T23-14-37_khutbah-2026-10-02-al-haram-makkah/"
+  },
+  {
     "folder": "2026-09-27T16-37-16_makkah_dosari_2026-09-25",
     "slug": "makkah-2026-09-25",
     "title": "Lofty Aspiration",
@@ -33,19 +45,6 @@
     "date": "18 September 2026",
     "audio": "khutbah-2026-09-18-al-haram-makkah.mp3",
     "media_url": "https://media.khutbah.dev/2026-10-04T15-20-20_khutbah-2026-09-18-al-haram-makkah/"
-  },
-  {
-    "folder": "2026-10-03T23-14-37_khutbah-2026-10-02-al-haram-makkah",
-    "slug": "2026-10-02-al-haram-makkah",
-    "title": "Learning From Others' Lessons",
-    "speaker": "Sheikh Faisal Ghazzawi",
-    "masjid": "Masjid al-Haram, Makkah",
-    "date": "2 October 2026",
-    "page": "reader-ur.html",
-    "audio": "khutbah-2026-10-02-al-haram-makkah.mp3",
-    "media_url": "https://media.khutbah.dev/2026-10-03T23-14-37_khutbah-2026-10-02-al-haram-makkah/",
-    "masjid_ar": "المسجد الحرام",
-    "maps_url": "https://www.google.com/maps/search/?api=1&query=Masjid+al-Haram+Makkah"
   },
   {
     "folder": "2026-10-03T19-45-57_khutbah-2026-10-02-an-nabawi-madinah",
