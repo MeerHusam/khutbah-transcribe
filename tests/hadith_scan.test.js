@@ -44,6 +44,15 @@ test('the collection the imam names right after the hadith, or before it introdu
   assert.equal(imamAttribution('إن الله رفيق يحب الرفق. رواه مسلم. وقال صلى الله عليه وسلم: الكلمة الطيبة صدقة. والإحسان', 'الكلمة الطيبة صدقة'), null);
 });
 
+// 11 Sep 2026 Makkah (no punctuation in the transcript): "في مسند الإمام أحمد" with a chain opening
+// "قال ابن مسعود", carded as Tirmidhi 2454, another hadith.
+test('"in the Musnad of Imam Ahmad" introducing a hadith names its collection', () => {
+  const LINES = 'فقد حاد وضل عن الصراط المستقيم وفي مسند الإمام أحمد قال ابن عباس قال ابن مسعود رضي الله عنه خط لنا رسول الله صلى الله عليه وسلم خطاً وقال هذا سبيل الله ثم خط خطوطاً';
+  assert.equal(imamAttribution(LINES, 'خط لنا رسول الله صلى الله عليه وسلم خطاً وقال هذا سبيل الله')?.slug, 'ahmad');
+  // After "رواه" a "قال" opens the next hadith: still no attribution for it.
+  assert.equal(imamAttribution('إن الله رفيق يحب الرفق رواه مسلم وقال ابن عمر كنا نقول الكلمة الطيبة صدقة والإحسان', 'كنا نقول الكلمة الطيبة صدقة'), null);
+});
+
 test('a short hadith the imam attributes aloud is carded and kept', { skip }, () => {
   const found = findAttributedHadith(DUA, [], corpus);
   assert.deepEqual(found.map(h => `${h.collection} ${h.hadith_number} ${h.detected_text}`), ['Sunan Abu Dawud 1479 الدعاء هو العبادة']);

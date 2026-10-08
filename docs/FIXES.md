@@ -391,3 +391,11 @@ Full root-cause analyses and implementation notes for every fix. New fixes go he
 **Root causes:** `imamAttribution` read a collection only after the hadith; when sunnah.com's search did not return the hadith in the named collection (Tirmidhi's wording differs), the code fell back to Claude's collection; `deduplicateHadithRefs` drops a matn under 4 words; and `extractMatn` had no pattern for "عن النبي ﷺ قال", so 918 corpus matns were cut at a later قال (Abu Dawud 1479's was the ayah it quotes).
 
 **Fix:** the name is read before the hadith too, when the chain ("عن …") follows it with no sentence end between; once the imam named a collection, a missed search takes the number from our copy of that collection (`imam_collection`), never another; a short hadith he attributes is kept; `findAttributedHadith` cards a quote between "قال رسول الله ﷺ" and "رواه / أخرجه <collection>" when that collection has those words; `extractMatn` reads "عن النبي ﷺ قال". `verify_reader` fails a card naming another collection than his, and an attributed quote with no card. With the matn fix the scan also finds Tirmidhi 3246 and 2538 on Madinah 25 Sep.
+
+### 55. "في مسند الإمام أحمد" not read as an attribution (11 Sep 2026 Makkah)
+
+**Symptoms:** the hadith of the lines ("خط لنا رسول الله ﷺ خطاً…"), introduced "وفي مسند الإمام أحمد قال ابن عباس قال ابن مسعود", carded as Tirmidhi 2454, a different hadith (the square the Prophet drew). The publish check passed.
+
+**Root causes:** the name before a hadith was read only after "رواه / أخرجه" or "في صحيح / الصحيحين", and only with a chain opening "عن"; this one said "في مسند" and "قال ابن مسعود". With no attribution found, the search took the closest match in any collection. Separately, a card whose search missed the imam's collection kept the number, link and published English of the hadith it had before.
+
+**Fix:** "في" before صحيح / مسند / سنن / جامع / موطأ introduces the next hadith, and after it the chain may open with "قال" as well as "عن" (after "رواه" a "قال" still opens the next hadith and is not taken). A card that names the imam's collection but has no number there drops the other collection's number, link and English (`imam_collection_unlinked`): "Musnad Ahmad" with no link, as for At-Tabarani. Across the 328 hadith refs on the Mac only this one changes.

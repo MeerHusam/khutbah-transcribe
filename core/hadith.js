@@ -433,7 +433,7 @@ const BOTH_SAHIHS = /^متفق عليه|^الشيخان|^الصحيحين|^ال�
 // "the Sahih of" can come before the name (11 Sep's and Sudais's "each of you is a shepherd" were
 // carded as Claude's Abu Dawud).
 function collectionNamed(text) {
-  const name = text.trim().replace(/^(?:في\s+)?(?:صحيح\s+)?(?:الامام\s+)?/, '');
+  const name = text.trim().replace(/^(?:في\s+)?(?:(?:صحيح|مسند|سنن|جامع|موطا)\s+)?(?:الامام\s+)?/, '');
   for (const [re, slug] of IMAM_ATTRIBUTION) if (re.test(name)) return { slug, both: BOTH_SAHIHS.test(name) };
   return null;
 }
@@ -460,10 +460,14 @@ function imamAttribution(transcript, detectedText) {
     const at = unique(tNorm, dWords.slice(0, n).join(' '));
     if (at < 0) continue;
     const before = tNorm.slice(0, at).split(/\s+/).slice(-30).join(' ');
-    const m = [...before.matchAll(/(?:رواه|اخرجه|خرجه)\s+|في\s+(?=صحيح\s|الصحيحين)/g)].at(-1);
+    // "في مسند الإمام أحمد قال ابن مسعود: خط لنا…" (11 Sep 2026 Makkah, carded as Tirmidhi 2454, another
+    // hadith): "in the Musnad / Sunan / Jami' of" introduces the next hadith, and its chain may start
+    // with "قال X" as well as "عن X"; after "رواه" a "قال" is more often the next hadith's opening.
+    const m = [...before.matchAll(/(?:رواه|اخرجه|خرجه)\s+|في\s+(?=(?:صحيح|مسند|سنن|جامع|موطا)\s|الصحيحين)/g)].at(-1);
     if (!m) return null;
     const rest = before.slice(m.index + m[0].length);
-    if (/[.!؟?]/.test(rest) || !/(^|\s)عن\s/.test(rest)) return null;
+    const chain = m[0].startsWith('في') ? /(^|\s)(?:عن|قال)\s/ : /(^|\s)عن\s/;
+    if (/[.!؟?]/.test(rest) || !chain.test(rest)) return null;
     return collectionNamed(rest);
   }
   return null;
@@ -498,7 +502,16 @@ async function resolveSunnahLinksForRefs(refs, transcript = null, corpus = null)
     const kept = !sunnah && ref.verification === 'sunnah_search'
       && (ref.link ?? '').match(/sunnah\.com\/([a-z]+):(\w+)$/);
     if (kept && (!imamSlug || kept[1] === imamSlug)) sunnah = { collection_slug: kept[1], hadith_number: kept[2], link: ref.link };
-    if (!sunnah && imamSlug) ref.collection = slugToDisplay(imamSlug);
+    if (!sunnah && imamSlug) {
+      ref.collection = slugToDisplay(imamSlug);
+      // A number, link and published text from another collection belong to another hadith: the
+      // card names the imam's collection with no link rather than them (11 Sep 2026 Makkah).
+      if (!(ref.link ?? '').includes(`sunnah.com/${imamSlug}:`)) {
+        for (const k of ['hadith_number', 'link', 'translation', 'published_arabic']) ref[k] = null;
+        ref.verification = 'imam_collection_unlinked';
+        ref.note = 'The collection the imam named; not found there on sunnah.com or in the local corpus';
+      }
+    }
     // No sunnah.com page to confirm a narrator: the card names none rather than Claude's guess
     // (18 Sep 2026 Madinah: Sa'd ibn Abi Waqqas for an-Nasa'i's "whoever terrifies the people of
     // Madinah", which is as-Sa'ib ibn Khallad's). Claude's stays in narrator_claude.

@@ -302,6 +302,7 @@ Each is exported by its `core/` module and imported from there (`pipeline.js` no
 | 52 | English "imams" for أئمتنا / إمامنا (the rulers) | `TERMS_SENSE` rule; `check_english` fails it |
 | 53 | Swapped hadith text said "forgive me" for the imam's "لنا" | `personShift`: swap refused, check fails |
 | 54 | Hadith carded under another collection than the imam named; "الدعاء هو العبادة" no card | `imamAttribution` before/after, no fallback off his collection, `findAttributedHadith`, `extractMatn` "عن النبي ﷺ قال" |
+| 55 | "في مسند الإمام أحمد … قال ابن مسعود" not read; card kept another collection's number and link | `imamAttribution`: في + مسند/سنن/جامع/موطأ, chain "قال"; `imam_collection_unlinked` |
 
 ---
 
