@@ -329,8 +329,10 @@ function parseSunnahNarrator(narrated, lead = '') {
   if (!txt) return { narrator: null, companion: null, successor: false };
   // Strip leading narration framing: "Narrated X:", "It was narrated that X said:",
   // "It has been narrated on the authority of X who …", "On the authority of X ...".
-  txt = txt.replace(/^it (?:is|was|has been) narrated(?: on the authority of| from)?(?: that)?\s*/i, '');
-  txt = txt.replace(/^(?:it was )?narrated\s*/i, '');
+  // sunnah.com's own misspelling too: "It is naratted on the authority of Abu Huraira" (Muslim 395b)
+  // was shown whole as the narrator (11 Sep 2026 Makkah).
+  txt = txt.replace(/^it (?:is|was|has been) narr?att?ed(?: on the authority of| from)?(?: that)?\s*/i, '');
+  txt = txt.replace(/^(?:it was )?narr?att?ed\s*/i, '');
   txt = txt.replace(/^on the authority of\s*/i, '');
   const cut = s => s.split(/\s+(?:who|reported|narrated|said|says|relates|relating|that|as saying)\b|\s*[:(]/i)[0]
     .replace(/[\s,:]+$/, '').trim();
@@ -366,6 +368,13 @@ function parseSunnahNarrator(narrated, lead = '') {
   const text = (lead ?? '').replace(/<[^>]+>/g, '').replace(/^[\s"'“‘]+/, '');
   if (/^the companions of the prophet\b[^.]{0,12} (?:told|informed|narrated to) us/i.test(text)) {
     return { narrator: first, companion: 'Companions of the Prophet ﷺ', successor: true };
+  }
+  // "I asked 'A'isha, the mother of the believers, … She said:" (Muslim 770, 11 Sep 2026 Makkah): the
+  // answer is hers. The card named the asker, and sunnah.com's header had even cut him from Abu
+  // Salama b. 'Abd al-Rahman b. 'Auf to "'Abd al-Rahman b. 'Auf", his father.
+  const asked = text.match(/^(?:i|we) (?:asked|said to) (.+?)(?:,| \(| about\b| what\b| how\b| whether\b| to\b|\.|:)/i);
+  if (asked && !/messenger|prophet|apostle|allah\b/i.test(asked[1])) {
+    return { narrator: first, companion: cut(asked[1]), successor: true };
   }
   const withC = text.match(/^(?:we|i) (?:were|was) (?:sitting )?with (.+?)(?: while| when| in| at|,|\.| and)/i);
   if (withC && !/messenger|prophet|apostle|allah\b/i.test(withC[1])) {

@@ -399,3 +399,11 @@ Full root-cause analyses and implementation notes for every fix. New fixes go he
 **Root causes:** the name before a hadith was read only after "رواه / أخرجه" or "في صحيح / الصحيحين", and only with a chain opening "عن"; this one said "في مسند" and "قال ابن مسعود". With no attribution found, the search took the closest match in any collection. Separately, a card whose search missed the imam's collection kept the number, link and published English of the hadith it had before.
 
 **Fix:** "في" before صحيح / مسند / سنن / جامع / موطأ introduces the next hadith, and after it the chain may open with "قال" as well as "عن" (after "رواه" a "قال" still opens the next hadith and is not taken). A card that names the imam's collection but has no number there drops the other collection's number, link and English (`imam_collection_unlinked`): "Musnad Ahmad" with no link, as for At-Tabarani. Across the 328 hadith refs on the Mac only this one changes.
+
+### 56. Narrator: the asker, under his father's name; a misspelled header shown whole (11 Sep 2026 Makkah)
+
+**Symptoms:** Muslim 770 (how the Prophet ﷺ opened his night prayer, as 'A'isha told it) carded "Narrator: 'Abd al-Rahman b. 'Auf"; Muslim 395b carded "Narrator: It is naratted on the authority of Abu Huraira".
+
+**Root causes:** sunnah.com's header for 770 names the Successor who asked, and cuts him from Abu Salama b. 'Abd al-Rahman b. 'Auf to his father's name; `parseSunnahNarrator` had no rule for "I asked X … she said". 395b's header is misspelled "naratted", which the framing strip did not match.
+
+**Fix:** "I asked X" / "I said to X" at the start of the hadith names X as the Companion (unless X is the Prophet ﷺ); the strip accepts "naratted". Across the 87 linked hadiths on the Mac only these two change (and Muslim 7500's Suhaib gains his full name).
