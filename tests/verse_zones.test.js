@@ -42,6 +42,8 @@ const BORROWED = [
   ['خلقه حكمة يحبها ويرضاها، وما من ذرة في السماوات والأرض إلا وهي شاهدة لله', '19:93'],
   // Any length inside a du'a (4 Sep 2026 Makkah, for Palestine): 7:17 is Iblis's words.
   ['اللهم احفظ المسلمين في فلسطين، اللهم احفظهم من بين أيديهم ومن خلفهم وعن أيمانهم وعن شمائلهم ومن فوقهم', '7:17'],
+  // The whole sentence of a du'a, however far back its اللهم (28 Aug 2026 Makkah: 7 words, a 2:255 card).
+  ['واجزهم خير الجزاء، ونسألك اللهم يا حي يا قيوم، يا من لا تأخذه سنة ولا نوم، أن تعطي السائل سؤله', '2:255'],
 ];
 const QUOTED = [
   ['فإن تساويا في التقوى استويا في الفضيلة. إن أكرمكم عند الله أتقاكم. والصبر والشكر', '49:13'],
@@ -49,6 +51,8 @@ const QUOTED = [
   ['يا ذا الجلال والإكرام اللهم آتنا في الدنيا حسنة وفي الآخرة حسنة وقنا عذاب النار', '2:201'],
   // A Quranic du'a he recites inside his own keeps its card, though it does not reach the ayah's end.
   ['اللهم اغفر لنا ولوالدينا، ربنا اغفر لنا ولإخواننا الذين سبقونا بالإيمان ولا تجعل في قلوبنا غلا. اللهم', '59:10'],
+  // A verse he cites inside a du'a sentence is a recitation.
+  ['اللهم إنا ندعوك كما أمرتنا وأنت القائل سبحانه ادعوني أستجب لكم إن الذين يستكبرون عن عبادتي', '40:60'],
 ];
 for (const [text, ref] of BORROWED) test(`no ${ref} card for the imam's own phrase`, () => assert.ok(!zonesOf(text).includes(ref)));
 for (const [text, ref] of QUOTED) test(`${ref} quoted briefly keeps its card`, () => assert.ok(zonesOf(text).includes(ref), zonesOf(text).join()));

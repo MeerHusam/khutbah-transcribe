@@ -439,3 +439,19 @@ Full root-cause analyses and implementation notes for every fix. New fixes go he
 **Root cause:** 35:15 opens with the quarter-hizb mark against its first word, "۞يَـٰٓأَيُّهَا"; `splitVocative` (fix 35) looks for the vocative only at a word's start, so for ayaat carrying the mark it stayed one joined word and the scan could not reach back over "يا أيها".
 
 **Fix:** the mark is removed before the vocative is split. Across 52 transcripts only this zone changes (it now starts at "يا").
+
+### 61. Narrator: the Successor who tells the story, in a form no rule knew (28 Aug 2026 Makkah)
+
+**Symptoms:** "من سلك طريقاً يلتمس فيه علماً…" (Abu Dawud 3641) carded with narrator Kathir ibn Qays. He tells how he sat with Abu al-Darda' in the mosque of Damascus; the hadith is Abu al-Darda's, as Claude had it.
+
+**Root causes:** the card took sunnah.com's narrator line, and the Successor was recognised only by the English's wording ("I heard X", "We were with X", "I asked X": fixes 30, 41, 56), each rule written for the phrasing last seen. Here the English opens "Kathir ibn Qays said: I was sitting with AbudDarda'…", which none of them reads.
+
+**Fix:** the chain decides, whatever the English says. The hadith is the Companion's who heard the Prophet ﷺ, the one nearest him on its chain (the corpus `full` text, read only up to where the Prophet ﷺ is first named); when Claude's narrator stands there nearer than every name the page gives, Claude's is shown (`nearerOnChain`). Names are compared across the two scripts by their consonants (Darda / الدرداء both d-r-d; transmission words such as حدثنا and سمعت are no one's name). Claude naming an earlier link, someone named only after the Prophet ﷺ, or someone off the chain changes nothing; the English rules stay for hadith whose chain we do not have. `verify_reader` fails a card whose narrator stands before Claude's on the chain. Of 160 cards on the Mac with a cached page, only this one changes.
+
+### 62. An ayah card inside a du'a whose "اللهم" was 7 words back (28 Aug 2026 Makkah)
+
+**Symptoms:** "ونسألك اللهم يا حي يا قيوم، يا من لا تأخذه سنة ولا نوم، أن تعطي السائل…" got a 2:255 card in the middle of the du'a, and the English, Urdu and Bengali before it ended on a dangling "O You who…".
+
+**Root cause:** fix 51 counted a zone as du'a when "اللهم" was in the 6 words before it; a du'a of several calls puts it further back.
+
+**Fix:** "اللهم" anywhere in the zone's sentence (back to a full stop, question mark or colon, at most 30 words) counts too, unless the imam cites a verse after it; the 6-word rule stays, so nothing it caught comes back. Across 86 transcripts on the Mac this zone changes, and Sudais's Ramadan du'a "وجنبهم الفواحش والفتن ما ظهر منها وما بطن، اللهم ادفع عنا…" (a 22-word 6:151 zone, fix 40's error; the live page already shows no card there) in that page and its ten May test runs; nothing else.

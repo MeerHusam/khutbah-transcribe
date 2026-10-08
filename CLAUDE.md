@@ -309,6 +309,8 @@ Each is exported by its `core/` module and imported from there (`pipeline.js` no
 | 58 | English said an ayah and a hadith twice (chunk folded into its neighbour) | swollen neighbour retranslated; review applies a fix that only removes a neighbour's words |
 | 59 | Lone "في" from a restart inside 2:204 became a chunk; its English was the translator's note | same-ayah zones ≤2 words apart merge; `translateChunk` no notes; gate fails a note |
 | 60 | "يا أيها" before 35:15 left in the prose (the ۞ mark hid the vocative) | `splitVocative` drops ۞ first |
+| 61 | Narrator: the Successor telling the story ("Kathir ibn Qays said: I was sitting with AbudDarda'", Abu Dawud 3641) | `nearerOnChain`: Claude's narrator when he stands nearer the Prophet ﷺ on the chain than the page's names; gate fails it |
+| 62 | 2:255 card inside a du'a, "اللهم" 7 words back | `dropBorrowedPhrases`: "اللهم" anywhere in the zone's sentence counts too |
 
 ---
 

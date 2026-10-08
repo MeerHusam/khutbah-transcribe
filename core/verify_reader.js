@@ -15,7 +15,7 @@ import { pathToFileURL } from 'url';
 import { normalizeArabic, normalizeArabicDeep, splitsPhrase, prescanForQuranZones, dropBorrowedPhrases } from './arabic.js';
 import { loadResult } from './reader_chunks.js';
 import { checkEnglish } from './check_english.js';
-import { imamAttribution, imamCompanion, companionOnChain, findAttributedHadith, loadHadithCorpus, slugToDisplay } from './hadith.js';
+import { imamAttribution, imamCompanion, companionOnChain, nearerOnChain, findAttributedHadith, loadHadithCorpus, slugToDisplay } from './hadith.js';
 import { LANGS } from './languages.js';
 import '../public/recited.js';
 
@@ -379,6 +379,12 @@ export function verifyReader(folder, { readerRaw: readerOverride = null, result:
   for (const h of result.hadith_references ?? []) {
     const who = imamCompanion(transcript, h.detected_text);
     if (who && companionOnChain(hadithCorpus, h.link, who) === false) fail(`hadith card ${h.link} is not narrated by the Companion the imam named (${who}): "${(h.detected_text ?? '').slice(0, 50)}"`);
+  }
+  // The card names the one who heard it from the Prophet ﷺ, not a Successor who tells the story (28 Aug
+  // 2026 Makkah: Abu Dawud 3641 named Kathir ibn Qays; on its chain Abu al-Darda' stands after him).
+  for (const h of result.hadith_references ?? []) {
+    const chain = h.link && h.narrator ? hadithCorpus.find(x => x.link === h.link)?.full : null;
+    if (nearerOnChain(chain, h.narrator_claude, [h.narrator])) fail(`hadith card ${h.link} names ${h.narrator}, but ${h.narrator_claude} stands after him on its chain, nearer the Prophet ﷺ: "${(h.detected_text ?? '').slice(0, 50)}"`);
   }
 
   // ── 5b. An inline (📑) verse must be locatable inside its block's Arabic ──────
