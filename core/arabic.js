@@ -808,8 +808,20 @@ const CITES_VERSE = /(^| )(قال|وقال|فقال|يقول|ويقول|تعال
 // Inside a du'a ("اللهم" just before) the same holds at any length: "اللهم احفظهم من بين أيديهم ومن
 // خلفهم وعن أيمانهم وعن شمائلهم" (4 Sep 2026 Makkah, for Palestine) got a 7:17 card, Iblis's
 // words. A Quranic du'a he recites (opening ربنا / رب) stays a card.
+// A du'a is one sentence of calls and requests, however long: "ونسألك اللهم يا حي يا قيوم، يا من لا
+// تأخذه سنة ولا نوم، أن تعطي…" (28 Aug 2026 Makkah) got a 2:255 card with اللهم 7 words back. So
+// "اللهم" anywhere in the zone's sentence (back to a full stop, question mark or colon, at most 30
+// words) counts too, unless the imam cites a verse after it.
 const BORROWED_MAX_WORDS = 6;
 const DUA_LEAD = /(^| )اللهم( |$)/;
+const SENTENCE_END = /[.!؟?:]$/;
+function inDuaSentence(transcriptWords, start) {
+  let i = start;
+  while (i > 0 && start - i < 30 && !SENTENCE_END.test(transcriptWords[i - 1])) i--;
+  const said = transcriptWords.slice(i, start).map(w => normalizeArabic(w).replace(/[^ء-ي]/g, ''));
+  const at = said.lastIndexOf('اللهم');
+  return at >= 0 && !CITES_VERSE.test(said.slice(at + 1).join(' '));
+}
 function dropBorrowedPhrases(zones, transcriptWords) {
   const index = getQuranNgramIndex();
   const deep = w => normalizeArabicDeep(w).split(' ').filter(Boolean);
@@ -824,7 +836,7 @@ function dropBorrowedPhrases(zones, transcriptWords) {
     if (!ayah.length || n >= ayah.length) return true;
     const bare = w => w?.replace(/^و/, '');
     if (bare(said[0]) === bare(ayah[0]) || said.at(-1) === ayah.at(-1)) return true;
-    if (DUA_LEAD.test(lead) && !/^و?(?:رب|ربنا)$/.test(normalizeArabic(transcriptWords[z.start]).replace(/[^\u0621-\u064A]/g, ''))) return false;
+    if ((DUA_LEAD.test(lead) || inDuaSentence(transcriptWords, z.start)) && !/^و?(?:رب|ربنا)$/.test(normalizeArabic(transcriptWords[z.start]).replace(/[^\u0621-\u064A]/g, ''))) return false;
     if (n > BORROWED_MAX_WORDS) return true;
     const stray = said.some(w => !ayah.includes(w));
     const grams = said.slice(0, -3).map((_, j) => new Set((index.get(said.slice(j, j + 4).join(' ')) ?? []).map(h => `${h.surah_id}:${h.ayah_id}`)));
