@@ -506,6 +506,30 @@ function annotateRefAyahRange(ref) {
   let idx = verses.findIndex(v => v.ayah_id === ref.ayah_number);
   if (idx < 0) return ref;
 
+  // The label names the ayah the recitation STARTS in. matchClaudeQuranRef sees to that when
+  // Claude and the matcher disagree; when both name the second of two ayaat recited together
+  // (2 Oct 2026 Makkah: "إنا لما طغى الماء حملناكم في الجارية لنجعلها لكم تذكرة وتعيها أذن
+  // واعية", 69:11-12, labelled 69:12) nothing did, and the walk below only goes forward. Step
+  // the label back while the ayah before it is recited whole at the start of the text and the
+  // labelled one follows straight on: whole, or at the end of the text its opening part, as the
+  // walk below accepts it. An ayah of one or two words must match exactly: ayahFollowsAt's
+  // allowance would let it match any short word.
+  const startsAt = ayahWords => {
+    for (let s = 0; s <= Math.min(words.length - 1, 6); s++) {
+      if (ayahWords.length >= 3 ? ayahFollowsAt(ayahWords, words, s) : ayahWords.every((w, k) => words[s + k] === w)) return s;
+    }
+    return -1;
+  };
+  for (let prev = verses[idx - 1]; prev?.words.length; prev = verses[idx - 1]) {
+    const s = startsAt(prev.words);
+    if (s < 0) break;
+    const at = s + prev.words.length, rest = words.length - at, cur = verses[idx].words;
+    if (!ayahFollowsAt(cur, words, at) && !(rest >= 4 && cur.length > rest && ayahFollowsAt(cur.slice(0, rest), words, at))) break;
+    if (ref.quran_link === `https://quran.com/${ref.surah_number}/${ref.ayah_number}`) ref.quran_link = `https://quran.com/${ref.surah_number}/${prev.ayah_id}`;
+    ref.ayah_number = prev.ayah_id;
+    idx--;
+  }
+
   // The reference may open with an intro phrase, so find where the labelled ayah starts.
   let pos = -1;
   for (let s = 0; s <= Math.min(words.length - 1, 6); s++) {

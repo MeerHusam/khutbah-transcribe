@@ -463,3 +463,11 @@ Full root-cause analyses and implementation notes for every fix. New fixes go he
 **Root cause:** since fix 35, `normalizeArabicDeep` drops every alef so the mushaf's spelling meets ordinary spelling (ذَٰلِكَ / ذلك, السَّمَٰوَٰت / السماوات). That also made the dual "اذهبا" the singular "اذهب": 20:24, 20:43 and 79:17 matched the same words equally, and `prescanForQuranZones` kept the first in the mushaf's order. 20:24 is not followed by 20:44, so 20:44 became a zone of its own.
 
 **Fix:** the alef-free form still finds the candidates; between candidates that match equally, `preferredAyah` takes the one whose written alefs agree with what the imam said (`withRealAlefs`: only the mushaf's small alef is dropped), then the one whose next ayah he goes on to recite. Across 86 saved transcripts (1,493 card and narrator decisions) only this zone changes, in the three runs of that khutbah; the rerun's check passes. Test: `tests/verse_zones.test.js` (20:43, 20:24 and 79:17 told apart).
+
+### 64. Two ayaat recited together labelled with the second (2 Oct 2026 Makkah, rebuilt 9 Oct)
+
+**Symptoms:** "إنا لما طغى الماء حملناكم في الجارية لنجعلها لكم تذكرة وتعيها أذن واعية" (69:11–12) got a card labelled 69:12 only; the publish check failed it ("ref labelled 69:12 but only 46% of its text is in that verse") and stopped the rebuild before the voices. The page made on 3 Oct had it right, 69:11–12.
+
+**Root cause:** the label must name the ayah the recitation starts in. `matchClaudeQuranRef` sees to that when Claude and the matcher disagree (Quraysh 106:3–4), and on 3 Oct they did. On the rebuild Claude named 69:12 and the matcher agreed, so nothing checked the start, and `annotateRefAyahRange` only walks forward from the label.
+
+**Fix:** `annotateRefAyahRange` steps the label back while the ayah before it is recited whole at the start of the text and the labelled ayah follows straight on (whole, or at the end of the text its opening part, as the forward walk accepts); the quran.com link moves with it. An ayah of one or two words must match exactly. Across the 884 Quran refs of 80 saved runs only the label changes, on 4 refs, each a passage that starts one ayah earlier: 69:11–12, Arafah's 22:1–2 (two runs) and 33:70–71 (May); no text changes. Test: `tests/verse_zones.test.js`.
