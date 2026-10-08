@@ -10,6 +10,25 @@
   ],
   "khutbahs": [
     {
+      "slug": "2026-08-28-al-haram-makkah",
+      "folder": "outputs/2026-10-08T11-25-23_khutbah-2026-08-28-al-haram-makkah",
+      "quran": [
+        "51:56-58",
+        "47:19",
+        "3:18",
+        "58:11",
+        "2:255"
+      ],
+      "hadith": [
+        "ibnmajah:224",
+        "ahmad:?",
+        "abudawud:3641"
+      ],
+      "hadith_english": {},
+      "corrections": [],
+      "confirmed": false
+    },
+    {
       "slug": "2026-09-18-al-haram-makkah",
       "folder": "outputs/2026-10-04T15-20-20_khutbah-2026-09-18-al-haram-makkah",
       "quran": [
