@@ -16,8 +16,7 @@
         "51:56-58",
         "47:19",
         "3:18",
-        "58:11",
-        "2:255"
+        "58:11"
       ],
       "hadith": [
         "ibnmajah:224",
@@ -513,18 +512,20 @@
       "hadith": [
         "bukhari:2790",
         "at-tabarani:?",
-        "(al-hakim):?"
+        "(al-hakim):?",
+        "tirmidhi:2459"
       ],
       "hadith_english": {
         "bukhari:2790": {
           "narrator": "Abu Huraira",
           "has": [
-            "Firdaws"
+            "firda"
           ]
         }
       },
       "corrections": [
-        "local only (not published); 2:148 \"فاستبقوا الخيرات\" left uncarded (also 5:48)"
+        "local only (not published); 2:148 \"فاستبقوا الخيرات\" left uncarded (also 5:48)",
+        "8 Oct 2026: rerun on today's code and republished; Tirmidhi 2459 (\"والكيس من دان نفسه\") now carded; 2790 shows sunnah.com's English, which spells it \"Al-firdaus\" (\"firda\" matches both spellings)"
       ],
       "confirmed": false
     }
