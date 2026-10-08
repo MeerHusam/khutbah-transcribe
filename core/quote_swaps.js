@@ -26,7 +26,7 @@ import { fileURLToPath } from 'url';
 import { buildReaderView, publishedVerseEnglish, applyQuoteSwaps } from './reader.js';
 import { quranEnglish } from './quran_en.js';
 import { cachedSunnahPage } from './hadith.js';
-import { quoteProblems, droppedWords, skeletonSet, englishKeys, verseText } from './check_english.js';
+import { quoteProblems, droppedWords, personShift, skeletonSet, englishKeys, verseText } from './check_english.js';
 
 // Sonnet 5, not Haiku: on the 7 test khutbahs Haiku (at temperature 0) refused 5 correct
 // swaps over wording (it called "in the morning" an addition to "من أصبح") and accepted
@@ -107,6 +107,8 @@ export function judgeSwap({ kind, ref, english, published, arabic }, out) {
   if (!pub || !published.includes(pub)) return no('the published excerpt is not a verbatim part of the published text');
   const lost = droppedWords(ours, pub);
   if (lost.length) return no(`the excerpt drops ${lost.map(w => `"${w}"`).join(', ')} from our rendering`);
+  const shift = personShift(ours, pub);
+  if (shift.length) return no(`the excerpt says ${shift.map(w => `"${w}"`).join(', ')} where the imam said we/us`);
   const swap = { status: 'published', ours, published: pub };
   const after = applyQuoteSwaps(english, [{ english_swap: swap }]);
   const at = after.indexOf('“' + pub.replace(/^["'‘“]+|["'’”]+$/g, '').replace(/[,;:]+$/, ''));

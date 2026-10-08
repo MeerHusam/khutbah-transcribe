@@ -19,7 +19,7 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
 import { stripAyahMarkup, prescanForQuranZones, dropBorrowedPhrases, buildProseChunks, scanTranscriptForQuran, buildZoneRefs, annotateRefAyahRange, yieldTailToLaterRefs, matchClaudeQuranRef, findRestarts, restartNotes } from './core/arabic.js';
-import { loadHadithCorpus, deduplicateHadithRefs, scanTranscriptForHadith, resolveSunnahLinksForRefs, matchClaudeHadithRef } from './core/hadith.js';
+import { loadHadithCorpus, deduplicateHadithRefs, scanTranscriptForHadith, findAttributedHadith, resolveSunnahLinksForRefs, matchClaudeHadithRef } from './core/hadith.js';
 import { KHUTBAH_TYPES, buildAnalysisPrompt, locateSecondKhutbah, splitChunkAtKhutbahBoundary, completeChunkTranslations } from './core/analyze.js';
 import { buildReadableOutput, buildReaderView } from './core/reader.js';
 import { preprocessAudio, transcribeWithGroq, transcribeWithGemini, SILENCE_PREPEND_SEC } from './core/transcribe.js';
@@ -272,19 +272,21 @@ function findQuranRefs({ analysis, transcript, transcriptWords, quranZones }) {
 async function findHadithRefs({ analysis, transcript, quranZones }) {
   const hadithCorpus = loadHadithCorpus();
   const claudeHadithRefs = deduplicateHadithRefs(
-    (analysis.hadith_references ?? []).map(ref => matchClaudeHadithRef(ref, hadithCorpus))
+    (analysis.hadith_references ?? []).map(ref => matchClaudeHadithRef(ref, hadithCorpus)), transcript
   );
 
   // Step 8c: hadith the imam quotes without naming them (core/hadith.js)
   process.stdout.write('Scanning transcript for Hadith the imam does not name...');
   const hadithScanRefs = scanTranscriptForHadith(transcript, claudeHadithRefs, hadithCorpus, quranZones);
   console.log(` found ${hadithScanRefs.length}`);
-  const allHadithRefs = deduplicateHadithRefs([...claudeHadithRefs, ...hadithScanRefs]);
+  // and the ones he quotes and attributes aloud that neither found ("الدعاء هو العبادة. أخرجه أبو داود")
+  const attributed = findAttributedHadith(transcript, [...claudeHadithRefs, ...hadithScanRefs], hadithCorpus);
+  const allHadithRefs = deduplicateHadithRefs([...claudeHadithRefs, ...hadithScanRefs, ...attributed], transcript);
 
   // Step 8d: Replace corpus numbers/links with canonical sunnah.com permalinks
   // (searches sunnah.com for each matn; falls back to the corpus link on any failure).
   process.stdout.write('Resolving sunnah.com links...');
-  await resolveSunnahLinksForRefs(allHadithRefs, transcript);
+  await resolveSunnahLinksForRefs(allHadithRefs, transcript, hadithCorpus);
   console.log(` ${allHadithRefs.filter(r => r.verification === 'sunnah_search').length}/${allHadithRefs.length} verified`);
   return { hadithScanRefs, allHadithRefs };
 }

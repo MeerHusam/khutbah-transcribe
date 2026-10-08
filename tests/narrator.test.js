@@ -49,3 +49,11 @@ test('no narrator line on the page: none shown, never Claude\'s guess (18 Sep 20
   assert.equal(chooseNarrator(null, "Sa'd ibn Abi Waqqas"), null);
   assert.equal(chooseNarrator({ narrator: null }, 'Abu Hurayrah'), null);
 });
+
+// 11 Sep 2026 Makkah: Muslim 770's header names the asker (and sunnah.com cut him to his father's
+// name); the answer is 'A'isha's. Muslim 395b's header is misspelled "naratted".
+test('"I asked X … she said": X is the narrator; a misspelled "naratted" header is still read', () => {
+  assert.equal(shown("'Abd al-Rahman b. 'Auf reported:", "I asked 'A'isha, the mother of the believers, (to tell me) the words with which the Messenger of Allah (ﷺ) commenced the prayer"), "'A'isha");
+  assert.equal(shown('It is naratted on the authority of Abu Huraira that', 'He who observed prayer'), 'Abu Huraira');
+  assert.equal(shown('Narrated Abu Huraira:', 'I asked the Prophet (ﷺ) about'), 'Abu Huraira');
+});

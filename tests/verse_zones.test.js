@@ -40,11 +40,15 @@ const BORROWED = [
   ['فوض أمرك إلى العزيز الغفار من له ملك السماوات والأرض وما بينهما العظيم الجبار، يكفيك', '43:85'],
   ['يا قوي يا متين. اللهم جنبنا الفتن ما ظهر منها وما بطن، عن بلدنا هذا', '6:151'],
   ['خلقه حكمة يحبها ويرضاها، وما من ذرة في السماوات والأرض إلا وهي شاهدة لله', '19:93'],
+  // Any length inside a du'a (4 Sep 2026 Makkah, for Palestine): 7:17 is Iblis's words.
+  ['اللهم احفظ المسلمين في فلسطين، اللهم احفظهم من بين أيديهم ومن خلفهم وعن أيمانهم وعن شمائلهم ومن فوقهم', '7:17'],
 ];
 const QUOTED = [
   ['فإن تساويا في التقوى استويا في الفضيلة. إن أكرمكم عند الله أتقاكم. والصبر والشكر', '49:13'],
   ['وهو لا يتناسب مع مكانته فلا فسوق ولا جدال في الحج. ولا شعارات', '2:197'],
   ['يا ذا الجلال والإكرام اللهم آتنا في الدنيا حسنة وفي الآخرة حسنة وقنا عذاب النار', '2:201'],
+  // A Quranic du'a he recites inside his own keeps its card, though it does not reach the ayah's end.
+  ['اللهم اغفر لنا ولوالدينا، ربنا اغفر لنا ولإخواننا الذين سبقونا بالإيمان ولا تجعل في قلوبنا غلا. اللهم', '59:10'],
 ];
 for (const [text, ref] of BORROWED) test(`no ${ref} card for the imam's own phrase`, () => assert.ok(!zonesOf(text).includes(ref)));
 for (const [text, ref] of QUOTED) test(`${ref} quoted briefly keeps its card`, () => assert.ok(zonesOf(text).includes(ref), zonesOf(text).join()));

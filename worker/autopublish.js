@@ -198,6 +198,9 @@ async function main() {
     })(),
     (async () => {
       await step(() => has('words_imam.json'), 'imam word timing', 'node', ['voice/align_imam.js', F, audioOut]);
+      // The word the page lights is the word he is saying: 20 of them heard again (Groq, free); a page
+      // off by a second or more stops here (voice/check_highlight.js, 8 Oct 2026).
+      await step(() => has('highlight_check.json'), 'highlight check', 'node', ['voice/check_highlight.js', F, audioOut]);
       await step(() => has('delivery_imam.json'), 'imam delivery', PY_ALIGN, ['voice/imam_delivery.py', F, audioOut]);
       // The hall's echo taken out (clean_audio.py): off since 2 Oct 2026, the imam sounded processed
       // with it. It never fed the text, cards or timing, only what is heard. --clean turns it back on.

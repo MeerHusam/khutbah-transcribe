@@ -87,7 +87,9 @@ function loadHadithCorpus() {
   if (!existsSync(HADITH_DIR)) return [];
 
   const corpus = [];
-  for (const file of readdirSync(HADITH_DIR).filter(f => f.endsWith('.json'))) {
+  // The Arabic collections only: hadith_data/ also holds the Urdu and Bengali editions (urd-*, ben-*)
+  // and the Quran translations since 7 Oct 2026 (scripts/setup_hadith.js).
+  for (const file of readdirSync(HADITH_DIR).filter(f => COLLECTION_NAMES[f.replace('.json', '')])) {
     const id = file.replace('.json', '');
     const collectionName = COLLECTION_NAMES[id] ?? id;
     let data;
@@ -327,8 +329,10 @@ function parseSunnahNarrator(narrated, lead = '') {
   if (!txt) return { narrator: null, companion: null, successor: false };
   // Strip leading narration framing: "Narrated X:", "It was narrated that X said:",
   // "It has been narrated on the authority of X who …", "On the authority of X ...".
-  txt = txt.replace(/^it (?:is|was|has been) narrated(?: on the authority of| from)?(?: that)?\s*/i, '');
-  txt = txt.replace(/^(?:it was )?narrated\s*/i, '');
+  // sunnah.com's own misspelling too: "It is naratted on the authority of Abu Huraira" (Muslim 395b)
+  // was shown whole as the narrator (11 Sep 2026 Makkah).
+  txt = txt.replace(/^it (?:is|was|has been) narr?att?ed(?: on the authority of| from)?(?: that)?\s*/i, '');
+  txt = txt.replace(/^(?:it was )?narr?att?ed\s*/i, '');
   txt = txt.replace(/^on the authority of\s*/i, '');
   const cut = s => s.split(/\s+(?:who|reported|narrated|said|says|relates|relating|that|as saying)\b|\s*[:(]/i)[0]
     .replace(/[\s,:]+$/, '').trim();
@@ -364,6 +368,13 @@ function parseSunnahNarrator(narrated, lead = '') {
   const text = (lead ?? '').replace(/<[^>]+>/g, '').replace(/^[\s"'“‘]+/, '');
   if (/^the companions of the prophet\b[^.]{0,12} (?:told|informed|narrated to) us/i.test(text)) {
     return { narrator: first, companion: 'Companions of the Prophet ﷺ', successor: true };
+  }
+  // "I asked 'A'isha, the mother of the believers, … She said:" (Muslim 770, 11 Sep 2026 Makkah): the
+  // answer is hers. The card named the asker, and sunnah.com's header had even cut him from Abu
+  // Salama b. 'Abd al-Rahman b. 'Auf to "'Abd al-Rahman b. 'Auf", his father.
+  const asked = text.match(/^(?:i|we) (?:asked|said to) (.+?)(?:,| \(| about\b| what\b| how\b| whether\b| to\b|\.|:)/i);
+  if (asked && !/messenger|prophet|apostle|allah\b/i.test(asked[1])) {
+    return { narrator: first, companion: cut(asked[1]), successor: true };
   }
   const withC = text.match(/^(?:we|i) (?:were|was) (?:sitting )?with (.+?)(?: while| when| in| at|,|\.| and)/i);
   if (withC && !/messenger|prophet|apostle|allah\b/i.test(withC[1])) {
@@ -427,44 +438,89 @@ const IMAM_ATTRIBUTION = [
 ];
 // "متفق عليه", "الشيخان", "الصحيحين", "البخاري ومسلم": in both Bukhari and Muslim.
 const BOTH_SAHIHS = /^متفق عليه|^الشيخان|^الصحيحين|^البخاري ومسلم/;
+// "رواه الامام البخاري ومسلم", "أخرجه في الصحيحين", "في صحيح الامام البخاري": a title, "in" or
+// "the Sahih of" can come before the name (11 Sep's and Sudais's "each of you is a shepherd" were
+// carded as Claude's Abu Dawud).
+function collectionNamed(text) {
+  const name = text.trim().replace(/^(?:في\s+)?(?:(?:صحيح|مسند|سنن|جامع|موطا)\s+)?(?:الامام\s+)?/, '');
+  for (const [re, slug] of IMAM_ATTRIBUTION) if (re.test(name)) return { slug, both: BOTH_SAHIHS.test(name) };
+  return null;
+}
+const unique = (hay, needle) => { const at = hay.indexOf(needle); return at >= 0 && hay.indexOf(needle, at + 1) < 0 ? at : -1; };
 function imamAttribution(transcript, detectedText) {
   const tNorm = normalizeArabic(transcript);
   const dWords = normalizeArabic(detectedText ?? '').split(/\s+/).filter(Boolean);
+  // Right after the hadith: "… رواه مسلم".
   for (const n of [5, 4, 3]) {
     if (dWords.length < n) continue;
     const tail = dWords.slice(-n).join(' ');
-    const at = tNorm.indexOf(tail);
-    if (at < 0 || tNorm.indexOf(tail, at + 1) >= 0) continue; // absent or ambiguous
+    const at = unique(tNorm, tail);
+    if (at < 0) continue; // absent or ambiguous
     const after = tNorm.slice(at + tail.length).trim().split(/\s+/).slice(0, 6).join(' ');
     const m = after.match(/^(?:\S+\s+){0,2}?(?:رواه|اخرجه|خرجه)\s+(.*)$|^(متفق عليه)/);
+    if (m) return collectionNamed(m[1] ?? m[2]);
+    break;
+  }
+  // Or before it, introducing it: "الحديث الذي أخرجه الترمذي في جامعه … عن صخر الغامدي … أنه قال:"
+  // (4 Sep 2026 Makkah, carded as Abu Dawud). Only when the chain ("عن …") follows the name with no
+  // sentence ending between, so the "رواه مسلم." closing the hadith before is not taken.
+  for (const n of [5, 4, 3]) {
+    if (dWords.length < n) continue;
+    const at = unique(tNorm, dWords.slice(0, n).join(' '));
+    if (at < 0) continue;
+    const before = tNorm.slice(0, at).split(/\s+/).slice(-30).join(' ');
+    // "في مسند الإمام أحمد قال ابن مسعود: خط لنا…" (11 Sep 2026 Makkah, carded as Tirmidhi 2454, another
+    // hadith): "in the Musnad / Sunan / Jami' of" introduces the next hadith, and its chain may start
+    // with "قال X" as well as "عن X"; after "رواه" a "قال" is more often the next hadith's opening.
+    const m = [...before.matchAll(/(?:رواه|اخرجه|خرجه)\s+|في\s+(?=(?:صحيح|مسند|سنن|جامع|موطا)\s|الصحيحين)/g)].at(-1);
     if (!m) return null;
-    // "رواه الامام البخاري ومسلم", "أخرجه في الصحيحين": a title or "in" can come before the
-    // name (11 Sep's and Sudais's "each of you is a shepherd" were carded as Claude's Abu Dawud).
-    const name = (m[1] ?? m[2]).trim().replace(/^(?:الامام|في)\s+/, '');
-    for (const [re, slug] of IMAM_ATTRIBUTION) if (re.test(name)) return { slug, both: BOTH_SAHIHS.test(name) };
-    return null;
+    const rest = before.slice(m.index + m[0].length);
+    const chain = m[0].startsWith('في') ? /(^|\s)(?:عن|قال)\s/ : /(^|\s)عن\s/;
+    if (/[.!؟?]/.test(rest) || !chain.test(rest)) return null;
+    return collectionNamed(rest);
   }
   return null;
 }
 
-async function resolveSunnahLinksForRefs(refs, transcript = null) {
+// corpus: loadHadithCorpus(), for the number of a hadith in the collection the imam named when
+// sunnah.com's search does not return it there.
+async function resolveSunnahLinksForRefs(refs, transcript = null, corpus = null) {
   for (const ref of refs) {
     const claudeSlug = collectionToSlug(ref.collection);
     const imam = transcript ? imamAttribution(transcript, ref.detected_text) : null;
     const imamSlug = imam?.slug ?? null;
     let sunnah = null;
     if (imamSlug) sunnah = await resolveSunnahLink(ref.detected_text, imamSlug);
+    if (!sunnah && imam?.both) sunnah = await resolveSunnahLink(ref.detected_text, 'muslim');
+    // The imam named a collection: a search that misses it there never falls back to another
+    // one (4 Sep 2026 Makkah: the birds hadith, "أخرجه الترمذي", carded as Claude's Ibn Majah,
+    // the search not returning Tirmidhi's wording). Our copy of his collection gives the number
+    // (Bukhari, Abu Dawud, Tirmidhi, Nasa'i and Ibn Majah number as sunnah.com does; sunnahNumber).
+    if (!sunnah && imamSlug && corpus) {
+      const h = findMatchingHadith(ref.detected_text, corpus.filter(h => h.collectionId === `ara-${imamSlug}`));
+      if (h?.link) sunnah = { collection_slug: imamSlug, hadith_number: h.number, link: h.link, corpus: true };
+    }
     // The imam named none: the best-ranked collection holding his words (Bukhari, then
     // Muslim, …; pickSunnahResult) before Claude's own guess of a collection.
     if (!sunnah && !imamSlug) sunnah = await resolveSunnahLink(ref.detected_text, null);
-    if (!sunnah) sunnah = await resolveSunnahLink(ref.detected_text, claudeSlug);
+    if (!sunnah && !imamSlug) sunnah = await resolveSunnahLink(ref.detected_text, claudeSlug);
     // A link confirmed on an earlier run stays when today's search finds nothing: search
     // results drift, and three published links (Ibn Majah 425, 1642, Tirmidhi 3585) no
     // longer come back although their pages carry the imam's words. Their narrator and
     // English are still read from that page.
     const kept = !sunnah && ref.verification === 'sunnah_search'
       && (ref.link ?? '').match(/sunnah\.com\/([a-z]+):(\w+)$/);
-    if (kept) sunnah = { collection_slug: kept[1], hadith_number: kept[2], link: ref.link };
+    if (kept && (!imamSlug || kept[1] === imamSlug)) sunnah = { collection_slug: kept[1], hadith_number: kept[2], link: ref.link };
+    if (!sunnah && imamSlug) {
+      ref.collection = slugToDisplay(imamSlug);
+      // A number, link and published text from another collection belong to another hadith: the
+      // card names the imam's collection with no link rather than them (11 Sep 2026 Makkah).
+      if (!(ref.link ?? '').includes(`sunnah.com/${imamSlug}:`)) {
+        for (const k of ['hadith_number', 'link', 'translation', 'published_arabic']) ref[k] = null;
+        ref.verification = 'imam_collection_unlinked';
+        ref.note = 'The collection the imam named; not found there on sunnah.com or in the local corpus';
+      }
+    }
     // No sunnah.com page to confirm a narrator: the card names none rather than Claude's guess
     // (18 Sep 2026 Madinah: Sa'd ibn Abi Waqqas for an-Nasa'i's "whoever terrifies the people of
     // Madinah", which is as-Sa'ib ibn Khallad's). Claude's stays in narrator_claude.
@@ -479,8 +535,8 @@ async function resolveSunnahLinksForRefs(refs, transcript = null) {
       ref.collection = slugToDisplay(sunnah.collection_slug);
       ref.hadith_number = sunnah.hadith_number;
       ref.link = sunnah.link;
-      ref.verification = 'sunnah_search';
-      ref.note = 'Link verified via sunnah.com search';
+      ref.verification = sunnah.corpus ? 'imam_collection' : 'sunnah_search';
+      ref.note = sunnah.corpus ? 'The collection the imam named; number from the local corpus' : 'Link verified via sunnah.com search';
       // The resolved page states the narrator of THAT hadith (see chooseNarrator). Claude's
       // own narrator is kept in narrator_claude, so a re-run still has it to compare with
       // after ref.narrator has been overwritten.
@@ -511,7 +567,8 @@ function extractMatn(text) {
     /(?:قال|يقول)\s+(?:رسول\s+الله|النبي|المصطفى)\s+(?:صلى\s+الله\s+عليه\s+وسلم\s+)?(?:قال\s+|يقول\s+)?/,
     /(?:ان|إن)\s+(?:رسول\s+الله|النبي)\s+(?:صلى\s+الله\s+عليه\s+وسلم\s+)?(?:قال\s+|يقول\s+)?/,
     /سمعت\s+(?:رسول\s+الله|النبي)\s+(?:صلى\s+الله\s+عليه\s+وسلم\s+)?(?:يقول\s+|قال\s+)?/,
-    /عن\s+(?:النبي|رسول\s+الله)\s+(?:صلى\s+الله\s+عليه\s+وسلم\s+)?(?:انه|أنه)\s+(?:قال\s+)?/,
+    // "عن النبي ﷺ قال" too: without it Abu Dawud 1479's matn was the ayah it quotes, after its last قال
+    /عن\s+(?:النبي|رسول\s+الله)\s+(?:صلى\s+الله\s+عليه\s+وسلم\s+)?(?:(?:انه|أنه)\s+(?:قال\s+)?|(?:قال|يقول)\s+)/,
     /(?:ان|إن)\s+الله\s+(?:قال|يقول)\s+/,    // Hadith Qudsi
   ];
 
@@ -638,6 +695,43 @@ function scanTranscriptForHadith(transcript, claudeHadithRefs, hadithCorpus, qur
   return found.sort((a, b) => a._start - b._start).map(({ _start, ...r }) => r);
 }
 
+// ---- Hadith the imam quotes and attributes aloud ------------------------------
+//
+// "وقال رسول الله صلى الله عليه وسلم: الدعاء هو العبادة. أخرجه أبو داود والترمذي وابن ماجه" (4 Sep 2026
+// Makkah) got no card: three words are too few for the scan, and the analysis did not list it.
+// What he quotes after "قال رسول الله ﷺ" and before "رواه / أخرجه <collection>" is a hadith when that
+// collection (our copy) has those words in that order; a quote an earlier step found is skipped.
+const SAID = /(?:^|\s)(?:قال|وقال|فقال|يقول|ويقول)\s+(?:رسول\s+الله|النبي|المصطفى)(?:\s+صلى\s+الله\s+عليه\s+وسلم)?\s*:?\s*/g;
+function findAttributedHadith(transcript, refs, corpus) {
+  if (!corpus?.length) return [];
+  const words = transcript.split(/\s+/).filter(Boolean);
+  const norm = words.map(w => normalizeArabic(w));
+  const keysOf = text => (text ?? '').split(/\s+/).map(hadithKey).filter(Boolean).join(' ');
+  const claimed = refs.map(r => keysOf(r.detected_text)).filter(Boolean);
+  const found = [];
+  for (let i = 0; i < words.length; i++) {
+    if (!/^(?:رواه|اخرجه|خرجه)$/.test(norm[i].replace(/[^\u0621-\u064A]/g, ''))) continue;
+    const named = collectionNamed(norm.slice(i + 1, i + 5).join(' '));
+    if (!named) continue;
+    const from = Math.max(0, i - 40), before = norm.slice(from, i).join(' ');
+    const m = [...before.matchAll(SAID)].at(-1);
+    if (!m) continue;
+    const start = from + before.slice(0, m.index + m[0].length).split(/\s+/).filter(Boolean).length;
+    const quote = words.slice(start, i).join(' ').replace(/[.،,:؛!؟?]+$/, ''), qk = keysOf(quote);
+    const n = qk.split(' ').length;
+    if (!qk || n < 2 || n > 40 || claimed.some(c => c.includes(qk) || qk.includes(c))) continue;
+    const slugs = named.both ? ['bukhari', 'muslim'] : [named.slug];
+    const h = corpus.filter(h => slugs.includes(h.collectionId.replace('ara-', '')))
+      .filter(h => (h._keys ??= h.matnWords.map(hadithKey)).join(' ').includes(qk))
+      .sort((a, b) => a.matnWords.length - b.matnWords.length)[0];
+    if (!h) continue;
+    found.push({ detected_text: quote, narrator: null, collection: h.collection, hadith_number: h.number, link: h.link,
+      confidence: 1, detection_method: 'attribution', verification: 'imam_collection', note: 'Quoted and attributed by the imam; number from the local corpus' });
+    claimed.push(qk);
+  }
+  return found;
+}
+
 // ---- Hadith deduplication ---------------------------------------------------
 
 // Removes duplicate or near-duplicate hadith refs that arise when Claude detects
@@ -705,7 +799,8 @@ function isLiturgicalPart(text) {
     || words.filter(w => LITURGICAL_WORDS.has(w)).length >= words.length * 0.85;
 }
 
-function deduplicateHadithRefs(refs) {
+// transcript: lets a short hadith the imam attributes aloud through the content-word gate below.
+function deduplicateHadithRefs(refs, transcript = null) {
   const kept = [];
   for (const ref of refs) {
     // Only hadith the imam introduces become cards. Every hadith found solely by the corpus
@@ -723,8 +818,10 @@ function deduplicateHadithRefs(refs) {
     // Content check: strip the prophet attribution and measure what remains.
     // Pure attribution phrases ("الصحيح ان رسول الله صلى الله عليه وسلم") leave
     // < 4 content words; real hadiths (even short ones like "كلكم راع...") leave ≥ 4.
+    // A short hadith he attributes aloud is a hadith: "الدعاء هو العبادة. أخرجه أبو داود والترمذي
+    // وابن ماجه" (4 Sep 2026 Makkah) has three.
     const contentWords = extractMatn(ref.detected_text ?? '').split(/\s+/).filter(Boolean).length;
-    if (contentWords < 4) continue;
+    if (contentWords < 4 && !(contentWords >= 2 && transcript && imamAttribution(transcript, ref.detected_text))) continue;
 
     const normText = normalizeArabic(ref.detected_text ?? '');
     const isDuplicate = kept.some(k => {
@@ -767,4 +864,7 @@ export {
   fetchSunnahPage,
   cachedSunnahPage,
   extractMatn,
+  imamAttribution,
+  findAttributedHadith,
+  slugToDisplay,
 };
