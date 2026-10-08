@@ -311,6 +311,7 @@ Each is exported by its `core/` module and imported from there (`pipeline.js` no
 | 60 | "يا أيها" before 35:15 left in the prose (the ۞ mark hid the vocative) | `splitVocative` drops ۞ first |
 | 61 | Narrator: the Successor telling the story ("Kathir ibn Qays said: I was sitting with AbudDarda'", Abu Dawud 3641) | `nearerOnChain`: Claude's narrator when he stands nearer the Prophet ﷺ on the chain than the page's names; gate fails it |
 | 62 | 2:255 card inside a du'a, "اللهم" 7 words back | `dropBorrowedPhrases`: "اللهم" anywhere in the zone's sentence counts too |
+| 63 | 20:43 carded 20:24: alef-free matching made look-alike ayaat tie, the first in the mushaf won | `preferredAyah`: written alefs agree (`withRealAlefs`), then the ayah the imam goes on reciting |
 
 ---
 

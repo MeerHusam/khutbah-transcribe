@@ -272,6 +272,18 @@ function scanTranscriptForQuran(transcript, alreadyFound, keepPositions = false)
 // its vocative from this: 4 Sep 2026 Makkah's "يا أيها" stayed in the prose before the 35:15 card.
 const splitVocative = text => text.replace(/\u06DE\s*/g, '').replace(/(^|\s)ي\u064E?\u0640?\u0670\u0653?(?=\S)/g, '$1يا ');
 const midWordAlefMaqsura = text => text.replace(/ى\u0670(?=[\u0653\u0654]?[\u0621-\u064A])/g, 'ا');
+// The same words with the alefs that are written kept: only the mushaf's small alef (ذَٰلِكَ) goes.
+// Dropping every alef (below) finds an ayah whatever the spelling, but it also makes the dual
+// "اذهبا" (20:43, Musa and Harun) the singular "اذهب" (20:24, 79:17): the Sudais test khutbah's
+// 20:43 was carded 20:24 (8 Oct 2026). Used only to choose between ayaat the match finds equally.
+function withRealAlefs(text) {
+  return normalizeArabic(midWordAlefMaqsura(splitVocative(text)).replace(/\u0670/g, ''))
+    .replace(/[ءئ]/g, '').replace(/ؤ/g, 'و').replace(/وو/g, 'و')
+    .replace(/(^|\s)الل(?!ه)/g, '$1ال')
+    .replace(/ى/g, 'ي').replace(/ة/g, 'ه')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 function normalizeArabicDeep(text) {
   return normalizeArabic(midWordAlefMaqsura(splitVocative(text)))
     .replace(/ء/g, '')   // strip bare hamza ("ءامنوا" → "امنوا")
@@ -629,6 +641,27 @@ function extendZoneStarts(zones, tNorm) {
   }
 }
 
+// Two ayaat the match finds over the same words (some ayaat differ only in an alef, some not at all):
+// the one whose written alefs agree with what the imam said ("اذهبا", 20:43, over "اذهب", 20:24), else
+// the one he goes on reciting (after the same words, 20:24 goes on "قال رب اشرح لي صدري" and 79:17 "فقل
+// هل لك"). Until 8 Oct 2026 the first in the mushaf's order won.
+const realAlefWords = new Map();
+function preferredAyah(a, b, transcriptWords, tNorm, start, end) {
+  const words = h => {
+    const k = `${h.surah_id}:${h.ayah_id}`;
+    if (!realAlefWords.has(k)) realAlefWords.set(k, new Set(withRealAlefs(h.ayah_text).split(' ')));
+    return realAlefWords.get(k);
+  };
+  const said = transcriptWords.slice(start, end).map(withRealAlefs);
+  const agree = h => said.filter(w => words(h).has(w)).length;
+  if (agree(a) !== agree(b)) return agree(a) > agree(b);
+  const goesOn = h => {
+    const next = getQuranAyahWords().get(h.surah_id)?.find(v => v.ayah_id === h.ayah_id + 1);
+    return !!next && ayahFollowsAt(next.words, tNorm, end);
+  };
+  return goesOn(a) && !goesOn(b);
+}
+
 function prescanForQuranZones(transcriptWords, n = 4) {
   if (!quranData) return [];
   const index = getQuranNgramIndex(n);
@@ -662,6 +695,7 @@ function prescanForQuranZones(transcriptWords, n = 4) {
         zStart = i - back; zEnd = i + fwd;
       }
       if (zEnd - zStart > bestEnd - bestStart) { bestStart = zStart; bestEnd = zEnd; bestHit = hit; }
+      else if (zEnd - zStart === bestEnd - bestStart && hit !== bestHit && preferredAyah(hit, bestHit, transcriptWords, tNorm, zStart, zEnd)) bestHit = hit;
     }
 
     // The claimed span must at least cover the matched n-gram [i, i+n]; the fuzzy

@@ -455,3 +455,11 @@ Full root-cause analyses and implementation notes for every fix. New fixes go he
 **Root cause:** fix 51 counted a zone as du'a when "اللهم" was in the 6 words before it; a du'a of several calls puts it further back.
 
 **Fix:** "اللهم" anywhere in the zone's sentence (back to a full stop, question mark or colon, at most 30 words) counts too, unless the imam cites a verse after it; the 6-word rule stays, so nothing it caught comes back. Across 86 transcripts on the Mac this zone changes, and Sudais's Ramadan du'a "وجنبهم الفواحش والفتن ما ظهر منها وما بطن، اللهم ادفع عنا…" (a 22-word 6:151 zone, fix 40's error; the live page already shows no card there) in that page and its ten May test runs; nothing else.
+
+### 63. Look-alike ayaat: 20:43 carded as 20:24 once alefs stopped counting (the Sudais test khutbah, rerun 8 Oct 2026)
+
+**Symptoms:** "اذهبا إلى فرعون إنه طغى فقولا له قولاً ليناً…" (20:43–44, Musa and Harun sent together) got a 20:24 card, the ayah where Musa is sent alone, and 20:44 a card of its own. The May runs had it right; the publish check failed it ("ref labelled 20:24 but only 40% of its text is in that verse").
+
+**Root cause:** since fix 35, `normalizeArabicDeep` drops every alef so the mushaf's spelling meets ordinary spelling (ذَٰلِكَ / ذلك, السَّمَٰوَٰت / السماوات). That also made the dual "اذهبا" the singular "اذهب": 20:24, 20:43 and 79:17 matched the same words equally, and `prescanForQuranZones` kept the first in the mushaf's order. 20:24 is not followed by 20:44, so 20:44 became a zone of its own.
+
+**Fix:** the alef-free form still finds the candidates; between candidates that match equally, `preferredAyah` takes the one whose written alefs agree with what the imam said (`withRealAlefs`: only the mushaf's small alef is dropped), then the one whose next ayah he goes on to recite. Across 86 saved transcripts (1,493 card and narrator decisions) only this zone changes, in the three runs of that khutbah; the rerun's check passes. Test: `tests/verse_zones.test.js` (20:43, 20:24 and 79:17 told apart).
