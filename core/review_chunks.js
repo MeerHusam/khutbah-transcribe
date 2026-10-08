@@ -69,6 +69,19 @@ export function reviewRequest({ system, field, types, whole, texts, show }) {
   };
 }
 
+// The words `after` no longer has (at least 5) are, all but a fifth, words of a neighbouring
+// chunk's text: a duplicate taken out (the rest of the chunk may be reworded as well).
+const wordsOf = t => (t ?? '').toLowerCase().normalize('NFKC').match(/[\p{L}\p{N}]{3,}/gu) ?? [];
+export function removesNeighbourText(before, after, neighbours) {
+  const kept = wordsOf(after);
+  if (!kept.length) return false;
+  const left = new Map();
+  for (const w of kept) left.set(w, (left.get(w) ?? 0) + 1);
+  const cut = wordsOf(before).filter(w => (left.get(w) ?? 0) > 0 ? (left.set(w, left.get(w) - 1), false) : true);
+  if (cut.length < 5) return false;
+  return neighbours.some(n => { const there = new Set(wordsOf(n)); return cut.filter(w => there.has(w)).length >= 0.8 * cut.length; });
+}
+
 // Review `texts` (see reviewRequest) in batches and rounds. Returns { log, usage }; each log entry
 // has `${key}_before` and `${key}_after` (null when not applied).
 export async function reviewChunks({ anthropic, request, field, key, texts, batch, rounds, only }) {
@@ -93,9 +106,12 @@ export async function reviewChunks({ anthropic, request, field, key, texts, batc
         if (!(c.chunk >= 0 && c.chunk < texts.length) || !c.issues.length) continue;
         const serious = c.issues.some(x => x.severity !== 'low');
         const text = c[field].trim();
-        // A correction that changes the length wildly is more likely a slip than an edit.
+        // A correction that changes the length wildly is more likely a slip than an edit, unless all
+        // it takes out is what the next or previous chunk already says (11 Sep 2026 Madinah: chunk 12
+        // carried chunk 13's ayah and hadith, and the review's fix, 35% of the length, was refused).
         const ratio = text.length / Math.max(texts[c.chunk].length, 1);
-        const apply = serious && text && text !== texts[c.chunk] && ratio > 0.5 && ratio < 1.8;
+        const dropsNeighbour = ratio <= 0.5 && removesNeighbourText(texts[c.chunk], text, [texts[c.chunk - 1], texts[c.chunk + 1]]);
+        const apply = serious && text && text !== texts[c.chunk] && ((ratio > 0.5 && ratio < 1.8) || dropsNeighbour);
         log.push({ round, chunk: c.chunk, issues: c.issues, applied: apply, [`${key}_before`]: texts[c.chunk], [`${key}_after`]: apply ? text : null,
           ...(serious && !apply && text ? { not_applied_because: `length ratio ${ratio.toFixed(2)}` } : {}) });
         if (apply) { texts[c.chunk] = text; changed.add(c.chunk); applied++; }

@@ -63,3 +63,19 @@ test('a chunk the analysis left out is translated on its own; the others keep th
   // An array of the wrong length cannot be paired: every chunk is translated again.
   assert.deepEqual((await completeChunkTranslations(client, ['x', 'y'], chunks, '')).missing, [0, 1, 2]);
 });
+
+// 11 Sep 2026 Madinah: chunk 13 came back empty because its ayah and hadith were folded into
+// chunk 12's English; translated alone as well, the page said them twice. The swollen neighbour is
+// translated again on its own too.
+test('a neighbour that swallowed the empty chunk\'s words is translated again', async () => {
+  const asked = [];
+  const client = { messages: { create: async ({ messages }) => { const c = messages[0].content.match(/Chunk: (.*)/)[1]; asked.push(c); return { content: [{ type: 'text', text: `English of ${c}` }] }; } } };
+  const ar = n => Array.from({ length: n }, (_, k) => `كلمة${k}`).join(' ');
+  const chunks = [{ text: ar(10) }, { text: ar(16) }, { text: ar(20) }, { text: ar(10) }];
+  const en = n => Array.from({ length: n }, (_, k) => `word${k}`).join(' ');
+  const { list, missing } = await completeChunkTranslations(client, { 1: en(17), 2: en(79), 4: en(17) }, chunks, '');
+  assert.deepEqual(missing, [1, 2]);
+  assert.deepEqual(asked, [ar(16), ar(20)]);
+  assert.equal(list[1], `English of ${ar(16)}`);
+  assert.equal(list[0], en(17));
+});

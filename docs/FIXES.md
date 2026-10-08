@@ -407,3 +407,27 @@ Full root-cause analyses and implementation notes for every fix. New fixes go he
 **Root causes:** sunnah.com's header for 770 names the Successor who asked, and cuts him from Abu Salama b. 'Abd al-Rahman b. 'Auf to his father's name; `parseSunnahNarrator` had no rule for "I asked X … she said". 395b's header is misspelled "naratted", which the framing strip did not match.
 
 **Fix:** "I asked X" / "I said to X" at the start of the hadith names X as the Companion (unless X is the Prophet ﷺ); the strip accepts "naratted". Across the 87 linked hadiths on the Mac only these two change (and Muslim 7500's Suhaib gains his full name).
+
+### 57. A hadith card from another Companion than the one the imam named (11 Sep 2026 Madinah)
+
+**Symptoms:** "وقد صح عن جرير بن عبد الله رضي الله عنه … بايعنا رسول الله ﷺ على النصح لأهل الإسلام" carded as Bukhari 7202, Ibn 'Umar's pledge to hear and obey.
+
+**Root causes:** the imam named no collection, so the search took the closest wording in any collection; nothing compared the card with the Companion he named.
+
+**Fix:** `imamCompanion` reads the name before "رضي الله عنه/ا/ما/م" within the 60 words before the hadith (no other hadith or verse between); the corpus keeps each hadith's whole text with its chain (`full`), and a card whose chain lacks him is replaced by his hadith with those words (`imam_companion`; here Nasa'i 4156, "عن جرير قال بايعت رسول الله ﷺ على النصح لكل مسلم"), else loses its number and link. `verify_reader` fails such a card. Of 225 hadith refs on the Mac, 12 have a Companion named before them; only this one changes.
+
+### 58. The English said an ayah and a hadith twice (11 Sep 2026 Madinah)
+
+**Symptoms:** chunk 12's English carried chunk 13's "Woe to those who give less than due" and the hadith after it, and chunk 13 said them again.
+
+**Root causes:** the analysis folded chunk 13's words into chunk 12 and left 13 empty; `completeChunkTranslations` translated 13 alone, leaving 12 as it was. The English review found it (high) and wrote the fix, but the loop refused it: 35% of the old length, outside the 0.5–1.8 guard against wild rewrites.
+
+**Fix:** a neighbour whose English is far too long for its Arabic beside an empty chunk is translated again on its own too; the review applies a correction however much shorter when the words it takes out are, all but a fifth, the next or previous chunk's (`removesNeighbourText`); the analysis prompt says each chunk's English is its own words only.
+
+### 59. A lone "في" from a restart inside an ayah, "translated" with the translator's note (11 Sep 2026 Madinah)
+
+**Symptoms:** "ويشهد الله على ما في نفسه ويشهد الله على ما في ويشهد الله على ما في قلبه" (2:204, the imam restarting) left "في" between two zones of the ayah as a chunk of its own; translated alone, its English was "The chunk is the verse portion: … the translation of this chunk is: in". The publish check failed it on length.
+
+**Root causes:** zones merged only when they touched; the single-chunk translator had no instruction for a stray word, and nothing checked for a note in place of a translation.
+
+**Fix:** two zones of the very same ayah at most two words apart are one zone (one card, the restart inside it; across 52 transcripts only this one and a test file's doubled 26:62 change; 2:201 then 2:128, and Arafah's "نعم نعم" between 22:27 and 22:28, stay apart); `translateChunk` replies empty for a stray word and never with a note; `check_english` fails an English that is a note about the text.

@@ -220,6 +220,13 @@ export function checkEnglish(blocks, result) {
     }
   }
 
+  // A translator's note in place of a translation (11 Sep 2026 Madinah, a lone "في": "The chunk is the
+  // verse portion: … the translation of this chunk is: in").
+  const NOTE = /\b(?:th(?:e|is) chunk|the transcript|the khatib (?:repeats|stumbles)|translation of this)\b/i;
+  (result.chunk_translations ?? []).forEach((t, i) => {
+    if (NOTE.test(t ?? '')) failures.push(`chunk ${i}'s English is a note about the text, not a translation: "${t.slice(0, 80)}…"`);
+  });
+
   // A planned swap (quote_swaps.js) must not drop numbers or names Claude's rendering has.
   for (const [kind, refs] of [['hadith', result.hadith_references ?? []], ['verse', result.quran_references ?? []]]) {
     for (const r of refs) {

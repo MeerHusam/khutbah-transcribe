@@ -15,7 +15,7 @@ import { pathToFileURL } from 'url';
 import { normalizeArabic, normalizeArabicDeep, splitsPhrase, prescanForQuranZones, dropBorrowedPhrases } from './arabic.js';
 import { loadResult } from './reader_chunks.js';
 import { checkEnglish } from './check_english.js';
-import { imamAttribution, findAttributedHadith, loadHadithCorpus, slugToDisplay } from './hadith.js';
+import { imamAttribution, imamCompanion, companionOnChain, findAttributedHadith, loadHadithCorpus, slugToDisplay } from './hadith.js';
 import { LANGS } from './languages.js';
 import '../public/recited.js';
 
@@ -373,6 +373,12 @@ export function verifyReader(folder, { readerRaw: readerOverride = null, result:
   hadithCorpus ??= loadHadithCorpus();
   for (const h of findAttributedHadith(transcript, result.hadith_references ?? [], hadithCorpus)) {
     fail(`a hadith the imam quotes and attributes aloud has no card (${h.collection} ${h.hadith_number}): "${h.detected_text.slice(0, 50)}"`);
+  }
+  // The Companion he names before it is on the card's chain (11 Sep 2026 Madinah: "صح عن جرير بن عبد
+  // الله" carded as Ibn 'Umar's Bukhari 7202). Checked where the card's hadith is in hadith_data/.
+  for (const h of result.hadith_references ?? []) {
+    const who = imamCompanion(transcript, h.detected_text);
+    if (who && companionOnChain(hadithCorpus, h.link, who) === false) fail(`hadith card ${h.link} is not narrated by the Companion the imam named (${who}): "${(h.detected_text ?? '').slice(0, 50)}"`);
   }
 
   // ── 5b. An inline (📑) verse must be locatable inside its block's Arabic ──────

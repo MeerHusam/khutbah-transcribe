@@ -4,7 +4,7 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
-import { normalizeArabic, wordOverlapScore, MIN_ZONE_WORDS } from './arabic.js';
+import { normalizeArabic, normalizeArabicDeep, wordOverlapScore, MIN_ZONE_WORDS } from './arabic.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -108,6 +108,8 @@ function loadHadithCorpus() {
         number,
         matn,
         matnWords,
+        // The whole text, chain included, for the Companion the imam names (imamCompanion).
+        full: ` ${normalizeArabicDeep(h.text ?? '')} `,
         link: number ? `https://sunnah.com/${id.replace('ara-', '')}:${number}` : null,
       });
     }
@@ -482,6 +484,34 @@ function imamAttribution(transcript, detectedText) {
   return null;
 }
 
+// The Companion the imam names before a hadith, as a name key: "وقد صح عن جرير بن عبد الله رضي الله عنه
+// أنه كان … فقال: بايعنا رسول الله ﷺ على النصح لأهل الإسلام" (11 Sep 2026 Madinah) → "جرير". Only a
+// name followed by "رضي الله عنه/ا/ما/م", within the 60 words before the hadith, with no other hadith
+// ("رواه", "أخرجه", "متفق عليه") or verse ("قال الله", "قال تعالى") between.
+const AR_NAME_STOP = new Set(['بن', 'ابن', 'ابي', 'ابو', 'ام', 'بنت', 'عبد', 'الله', 'امير', 'المومنين']);
+function imamCompanion(transcript, detectedText) {
+  const tNorm = normalizeArabic(transcript).replace(/[.،,:؛!؟?«»"]/g, ' ');
+  const dWords = normalizeArabic(detectedText ?? '').replace(/[.،,:؛!؟?«»"]/g, ' ').split(/\s+/).filter(Boolean);
+  for (const n of [5, 4, 3]) {
+    if (dWords.length < n) continue;
+    const at = unique(tNorm, dWords.slice(0, n).join(' '));
+    if (at < 0) continue;
+    const before = tNorm.slice(0, at).split(/\s+/).filter(Boolean).slice(-60).join(' ');
+    const m = [...before.matchAll(/(?:^|\s)عن\s+((?:\S+\s+){0,4}?\S+)\s+رضي\s+الله\s+عن(?:ه|ها|هما|هم)(?=\s|$)/g)].at(-1);
+    if (!m) return null;
+    if (/(?:^|\s)(?:رواه|اخرجه|متفق\s+عليه|قال\s+الله|قال\s+تعالى)(?=\s|$)/.test(before.slice(m.index + m[0].length))) return null;
+    const key = m[1].split(/\s+/).map(w => normalizeArabicDeep(w)).find(w => w.length >= 3 && !AR_NAME_STOP.has(w));
+    return key ?? null;
+  }
+  return null;
+}
+// Whether a corpus hadith's chain names that Companion: true / false, or null when the link is not in
+// the corpus (another collection, or a Muslim number that does not map).
+function companionOnChain(corpus, link, key) {
+  const h = link && corpus?.find(x => x.link === link);
+  return h ? h.full.includes(` ${key} `) : null;
+}
+
 // corpus: loadHadithCorpus(), for the number of a hadith in the collection the imam named when
 // sunnah.com's search does not return it there.
 async function resolveSunnahLinksForRefs(refs, transcript = null, corpus = null) {
@@ -511,6 +541,23 @@ async function resolveSunnahLinksForRefs(refs, transcript = null, corpus = null)
     const kept = !sunnah && ref.verification === 'sunnah_search'
       && (ref.link ?? '').match(/sunnah\.com\/([a-z]+):(\w+)$/);
     if (kept && (!imamSlug || kept[1] === imamSlug)) sunnah = { collection_slug: kept[1], hadith_number: kept[2], link: ref.link };
+    // The Companion he names must be on the card's chain (11 Sep 2026 Madinah: Jarir's pledge carded
+    // as Ibn 'Umar's, Bukhari 7202). Otherwise his hadith with those words, in his collection if he
+    // named one; else no number and no link rather than another Companion's hadith.
+    const companion = transcript && corpus ? imamCompanion(transcript, ref.detected_text) : null;
+    let notHis = false;
+    if (companion && companionOnChain(corpus, sunnah?.link, companion) === false) {
+      const pool = corpus.filter(h => h.full.includes(` ${companion} `) && (!imamSlug || h.collectionId === `ara-${imamSlug}`));
+      const h = findMatchingHadith(ref.detected_text, pool);
+      sunnah = h?.link ? { collection_slug: h.collectionId.replace('ara-', ''), hadith_number: h.number, link: h.link, corpus: 'companion' } : null;
+      notHis = !sunnah;
+    }
+    if (notHis) {
+      for (const k of ['hadith_number', 'link', 'translation', 'published_arabic']) ref[k] = null;
+      ref.collection = imamSlug ? slugToDisplay(imamSlug) : null;
+      ref.verification = 'imam_companion_unlinked';
+      ref.note = 'Not found among the hadith of the Companion the imam named';
+    }
     if (!sunnah && imamSlug) {
       ref.collection = slugToDisplay(imamSlug);
       // A number, link and published text from another collection belong to another hadith: the
@@ -535,8 +582,9 @@ async function resolveSunnahLinksForRefs(refs, transcript = null, corpus = null)
       ref.collection = slugToDisplay(sunnah.collection_slug);
       ref.hadith_number = sunnah.hadith_number;
       ref.link = sunnah.link;
-      ref.verification = sunnah.corpus ? 'imam_collection' : 'sunnah_search';
-      ref.note = sunnah.corpus ? 'The collection the imam named; number from the local corpus' : 'Link verified via sunnah.com search';
+      ref.verification = sunnah.corpus === 'companion' ? 'imam_companion' : sunnah.corpus ? 'imam_collection' : 'sunnah_search';
+      ref.note = sunnah.corpus === 'companion' ? 'The hadith of the Companion the imam named; number from the local corpus'
+        : sunnah.corpus ? 'The collection the imam named; number from the local corpus' : 'Link verified via sunnah.com search';
       // The resolved page states the narrator of THAT hadith (see chooseNarrator). Claude's
       // own narrator is kept in narrator_claude, so a re-run still has it to compare with
       // after ref.narrator has been overwritten.
@@ -865,6 +913,8 @@ export {
   cachedSunnahPage,
   extractMatn,
   imamAttribution,
+  imamCompanion,
+  companionOnChain,
   findAttributedHadith,
   slugToDisplay,
 };

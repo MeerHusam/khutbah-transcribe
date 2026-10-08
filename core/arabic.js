@@ -710,10 +710,17 @@ function prescanForQuranZones(transcriptWords, n = 4) {
   extendZonesByConsecutiveAyahs(merged, tNorm);
 
   // Extension can push one zone into the next; merge again so spans stay disjoint.
+  // Two zones of the same ayah (or the next) one or two words apart are one recitation the imam
+  // restarted: "ويشهد الله على ما في نفسه ويشهد الله على ما في | ويشهد الله على ما في قلبه" (11 Sep
+  // 2026 Madinah, 2:204). Apart, the stray "في" between them was a block of its own, and its
+  // "translation" was the translator's note about it.
+  // Only the very same ayah on both sides: 2:201 then 2:128 in a du'a are two cards, and the imam's
+  // "نعم نعم" between 22:27 and his repeat of 22:28's opening (Arafah) is his own, not the verse's.
+  const sameRecitation = (a, b) => a.surah_id === b.surah_id && a.ayah_id === b.ayah_id;
   const settled = [];
   for (const z of merged) {
     const prev = settled[settled.length - 1];
-    if (prev && z.start <= prev.end) {
+    if (prev && (z.start <= prev.end || (z.start - prev.end <= 2 && sameRecitation(prev, z)))) {
       prev.end = Math.max(prev.end, z.end);
       if (!prev.extra_ayahs) prev.extra_ayahs = [];
       for (const e of [{ surah_id: z.surah_id, ayah_id: z.ayah_id, surah_name: z.surah_name }, ...(z.extra_ayahs ?? [])]) {

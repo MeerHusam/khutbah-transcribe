@@ -49,7 +49,7 @@ Quranic words that ARE inside a chunk are part of it: translate them like the re
 
 TERMS RULE: Keep these Islamic terms, as the Haramain's own English does, with a short gloss in parentheses the first time each appears in the khutbah and the term alone after that: {{GLOSSED_TERMS}}. For example "Iman (faith)" the first time, then "Iman". {{TERMS_SENSE}}
 
-RESTART RULE: When the khatib repeats a phrase while speaking (a restart, "ليأمن الناس في بيوتهم ليأمن الناس في بيوتهم"), translate it once, also when the repeat runs on into the next chunk.
+RESTART RULE: When the khatib repeats a phrase while speaking (a restart, "ليأمن الناس في بيوتهم ليأمن الناس في بيوتهم"), translate it once, also when the repeat runs on into the next chunk. Each chunk's English is that chunk's words only: never fold the next chunk's words into this one. A translation is never a note about the text.
 
 1. Translate the full text into natural, readable English. Preserve Islamic terms untranslated: Allah, Salah, Zakat, Ummah, Sunnah, Hadith, Quran, Surah, Ayah (plural Ayaat; never "verse"), Jummah, Khatib, and any Arabic honorifics like صلى الله عليه وسلم or رضي الله عنه. Every other Arabic word is translated, never left in transliteration (مخموم القلب is "a clean heart", not "makhmum").
 
@@ -268,10 +268,21 @@ async function completeChunkTranslations(anthropic, raw, chunks, transcript, mod
   const list = (Array.isArray(raw) ? (raw.length === n ? raw : []) : Array.from({ length: n }, (_, i) => raw?.[i + 1]))
     .concat(Array(n).fill('')).slice(0, n).map(t => (typeof t === 'string' ? t.trim() : ''));
   const missing = list.map((t, i) => (t ? -1 : i)).filter(i => i >= 0);
-  for (const i of missing) {
+  // A chunk left empty was often folded into its neighbour's English (11 Sep 2026 Madinah: chunk 13's
+  // ayah and hadith in chunk 12's, then translated again alone, so the page said them twice). A
+  // neighbour whose English is far too long for its Arabic, against this khutbah's own ratio, is
+  // translated again on its own as well.
+  const words = t => (t ?? '').split(/\s+/).filter(Boolean).length;
+  const ratios = list.map((t, i) => (t ? words(t) / Math.max(words(chunks[i].text), 1) : null)).filter(r => r != null).sort((a, b) => a - b);
+  const med = ratios[ratios.length >> 1] ?? 1.7;
+  const swollen = j => words(list[j]) > words(chunks[j].text) * med * 1.8 && words(list[j]) - words(chunks[j].text) * med > 8;
+  const redo = new Set(missing);
+  for (const i of missing) for (const j of [i - 1, i + 1]) if (j >= 0 && j < n && list[j] && swollen(j)) redo.add(j);
+  for (const j of redo) if (!missing.includes(j)) list[j] = '';
+  for (const i of [...redo].sort((a, b) => a - b)) {
     list[i] = await translateChunk(anthropic, { transcript, arabic: chunks[i].text, before: list[i - 1] || undefined, after: list[i + 1] || undefined, model });
   }
-  return { list, missing };
+  return { list, missing: [...redo].sort((a, b) => a - b) };
 }
 
 // English for one chunk, with the whole khutbah and the English on either side so it reads on.
@@ -287,7 +298,8 @@ async function translateChunk(anthropic, { transcript, arabic, before, after, mo
       'next to the chunk). Match the style of the English around it (honorifics such as صلى الله عليه وسلم stay in Arabic; ' +
       'every other Arabic word is translated) and make it read on from the English before it; a phrase the khatib repeats ' +
       'is translated once. «متفق عليه» after a hadith is "Narrated by al-Bukhari and Muslim", never "Agreed upon". ' +
-      'Do not use em dashes or en dashes. Reply with the English only.\n\n' +
+      'Do not use em dashes or en dashes. Reply with the English only, never a note about the text: a chunk that is only ' +
+      'a stray word or two of a phrase the khatib repeats gets an empty reply.\n\n' +
       `English before: ${before ?? '(start of the khutbah)'}\nChunk: ${arabic}\nEnglish after: ${after ?? '(end)'}` }],
   });
   return msg.content.find(b => b.type === 'text')?.text.trim() ?? '';
