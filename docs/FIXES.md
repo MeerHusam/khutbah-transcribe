@@ -471,3 +471,27 @@ Full root-cause analyses and implementation notes for every fix. New fixes go he
 **Root cause:** the label must name the ayah the recitation starts in. `matchClaudeQuranRef` sees to that when Claude and the matcher disagree (Quraysh 106:3–4), and on 3 Oct they did. On the rebuild Claude named 69:12 and the matcher agreed, so nothing checked the start, and `annotateRefAyahRange` only walks forward from the label.
 
 **Fix:** `annotateRefAyahRange` steps the label back while the ayah before it is recited whole at the start of the text and the labelled ayah follows straight on (whole, or at the end of the text its opening part, as the forward walk accepts); the quran.com link moves with it. An ayah of one or two words must match exactly. Across the 884 Quran refs of 80 saved runs only the label changes, on 4 refs, each a passage that starts one ayah earlier: 69:11–12, Arafah's 22:1–2 (two runs) and 33:70–71 (May); no text changes. Test: `tests/verse_zones.test.js`.
+
+### 65. The imam's recitation cut short in the voice tracks: "معنا", "الكافرون", "العالمين" (9 Oct 2026)
+
+**Symptoms:** in the translated audio, the imam's own recitation of 9:40 stopped before "معنا", of 12:87 before "الكافرون", of 37:182 before "العالمين". On the page, the first word of some blocks lit while the imam was still saying the last word of the block before.
+
+**Root cause:** `align_imam.js` aligns each block alone, padded 0.8 s each side, so a word at a boundary could be placed in the other block's sound. 12 of today's 50 boundaries overlapped (against Groq's times, the next block's first word early in 9, the last word late in 3; the 2 Oct fixture has 14). `recite.js` ends a recitation just before the next block's first word, so an early one cut the ayah's last word.
+
+**Fix:** `align_imam.js` aligns overlapping blocks again as one stretch, so the aligner sets the boundary with both texts (today: 0 overlaps left, agreement with Groq unchanged, median 0.12 s); `recite.js` never ends a recitation before its own last word; `check_highlight.js` fails word times where a block starts before the one before it ends. Test: `tests/highlight.test.js`.
+
+### 66. A hadith not marked in the Arabic when the imam reorders its closing words (9 Oct 2026)
+
+**Symptoms:** "لا يمتن أحدكم إلا وهو يحسن الظن، إلا وهو يحسن بالله الظن" (Muslim 2877c) was not marked green; only "رواه مسلم" was.
+
+**Root cause:** the page finds a hadith by the first and last three words of its detected text, in order. Claude's text ends "يحسن الظن بالله"; the imam said "يحسن بالله الظن".
+
+**Fix:** `locateSpan` (public/reader.html) accepts the same three closing words in another order. Of the 43 hadith on the published pages, this one is now marked and none other changes (18 Sep Makkah's Bukhari 3281 stays unmarked).
+
+### 67. An ayah card's recited part began a word late ("لا", "اليوم", "ما", "إن") (9 Oct 2026)
+
+**Symptoms:** the 9:40 card showed "…تَحْزَنْ إِنَّ ٱللَّهَ مَعَنَا…" for "لا تحزن إن الله معنا".
+
+**Root cause:** `recitedSpans` (public/recited.js) paired the imam's "لا" with the verse's opening "إلا" (the alef set aside), 18 words before the rest, then dropped it as a stray, so the part began at the next word. The Arafah test had the same miss built in (5:3 from "أكملت", not "اليوم").
+
+**Fix:** the kept part grows at both ends while the verse's next word is the imam's next word. Across 752 ayah cards of the saved runs, 20 change, each by one recited word at the start. Test: `tests/recited.test.js`.

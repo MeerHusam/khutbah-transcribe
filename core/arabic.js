@@ -647,16 +647,25 @@ function extendZonesByConsecutiveAyahs(zones, tNorm) {
 // Madinah; the joined يا أيها that also did is now split by normalizeArabicDeep). A word joins
 // the verse only if it is the verse's own preceding word, so "قال تعالى" stays in the prose.
 const noWaw = w => w.replace(/^و(?=..)/, '');
-function extendZoneStarts(zones, tNorm) {
+// A negation the imam says where the verse has one ("وأنه لا يصيبنا إلا ما كتب الله لنا" for 9:51's
+// "قل لن يصيبنا…", 9 Oct 2026) belongs to the verse too: left out, the card began at "يصيبنا" and read
+// without its negation. Compared on the written words, since without alefs "لا" is "إلا" and "لن" "لنا".
+const NEGATION = /^[وف]?(?:لا|لن|لم)$/;
+const isNegation = w => NEGATION.test(normalizeArabic(w ?? '').replace(/[^\u0621-\u064A]/g, ''));
+function extendZoneStarts(zones, tNorm, transcriptWords = []) {
   for (const z of zones) {
     const verse = quranData[z.surah_id - 1]?.verses?.[z.ayah_id - 1]?.text;
     if (!verse) continue;
     const words = normalizeArabicDeep(verse).split(/\s+/).filter(Boolean);
+    // The verse's written word behind each normalised one (a joined vocative is two), when they line up.
+    const rawOf = verse.split(/\s+/).filter(Boolean).flatMap(r => normalizeArabicDeep(r).split(/\s+/).filter(Boolean).map(() => r));
+    const lined = rawOf.length === words.length;
     let k = words.indexOf(tNorm[z.start]);
     let start = z.start;
     for (let taken = 0; taken < 2 && k > 0 && start > 0; taken++) {
       const want = words[k - 1], have = tNorm[start - 1];
       if (noWaw(want) === noWaw(have)) { start--; k--; }
+      else if (lined && isNegation(rawOf[k - 1]) && isNegation(transcriptWords[start - 1])) { start--; k--; }
       else break;
     }
     if (start === z.start) continue;
@@ -739,7 +748,7 @@ function prescanForQuranZones(transcriptWords, n = 4) {
     i = Math.max(bestEnd, i + 1);
   }
 
-  extendZoneStarts(zones, tNorm);
+  extendZoneStarts(zones, tNorm, transcriptWords);
 
   // PAD_START=0: do NOT pad the zone backward. Padding pulled the intro phrase's last
   // word(s) ("قال الله [تعالى]", "قال عز [وجل]") into the zone, where they were excluded

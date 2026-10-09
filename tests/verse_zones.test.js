@@ -106,3 +106,17 @@ test('two ayaat recited together are labelled from the first: 69:11-12, 33:70-71
   assert.equal(label(69, 12, 'لنجعلها لكم تذكرة وتعيها أذن واعية'), '69:12 https://quran.com/69/12');
   assert.equal(label(69, 11, 'إنا لما طغى الماء حملناكم في الجارية'), '69:11 https://quran.com/69/11');
 });
+
+// 9 Oct 2026: "وأنه لا يصيبنا إلا ما كتب الله لنا" — 9:51 has "قل لن يصيبنا"; the zone began at "يصيبنا"
+// and the card read without its negation. Arafah's "فلا فسوق ولا جدال" (2:197, "ولا فسوق") the same.
+test('a negation said where the verse has one starts the zone', () => {
+  for (const [text, first, ref] of [
+    ['قريب منا قادر على إجابتنا، وأنه لا يصيبنا إلا ما كتب الله لنا، وأن ما أخطأنا', 'لا', '9:51'],
+    ['البيت من كل ما لا يتناسب مع مكانته. فلا فسوق ولا جدال في الحج. ولقد', 'فلا', '2:197'],
+  ]) {
+    const w = text.split(' ');
+    const z = prescanForQuranZones(w).find(z => `${z.surah_id}:${z.ayah_id}` === ref);
+    assert.ok(z, `no zone for ${ref}`);
+    assert.equal(w[z.start], first, ref);
+  }
+});

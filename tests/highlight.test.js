@@ -22,3 +22,26 @@ test('word times that no longer match the page\'s blocks fail, with no request m
     assert.equal(JSON.parse(readFileSync(join(dir, 'highlight_check.json'), 'utf8')).verdict, 'fail');
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+// 9 Oct 2026: a block's first word timed before the block before it ended (align_imam.js aligned each
+// block alone); the voice tracks' recitation of 9:40 lost "معنا". Such word times fail before any request.
+test('a block whose first word is timed before the block before it ends fails, with no request made', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'kt-hl-'));
+  try {
+    cpSync('tests/fixture', dir, { recursive: true });
+    const w = JSON.parse(readFileSync(join(dir, 'words_imam.json'), 'utf8'));
+    const timed = w.blocks.filter(b => b.words?.length);
+    // The fixture (2 Oct, aligned before the fix) overlaps at 14 boundaries: first make it clean.
+    timed.slice(1).forEach((b, k) => { const end = timed[k].words.at(-1)[2]; if (b.words[0][1] < end) b.words[0][1] = end; });
+    const check = () => {
+      writeFileSync(join(dir, 'words_imam.json'), JSON.stringify(w));
+      return spawnSync('node', ['voice/check_highlight.js', dir, join(dir, 'result.json')], { encoding: 'utf8', env: { ...process.env, GROQ_API_KEY: '' } });
+    };
+    const clean = check();
+    assert.equal(clean.status, 0, clean.stdout + clean.stderr); // no Groq key: skipped, not failed
+    timed[4].words[0][1] = timed[3].words.at(-1)[2] - 0.5;
+    const r = check();
+    assert.equal(r.status, 1, r.stdout + r.stderr);
+    assert.match(r.stdout, /1 block\(s\) of words_imam.json start before the block before them ends/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
