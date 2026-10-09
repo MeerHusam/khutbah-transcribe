@@ -49,6 +49,12 @@ const chunks = loadResult(folder).reader_chunks ?? [];
 const head = c => c.arabic.split(/\s+/).filter(Boolean).slice(0, 6).join(' ');
 const stale = words.blocks.filter(b => !chunks[b.i] || head(chunks[b.i]) !== b.arabic_head);
 if (stale.length) finish('fail', { summary: `${stale.length} block(s) of words_imam.json no longer match the page's blocks: the page would light no word`, stale: stale.map(b => b.i) });
+// A block's first word may not be timed before the block before it ends (align_imam.js realigns
+// those): the page would light it while the imam is still on the last word, and the voice tracks'
+// recitation of an ayah would be cut short (9 Oct 2026: "معنا", "الكافرون").
+const timed = words.blocks.filter(b => b.words?.length);
+const overlapping = timed.slice(1).filter((b, k) => b.words[0][1] < timed[k].words.at(-1)[2]).map(b => b.i);
+if (overlapping.length) finish('fail', { summary: `${overlapping.length} block(s) of words_imam.json start before the block before them ends (blocks ${overlapping.join(', ')}): run voice/align_imam.js again`, overlapping });
 
 // 2. Words to hear: spread evenly over the khutbah, long enough for Whisper to catch alone.
 const key = w => normalizeArabicDeep(w).replace(/[^ء-ي]/g, '').replace(/^(?:و|ف)?(?:ب|ل|ك)?(?:ال)?/, '');

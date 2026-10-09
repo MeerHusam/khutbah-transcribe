@@ -99,9 +99,11 @@ const trackLufs = lufs(track);
 
 // The imam saying `words`, from just before the first to just after the last (never into the
 // word that follows, at `nextStart`), cleaned up, `lift` dB above the voice, with short fades.
+// Never ending before its own last word: a next block timed too early (9 Oct 2026, before align_imam.js
+// realigned overlapping blocks) cut 9:40's "معنا" and 12:87's "الكافرون" out of the recitation.
 function recitation(words, nextStart) {
   const a = words[0][1] - 0.15;
-  const b = Math.min(words.at(-1)[2] + 0.35, nextStart - 0.05);
+  const b = Math.max(words.at(-1)[2] + 0.08, Math.min(words.at(-1)[2] + 0.35, nextStart - 0.05));
   const clean = filter(voice.slice(at(a), at(b)), CLEAN);
   const gain = trackLufs + lift - lufs(clean);
   const clip = filter(clean, `volume=${gain.toFixed(2)}dB,alimiter=limit=0.95:attack=5:release=50:level=disabled`);
