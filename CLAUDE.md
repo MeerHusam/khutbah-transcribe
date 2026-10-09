@@ -313,6 +313,9 @@ Each is exported by its `core/` module and imported from there (`pipeline.js` no
 | 62 | 2:255 card inside a du'a, "اللهم" 7 words back | `dropBorrowedPhrases`: "اللهم" anywhere in the zone's sentence counts too |
 | 63 | 20:43 carded 20:24: alef-free matching made look-alike ayaat tie, the first in the mushaf won | `preferredAyah`: written alefs agree (`withRealAlefs`), then the ayah the imam goes on reciting |
 | 64 | 69:11–12 labelled 69:12: Claude and the matcher agreed on the second ayah, the range only walked forward | `annotateRefAyahRange` steps the label back to the ayah the recitation starts in |
+| 65 | Recitation in the voice tracks cut before "معنا", "الكافرون": imam word times of neighbouring blocks overlapped | `align_imam.js` realigns overlapping blocks together; `recite.js` never ends before its last word; `check_highlight` fails overlaps |
+| 66 | Hadith not marked green when the imam reorders its closing words | `locateSpan` accepts the last three words in another order |
+| 67 | Ayah card's recited part began a word late ("لا" paired with the verse's opening "إلا") | `recitedSpans` grows the part at both ends while the words match |
 
 ---
 
