@@ -43,12 +43,17 @@
       // A recited word matched elsewhere in the verse and dropped as a stray may stand right beside
       // the kept part: on 9 Oct 2026 "لا تحزن إن الله معنا" paired its "لا" with 9:40's opening
       // "إلا" (alef set aside), 18 words earlier, and the card began at "تحزن". Grow the part at
-      // both ends while the verse's next word is the imam's next word.
+      // both ends while the verse's next word is the imam's next word. A negation he says where the
+      // verse has one counts ("لا يصيبنا" for 9:51's "لن يصيبنا"): without it the part reads the
+      // other way. Compared on the written words, since without alefs "لا" is "إلا" and "لن" "لنا".
       let [lo, hi] = [Math.min(...kept), Math.max(...kept)];
       const vw = cw.filter(x => x.v === v).map(x => x.k);
+      const vRaw = verseTexts[v].split(/\s+/).filter(Boolean), rRaw = recitedText.split(/\s+/).filter(w => looseAr(w));
+      const neg = w => /^[وف]?(?:لا|لن|لم)$/.test(normArWord(w || ''));
+      const same = (i, b) => (!!vw[i] && vw[i] === rw[b]) || (neg(vRaw[i]) && neg(rRaw[b]));
       let bLo = h.find(([i]) => i === lo)[1], bHi = h.find(([i]) => i === hi)[1];
-      while (lo > 0 && bLo > 0 && vw[lo - 1] && vw[lo - 1] === rw[bLo - 1]) { lo--; bLo--; }
-      while (hi + 1 < vw.length && bHi + 1 < m && vw[hi + 1] && vw[hi + 1] === rw[bHi + 1]) { hi++; bHi++; }
+      while (lo > 0 && bLo > 0 && same(lo - 1, bLo - 1)) { lo--; bLo--; }
+      while (hi + 1 < vw.length && bHi + 1 < m && same(hi + 1, bHi + 1)) { hi++; bHi++; }
       return [lo, hi];
     });
   }

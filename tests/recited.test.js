@@ -29,3 +29,10 @@ test('a recited word paired elsewhere in the verse still counts when it stands b
   // 9 Oct 2026: "لا" was paired with 9:40's opening "إلا" (word 0), and the card began at "تحزن" (word 19).
   assert.deepEqual(recitedSpans('لا تحزن إن الله معنا.', [verse(9, 40)]), [[18, 22]]);
 });
+
+test('a negation said where the verse has one belongs to the recited part', () => {
+  // 9 Oct 2026: "وأنه لا يصيبنا إلا ما كتب الله لنا" for 9:51's "قل لن يصيبنا…": the card began at "يصيبنا".
+  assert.deepEqual(recitedSpans('لا يصيبنا إلا ما كتب الله لنا،', [verse(9, 51)]), [[1, 7]]);
+  // "إلا" is not a negation: 9:40's opening "إلا" stays out of "لا تحزن إن الله معنا".
+  assert.deepEqual(recitedSpans('لا تحزن إن الله معنا.', [verse(9, 40)]), [[18, 22]]);
+});
