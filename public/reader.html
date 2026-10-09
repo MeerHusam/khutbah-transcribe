@@ -1650,7 +1650,11 @@
     }
     if (s < 0) return null;
     const tail = w.slice(-3);
-    const t = find(tail, s);
+    let t = find(tail, s);
+    // The imam may say the closing words in another order than the detected text has them
+    // ("…يحسن الظن، إلا وهو يحسن بالله الظن" for "…يحسن الظن بالله", 9 Oct 2026): the same three words.
+    const same = run => [...run].sort().join(' ') === [...tail].sort().join(' ');
+    for (let p = s; t < 0 && p + 3 <= norms.length && p + 2 - s <= w.length + 6; p++) if (same(norms.slice(p, p + 3))) t = p;
     if (t < 0 || t + 2 - s > w.length + 6) return null;
     return [s, t + 2];
   }
