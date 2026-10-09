@@ -1,5 +1,18 @@
 [
   {
+    "folder": "2026-10-09T09-11-11_khutbah-2026-10-09",
+    "slug": "2026-10-09",
+    "title": "Husn al-Dhann",
+    "speaker": "Friday Khutbah",
+    "masjid": "Askan AlMaather Mosque",
+    "masjid_ar": "جامع إسكان المعذر",
+    "maps_url": "https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6",
+    "date": "9 October 2026",
+    "featured": true,
+    "audio": "khutbah-2026-10-09.m4a",
+    "media_url": "https://media.khutbah.dev/2026-10-09T09-11-11_khutbah-2026-10-09/"
+  },
+  {
     "folder": "2026-10-03T23-14-37_khutbah-2026-10-02-al-haram-makkah",
     "slug": "2026-10-02-al-haram-makkah",
     "title": "Learning From Others' Lessons",
@@ -70,7 +83,6 @@
     "date": "2 October 2026",
     "audio": "khutbah-2026-10-02.m4a",
     "page": "reader-ur.html",
-    "featured": true,
     "media_url": "https://media.khutbah.dev/2026-10-02T09-05-36_khutbah-2026-10-02/"
   },
   {
