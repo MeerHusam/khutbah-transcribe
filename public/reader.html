@@ -468,6 +468,8 @@
       border-radius: 4px; padding: 1px 5px;
       box-decoration-break: clone; -webkit-box-decoration-break: clone;
     }
+    /* Words the khateeb said again inside a hadith: not the Prophet's ﷺ repetition. */
+    .restated { text-decoration: underline dotted rgba(159,232,194,0.75); text-decoration-thickness: 1.5px; text-underline-offset: 7px; }
     .inline-hadith-en {
       color: #9fe8c2; font-style: italic;
       background: rgba(56,178,122,0.08); border-radius: 4px; padding: 1px 4px;
@@ -1649,13 +1651,17 @@
       for (let j = p; j >= Math.max(0, p - k - 3); j--) if (norms[j] === w[0]) { s = j; break; }
     }
     if (s < 0) return null;
+    // The hadith ends at the LAST place its closing words stand within reach: they can come twice in
+    // it ("…سراء شكر فكان خيراً له، وإن أصابته ضراء صبر فكان خيراً له", Muslim 2999, 9 Oct 2026, was
+    // marked only to the first). The khateeb may also say them in another order than the detected
+    // text has them ("…يحسن الظن، إلا وهو يحسن بالله الظن" for "…يحسن الظن بالله"): the same three words.
     const tail = w.slice(-3);
-    let t = find(tail, s);
-    // The imam may say the closing words in another order than the detected text has them
-    // ("…يحسن الظن، إلا وهو يحسن بالله الظن" for "…يحسن الظن بالله", 9 Oct 2026): the same three words.
+    const reach = p => p + 3 <= norms.length && p + 2 - s <= w.length + 6;
     const same = run => [...run].sort().join(' ') === [...tail].sort().join(' ');
-    for (let p = s; t < 0 && p + 3 <= norms.length && p + 2 - s <= w.length + 6; p++) if (same(norms.slice(p, p + 3))) t = p;
-    if (t < 0 || t + 2 - s > w.length + 6) return null;
+    let t = -1;
+    for (let p = s; reach(p); p++) if (tail.every((x, k) => norms[p + k] === x)) t = p;
+    for (let p = s; t < 0 && reach(p); p++) if (same(norms.slice(p, p + 3))) t = p;
+    if (t < 0) return null;
     return [s, t + 2];
   }
 
@@ -1712,6 +1718,26 @@
       if (!inside) { srcOpen[a] = true; srcClose[b] = true; }
     }
     if (!kinds.length && !Object.keys(srcOpen).length) return { html: escHtml(arabic), kinds };
+    // Words the khateeb says again inside a hadith ("لا يمتن أحدكم إلا وهو يحسن الظن، إلا وهو يحسن
+    // بالله الظن", 9 Oct 2026) are underlined, so the repetition is not taken for the Prophet's ﷺ:
+    // a run of two or more words said more often in the span than the hadith's text has it.
+    const restated = new Set();
+    const count = (arr, run) => { let c = 0; for (let i = 0; i + run.length <= arr.length; i++) if (run.every((x, k) => arr[i + k] === x)) c++; return c; };
+    for (const sp of Object.keys(opens).map(Number)) {
+      const ref = opens[sp];
+      if (ref.kind !== 'hadith') continue;
+      const ep = Number(Object.keys(closes).find(k => closes[k] === ref));
+      const said = norms.slice(sp, ep + 1);
+      for (let j = sp + 1; j <= ep; j++) {
+        for (let L = Math.min(6, ep - j + 1); L >= 2; L--) {
+          const run = norms.slice(j, j + L);
+          let before = false;
+          for (let i = sp; i + L <= j && !before; i++) before = run.every((x, k) => norms[i + k] === x);
+          if (before && count(said, run) > count(ref.words, run)) { for (let k = j; k < j + L; k++) restated.add(k); j += L - 1; break; }
+        }
+      }
+    }
+    const word = (p, h) => (restated.has(p) ? `<span class="restated" title="Repeated by the khateeb">${h}</span>` : h);
     let html = '', wi = 0;
     for (const tok of toks) {
       if (!tok.trim()) { html += escHtml(tok); continue; }
@@ -1726,11 +1752,11 @@
       if (closes[p]) {
         // Keep the imam's sentence punctuation outside the closing bracket.
         const m = tok.match(/^([\s\S]*?)([.,!?;:؟،؛…]*)$/);
-        html += escHtml(m[1]) + (closes[p].kind === 'hadith'
+        html += word(p, escHtml(m[1])) + (closes[p].kind === 'hadith'
           ? '»</span>'
           : ' ۝' + arabicDigits(closes[p].endAyah) + '﴾</span>') + escHtml(m[2]);
       } else {
-        html += escHtml(tok);
+        html += word(p, escHtml(tok));
       }
     }
     return { html, kinds };
