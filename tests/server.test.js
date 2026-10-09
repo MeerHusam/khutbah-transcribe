@@ -227,7 +227,9 @@ test('publishing: a new khutbah is live at once, with its files, recording and v
   writeFileSync(join(folderPath, 'tts_ur.mp3'), Buffer.alloc(1000, 2));
   const recording = join(tmp, 'khutbah-test-publish.m4a');
   writeFileSync(recording, Buffer.alloc(1000, 1));
-  const entry = { slug: 'test-publish', title: 'Test Publish', date: '2 October 2026', featured: true };
+  // Dated after every real khutbah: the list is newest first, and the test expects this one on top
+  // (with 2 October it failed once 9 October 2026 was published).
+  const entry = { slug: 'test-publish', title: 'Test Publish', date: '31 December 2099', featured: true };
   try {
     await assert.rejects(publishToSite({ site: BASE, key: 'wrong-key', folderPath, recording, entry }), /401/);
     const seed = join(tmp, 'seed.json');
