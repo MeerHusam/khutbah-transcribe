@@ -39,7 +39,17 @@
     return hit.map((h, v) => {
       const kept = withoutStrays(h);
       const need = Math.min(3, Math.ceil(verseTexts[v].split(/\s+/).filter(Boolean).length / 2));
-      return kept.length >= need ? [Math.min(...kept), Math.max(...kept)] : null;
+      if (kept.length < need) return null;
+      // A recited word matched elsewhere in the verse and dropped as a stray may stand right beside
+      // the kept part: on 9 Oct 2026 "لا تحزن إن الله معنا" paired its "لا" with 9:40's opening
+      // "إلا" (alef set aside), 18 words earlier, and the card began at "تحزن". Grow the part at
+      // both ends while the verse's next word is the imam's next word.
+      let [lo, hi] = [Math.min(...kept), Math.max(...kept)];
+      const vw = cw.filter(x => x.v === v).map(x => x.k);
+      let bLo = h.find(([i]) => i === lo)[1], bHi = h.find(([i]) => i === hi)[1];
+      while (lo > 0 && bLo > 0 && vw[lo - 1] && vw[lo - 1] === rw[bLo - 1]) { lo--; bLo--; }
+      while (hi + 1 < vw.length && bHi + 1 < m && vw[hi + 1] && vw[hi + 1] === rw[bHi + 1]) { hi++; bHi++; }
+      return [lo, hi];
     });
   }
 
