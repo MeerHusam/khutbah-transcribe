@@ -99,9 +99,11 @@ test('translate.js: Gemini makes the blocks, a blocked batch goes to Opus, and b
     assert.deepEqual(ur.block_models, want.map(i => (byOpus(i) ? 'claude-opus-5-5' : 'gemini-3.8-flash')));
     assert.equal(ur.model, 'gemini-3.8-flash + claude-opus-5-5');
     const g = ur.usage.by_model['gemini-3.8-flash'], o = ur.usage.by_model['claude-opus-5-5'];
-    assert.equal(g.calls, Math.ceil(n / 12), 'one call a batch, the blocked one included');
-    assert.equal(g.thoughts_tokens, 1500 * (Math.ceil(n / 12) - 1));
-    assert.equal(o.calls, 2, 'the blocked batch and the extras');
+    assert.equal(g.calls, Math.ceil(n / 12) + 1, 'one call a batch, the blocked one included, and the extras');
+    assert.equal(g.thoughts_tokens, 1500 * Math.ceil(n / 12));
+    assert.equal(o.calls, 1, 'the blocked batch');
+    assert.equal(ur.summary, 'gemini stub');
+    assert.equal(ur.extras_model, 'gemini-3.8-flash');
     assert.equal(ur.usage.cost_usd, Math.round((g.cost_usd + o.cost_usd) * 10000) / 10000);
     assert.match(run.stdout, /gemini-3\.8-flash \(HIGH\), chunks 12-23: blocked \(PROHIBITED_CONTENT\) after 0 tokens; asking claude-opus-5-5/);
     assert.match(run.stdout, new RegExp(`✓ ${n} blocks \\(${n - 12} gemini-3\\.8-flash, 12 claude-opus-5-5\\)`));
@@ -126,8 +128,8 @@ test('a batch cut at the token limit is asked again at MEDIUM thinking before Op
     const n = ur.chunk_translations.length;
     assert.ok(ur.block_models.every(m => m === 'gemini-3.8-flash'), 'no batch went to Opus');
     assert.equal(ur.chunk_translations[30], 'gemini 30');
-    assert.equal(ur.usage.by_model['gemini-3.8-flash'].calls, Math.ceil(n / 12) + 1, 'the cut batch twice');
-    assert.equal(ur.usage.by_model['claude-opus-5-5'].calls, 1, 'only the extras');
+    assert.equal(ur.usage.by_model['gemini-3.8-flash'].calls, Math.ceil(n / 12) + 2, 'the cut batch twice, and the extras');
+    assert.equal(ur.usage.by_model['claude-opus-5-5'], undefined, 'no Opus at all');
     assert.match(run.stdout, /gemini-3\.8-flash \(HIGH\), chunks 24-35: finished MAX_TOKENS after 32768 tokens; asking again at MEDIUM thinking/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -145,6 +147,7 @@ test('KT_TRANSLATE_MODEL=claude-opus-5-5: the blocks on Opus, as before', { skip
     const ur = JSON.parse(readFileSync(join(dir, 'result.json'), 'utf8'))[UR.field];
     assert.ok(ur.chunk_translations.every((t, i) => t === `opus ${i}`));
     assert.equal(ur.model, 'claude-opus-5-5');
+    assert.equal(ur.extras_model, 'claude-opus-5-5', 'the summaries go back to Opus too');
     assert.deepEqual(Object.keys(ur.usage.by_model), ['claude-opus-5-5']);
   } finally {
     rmSync(dir, { recursive: true, force: true });

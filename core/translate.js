@@ -39,8 +39,6 @@ import { geminiJSON, geminiPrice } from './gemini_text.js';
 // these prompts) it made no serious error in Urdu or Bengali, like Opus's first drafts, and was as
 // good or better on 93% and 92% of the blocks, for $0.13 a language against Opus's $0.57 and $0.63.
 // A batch it does not answer (an error, a blocked answer, no text, not JSON) goes to Opus.
-// The extras call below (summaries, narrators, surah names, hadith cuts) stays on Opus: it was not
-// part of the test.
 const OPUS = 'claude-opus-5-5';
 const MODEL = process.env.KT_TRANSLATE_MODEL || 'gemini-3.8-flash';
 // Opus 5.5 at high: on the hard parts of 25 Sep (1 Oct 2026) its first draft needed the fewest
@@ -57,10 +55,12 @@ const maxOut = model => (model === OPUS ? 16000 : 32768);
 const billedOut = (model, out = maxOut(model)) => (model === OPUS ? 1 : 2) * out;
 // The extras answer is about 2,000 tokens; at LOW thinking 16,384 is room enough.
 const EXTRAS_OUT = 16384;
-// The extras call (summaries, narrators, surah names, hadith cuts): Opus unless KT_EXTRAS_MODEL names
-// a Gemini model, which is then asked first (thinking KT_EXTRAS_THINKING, default LOW), Opus if it
-// gives no summary.
-const EXTRAS_MODEL = process.env.KT_EXTRAS_MODEL || OPUS;
+// The extras call (summaries, narrators, surah names, hadith cuts) on Gemini 3.8 Flash at LOW thinking
+// since 11 Oct 2026, Opus if it gives no summary. Tested on 4 khutbahs x 2 languages: summaries on a par
+// with Opus's, its Bengali hadith cards cut at the Companion where Opus's kept the chain of narrators
+// (about 12 cards), $0.003-0.016 a language against about $0.05. KT_EXTRAS_MODEL picks another;
+// KT_TRANSLATE_MODEL=claude-opus-5-5 puts both back on Opus.
+const EXTRAS_MODEL = process.env.KT_EXTRAS_MODEL || (MODEL === OPUS ? OPUS : 'gemini-3.8-flash');
 const EXTRAS_THINKING = process.env.KT_EXTRAS_THINKING || 'LOW';
 // A request the model declines (the du'a names enemies: Houthis, Zionists) is re-run on the
 // fallback model the API picks for that kind of refusal, instead of leaving blocks untranslated.

@@ -23,6 +23,11 @@ export class GoogleGenAI {
           return { candidates: [{ content: { parts: [{ text: 'Wait, let me check that chunk again. Wait,' }] }, finishReason: 'MAX_TOKENS' }],
             usageMetadata: { promptTokenCount: 1000, candidatesTokenCount: 10, thoughtsTokenCount: (config.maxOutputTokens ?? 0) - 10 } };
         }
+        // The extras call (summaries, narrators, hadith cuts): summaries, no hadith.
+        if (config?.responseJsonSchema?.properties?.share_summary) {
+          return { candidates: [{ content: { parts: [{ text: JSON.stringify({ share_summary: 'gemini stub', summary: 'gemini stub', hadith: [],
+            ...(config.responseJsonSchema.properties.surahs ? { surahs: [] } : {}) }) }] }, finishReason: 'STOP' }], usageMetadata };
+        }
         const field = config?.responseJsonSchema?.properties?.translations?.items?.required?.[1];
         const text = field ? JSON.stringify({ translations: asked.filter(i => !answers || answers[i]).map(i => ({ i, [field]: answers ? answers[i] : `gemini ${i}` })) }) : '';
         return { candidates: [{ content: { parts: [{ text: 'Thinking about it.', thought: true }, { text }] }, finishReason: 'STOP' }], usageMetadata };
