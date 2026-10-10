@@ -12,7 +12,7 @@
 import { readFileSync, existsSync } from 'fs';
 import { join, resolve } from 'path';
 import { pathToFileURL } from 'url';
-import { normalizeArabic, normalizeArabicDeep, splitsPhrase, prescanForQuranZones, dropBorrowedPhrases } from './arabic.js';
+import { normalizeArabic, normalizeArabicDeep, splitsPhrase, prescanForQuranZones, dropBorrowedPhrases, transcriptProblem } from './arabic.js';
 import { loadResult } from './reader_chunks.js';
 import { checkEnglish } from './check_english.js';
 import { imamAttribution, imamCompanion, companionOnChain, nearerOnChain, findAttributedHadith, loadHadithCorpus, slugToDisplay } from './hadith.js';
@@ -109,6 +109,12 @@ export function verifyReader(folder, { readerRaw: readerOverride = null, result:
   const warnings = [];
   const fail = m => failures.push(m);
   const warn = m => warnings.push(m);
+
+  // ── 0. The transcript is one: mostly Arabic, not far fewer words than Groq heard ──
+  // (core/arabic.js transcriptProblem; 9 Oct 2026, Gemini's working notes as the transcript).
+  const groqPath = join(folder, 'transcript_groq.txt');
+  const notTranscript = transcriptProblem(transcript, existsSync(groqPath) ? readFileSync(groqPath, 'utf8') : '');
+  if (notTranscript) fail(`the transcript is not usable: ${notTranscript}`);
 
   // ── 1. Every transcript word renders exactly once, in order ──────────────────
   // Checked by position, not by text: the old check looked for each word anywhere on the

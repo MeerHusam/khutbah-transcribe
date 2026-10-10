@@ -317,6 +317,7 @@ Each is exported by its `core/` module and imported from there (`pipeline.js` no
 | 65 | Recitation in the voice tracks cut before "معنا", "الكافرون": imam word times of neighbouring blocks overlapped | `align_imam.js` realigns overlapping blocks together; `recite.js` never ends before its last word; `check_highlight` fails overlaps |
 | 66 | Hadith not marked green when the imam reorders its closing words | `locateSpan` accepts the last three words in another order |
 | 67 | Ayah card's recited part began a word late ("لا" paired with the verse's opening "إلا") | `recitedSpans` grows the part at both ends while the words match |
+| 68 | Gemini's working notes taken as the transcript (9 Oct: 389 words; analysis, review and Urdu ran on them) | Non-thought parts only; `transcriptProblem` (≥95% Arabic letters, ≥0.8× Groq's words): asked again once, then the next model; `pipeline.js` stops before the analysis; gate check |
 
 ---
 
@@ -413,7 +414,7 @@ node scripts/reanalyze.js outputs/<folder>   # Re-run analysis without re-transc
 ```
 
 **Transcription modes:**
-- default (`--gemini`) — Gemini 3.5 Flash for text quality (2.5 Flash until 3 Oct 2026: closed to new keys; if 3.5 Flash is closed or busy, 3.1 Pro, then 3.6 Flash, then Groq's own text — `result.json` metadata.transcription_mode names the one used) + Groq Whisper for timestamps (hybrid). Catches ~14% more words than Groq alone (observed: Sudais khutbah 1643 vs 1442). Also writes `transcript_groq.txt` for comparison. See `transcribeWithGemini()` in core/transcribe.js.
+- default (`--gemini`) — Gemini 3.6 Flash for text quality (2.5 Flash until 3 Oct 2026: closed to new keys; then 3.5 Flash, which Google retired and routes to 3.6 Flash; if 3.6 Flash is closed or busy, 3.1 Pro, then Groq's own text — `result.json` metadata.transcription_mode names the one used). An answer that is not a transcript (`transcriptProblem` in core/arabic.js: under 95% Arabic letters, or under 0.8× Groq's words; 9 Oct 2026, Gemini's working notes) is asked for once more, then the next model; pipeline.js stops before the analysis if the final transcript still fails it, and the publish gate checks it too + Groq Whisper for timestamps (hybrid). Catches ~14% more words than Groq alone (observed: Sudais khutbah 1643 vs 1442). Also writes `transcript_groq.txt` for comparison. See `transcribeWithGemini()` in core/transcribe.js.
 - `--groq` — Groq whisper-large-v3 alone, free, ~10s for a 20 min file.
 - (OpenAI whisper-1 and `--local` faster-whisper were removed 2 Oct 2026: nothing used them.)
 

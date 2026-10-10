@@ -1323,7 +1323,24 @@ function restartNotes(restarts, label = i => String(i)) {
         : `- Chunk ${label(r.chunk)} says again «${r.words}», which chunk ${label(r.from)} already has: translate it in chunk ${label(r.from)} only.`).join('\n');
 }
 
+// Whether a transcript is not one, and why (9 Oct 2026: Gemini (3.5 Flash by name, 3.6 Flash in fact) answered with its own working
+// notes, "Ah, … Let's write …", 389 words and 77% Arabic letters against Groq's 1,078 words, and the
+// analysis, the English review and the Urdu translation ran on it). Every good transcript on disk:
+// 100% Arabic letters and 1.09–1.3× Groq's words (Gemini hears more). `groqText` is Groq Whisper's
+// transcript of the same recording, when there is one.
+const ARABIC_LETTER = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/u;
+function transcriptProblem(text, groqText = '') {
+  const letters = [...(text ?? '')].filter(c => /\p{L}/u.test(c));
+  const arabic = letters.filter(c => ARABIC_LETTER.test(c)).length / Math.max(letters.length, 1);
+  if (arabic < 0.95) return `${Math.round(arabic * 100)}% of its letters are Arabic`;
+  const n = (text ?? '').split(/\s+/).filter(Boolean).length;
+  const g = (groqText ?? '').split(/\s+/).filter(Boolean).length;
+  if (g && n < 0.8 * g) return `${n} words against Groq's ${g}`;
+  return null;
+}
+
 export {
+  transcriptProblem,
   findRestarts,
   restartNotes,
   splitsPhrase,

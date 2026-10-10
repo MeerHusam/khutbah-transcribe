@@ -36,7 +36,7 @@ try { spent = JSON.parse(readFileSync('.tts_cache/gemini/limits.json', 'utf8'));
 const G = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 // The transcription models, in the order core/transcribe.js tries them (with GEMINI_API_KEY).
-for (const [i, model] of ['gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.6-flash'].entries()) {
+for (const [i, model] of ['gemini-3.6-flash', 'gemini-3.1-pro-preview'].entries()) {
   await check(`transcription ${model}${i ? ' (fallback)' : ''}`, async () => {
     await post(`${G}/${model}:generateContent`, { 'x-goog-api-key': process.env.GEMINI_API_KEY }, { contents: [{ parts: [{ text: 'Reply: ok' }] }], generationConfig: { maxOutputTokens: 5 } });
   }, { needed: i === 0 });

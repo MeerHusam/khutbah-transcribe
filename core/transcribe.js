@@ -8,7 +8,7 @@ import path from 'path';
 import os from 'os';
 import Groq from 'groq-sdk';
 import { GoogleGenAI } from '@google/genai';
-import { normalizeArabic } from './arabic.js';
+import { normalizeArabic, transcriptProblem } from './arabic.js';
 
 // Fallback placeholder keys so importing this module (e.g. server.js live mode)
 // never throws when an optional provider key is absent — the API call itself
@@ -365,11 +365,15 @@ function buildSegmentsFromWordTimes(words, times, refSegments) {
 // The models tried for the text, in order. A model can be closed to our key (gemini-2.5-flash
 // answered 404 "no longer available to new users" on 3 Oct 2026) or busy (503 "high demand",
 // 3.7- and 3.8-flash the same morning): a busy one is asked again twice, then the next model.
+// An answer that is not a transcript (`check`, by default transcriptProblem in core/arabic.js;
+// 9 Oct 2026: 3.6 Flash's own working notes) is asked for once more, then the next model.
 // If none answers, the caller uses Groq's own text, so the run goes on.
-const TRANSCRIBE_MODELS = ['gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.6-flash'];
+// Gemini 3.5 Flash is retired: Google routes gemini-3.5-flash to 3.6 Flash (Google's notice, Oct 2026),
+// so 3.6 Flash is asked by its own name, and the list's old last model (3.6 Flash) was the same model.
+const TRANSCRIBE_MODELS = ['gemini-3.6-flash', 'gemini-3.1-pro-preview'];
 const BUSY = /\b(429|500|502|503|504)\b|UNAVAILABLE|RESOURCE_EXHAUSTED|high demand|overloaded|fetch failed|ECONNRESET|ETIMEDOUT/i;
 
-async function geminiTranscript(audioPath, mimeType, prompt, { client = gemini, waitMs = 15_000 } = {}) {
+async function geminiTranscript(audioPath, mimeType, prompt, { client = gemini, waitMs = 15_000, check = text => transcriptProblem(text) } = {}) {
   let file;
   try {
     file = await client.files.upload({ file: audioPath, config: { mimeType, displayName: path.basename(audioPath) } });
@@ -384,7 +388,8 @@ async function geminiTranscript(audioPath, mimeType, prompt, { client = gemini, 
   }
   try {
     for (const model of TRANSCRIBE_MODELS) {
-      for (let attempt = 1; attempt <= 3; attempt++) {
+      let busyTries = 0, broken = 0;
+      while (true) {
         try {
           const r = await client.models.generateContent({
             model,
@@ -395,14 +400,19 @@ async function geminiTranscript(audioPath, mimeType, prompt, { client = gemini, 
             // though the API does not guarantee bit-identical output.
             config: { temperature: 0, seed: 42 },
           });
-          const text = (r.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim();
-          if (text) return { text, model };
-          throw new Error('an empty answer');
+          // The answer's text parts, never its thoughts (the first part can be a thought).
+          const text = (r.candidates?.[0]?.content?.parts ?? []).filter(p => !p.thought && typeof p.text === 'string').map(p => p.text).join('').trim();
+          if (!text) throw new Error('an empty answer');
+          const problem = await check(text);
+          if (!problem) return { text, model };
+          console.log(`\n  ${model}: not a transcript (${problem})${broken ? '' : '; asking again'}`);
+          if (broken++) break;
         } catch (e) {
           const busy = BUSY.test(String(e.message)) && !/per day/i.test(String(e.message));
-          console.log(`\n  ${model}: ${String(e.message).slice(0, 140)}${busy && attempt < 3 ? `; again in ${(waitMs * attempt) / 1000} s` : ''}`);
-          if (!busy || attempt === 3) break;
-          await new Promise(r => setTimeout(r, waitMs * attempt));
+          busyTries++;
+          console.log(`\n  ${model}: ${String(e.message).slice(0, 140)}${busy && busyTries < 3 ? `; again in ${(waitMs * busyTries) / 1000} s` : ''}`);
+          if (!busy || busyTries === 3) break;
+          await new Promise(r => setTimeout(r, waitMs * busyTries));
         }
       }
     }
@@ -412,7 +422,7 @@ async function geminiTranscript(audioPath, mimeType, prompt, { client = gemini, 
   }
 }
 
-// Gemini 3.5 Flash for transcript quality + Groq Whisper for accurate timestamps (3 Oct 2026: gemini-2.5-flash
+// Gemini 3.6 Flash (3.5 Flash until Google retired it) for transcript quality + Groq Whisper for accurate timestamps (3 Oct 2026: gemini-2.5-flash
 // and -pro answer 404 "no longer available to new users" to the key made on 2 Oct. On the 2 Oct Madinah
 // khutbah 3.5-flash and 3.1-pro-preview agreed on 99.8% of 1544 words, no broken words; 3.8-flash and
 // 3.7-flash answered 503 "high demand". 3.8-flash broke words on 11 Sep).
@@ -443,11 +453,15 @@ Formatting rules — follow these exactly:
 
   // Gemini and Groq in parallel: Gemini for the text, Groq for the timing.
   process.stdout.write('Transcribing (Gemini text + Groq timing in parallel)...');
+  // Two Whisper passes for timing — whole file (as before; its segments still set the
+  // chunk boundaries) and overlapping windows — combined per word in combineTimings.
+  const groqWhole = transcribeWithGroq(audioPath);
+  // Gemini's answer is checked against Groq's transcript of the same recording: Gemini hears a
+  // few more words, never far fewer.
+  const check = async text => transcriptProblem(text, (await groqWhole.catch(() => null))?.text ?? '');
   const [gem, groqResult, groqWindowed] = await Promise.all([
-    geminiTranscript(audioPath, mimeType, geminiPrompt),
-    // Two Whisper passes for timing — whole file (as before; its segments still set the
-    // chunk boundaries) and overlapping windows — combined per word in combineTimings.
-    transcribeWithGroq(audioPath),
+    geminiTranscript(audioPath, mimeType, geminiPrompt, { check }),
+    groqWhole,
     transcribeWithGroqWindowed(audioPath),
   ]);
   console.log(' done');
