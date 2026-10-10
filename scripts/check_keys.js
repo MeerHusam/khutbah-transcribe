@@ -44,7 +44,7 @@ for (const [i, model] of ['gemini-3.6-flash', 'gemini-3.1-pro-preview'].entries(
 for (const name of geminiKeys) {
   const key = process.env[name];
   await check(`${name}: voice model listed`, async () => {
-    await get(`${G}/gemini-3.8-flash-tts`, { 'x-goog-api-key': key });
+    await get(`${G}/gemini-3.8-flash-lite-tts`, { 'x-goog-api-key': key });
     const until = spent[createHash('sha1').update(key).digest('hex').slice(0, 12)];
     return until > Date.now() ? `daily limit spent until ${new Date(until).toISOString()}` : 'daily limit not known to be spent';
   }, { needed: false });

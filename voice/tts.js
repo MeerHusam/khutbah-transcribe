@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // tts.js — A voice track for a khutbah (30 Sep 2026): reads each reader block's English
 // (--lang en) or another language's text (--lang ur, bn …; core/languages.js) aloud and writes one audio track the page can play in place of
-// the imam's, with Gemini TTS (gemini-3.8-flash-tts, tts_gemini.mjs), voice Charon or Orus.
+// the imam's, with Gemini TTS (gemini-3.8-flash-lite-tts since 11 Oct 2026, tts_gemini.mjs), voice Charon or Orus.
 // (The ElevenLabs engine, unused since 1 Oct 2026, was removed on 3 Oct; it is in git history.)
 //
 //  - Blocks are the page's blocks (reader_chunks.js), so the voice track and the reader
@@ -45,7 +45,10 @@ const folder = args[0];
 const opt = (name, dflt) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : dflt; };
 const lang = opt('--lang', 'en');
 const L = langOf(lang); // undefined for English
-const model = opt('--model', 'gemini-3.8-flash-tts');
+// Flash-Lite TTS since 11 Oct 2026: a third cheaper ($6 against $9 a million audio tokens), and in a
+// blind listen of 9 Oct's opening (reports/voice-samples-2026-10-11) Meer preferred it in English, the
+// Flash voice a little in Urdu, and heard no difference in Bengali. --model gemini-3.8-flash-tts switches back.
+const model = opt('--model', process.env.KT_TTS_MODEL || 'gemini-3.8-flash-lite-tts');
 const voice = opt('--voice', 'Charon');
 // Gemini's delivery, given as a style note (text in the transcript itself would be spoken); another
 // language's is in its file (voice.style).
