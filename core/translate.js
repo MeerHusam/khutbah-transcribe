@@ -46,9 +46,15 @@ const MODEL = process.env.KT_TRANSLATE_MODEL || 'gemini-3.8-flash';
 // Opus 5.5 at high: on the hard parts of 25 Sep (1 Oct 2026) its first draft needed the fewest
 // fixes; Sonnet 5.5 cost the same in practice (twice the output, more review rounds) and slipped.
 const price = model => (model === OPUS ? [4, 20] : geminiPrice(model)); // USD per million tokens, in / out
-// The most a call may write. Gemini's thinking counts toward it: on 9 Oct's blocks it used 4,300 to
-// 12,700 tokens a batch, and on 10 Oct a 12-chunk Urdu batch ran past 16,000 and was cut.
+// The most a call may write. Gemini's thinking counts toward it (Google: maxOutputTokens caps
+// thinking and answer together): at HIGH it used 4,300 to 12,700 tokens a batch on 9 Oct's blocks,
+// and on 10 Oct a 12-chunk Urdu batch ran past 16,000 and was cut. Gemini 3 Flash models also get
+// caught in a thinking loop now and then (Google's forum, 2026) and run to the limit; such a cut
+// batch is asked once more at MEDIUM thinking (Google's advice: think less rather than squeeze the
+// limit), then goes to Opus. One user saw 3.8 Flash bill up to twice maxOutputTokens, so the cap
+// reckons a Gemini call at twice its limit.
 const maxOut = model => (model === OPUS ? 16000 : 32768);
+const billedOut = model => (model === OPUS ? 1 : 2) * maxOut(model);
 // A request the model declines (the du'a names enemies: Houthis, Zionists) is re-run on the
 // fallback model the API picks for that kind of refusal, instead of leaving blocks untranslated.
 const FALLBACK = { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' };
@@ -103,10 +109,10 @@ function record(model, u, cost) {
   spent += cost;
 }
 // A call of `chars` characters (prompt and system) must fit under the cap at its worst: a token per
-// character in, all of maxOut out. One that might not ends the run, with nothing written.
+// character in, all it may be billed for out. One that might not ends the run, with nothing written.
 function withinCap(model, chars) {
   const [pin, pout] = price(model);
-  const worst = (chars * pin + maxOut(model) * pout) / 1e6;
+  const worst = (chars * pin + billedOut(model) * pout) / 1e6;
   if (spent + worst <= CAP) return;
   console.error(`✗ ${model} call refused: $${spent.toFixed(3)} spent this run, one call could cost $${worst.toFixed(3)}, the cap is $${CAP} (KT_TRANSLATE_CAP); nothing written`);
   process.exit(1);
@@ -138,13 +144,16 @@ async function translate(indices, done) {
   const pick = out => Object.fromEntries((Array.isArray(out?.translations) ? out.translations : [])
     .filter(t => indices.includes(t.i) && typeof t[F] === 'string' && t[F].trim()).map(t => [t.i, t[F].trim()]));
   const chars = content.length + L.translate.system.length;
-  if (MODEL !== OPUS) {
+  // HIGH thinking, as in the blind test; an answer cut at the limit is asked once more at MEDIUM.
+  for (const thinkingLevel of MODEL === OPUS ? [] : ['HIGH', 'MEDIUM']) {
     withinCap(MODEL, chars);
-    const g = await geminiJSON({ model: MODEL, system: L.translate.system, content, schema: SCHEMA, maxOutputTokens: maxOut(MODEL) });
+    const g = await geminiJSON({ model: MODEL, system: L.translate.system, content, schema: SCHEMA, maxOutputTokens: maxOut(MODEL), thinkingLevel });
     record(MODEL, g.usage, g.cost_usd);
     const got = g.ok ? pick(g.json) : {};
     if (Object.keys(got).length) return { got, model: MODEL };
-    console.log(`  ${MODEL}, chunks ${indices[0]}-${indices.at(-1)}: ${g.ok ? 'none of them in its answer' : g.why}; asking ${OPUS}`);
+    const cut = !g.ok && /MAX_TOKENS/.test(g.why) && thinkingLevel === 'HIGH';
+    console.log(`  ${MODEL} (${thinkingLevel}), chunks ${indices[0]}-${indices.at(-1)}: ${g.ok ? 'none of them in its answer' : g.why}${g.ok ? '' : ` after ${g.usage.output_tokens} tokens`}; ${cut ? 'asking again at MEDIUM thinking' : `asking ${OPUS}`}`);
+    if (!cut) break;
   }
   withinCap(OPUS, chars);
   const response = await opus({

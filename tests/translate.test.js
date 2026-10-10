@@ -103,9 +103,32 @@ test('translate.js: Gemini makes the blocks, a blocked batch goes to Opus, and b
     assert.equal(g.thoughts_tokens, 1500 * (Math.ceil(n / 12) - 1));
     assert.equal(o.calls, 2, 'the blocked batch and the extras');
     assert.equal(ur.usage.cost_usd, Math.round((g.cost_usd + o.cost_usd) * 10000) / 10000);
-    assert.match(run.stdout, /gemini-3\.8-flash, chunks 12-23: blocked \(PROHIBITED_CONTENT\); asking claude-opus-5-5/);
+    assert.match(run.stdout, /gemini-3\.8-flash \(HIGH\), chunks 12-23: blocked \(PROHIBITED_CONTENT\) after 0 tokens; asking claude-opus-5-5/);
     assert.match(run.stdout, new RegExp(`✓ ${n} blocks \\(${n - 12} gemini-3\\.8-flash, 12 claude-opus-5-5\\)`));
     assert.match(readFileSync(join(dir, `reader_${UR.code}.txt`), 'utf8'), /gemini 0/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// 10 Oct 2026, the paid check: a 12-chunk Urdu batch ran past Gemini's limit at HIGH thinking.
+test('a batch cut at the token limit is asked again at MEDIUM thinking before Opus', { skip: !editions && 'no hadith_data/' }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'translate-test-'));
+  for (const f of ['result.json', 'transcript.txt', 'reader.txt']) copyFileSync(join('tests/fixture', f), join(dir, f));
+  const run = spawnSync(process.execPath, ['--import', './tests/stubs/register.mjs', 'core/translate.js', dir, '--lang', 'ur', '--retranslate'], {
+    encoding: 'utf8',
+    env: { ...process.env, ANTHROPIC_API_KEY: 'stub', GEMINI_API_KEY: 'stub', STUB_TRANSLATE: '1', STUB_GEMINI_CUT: '30',
+      KT_TRANSLATE_MODEL: '', KT_TRANSLATE_CAP: '', KT_GEMINI_GAP_MS: '0' },
+  });
+  try {
+    assert.equal(run.status, 0, run.stderr + run.stdout);
+    const ur = JSON.parse(readFileSync(join(dir, 'result.json'), 'utf8'))[UR.field];
+    const n = ur.chunk_translations.length;
+    assert.ok(ur.block_models.every(m => m === 'gemini-3.8-flash'), 'no batch went to Opus');
+    assert.equal(ur.chunk_translations[30], 'gemini 30');
+    assert.equal(ur.usage.by_model['gemini-3.8-flash'].calls, Math.ceil(n / 12) + 1, 'the cut batch twice');
+    assert.equal(ur.usage.by_model['claude-opus-5-5'].calls, 1, 'only the extras');
+    assert.match(run.stdout, /gemini-3\.8-flash \(HIGH\), chunks 24-35: finished MAX_TOKENS after 32768 tokens; asking again at MEDIUM thinking/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
