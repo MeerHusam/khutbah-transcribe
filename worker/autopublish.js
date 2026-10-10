@@ -226,9 +226,12 @@ async function main() {
   await report('voices', { message: [...voiced.map(L => `${L.name} (${L.voice.name})`), 'English (Charon)'].join(', ') });
   const recitation = cleanAudio ? join('audio_files', `${name}-clean.wav`) : audioOut;
   const voices = [...voiced.map(L => [L.code, L.name, ['--voice', L.voice.name, '--direct']]), ['en', 'English', ['--direct']]];
+  // One directions call for all the voices (voice_directions.js): the first voice's run makes it, the
+  // others find theirs ready. The texts are final by now (verse excerpts ran above).
+  const directLangs = ['--direct-langs', voices.map(v => v[0]).join(',')];
   let done = 0;
   const voice = async (lang, label, args) => {
-    await run(`${label} voice`, 'node', ['voice/tts.js', F, '--lang', lang, ...args, '--tempo', '1.15']);
+    await run(`${label} voice`, 'node', ['voice/tts.js', F, '--lang', lang, ...args, ...directLangs, '--tempo', '1.15']);
     if (++done === voices.length) await report('timing');
     const m = JSON.parse(readFileSync(join(ROOT, F, `tts_${lang}.json`), 'utf8'));
     if (!m.blocks.every(b => b.words?.length)) await run(`${lang} word timing`, PY_ALIGN, ['voice/align_words.py', F, lang, ...(langOf(lang) ? [langOf(lang).voice.iso] : [])]);
