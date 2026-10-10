@@ -21,6 +21,7 @@
 // Job: { out, blocks: [{ i, text, parts?, pause_before? }], block_pause,
 //        model, voice, style, concurrency?, passages?, lang? }
 
+import { retake } from './retake.js';
 import 'dotenv/config';
 import { GoogleGenAI } from '@google/genai';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
@@ -324,8 +325,9 @@ async function speakPassage(blocks, n) {
   const content = parts.map((p, k) => annotate(p.text + (k < parts.length - 1 ? ' ' : ''),
     p.style ? `${job.style}. For this sentence: ${p.style}` : job.style));
   const text = blocks.map(b => b.text).join(' ');
-  let best = null;
-  for (let take = 1; take <= 3; take++) {
+  const words = looseWords(text).length;
+  let best = null, before = null;
+  for (let take = 1; ; take++) {
     const pcm = await askAround(content, blocks, n);
     const heard = await hear(pcm);
     const share = heard == null ? null : heardShare(text, heard);
@@ -333,7 +335,8 @@ async function speakPassage(blocks, n) {
     if (!best || score > best.score) best = { pcm, share, score };
     console.error(`  passage ${n + 1} (blocks ${blocks[0].i}-${blocks.at(-1).i}), take ${take}: ${secs(pcm).toFixed(0)} s` +
       (share ? `, ${Math.round(share.said * 100)}% of the words heard, ${Math.round(share.extra * 100)}% as many words` : ', not checked'));
-    if (!share || (share.said >= 0.85 && share.extra <= 1.25)) break;
+    if (!retake({ take, words, share, score, before })) break; // voice/retake.js
+    before = score;
   }
   checks.push({ passage: n + 1, blocks: [blocks[0].i, blocks.at(-1).i], ...(best.share ?? {}) });
   writeFileSync(path, best.pcm);

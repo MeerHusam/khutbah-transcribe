@@ -54,7 +54,14 @@ const price = model => (model === OPUS ? [4, 20] : geminiPrice(model)); // USD p
 // limit), then goes to Opus. One user saw 3.8 Flash bill up to twice maxOutputTokens, so the cap
 // reckons a Gemini call at twice its limit.
 const maxOut = model => (model === OPUS ? 16000 : 32768);
-const billedOut = model => (model === OPUS ? 1 : 2) * maxOut(model);
+const billedOut = (model, out = maxOut(model)) => (model === OPUS ? 1 : 2) * out;
+// The extras answer is about 2,000 tokens; at LOW thinking 16,384 is room enough.
+const EXTRAS_OUT = 16384;
+// The extras call (summaries, narrators, surah names, hadith cuts): Opus unless KT_EXTRAS_MODEL names
+// a Gemini model, which is then asked first (thinking KT_EXTRAS_THINKING, default LOW), Opus if it
+// gives no summary.
+const EXTRAS_MODEL = process.env.KT_EXTRAS_MODEL || OPUS;
+const EXTRAS_THINKING = process.env.KT_EXTRAS_THINKING || 'LOW';
 // A request the model declines (the du'a names enemies: Houthis, Zionists) is re-run on the
 // fallback model the API picks for that kind of refusal, instead of leaving blocks untranslated.
 const FALLBACK = { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' };
@@ -110,9 +117,9 @@ function record(model, u, cost) {
 }
 // A call of `chars` characters (prompt and system) must fit under the cap at its worst: a token per
 // character in, all it may be billed for out. One that might not ends the run, with nothing written.
-function withinCap(model, chars) {
+function withinCap(model, chars, out) {
   const [pin, pout] = price(model);
-  const worst = (chars * pin + billedOut(model) * pout) / 1e6;
+  const worst = (chars * pin + billedOut(model, out) * pout) / 1e6;
   if (spent + worst <= CAP) return;
   console.error(`✗ ${model} call refused: $${spent.toFixed(3)} spent this run, one call could cost $${worst.toFixed(3)}, the cap is $${CAP} (KT_TRANSLATE_CAP); nothing written`);
   process.exit(1);
@@ -272,6 +279,7 @@ const EXTRAS_SCHEMA = {
   required: ['share_summary', 'summary', 'hadith', ...(askSurahs ? ['surahs'] : [])],
   additionalProperties: false,
 };
+let extrasBy = result[F]?.extras_model ?? OPUS;
 let extras = !args.includes('--retranslate') && result[F]?.summary ? {
   share_summary: result[F].share_summary, summary: result[F].summary,
   narrators: result[F].narrators ?? {}, surahs: result[F].surahs ?? {},
@@ -288,13 +296,26 @@ if (!extras) {
     JSON.stringify(hadithList, null, 1),
     ...(askSurahs ? [L.translate.extras.surahs, surahNums.map(n => `${n}: ${quran[n - 1]?.transliteration} (${quran[n - 1]?.name})`).join('\n')] : []),
   ].join('\n\n');
-  withinCap(OPUS, content.length + L.translate.extras.system.length);
-  const response = await opus({
-    system: L.translate.extras.system,
-    output_config: { effort: 'high', format: { type: 'json_schema', schema: EXTRAS_SCHEMA } },
-    messages: [{ role: 'user', content }],
-  });
-  const out = JSON.parse(response.content.find(b => b.type === 'text')?.text ?? '{}') ?? {};
+  const chars = content.length + L.translate.extras.system.length;
+  let out = null;
+  if (EXTRAS_MODEL !== OPUS) {
+    withinCap(EXTRAS_MODEL, chars, EXTRAS_OUT);
+    const g = await geminiJSON({ model: EXTRAS_MODEL, system: L.translate.extras.system, content, schema: EXTRAS_SCHEMA,
+      maxOutputTokens: EXTRAS_OUT, thinkingLevel: EXTRAS_THINKING });
+    record(EXTRAS_MODEL, g.usage, g.cost_usd);
+    if (g.ok && g.json?.summary?.trim()) { out = g.json; extrasBy = EXTRAS_MODEL; }
+    else console.log(`  ${EXTRAS_MODEL} (${EXTRAS_THINKING}), extras: ${g.ok ? 'no summary' : g.why}; asking ${OPUS}`);
+  }
+  if (!out) {
+    withinCap(OPUS, chars);
+    const response = await opus({
+      system: L.translate.extras.system,
+      output_config: { effort: 'high', format: { type: 'json_schema', schema: EXTRAS_SCHEMA } },
+      messages: [{ role: 'user', content }],
+    });
+    out = JSON.parse(response.content.find(b => b.type === 'text')?.text ?? '{}') ?? {};
+    extrasBy = OPUS;
+  }
   extras = { share_summary: out.share_summary, summary: out.summary, narrators: {},
     surahs: Object.fromEntries((out.surahs ?? []).filter(s => s.name?.trim()).map(s => [s.n, s.name.trim()])) };
   for (const x of out.hadith ?? []) {
@@ -334,7 +355,7 @@ for (const [m, u] of Object.entries(usage)) {
 const total = k => Object.values(byModel).reduce((s, u) => s + (u[k] ?? 0), 0);
 const blockCount = Object.entries(models.reduce((n, m) => ({ ...n, [m]: (n[m] ?? 0) + 1 }), {}));
 result[F] = {
-  model: blockCount.map(([m]) => m).join(' + '), block_models: models,
+  model: blockCount.map(([m]) => m).join(' + '), block_models: models, extras_model: extrasBy,
   created_at: reuse ? prev.created_at : new Date().toISOString(),
   chunk_translations: blocks,
   share_summary: extras.share_summary, summary: extras.summary, narrators: extras.narrators, surahs,
