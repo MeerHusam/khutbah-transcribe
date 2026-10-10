@@ -394,16 +394,19 @@ async function geminiTranscript(audioPath, mimeType, prompt, { client = gemini, 
           const r = await client.models.generateContent({
             model,
             contents: [{ parts: [{ text: prompt }, { fileData: { mimeType, fileUri: file.uri } }] }],
-            // Transcription has one correct answer, so sample as little as possible. The default
-            // temperature of 1.0 is why the same audio produced different ayah markup on
-            // consecutive runs. temperature 0 + a fixed seed makes runs repeatable in practice,
-            // though the API does not guarantee bit-identical output.
-            config: { temperature: 0, seed: 42 },
+            // No temperature or seed (temperature 0 and seed 42 until 10 Oct 2026, from 2.5 Flash, whose
+            // ayah markup changed between runs): Google's guides say 3.6 Flash ignores them, and that
+            // a temperature below 1.0 can make Gemini 3 models (3.1 Pro here) think in a loop. The
+            // whole output room: thinking counts toward it, and an answer cut at the limit came back
+            // as its reasoning in plain text (the forum's "raw logic leak"; 9 Oct's notes look like it).
+            config: { maxOutputTokens: 65536 },
           });
-          // The answer's text parts, never its thoughts (the first part can be a thought).
+          // The answer's text parts, never its thoughts (the first part can be a thought). An answer
+          // that did not finish (cut at the limit, blocked) is not a transcript, whatever its text.
           const text = (r.candidates?.[0]?.content?.parts ?? []).filter(p => !p.thought && typeof p.text === 'string').map(p => p.text).join('').trim();
           if (!text) throw new Error('an empty answer');
-          const problem = await check(text);
+          const finish = r.candidates?.[0]?.finishReason;
+          const problem = finish && finish !== 'STOP' ? `finished ${finish}` : await check(text);
           if (!problem) return { text, model };
           console.log(`\n  ${model}: not a transcript (${problem})${broken ? '' : '; asking again'}`);
           if (broken++) break;

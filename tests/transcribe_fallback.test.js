@@ -29,7 +29,7 @@ function fakeClient(answers) {
         let a = answers[model];
         if (Array.isArray(a)) a = a.length > 1 ? a.shift() : a[0];
         if (a instanceof Error) throw a;
-        return { candidates: [{ content: { parts: typeof a === 'string' ? [{ text: a }] : a.parts } }] };
+        return { candidates: [{ content: { parts: typeof a === 'string' ? [{ text: a }] : a.parts }, finishReason: a.finish ?? 'STOP' }] };
       },
     },
   };
@@ -74,6 +74,15 @@ test('an answer that is not a transcript is asked for once more, then the next m
   const again = fakeClient({ 'gemini-3.6-flash': [NOTES, 'الحمد لله رب العالمين'] });
   assert.equal((await geminiTranscript('x.mp3', 'audio/mpeg', 'prompt', { client: again, waitMs: 1 })).model, 'gemini-3.6-flash');
   assert.equal(again.asked.length, 2);
+});
+
+// The forum's "raw logic leak": cut at the token limit mid-loop, the reasoning comes back as text
+// with no thought flag. Even when it reads as Arabic, it is not a transcript.
+test('an answer cut at the token limit is not a transcript, whatever its text', async () => {
+  const client = fakeClient({ 'gemini-3.6-flash': { parts: [{ text: 'الحمد لله رب العالمين' }], finish: 'MAX_TOKENS' }, 'gemini-3.1-pro-preview': 'الحمد لله رب العالمين' });
+  const r = await geminiTranscript('x.mp3', 'audio/mpeg', 'prompt', { client, waitMs: 1 });
+  assert.equal(r.model, 'gemini-3.1-pro-preview');
+  assert.deepEqual(client.asked, ['gemini-3.6-flash', 'gemini-3.6-flash', 'gemini-3.1-pro-preview']);
 });
 
 test('far fewer words than Groq heard is not a transcript either', async () => {
