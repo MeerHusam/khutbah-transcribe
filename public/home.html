@@ -213,12 +213,27 @@
     .masjids button[aria-pressed="true"] { background: var(--green); border-color: var(--green); color: var(--green-ink); }
     .masjids button[aria-pressed="true"] span { color: var(--green-ink); opacity: .7; }
 
-    .friday { display: grid; grid-template-columns: 220px minmax(0, 1fr); column-gap: 48px; padding: 38px 0; border-top: 1px solid var(--line-soft); }
+    /* each Friday is one row that opens to its khutbahs; the latest starts open */
+    .friday { border-top: 1px solid var(--line-soft); }
     .friday:first-child { border-top: 0; }
     .when-h { margin: 0; font-weight: 400; }
-    .when-h .lead { display: block; font: 500 15px/1.3 var(--text); color: var(--gold); margin-bottom: 6px; }
-    .when-h .d { display: block; font: 500 25px/1.2 var(--text); letter-spacing: -.01em; color: var(--cream); }
-    .when-h .h { display: block; margin-top: 6px; font: 400 19px/1.6 var(--ar); color: var(--mist); direction: rtl; text-align: left; }
+    .day {
+      width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto 26px; align-items: center; gap: 18px;
+      padding: 24px 6px; background: none; border: 0; cursor: pointer; text-align: left; color: inherit; font: inherit; border-radius: 12px;
+    }
+    .day:hover { background: rgba(236, 230, 214, .03); }
+    .day .when { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 16px; }
+    .when-h .lead { flex-basis: 100%; font: 500 15px/1.4 var(--text); color: var(--gold); }
+    .when-h .d { font: 500 25px/1.2 var(--text); letter-spacing: -.01em; color: var(--cream); }
+    .when-h .h { font: 400 19px/1.5 var(--ar); color: var(--mist); }
+    .when-h .count { font-size: 15px; color: var(--dim); font-weight: 300; }
+    .day .mini { display: flex; gap: 8px; }
+    .day .mini .glyph { width: 30px; height: 30px; color: var(--gold); opacity: .75; }
+    .day .mini .glyph .dome { stroke: var(--green); }
+    .day .chev { width: 24px; height: 24px; color: var(--gold); transition: transform .3s; }
+    .friday.open .chev { transform: rotate(180deg); }
+    .day-body { padding: 0 0 26px; }
+    .day-body.moving { overflow: hidden; }
     .rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
     .row {
       display: grid; grid-template-columns: 52px minmax(0, 1fr); column-gap: 18px; padding: 16px 18px 18px 14px; margin: 0 -18px 0 -14px;
@@ -255,11 +270,38 @@
     .hadith figcaption a { color: var(--mist); }
 
     .how { padding-top: 96px; }
-    .steps { list-style: none; counter-reset: s; margin: 28px 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 34px; }
-    .steps li { counter-increment: s; padding-top: 18px; border-top: 1px solid var(--line); }
-    .steps li::before { content: counter(s); display: block; font: 600 20px/1 var(--display); color: var(--gold); margin-bottom: 12px; }
-    .steps b { display: block; font: 500 18.5px/1.3 var(--text); color: var(--cream); margin-bottom: 6px; }
-    .steps span { font-size: 16px; line-height: 1.6; color: var(--mist); }
+    /* the four steps on one gold line, drawn as the page scrolls (anime.js onScroll) */
+    .trail { position: relative; margin: 40px auto 0; max-width: 1160px; aspect-ratio: 1160 / 640; --p: 0; }
+    .trail-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+    .trail-base { fill: none; stroke: rgba(216, 184, 108, .16); stroke-width: 2; stroke-dasharray: 2 8; stroke-linecap: round; }
+    .trail-line { fill: none; stroke: var(--gold); stroke-width: 2.5; stroke-linecap: round; }
+    .trail-dot { fill: var(--gold); }
+    .trail-head { fill: var(--gold); }
+    .rail { display: none; }
+    .trail-steps { list-style: none; margin: 0; padding: 0; }
+    .step {
+      position: absolute; left: var(--x); top: var(--y); width: 28.45%; transform: translateY(-50%);
+      display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 0 16px; align-items: start;
+      padding: 22px 22px 20px; border-radius: 12px; background: #12251C; border: 1px solid rgba(216, 184, 108, .14);
+      opacity: .5; transition: opacity .4s, border-color .4s;
+    }
+    .step.on { opacity: 1; border-color: rgba(216, 184, 108, .45); }
+    .step .num {
+      position: absolute; top: -15px; left: 50%; margin-left: -15px; width: 30px; height: 30px; border-radius: 50%;
+      display: grid; place-items: center; font: 600 15px/1 var(--text); color: var(--gold);
+      background: var(--night); border: 1.5px solid rgba(216, 184, 108, .5);
+    }
+    .step.on .num { background: var(--gold); color: #1A1508; border-color: var(--gold); }
+    .step .ico { width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; background: rgba(216, 184, 108, .1); color: var(--gold); }
+    .step .ico svg { width: 24px; height: 24px; }
+    .step b { display: block; font: 500 18px/1.3 var(--text); color: var(--cream); margin-bottom: 5px; }
+    .step .txt > span { display: block; font-size: 15.5px; line-height: 1.55; color: var(--mist); }
+    .trail-end {
+      position: absolute; left: 63.8%; top: 89.06%; transform: translateY(-50%);
+      display: inline-flex; align-items: center; min-height: 52px; padding: 0 28px; border-radius: 999px;
+      background: var(--gold); color: #1A1508; font-size: 17px; font-weight: 500; text-decoration: none; transition: background .2s;
+    }
+    .trail-end:hover { background: #E4C67F; }
     details.tech { margin-top: 34px; border-top: 1px solid var(--line-soft); }
     details.tech summary { cursor: pointer; padding: 18px 0; font-size: 16.5px; color: var(--cream); font-weight: 400; list-style: none; display: flex; align-items: center; gap: 10px; }
     details.tech summary::-webkit-details-marker { display: none; }
@@ -324,11 +366,12 @@
       .list { padding-top: 44px; }
       h2 { font-size: 27px; }
       .find { flex-basis: 100%; }
-      .friday { grid-template-columns: 1fr; padding: 26px 0 22px; }
-      .when-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; margin-bottom: 10px; }
-      .when-h .lead { flex-basis: 100%; margin: 0; }
-      .when-h .d { font-size: 22px; }
-      .when-h .h { margin: 0; font-size: 17px; }
+      .day { padding: 18px 2px; gap: 12px; }
+      .when-h .d { font-size: 21px; }
+      .when-h .h { font-size: 17px; }
+      .when-h .count { font-size: 14px; }
+      .day .mini { gap: 4px; }
+      .day .mini .glyph { width: 24px; height: 24px; }
       .row { grid-template-columns: 40px minmax(0, 1fr); column-gap: 14px; padding: 12px 10px 14px 8px; margin: 0 -10px 0 -8px; }
       .row .glyph { width: 40px; height: 40px; }
       .row h3, .row.first h3 { font-size: 21px; }
@@ -337,8 +380,16 @@
       .why p { font-size: 17px; }
       .ahadith { margin-top: 30px; }
       .how { padding-top: 64px; }
-      .steps { grid-template-columns: 1fr; gap: 0; }
-      .steps li { padding: 16px 0 18px; }
+      .trail { aspect-ratio: auto; margin-top: 30px; padding: 6px 0 0 50px; }
+      .trail-svg { display: none; }
+      .rail { display: block; position: absolute; left: 17px; top: 0; bottom: 26px; width: 2px; background: repeating-linear-gradient(to bottom, rgba(216,184,108,.22) 0 2px, transparent 2px 10px); }
+      .rail-fill { position: absolute; inset: 0; background: var(--gold); transform-origin: top; transform: scaleY(var(--p)); }
+      .rail-head { position: absolute; left: -8px; top: calc(var(--p) * 100%); width: 0; height: 0; margin-top: -4px; border-left: 9px solid transparent; border-right: 9px solid transparent; border-top: 13px solid var(--gold); }
+      .step { position: relative; left: auto; top: auto; width: auto; transform: none; margin: 0 0 30px; padding: 22px 18px 18px; grid-template-columns: 40px minmax(0, 1fr); gap: 0 14px; }
+      .step .num { left: -48px; top: 20px; margin: 0; }
+      .step .ico { width: 40px; height: 40px; }
+      .step b { font-size: 17px; } .step .txt > span { font-size: 15px; }
+      .trail-end { position: relative; left: auto; top: auto; transform: none; margin: 4px 0 0; }
       .tech-grid { grid-template-columns: 1fr; }
       .talk .form { margin-top: 26px; }
       footer { margin-top: 72px; }
@@ -494,12 +545,22 @@
 
   <section class="wrap how" id="how-it-works" aria-labelledby="how-h">
     <h2 id="how-h">How each khutbah is made</h2>
-    <ol class="steps">
-      <li><b>Recorded at Jumu'ah</b><span>The khutbah is recorded in the masjid and sent here the same day.</span></li>
-      <li><b>Written down</b><span>The imam's Arabic is written out word by word, with the moment each word was said.</span></li>
-      <li><b>Translated and checked</b><span>It is translated into English, Urdu and Bengali, then checked again against the Arabic.</span></li>
-      <li><b>Sources found</b><span>Every ayah is matched to the mushaf and every hadith to sunnah.com, so you can check them yourself.</span></li>
-    </ol>
+    <div class="trail" id="trail">
+      <svg class="trail-svg" viewBox="0 0 1160 640" aria-hidden="true" focusable="false">
+        <path class="trail-base" d="M20 90 H1050 C1150 90 1150 330 1050 330 H110 C10 330 10 570 110 570 H716"/>
+        <path class="trail-line" d="M20 90 H1050 C1150 90 1150 330 1050 330 H110 C10 330 10 570 110 570 H716"/>
+        <circle class="trail-dot" cx="20" cy="90" r="8"/>
+        <path class="trail-head" d="M-13 -9 L9 0 L-13 9 Z"/>
+      </svg>
+      <span class="rail" aria-hidden="true"><span class="rail-fill"></span><span class="rail-head"></span></span>
+      <ol class="trail-steps">
+        <li class="step" style="--x:7.759%;--y:14.062%"><span class="num">1</span><span class="ico"><svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor"><path d="M128,176a48.05,48.05,0,0,0,48-48V64a48,48,0,0,0-96,0v64A48.05,48.05,0,0,0,128,176ZM96,64a32,32,0,0,1,64,0v64a32,32,0,0,1-64,0Zm40,143.6V240a8,8,0,0,1-16,0V207.6A80.11,80.11,0,0,1,48,128a8,8,0,0,1,16,0,64,64,0,0,0,128,0,8,8,0,0,1,16,0A80.11,80.11,0,0,1,136,207.6Z"/></svg></span><span class="txt"><b>Recorded at Jumu'ah</b><span>The khutbah is recorded in the masjid and sent here the same day.</span></span></li>
+        <li class="step" style="--x:51.724%;--y:14.062%"><span class="num">2</span><span class="ico"><svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor"><path d="M248,92.68a15.86,15.86,0,0,0-4.69-11.31L174.63,12.68a16,16,0,0,0-22.63,0L123.57,41.11l-58,21.77A16.06,16.06,0,0,0,55.35,75.23L32.11,214.68A8,8,0,0,0,40,224a8.4,8.4,0,0,0,1.32-.11l139.44-23.24a16,16,0,0,0,12.35-10.17l21.77-58L243.31,104A15.87,15.87,0,0,0,248,92.68Zm-69.87,92.19L63.32,204l47.37-47.37a28,28,0,1,0-11.32-11.32L52,192.7,71.13,77.86,126,57.29,198.7,130ZM112,132a12,12,0,1,1,12,12A12,12,0,0,1,112,132Zm96-15.32L139.31,48l24-24L232,92.68Z"/></svg></span><span class="txt"><b>Written down</b><span>The imam's Arabic is written out word by word, with the moment each word was said.</span></span></li>
+        <li class="step" style="--x:51.724%;--y:51.562%"><span class="num">3</span><span class="ico"><svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor"><path d="M247.15,212.42l-56-112a8,8,0,0,0-14.31,0l-21.71,43.43A88,88,0,0,1,108,126.93,103.65,103.65,0,0,0,135.69,64H160a8,8,0,0,0,0-16H104V32a8,8,0,0,0-16,0V48H32a8,8,0,0,0,0,16h87.63A87.76,87.76,0,0,1,96,116.35a87.74,87.74,0,0,1-19-31,8,8,0,1,0-15.08,5.34A103.63,103.63,0,0,0,84,127a87.55,87.55,0,0,1-52,17,8,8,0,0,0,0,16,103.46,103.46,0,0,0,64-22.08,104.18,104.18,0,0,0,51.44,21.31l-26.6,53.19a8,8,0,0,0,14.31,7.16L148.94,192h70.11l13.79,27.58A8,8,0,0,0,240,224a8,8,0,0,0,7.15-11.58ZM156.94,176,184,121.89,211.05,176Z"/></svg></span><span class="txt"><b>Translated and checked</b><span>It is translated into English, Urdu and Bengali, then checked again against the Arabic.</span></span></li>
+        <li class="step" style="--x:7.759%;--y:51.562%"><span class="num">4</span><span class="ico"><svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor"><path d="M232,48H160a40,40,0,0,0-32,16A40,40,0,0,0,96,48H24a8,8,0,0,0-8,8V200a8,8,0,0,0,8,8H96a24,24,0,0,1,24,24,8,8,0,0,0,16,0,24,24,0,0,1,24-24h72a8,8,0,0,0,8-8V56A8,8,0,0,0,232,48ZM96,192H32V64H96a24,24,0,0,1,24,24V200A39.81,39.81,0,0,0,96,192Zm128,0H160a39.81,39.81,0,0,0-24,8V88a24,24,0,0,1,24-24h64ZM160,88h40a8,8,0,0,1,0,16H160a8,8,0,0,1,0-16Zm48,40a8,8,0,0,1-8,8H160a8,8,0,0,1,0-16h40A8,8,0,0,1,208,128Zm0,32a8,8,0,0,1-8,8H160a8,8,0,0,1,0-16h40A8,8,0,0,1,208,160Z"/></svg></span><span class="txt"><b>Sources found</b><span>Every ayah is matched to the mushaf and every hadith to sunnah.com, so you can check them yourself.</span></span></li>
+      </ol>
+      <a class="trail-end" id="trailEnd" href="#khutbahs">Read the latest khutbah</a>
+    </div>
     <details class="tech">
       <summary>The technical details</summary>
       <div class="tech-grid">
@@ -615,6 +676,7 @@
     .then(data => {
       const order = k => (k.featured ? 0 : ({ 3: 1, 1: 2, 2: 3 })[k.masjid_id] ?? 4);
       const items = data.items.slice().sort((a, b) => (dayOf(b) ?? -1) - (dayOf(a) ?? -1) || order(a) - order(b));
+      if (items[0]) document.getElementById('trailEnd').href = linkOf(items[0]);
             const newest = dayOf(items[0]);
       const thisWeek = newest && Date.now() - newest < 7 * 864e5;
 
@@ -635,15 +697,23 @@
           if (!groups.length || groups[groups.length - 1].key !== key) groups.push({ key, t: dayOf(k), items: [] });
           groups[groups.length - 1].items.push(k);
         }
+        // The latest Friday opens; the rest open on a tap. A search or a masjid filter opens every match.
+        const filtering = !!(words.length || m);
         grid.innerHTML = groups.length ? groups.map((g, gi) => {
-          const lead = gi === 0 && g.t === newest && thisWeek && !words.length && !m ? '<span class="lead">This Friday</span>' : '';
+          const lead = gi === 0 && !filtering ? `<span class="lead">${g.t === newest && thisWeek ? 'This Friday' : 'The latest khutbahs'}</span>` : '';
           const d = g.t ? new Date(g.t) : null;
           const day = d ? `${d.getUTCDate()} ${d.toLocaleDateString('en-GB', { month: 'long', timeZone: 'UTC' })} ${d.getUTCFullYear()}` : 'Undated';
-          return `<section class="friday"><h3 class="when-h">${lead}<span class="d">${esc(day)}</span>${d ? `<span class="h" lang="ar">${hijri(g.t)}</span>` : ''}</h3>
-            <ul class="rows">${g.items.map((k, i) => rowHtml(k, gi === 0 && i === 0 && lead)).join('')}</ul></section>`;
+          const open = filtering || gi === 0, n = g.items.length;
+          return `<section class="friday${open ? ' open' : ''}"><h3 class="when-h"><button type="button" class="day" aria-expanded="${open}" aria-controls="day-${gi}">
+              <span class="when">${lead}<span class="d">${esc(day)}</span>${d ? `<span class="h" lang="ar">${hijri(g.t)}</span>` : ''}<span class="count">${n} ${n === 1 ? 'khutbah' : 'khutbahs'}</span></span>
+              <span class="mini" aria-hidden="true">${g.items.map(k => GLYPHS[k.masjid_id] || GLYPHS[0]).join('')}</span>
+              <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9.5l6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button></h3>
+            <div class="day-body" id="day-${gi}"${open ? '' : ' hidden'}><ul class="rows">${g.items.map((k, i) => rowHtml(k, gi === 0 && i === 0 && lead)).join('')}</ul></div></section>`;
         }).join('') : `<p class="empty">No khutbah matches “${esc(search.value.trim())}”.<button type="button" id="clearSearch">Clear the search</button></p>`;
         document.getElementById('clearSearch')?.addEventListener('click', () => { search.value = ''; show(''); search.focus(); });
         bar.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.m === m)));
+        window.dispatchEvent(new Event('kt-list'));
       };
       search.addEventListener('input', () => show());
       const perMasjid = new Map();
@@ -666,6 +736,15 @@
         window.open(el.dataset.href, '_blank', 'noopener');
       };
       grid.addEventListener('click', openMap);
+      // A Friday opens and closes on a tap (anime.js does the motion once it has loaded).
+      grid.addEventListener('click', e => {
+        const b = e.target.closest('.day');
+        if (!b) return;
+        const open = b.getAttribute('aria-expanded') !== 'true', body = document.getElementById(b.getAttribute('aria-controls'));
+        b.setAttribute('aria-expanded', String(open));
+        b.closest('.friday').classList.toggle('open', open);
+        (window.__animateDay || ((el, o) => { el.hidden = !o; }))(body, open);
+      });
       grid.addEventListener('keydown', openMap);
     })
     .catch(() => {
@@ -741,7 +820,7 @@
 <script type="module">
   // The one authored moment: the minbar is drawn, the light comes in, the page settles. Then the
   // example plays only when asked: the imam's real recording, each word lit at the time he says it.
-  import { animate, svg, stagger, createTimeline, utils } from '/vendor/anime.esm.min.js';
+  import { animate, svg, stagger, createTimeline, utils, onScroll, createScope } from '/vendor/anime.esm.min.js';
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const DEMO = window.__DEMO;
   if (!reduce) {
@@ -753,6 +832,59 @@
       .add('.minbar .beam', { opacity: [0, 1], duration: 1400 }, '-=900')
       .add('#demo', { opacity: [0, 1], y: [24, 0], duration: 800, ease: 'outExpo' }, '-=1200');
   }
+
+  // ── How each khutbah is made: the gold line draws itself as the page scrolls, its arrow travelling with it,
+  // and each step lights up as the line reaches it. On phones it runs straight down beside the steps.
+  window.__animateDay = (body, open) => {
+    utils.remove(body); utils.remove(body.querySelectorAll('.row'));
+    if (reduce) { body.hidden = !open; body.style.height = ''; return; }
+    body.classList.add('moving');
+    const done = () => { body.classList.remove('moving'); body.style.height = ''; body.style.opacity = ''; if (!open) body.hidden = true; };
+    if (open) {
+      body.hidden = false;
+      animate(body, { height: [0, body.scrollHeight], opacity: [0, 1], duration: 420, ease: 'outCubic', onComplete: done });
+      animate(body.querySelectorAll('.row'), { y: [12, 0], opacity: [0, 1], delay: stagger(60), duration: 420, ease: 'outCubic' });
+    } else {
+      animate(body, { height: [body.offsetHeight, 0], opacity: [1, 0], duration: 260, ease: 'inCubic', onComplete: done });
+    }
+  };
+
+  const trailScope = createScope({ mediaQueries: { phone: '(max-width: 900px)', still: '(prefers-reduced-motion: reduce)' } }).add(self => {
+    const { phone, still } = self.matches;
+    const trail = document.getElementById('trail'), steps = [...trail.querySelectorAll('.step')];
+    let marks;
+    if (phone) {
+      const r = trail.querySelector('.rail').getBoundingClientRect();
+      marks = steps.map(s => (s.getBoundingClientRect().top + 24 - r.top) / r.height);
+    } else {
+      // Where the line first touches each step, as a share of its length.
+      const path = trail.querySelector('.trail-line'), total = path.getTotalLength();
+      const svgEl = path.ownerSVGElement, box = svgEl.getBoundingClientRect(), k = 1160 / box.width;
+      marks = steps.map(s => {
+        const r = s.getBoundingClientRect();
+        const x0 = (r.left - box.left) * k, x1 = (r.right - box.left) * k, y0 = (r.top - box.top) * k, y1 = (r.bottom - box.top) * k;
+        for (let L = 0; L <= total; L += 3) { const p = path.getPointAtLength(L); if (p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1) return L / total; }
+        return 1;
+      });
+    }
+    const light = p => steps.forEach((s, i) => s.classList.toggle('on', p >= marks[i] - .002));
+    if (still) {
+      trail.style.setProperty('--p', 1); light(1);
+      if (!phone) utils.set(svg.createDrawable('.trail-line'), { draw: '0 1' });
+      return;
+    }
+    const tl = createTimeline({
+      defaults: { ease: 'linear', duration: 1000 },
+      onUpdate: t => light(t.progress),
+      autoplay: onScroll({ target: trail, enter: '85% top', leave: '50% bottom', sync: .25 }),
+    });
+    if (phone) tl.add(trail, { '--p': [0, 1] }, 0);
+    else tl.add(svg.createDrawable('.trail-line'), { draw: ['0 0', '0 1'] }, 0)
+           .add('.trail-head', { ...svg.createMotionPath('.trail-line') }, 0);
+  });
+
+  addEventListener('kt-list', () => trailScope.refresh());
+  document.fonts?.ready.then(() => trailScope.refresh());
 
   // ── The hand: taps English, اردو and বাংলা in turn, the prompt above it in that language, three times
   // round or until the visitor picks one. With reduced motion it rests under English and the prompt says all three.
