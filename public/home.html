@@ -157,6 +157,9 @@
     .pg-tr[lang="ur"] { direction: rtl; text-align: right; font-size: 18.5px; line-height: 2.3; }
     .pg-tr[lang="bn"] { font-size: 17.5px; line-height: 1.85; }
     .pg-tr q { color: var(--green); font-style: italic; quotes: none; }
+    .pg-tr .seg { transition: opacity .3s; }
+    .page.playing .pg-tr .seg { opacity: .42; }
+    .page.playing .pg-tr .seg.now { opacity: 1; }
     .pg-tr[lang="ur"] q, .pg-tr[lang="bn"] q { font-style: normal; }
     .pg-foot { margin-top: 18px; display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 14px; row-gap: 10px; align-items: center; }
     .listen {
@@ -530,7 +533,7 @@
   const escAttr = s => esc(s).replace(/"/g, '&quot;');
 
   // ── The example on the khutbah's page: a hadith the imam quoted, his words lit as he says them ──
-  const DEMO = {"audio":"https://media.khutbah.dev/2026-10-04T15-20-20_khutbah-2026-09-18-al-haram-makkah/khutbah-2026-09-18-al-haram-makkah.mp3","start":153.05,"end":165.29,"words":[["ففي",153.3],["الصحيحين",153.5],["من",154.58],["حديث",154.74],["أبي",155.2],["هريرة",155.4],["<span class=\"hon\" title=\"رضي الله عنه\">﵁</span>",155.92],["أن",157.78],["رسول",158.04],["الله",158.42],["<span class=\"hon\" title=\"صلى الله عليه وسلم\">ﷺ</span>",158.8],["قال:",160.26],["«إياكم",161.26],["والظن",161.76],["فإن",163.14],["الظن",163.54],["أكذب",164.04],["الحديث …»",164.48]],"tr":{"en":"In the two Sahih collections, from the Hadith of Abu Hurayrah <span class=\"hon\">﵁</span>, the Messenger of Allah <span class=\"hon\">ﷺ</span> said: <q>“Beware of suspicion, for suspicion is the most false of speech …”</q>","ur":"چنانچہ صحیح بخاری اور صحیح مسلم میں حضرت ابوہریرہ <span class=\"hon\">﵁</span> کی حدیث ہے کہ رسول اللہ <span class=\"hon\">ﷺ</span> نے فرمایا: <q>“بدگمانی سے بچو، کیونکہ بدگمانی سب سے جھوٹی بات ہے …”</q>","bn":"বুখারী ও মুসলিমে আবু হুরায়রা রাদিয়াল্লাহু আনহু থেকে বর্ণিত, রাসূলুল্লাহ <span class=\"hon\">ﷺ</span> বলেছেন: <q>“তোমরা ধারণা থেকে বেঁচে থাকো, কেননা ধারণা হলো সবচেয়ে বড় মিথ্যা কথা …”</q>"}};
+  const DEMO = {"audio":"https://media.khutbah.dev/2026-10-04T15-20-20_khutbah-2026-09-18-al-haram-makkah/khutbah-2026-09-18-al-haram-makkah.mp3","start":153.05,"end":165.29,"words":[["ففي",153.3],["الصحيحين",153.5],["من",154.58],["حديث",154.74],["أبي",155.2],["هريرة",155.4],["<span class=\"hon\" title=\"رضي الله عنه\">﵁</span>",155.92],["أن",157.78],["رسول",158.04],["الله",158.42],["<span class=\"hon\" title=\"صلى الله عليه وسلم\">ﷺ</span>",158.8],["قال:",160.26],["«إياكم",161.26],["والظن",161.76],["فإن",163.14],["الظن",163.54],["أكذب",164.04],["الحديث …»",164.48]],"tr":{"en":"<span class=\"seg\" data-from=\"0\">In the two Sahih collections, from the Hadith of Abu Hurayrah <span class=\"hon\">﵁</span>, the Messenger of Allah <span class=\"hon\">ﷺ</span> said:</span> <q class=\"seg\" data-from=\"12\">“Beware of suspicion, for suspicion is the most false of speech …”</q>","ur":"<span class=\"seg\" data-from=\"0\">چنانچہ صحیح بخاری اور صحیح مسلم میں حضرت ابوہریرہ <span class=\"hon\">﵁</span> کی حدیث ہے کہ رسول اللہ <span class=\"hon\">ﷺ</span> نے فرمایا:</span> <q class=\"seg\" data-from=\"12\">“بدگمانی سے بچو، کیونکہ بدگمانی سب سے جھوٹی بات ہے …”</q>","bn":"<span class=\"seg\" data-from=\"0\">বুখারী ও মুসলিমে আবু হুরায়রা রাদিয়াল্লাহু আনহু থেকে বর্ণিত, রাসূলুল্লাহ <span class=\"hon\">ﷺ</span> বলেছেন:</span> <q class=\"seg\" data-from=\"12\">“তোমরা ধারণা থেকে বেঁচে থাকো, কেননা ধারণা হলো সবচেয়ে বড় মিথ্যা কথা …”</q>"}};
   window.__DEMO = DEMO;
   const demo =document.getElementById('demo'), demoAr = document.getElementById('demoAr'), demoTr = document.getElementById('demoTr');
   demoAr.innerHTML = DEMO.words.map(([w, t], i) => `<span class="w" data-i="${i}">${w}</span>`).join(' ')
@@ -783,6 +786,10 @@
   let audio = null, raf = 0, lit = -1;
   const place = i => {
     words.forEach((w, j) => w.classList.toggle('said', j <= i));
+    // The translation follows too: the part of it the imam is saying now is lit.
+    const segs = [...document.querySelectorAll('#demoTr .seg')];
+    const cur = segs.filter(x => +x.dataset.from <= Math.max(i, 0)).pop();
+    segs.forEach(x => x.classList.toggle('now', x === cur));
     if (i < 0) return;
     const r = words[i].getBoundingClientRect(), p = para.getBoundingClientRect();
     const to = { x: r.left - p.left - r.width * .06, y: r.bottom - p.top - 8, width: r.width * 1.12 };
