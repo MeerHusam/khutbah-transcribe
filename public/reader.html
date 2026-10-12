@@ -241,13 +241,15 @@
     .seg button { min-height: 30px; padding: 0 11px; border: 0; border-radius: 999px; background: none; color: var(--mist); font-size: 13px; line-height: 16px; white-space: nowrap; cursor: pointer; }
     .seg button.on { background: var(--gold); color: var(--gold-ink); }
     /* back to the passage being read, once the reader has scrolled away from it: just above the bar */
+    /* back to the part being read, once the reader has scrolled away from it: a round gold arrow on the right, just
+       above the player (as before the redesign; Meer) */
     .back-to-active {
-      position: absolute; left: 50%; bottom: calc(100% + 12px); transform: translateX(-50%);
-      display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px; white-space: nowrap;
-      border: 1px solid var(--gold-dim); border-radius: 999px; background: rgba(11, 23, 18, .94); color: var(--gold);
-      font-size: 14px; cursor: pointer; box-shadow: 0 12px 28px -10px rgba(0, 0, 0, .7);
+      position: absolute; right: max(16px, calc(50vw - 560px)); bottom: calc(100% + 14px); width: 48px; height: 48px; padding: 0;
+      display: grid; place-items: center; border: 0; border-radius: 50%; cursor: pointer;
+      background: var(--gold); color: var(--gold-ink); box-shadow: 0 10px 24px -8px rgba(0, 0, 0, .7);
     }
-    .back-to-active svg { width: 16px; height: 16px; transition: transform .2s; }
+    .back-to-active:hover { background: #E4C67F; }
+    .back-to-active svg { width: 22px; height: 22px; transition: transform .2s; }
     .back-to-active.up svg { transform: rotate(180deg); }
 
     /* ── Footer, popups, states ── */
@@ -389,7 +391,6 @@
     .side-btn b[lang="ur"] { font-family: 'Noto Nastaliq Urdu', serif; font-size: 15px; line-height: 1.5; }
     .side-btn b[lang="bn"] { font-family: 'Noto Serif Bengali', serif; }
     .audio-player .skip-btn { min-width: 46px; }
-    .audio-player .back-to-active { font-size: 15px; }
     .pane .khutbah-divider { margin: 16px 0 14px; }
     body.playing .pane :is(.reader-chunk, .tr-chunk):not(.chunk-active) { opacity: .42; }
     .tr-chunk[data-follow="en"] :is(.chunk-en .chunk-english, .chunk-en .chunk-hadith-trans, .chunk-quran-translation:not(.chunk-tr)),
@@ -483,7 +484,7 @@
 </header>
 
   <div class="audio-player" id="audioPlayer">
-    <button type="button" class="back-to-active" id="backToActive" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>Show what's playing</button>
+    <button type="button" class="back-to-active" id="backToActive" hidden aria-label="Back to the part being read" title="Back to the part being read"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg></button>
     <div class="ap-bar"><span class="ap-cur" id="apCur">0:00</span><input class="audio-scrubber" id="scrubber" type="range" min="0" max="100" value="0" step="0.1" aria-label="Position in the recording"><span class="ap-dur" id="apDur">0:00</span></div>
     <div class="ap-transport">
       <button class="skip-btn skip-back" onclick="skip(-10)" title="Back 10 seconds" aria-label="Back 10 seconds">−10s</button>
