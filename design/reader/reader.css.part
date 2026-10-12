@@ -1,0 +1,314 @@
+  <style>
+    /* The reader in the home page's world (12 Oct 2026): the minbar at night. Green-black ground, gold for
+       everything tapped and for the Quran, cream for the imam's words and their translation; no boxes around
+       passages, no coloured side borders. One gold language line (read and hear in one tap), one slim gold
+       player, and the page following the voice word by word. */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --night: #0B1712;
+      --night-2: #0F1F18;
+      --night-3: #15291F;
+      --line: rgba(216, 184, 108, .16);
+      --line-soft: rgba(236, 230, 214, .09);
+      --gold: #D8B86C;
+      --gold-dim: rgba(216, 184, 108, .42);
+      --gold-bright: #F1D58E;
+      --gold-ink: #1A1508;
+      --parchment: #E8D5A0;
+      --green: #63C79B;
+      --cream: #ECE6D6;
+      --mist: #A6B3AA;
+      --dim: #85948B;
+      --display: "Kufam", "Readex Pro", system-ui, sans-serif;
+      --text: "Readex Pro", system-ui, sans-serif;
+      --ar: "Amiri", "Noto Naskh Arabic", serif;
+      --quran: "Amiri Quran", "Amiri", serif;
+      /* names the reader's code still uses */
+      --text-muted: var(--mist);
+      --text-dim: var(--dim);
+      --font-ui: var(--text);
+      --lattice: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Cg fill='none' stroke='%23D8B86C' stroke-width='1'%3E%3Cpath d='M32 4 L60 32 L32 60 L4 32 Z'/%3E%3Cpath d='M14 14 H50 V50 H14 Z'/%3E%3C/g%3E%3C/svg%3E");
+      color-scheme: dark;
+    }
+    html { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; scrollbar-color: #2A4236 var(--night); }
+    body {
+      font: 300 17px/1.6 var(--text); background: var(--night); color: var(--cream);
+      min-height: 100vh; overflow-x: hidden; -webkit-font-smoothing: antialiased; font-variant-numeric: lining-nums;
+    }
+    /* the star lattice as endpapers behind the top of the page */
+    body::before {
+      content: ''; position: absolute; inset: 0 0 auto 0; height: 760px; z-index: 0; pointer-events: none;
+      background: var(--lattice) 0 0 / 64px 64px; opacity: .05;
+      -webkit-mask-image: linear-gradient(to bottom, #000, transparent); mask-image: linear-gradient(to bottom, #000, transparent);
+    }
+    body > * { position: relative; z-index: 1; }
+    ::selection { background: rgba(216, 184, 108, .32); color: #FFF8E6; }
+    :focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 4px; }
+    a { color: inherit; }
+    button, input, textarea, select { font: inherit; color: inherit; caret-color: var(--gold); }
+    [hidden] { display: none !important; }
+    .hon { font-family: 'Noto Naskh Arabic', serif; font-style: normal; font-weight: 400; font-size: 1.15em; line-height: 1; }
+
+    /* ── Header ── */
+    header {
+      position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: 16px;
+      padding: 12px max(20px, calc(50vw - 380px)); padding-top: max(12px, env(safe-area-inset-top));
+      background: rgba(11, 23, 18, .88); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--cream); font: 500 19px/1 var(--display); }
+    .brand img { width: 34px; height: 34px; display: block; }
+    .viewers { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--mist); white-space: nowrap; }
+    .viewers b { color: var(--cream); font-weight: 500; font-variant-numeric: tabular-nums; }
+    .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
+    .viewers.online .live-dot { background: var(--green); box-shadow: 0 0 0 4px rgba(99, 199, 155, .16); }
+    .viewers .total-views, .khutbah-select { display: none; }
+
+    /* ── The page ── */
+    #app { max-width: 720px; margin: 0 auto; padding: 0 20px calc(120px + env(safe-area-inset-bottom)); }
+    .back-home { display: inline-flex; align-items: center; min-height: 44px; margin-top: 8px; font-size: 15px; color: var(--mist); text-decoration: none; }
+    .back-home:hover { color: var(--gold); }
+    .khutbah-heading { margin-top: 10px; }
+    .khutbah-heading h2 { font: 600 31px/1.14 var(--display); letter-spacing: -.01em; text-wrap: balance; color: var(--cream); }
+    .meta-row { margin-top: 12px; font-size: 15px; line-height: 1.6; color: var(--mist); }
+    .meta-row span { display: block; }
+    .meta-row .hijri { font-family: var(--ar); font-size: 17px; }
+    .meta-row a { color: var(--cream); text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px; }
+    .meta-row a:hover { text-decoration-color: var(--gold); }
+
+    /* the languages, as on the home page: one tap reads and hears it; العربية is the imam alone */
+    .tongue-help { margin-top: 28px; font-size: 15px; color: var(--mist); }
+    .tongue-help .tr-inline { font-size: 17px; }
+    .tongue-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 12px; margin-top: 2px; font: 400 23px/1.45 var(--text); color: var(--gold); }
+    .tongue-line .sep { color: var(--gold-dim); }
+    .tongue-line button {
+      border: 0; background: none; padding: 6px 2px 4px; color: var(--gold); cursor: pointer;
+      border-bottom: 2px solid transparent; transition: border-color .2s, color .2s;
+    }
+    .tongue-line button[lang="ar"] { font-family: var(--ar); font-size: 1.05em; }
+    .tongue-line button[lang="ur"] { font-family: 'Noto Nastaliq Urdu', serif; font-size: .92em; line-height: 1.25; }
+    .tongue-line button[lang="bn"] { font-family: 'Noto Serif Bengali', serif; font-size: .92em; }
+    .tongue-line button:hover { border-bottom-color: var(--gold-dim); }
+    .tongue-line button[aria-pressed="true"] { color: #F3DFA6; border-bottom-color: var(--gold); }
+
+    /* In Short, the khutbah in two or three sentences, then the summary on a tap */
+    .lede { margin-top: 30px; }
+    .lede .share-text { font-size: 19px; line-height: 1.65; font-weight: 300; color: var(--cream); }
+    .copy-btn {
+      display: inline-flex; align-items: center; min-height: 44px; margin-top: 6px; padding: 0; border: 0; background: none; cursor: pointer;
+      color: var(--gold); font-size: 15.5px; text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px;
+    }
+    .copy-btn:hover { text-decoration-color: var(--gold); }
+    .summary-more { margin-top: 4px; }
+    .summary-more > summary {
+      display: inline-flex; align-items: center; gap: 6px; min-height: 44px; cursor: pointer; list-style: none;
+      color: var(--gold); font-size: 15.5px; text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px;
+    }
+    .summary-more > summary::-webkit-details-marker { display: none; }
+    .summary-more > summary::after { content: ''; width: 8px; height: 8px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-2px) rotate(45deg); transition: transform .2s; }
+    .summary-more[open] > summary::after { transform: translateY(2px) rotate(-135deg); }
+    .summary-more .share-text { margin-top: 8px; font-size: 17px; line-height: 1.7; color: #D9DCD2; }
+
+    /* every translation is in the page; the language shown is the body's lang-<code> (tr = any but English) */
+    .chunk-tr, .tr-inline { display: none; }
+    body.tr .chunk-en, body.tr .en-inline { display: none; }
+    .chunk-tr[dir="rtl"] { text-align: right; }
+    .chunk-tr .trans-ours { display: none; }
+    /* العربية alone: the imam's words without a translation beside them */
+    body.ar-only .reader-chunk :is(.chunk-en, .chunk-tr, .chunk-quran-translation, .verse-toggle) { display: none !important; }
+
+    /* ── The khutbah ── */
+    .khutbah-h { margin-top: 52px; font: 600 25px/1.2 var(--display); color: var(--cream); }
+    /* a heading in another script keeps the heading's size (the language files size inline words for running text) */
+    body[class] .khutbah-h .tr-inline[lang] { font-size: .92em; font-weight: 400; line-height: 1.6; }
+    /* labels and links in another script: readable, not the language files' small inline size */
+    body[class] :is(.tongue-help, .copy-btn, .summary-more > summary, .verse-toggle) .tr-inline[lang] { font-size: 16px; }
+    /* a right-to-left language (اردو): its In Short, its links and the heading read from the right */
+    body.rtl :is(.lede, .summary-more, .khutbah-h) { text-align: right; }
+    body.rtl .summary-more > summary { flex-direction: row-reverse; }
+    .khutbah-text { margin-top: 8px; }
+    .reader-chunk { position: relative; padding: 24px 0; border-bottom: 1px solid var(--line-soft); transition: opacity .35s; }
+    .reader-chunk:last-child { border-bottom: 0; }
+    .reader-chunk[data-start] { cursor: pointer; }
+    /* while a voice plays, the passage being heard stays bright and the rest step back */
+    body.playing .reader-chunk:not(.chunk-active) { opacity: .45; }
+    .chunk-arabic { font: 400 23px/2.1 var(--ar); direction: rtl; text-align: right; color: var(--cream); margin-bottom: 10px; }
+    .chunk-english { font-size: 17px; line-height: 1.72; color: #D9DCD2; }
+    .chunk-english + .chunk-english { margin-top: 10px; }
+
+    /* following the voice, word by word (CSS Custom Highlight API: no markup added to the text):
+       the words said so far bright, the one being said gold with the home page's gold pen under it,
+       the rest of the passage dim */
+    ::highlight(kt-said) { color: #F4EEDD; }
+    ::highlight(kt-word) { color: var(--gold-bright); text-decoration: underline; text-decoration-color: var(--gold); text-decoration-thickness: 2px; text-underline-offset: 7px; }
+    .reader-chunk[data-follow="ar"] .chunk-arabic, .reader-chunk[data-follow="ar"] .chunk-arabic *,
+    .reader-chunk[data-follow="en"] :is(.chunk-en .chunk-english, .chunk-en .chunk-hadith-trans, .chunk-quran-translation:not(.chunk-tr)),
+    .reader-chunk[data-follow="en"] :is(.chunk-en .chunk-english, .chunk-en .chunk-hadith-trans, .chunk-quran-translation:not(.chunk-tr)) *,
+    .reader-chunk[data-follow]:not([data-follow="ar"], [data-follow="en"]) :is(.chunk-tr .chunk-english, .chunk-tr .chunk-hadith-trans, .chunk-quran-translation.chunk-tr),
+    .reader-chunk[data-follow]:not([data-follow="ar"], [data-follow="en"]) :is(.chunk-tr .chunk-english, .chunk-tr .chunk-hadith-trans, .chunk-quran-translation.chunk-tr) * {
+      color: rgba(236, 230, 214, .4);
+    }
+
+    .khutbah-divider { display: flex; align-items: center; gap: 14px; margin: 44px 0 10px; }
+    .khutbah-divider::before, .khutbah-divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+    .khutbah-divider span { font: 500 16px/1.5 var(--display); color: var(--gold); white-space: nowrap; }
+
+    /* ── The Quran: the mushaf's script, in gold, set apart by space; its source a quiet gold link ── */
+    .chunk-arabic-quran { font-family: var(--quran); font-size: 25px; line-height: 2.25; color: var(--gold); text-align: center; padding: 6px 0 2px; }
+    .reader-chunk:has(.chunk-arabic-quran) :is(.chunk-en, .chunk-tr) { text-align: center; }
+    .chunk-quran-translation { font-size: 17px; line-height: 1.7; color: #E3D3A6; font-style: italic; text-align: center; margin-top: 4px; }
+    .inline-ayah { font-family: var(--quran); color: var(--gold); font-size: 1.04em; }
+    .inline-ayah-en { color: var(--gold); font-style: italic; }
+    .recited { font-weight: 500; }
+    .not-recited { opacity: .5; }
+    .v-full { display: none; }
+    .show-full-verse .v-full { display: inline; }
+    .show-full-verse .v-part { display: none; }
+    .verse-toggle .lbl-full, .show-full-verse .verse-toggle .lbl-part { display: none; }
+    .show-full-verse .verse-toggle .lbl-full { display: inline; }
+    .verse-toggle {
+      display: block; margin: 4px auto 0; min-height: 44px; padding: 0 4px; border: 0; background: none; cursor: pointer;
+      color: var(--gold); font-size: 15px; text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px;
+    }
+    .chunk-quran-cite, .chunk-hadith-cite {
+      display: inline-flex; align-items: center; gap: 6px; min-height: 40px; margin-top: 6px;
+      font-size: 15px; color: var(--gold); text-decoration: none;
+    }
+    .chunk-quran-cite strong, a.chunk-hadith-cite { font-weight: 400; text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px; }
+    .chunk-quran-cite:hover strong, a.chunk-hadith-cite:hover { text-decoration-color: var(--gold); }
+
+    /* ── Hadith: parchment rather than gold, with its narrator and collection beneath ── */
+    .inline-hadith { color: var(--parchment); }
+    .inline-hadith-en { color: var(--parchment); font-style: italic; }
+    .restated { text-decoration: underline dotted rgba(232, 213, 160, .7); text-decoration-thickness: 1.5px; text-underline-offset: 8px; }
+    .chunk-hadith-trans { margin-top: 10px; padding-left: 14px; border-left: 1px solid var(--gold-dim); font-size: 16px; line-height: 1.7; color: var(--parchment); font-style: italic; }
+    .chunk-tr[dir="rtl"] .chunk-hadith-trans { padding: 0 14px 0 0; border-left: 0; border-right: 1px solid var(--gold-dim); }
+    .src-cite, .src-cite-en { color: #BFA66B; }
+    .src-cite-en { font-style: italic; }
+    .trans-ours, .tr-source, .ref-en-source { font-size: 13px; color: var(--dim); white-space: nowrap; }
+    .trans-ours { display: inline-block; margin-left: 8px; cursor: help; }
+
+    /* ── Every ayah and hadith, once more, as a list at the end ── */
+    .sources { margin-top: 64px; }
+    .section { margin-top: 36px; }
+    .section-header h2 { font: 600 22px/1.25 var(--display); color: var(--cream); }
+    .count-badge { margin-left: 6px; font: 300 15px var(--text); color: var(--mist); }
+    .section-body { margin-top: 6px; }
+    .ref-card, .hadith-card { padding: 18px 0; border-bottom: 1px solid var(--line-soft); }
+    .ref-card { cursor: pointer; }
+    .ref-card-header, .hadith-header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+    .ref-surah, .hadith-source { font-size: 16px; font-weight: 400; color: var(--gold); }
+    .hadith-source { color: var(--cream); }
+    .verify-badge, .collection-badge { font-size: 13.5px; color: var(--mist); }
+    .ref-arabic { margin-top: 8px; font: 400 21px/2.05 var(--ar); direction: rtl; text-align: right; color: var(--cream); }
+    .ref-arabic-full { font-family: var(--quran); color: var(--gold); }
+    .hadith-arabic { margin-top: 8px; font: 400 20px/2 var(--ar); direction: rtl; text-align: right; color: var(--parchment); }
+    .ref-english, .hadith-english { margin-top: 6px; font-size: 16px; line-height: 1.7; color: #D9DCD2; }
+    .hadith-english { font-style: italic; }
+    .ref-link { display: inline-flex; min-height: 40px; align-items: center; font-size: 15px; color: var(--gold); text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px; }
+    .tafsir-hint { font-size: 14px; color: var(--dim); }
+    .checked { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--line-soft); font-size: 15px; color: var(--mist); }
+    .checked > summary { min-height: 44px; display: inline-flex; align-items: center; cursor: pointer; color: var(--cream); }
+    .checked p { margin-top: 8px; line-height: 1.7; }
+    .stat-row { display: flex; justify-content: space-between; padding: 6px 0; }
+    .stat-value { color: var(--cream); font-variant-numeric: tabular-nums; }
+
+    /* ── The player: one slim gold bar along the bottom ── */
+    .audio-player {
+      display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+      padding: 0 max(14px, calc(50vw - 360px)) calc(8px + env(safe-area-inset-bottom));
+      background: rgba(11, 23, 18, .95); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+      border-top: 1px solid var(--line);
+    }
+    .audio-player.ready {
+      display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "bar bar bar bar" "play time speed voice";
+      align-items: center; column-gap: 10px;
+    }
+    .audio-scrubber {
+      grid-area: bar; -webkit-appearance: none; appearance: none; width: calc(100% + 28px); height: 20px; margin: -10px -14px -2px;
+      background: transparent; cursor: pointer; --p: 0%;
+    }
+    .audio-scrubber::-webkit-slider-runnable-track { height: 3px; border-radius: 3px; background: linear-gradient(to right, var(--gold) var(--p), rgba(216, 184, 108, .22) var(--p)); }
+    .audio-scrubber::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -5.5px; border-radius: 50%; background: var(--gold-bright); border: 0; }
+    .audio-scrubber::-moz-range-track { height: 3px; border-radius: 3px; background: rgba(216, 184, 108, .22); }
+    .audio-scrubber::-moz-range-progress { height: 3px; border-radius: 3px; background: var(--gold); }
+    .audio-scrubber::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--gold-bright); border: 0; }
+    .ap-transport { grid-area: play; display: flex; align-items: center; gap: 4px; }
+    .play-btn {
+      width: 48px; height: 48px; border-radius: 50%; border: 0; cursor: pointer; flex: none;
+      display: grid; place-items: center; background: var(--gold); color: var(--gold-ink); transition: background .2s, transform .1s;
+    }
+    .play-btn:hover { background: #E4C67F; }
+    .play-btn:active { transform: scale(.96); }
+    .play-btn svg { width: 18px; height: 18px; }
+    .skip-btn { display: none; min-width: 48px; min-height: 44px; border: 0; background: none; cursor: pointer; color: var(--gold); font-size: 14px; font-variant-numeric: tabular-nums; }
+    .audio-time { grid-area: time; font-size: 14px; color: var(--mist); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .speed-btn {
+      grid-area: speed; min-width: 44px; min-height: 40px; padding: 0 8px; border: 1px solid var(--line); border-radius: 999px;
+      background: none; color: var(--gold); font-size: 14px; cursor: pointer;
+    }
+    .ap-group { grid-area: voice; }
+    .seg { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--line); border-radius: 999px; }
+    .seg button { min-height: 36px; padding: 0 12px; border: 0; border-radius: 999px; background: none; color: var(--mist); font-size: 14px; line-height: 16px; white-space: nowrap; cursor: pointer; }
+    .seg button.on { background: var(--gold); color: var(--gold-ink); }
+    /* back to the passage being read, once the reader has scrolled away from it: just above the bar */
+    .back-to-active {
+      position: absolute; left: 50%; bottom: calc(100% + 12px); transform: translateX(-50%);
+      display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; white-space: nowrap;
+      border: 1px solid var(--gold-dim); border-radius: 999px; background: rgba(11, 23, 18, .94); color: var(--gold);
+      font-size: 15px; cursor: pointer; box-shadow: 0 12px 28px -10px rgba(0, 0, 0, .7);
+    }
+    .back-to-active svg { width: 16px; height: 16px; transition: transform .2s; }
+    .back-to-active.up svg { transform: rotate(180deg); }
+
+    /* ── Footer, popups, states ── */
+    .site-footer { max-width: 720px; margin: 0 auto; padding: 28px 20px calc(130px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line-soft); font-size: 14.5px; color: var(--mist); }
+    .site-footer strong { color: var(--cream); font-weight: 400; }
+    .site-footer a, .footer-feedback { color: var(--gold); text-decoration: none; }
+    .site-footer a { margin-left: 12px; }
+    .footer-feedback { display: inline-flex; min-height: 44px; align-items: center; padding: 0; border: 0; background: none; cursor: pointer; }
+    .footer-sub { margin-top: 4px; color: var(--dim); }
+    .popup-overlay { display: none; position: fixed; inset: 0; z-index: 200; align-items: center; justify-content: center; padding: 16px; background: rgba(3, 8, 6, .72); }
+    .popup-overlay.show { display: flex; }
+    .popup { width: 100%; max-width: 600px; max-height: 82vh; overflow-y: auto; background: var(--night-2); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .7); }
+    .popup-header { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; background: var(--night-2); border-bottom: 1px solid var(--line-soft); }
+    .popup-header h3 { font: 600 19px/1.3 var(--display); color: var(--cream); }
+    .popup-close { width: 44px; height: 44px; border-radius: 50%; border: 0; background: none; color: var(--mist); font-size: 18px; cursor: pointer; }
+    .popup-close:hover { color: var(--cream); }
+    .popup-body { padding: 20px; }
+    .popup-arabic { margin-bottom: 18px; font: 400 24px/2.15 var(--quran); direction: rtl; text-align: right; color: var(--gold); }
+    .popup-tafsir-title { margin-bottom: 6px; font: 500 16px var(--display); color: var(--gold); }
+    .popup-tafsir-text { margin-bottom: 16px; font-size: 16px; line-height: 1.75; color: #D9DCD2; }
+    .popup-qurancom { color: var(--gold); font-size: 15px; }
+    .fb-intro { margin-bottom: 12px; font-size: 15px; color: var(--mist); }
+    .fb-field { width: 100%; margin-bottom: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--night); color: var(--cream); font-size: 16px; }
+    .fb-field::placeholder { color: var(--dim); }
+    .fb-field:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(216, 184, 108, .2); }
+    textarea.fb-field { min-height: 110px; resize: vertical; }
+    .fb-send { min-height: 48px; padding: 0 24px; border: 0; border-radius: 999px; background: var(--gold); color: var(--gold-ink); font-weight: 500; cursor: pointer; }
+    .fb-send:disabled { opacity: .5; }
+    .fb-status { min-height: 18px; margin-top: 10px; font-size: 14px; }
+    .state-msg { padding: 90px 0; text-align: center; color: var(--mist); }
+    .state-msg h2 { font: 600 22px var(--display); color: var(--cream); }
+
+    /* ── Computers: a little larger, the skips back in the bar ── */
+    @media (min-width: 901px) {
+      .khutbah-heading h2 { font-size: 40px; }
+      .meta-row span { display: inline; }
+      .meta-row span + span::before { content: '·'; margin: 0 10px; color: var(--dim); }
+      .tongue-line { font-size: 28px; }
+      .chunk-arabic { font-size: 26px; }
+      .chunk-arabic-quran { font-size: 28px; }
+      .chunk-english { font-size: 18px; }
+      .audio-player.ready { grid-template-columns: auto minmax(0, 1fr) auto auto; }
+      .skip-btn { display: inline-flex; align-items: center; justify-content: center; }
+    }
+    @media (max-width: 380px) {
+      .tongue-line { font-size: 20px; gap: 0 9px; }
+      .seg button { padding: 0 9px; }
+      .audio-player.ready { column-gap: 8px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .reader-chunk, .play-btn, .back-to-active svg { transition: none; }
+    }
+  </style>
