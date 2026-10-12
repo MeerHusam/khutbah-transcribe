@@ -203,8 +203,12 @@ rep(`  </style>
 
     /* the imam's Arabic above in parchment, the translation below in cream, the three gold stars between them (Meer picked E) */
     .panes { flex: 1; min-height: 0; display: grid; grid-template-rows: 1fr auto 1fr; }
-    .stars-seam { display: flex; justify-content: center; align-items: center; gap: 18px; padding: 8px 0 6px; color: var(--gold); }
-    .stars-seam svg { width: 16px; height: 16px; }
+    /* the seam: the three stars with a gold line either side, fading out towards the edges (Meer picked it, 12 Oct) */
+    .stars-seam { display: flex; justify-content: center; align-items: center; gap: 14px; padding: 8px 20px 6px; color: var(--gold); }
+    .stars-seam svg { width: 16px; height: 16px; flex: none; }
+    .stars-seam::before, .stars-seam::after { content: ''; flex: 1; height: 1px; }
+    .stars-seam::before { margin-right: 4px; background: linear-gradient(to right, transparent, var(--gold)); }
+    .stars-seam::after { margin-left: 4px; background: linear-gradient(to left, transparent, var(--gold)); }
     .pane {
       position: relative; overflow-y: auto; overscroll-behavior: contain; padding: 14px 20px 0; scrollbar-width: none;
       -webkit-mask-image: linear-gradient(transparent, #000 7%, #000 90%, transparent); mask-image: linear-gradient(transparent, #000 7%, #000 90%, transparent);
@@ -275,7 +279,10 @@ rep(`  </style>
     @media (min-width: 901px) {
       #app { max-width: 1180px; }
       .panes { grid-template-rows: none; grid-template-columns: 1fr auto 1fr; }
-      .pane-tr { order: 1; } .stars-seam { order: 2; flex-direction: column; padding: 0 6px; } .pane-ar { order: 3; }
+      .pane-tr { order: 1; } .stars-seam { order: 2; flex-direction: column; padding: 18px 6px; } .pane-ar { order: 3; }
+      .stars-seam::before, .stars-seam::after { width: 1px; height: auto; }
+      .stars-seam::before { margin: 0 0 4px; background: linear-gradient(to bottom, transparent, var(--gold)); }
+      .stars-seam::after { margin: 4px 0 0; background: linear-gradient(to top, transparent, var(--gold)); }
       .pane { padding: 18px 28px 0; }
       .pane .chunk-arabic, .pane .chunk-arabic-quran { font-size: calc(32px * var(--ts, 1)); }
       .pane-tr .chunk-english { font-size: calc(22px * var(--ts, 1)); }
