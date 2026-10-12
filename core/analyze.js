@@ -54,7 +54,7 @@ RESTART RULE: When the khatib repeats a phrase while speaking (a restart, "لي�
 1. Translate the full text into natural, readable English. Preserve Islamic terms untranslated: Allah, Salah, Zakat, Ummah, Sunnah, Hadith, Quran, Surah, Ayah (plural Ayaat; never "verse"), Jummah, Khatib, and any Arabic honorifics like صلى الله عليه وسلم or رضي الله عنه. Every other Arabic word is translated, never left in transliteration (مخموم القلب is "a clean heart", not "makhmum").
 
 2. Write two summaries:
-   a. "share_summary": A ONE-SENTENCE TL;DR — ABSOLUTE MAXIMUM 30 WORDS. State the khutbah's topic and its single biggest takeaway, nothing more. Simple, friendly English; no academic language; do NOT list multiple points or describe both khutbah parts. This is a one-line hook, not a summary. (The detailed "summary" field below carries the full content.)
+   a. "share_summary": A ONE-SENTENCE TL;DR — ABSOLUTE MAXIMUM 30 WORDS. State the khutbah's topic and its single biggest takeaway, nothing more. Begin with the takeaway itself ("Think well of Allah in every hardship…"), never with "This khutbah", "This Friday khutbah", "Today's khutbah" or the like: the page already says it is a khutbah. Simple, friendly English; no academic language; do NOT list multiple points or describe both khutbah parts. This is a one-line hook, not a summary. (The detailed "summary" field below carries the full content.)
    b. "summary": A fuller 3-5 sentence summary covering all main points and themes in detail.
    In BOTH summaries, refer to the sermon as {{KHUTBAH_REF}} — do NOT call it a "Friday khutbah" or "Jummah khutbah" unless that is in fact what it is.
 

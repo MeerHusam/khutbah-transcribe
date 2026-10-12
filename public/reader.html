@@ -315,13 +315,13 @@
     .reader-stage { height: calc(100dvh - var(--hdr, 52px) - var(--ply, 0px)); min-height: 380px; display: flex; flex-direction: column; }
     .site-footer { padding-bottom: 28px; }
     .r-top { flex: none; padding: 0 20px; }
-    .r-head { max-height: 220px; overflow: hidden; transition: max-height .4s cubic-bezier(.16, 1, .3, 1), opacity .25s; }
+    .r-head { max-height: 640px; overflow: hidden; transition: max-height .4s cubic-bezier(.16, 1, .3, 1), opacity .25s; }
     body.reading .r-head { max-height: 0; opacity: 0; }
     .r-title { margin-top: 2px; font: 600 24px/1.2 var(--display); letter-spacing: -.005em; text-wrap: balance; color: var(--cream); }
     .r-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 14px; padding-bottom: 2px; }
     .r-tools .tongue-line { margin-top: 4px; font-size: 20px; }
     /* In Short: the first thing in the translation pane, scrolling away as the reader reads on */
-    .r-lede { padding: 2px 0 16px; margin-bottom: 18px; border-bottom: 1px solid var(--line-soft); }
+    .r-lede { margin-top: 12px; padding: 10px 0 2px; border-top: 1px solid var(--line-soft); max-width: 68ch; }
     .r-lede-label { font-size: 13px; color: var(--dim); }
     .r-lede .share-text { margin-top: 4px; font-size: calc(19px * var(--ts, 1)); line-height: 1.55; font-weight: 400; color: #E2E4DB; }
     .r-lede-links { display: flex; flex-wrap: wrap; align-items: center; gap: 0 18px; margin-top: 4px; }
@@ -722,6 +722,12 @@
         <a class="back-home" href="/#khutbahs">← All khutbahs</a>
         <h2 class="r-title">${escHtml(r.title || 'Friday Khutbah')}</h2>
         <p class="meta-row">${r.date ? `<span>${escHtml(r.date)}</span>` : ''}${hijri ? `<span class="hijri" lang="ar">${hijri}</span>` : ''}${masjid ? `<span>${masjid}</span>` : ''}${khateeb ? `<span>${khateeb}</span>` : ''}</p>
+        <section class="r-lede" aria-label="In short">
+          <p class="r-lede-label">${bi('In Short')}</p>
+          <p class="share-text${TR.length ? ' chunk-en' : ''}">${escHtml(r.share_summary || r.summary || '')}</p>
+          ${trShare('share_summary')}
+          <p class="r-lede-links"><button class="copy-btn" onclick="copyShare()">${bi('Copy for WhatsApp')}</button>${qRefs.length + hadithRefs.length ? `<a class="to-sources" href="#sources" onclick="event.preventDefault(); toSources()">${bi('Every ayah and hadith, with its source')} (${qRefs.length + hadithRefs.length}) ↓</a>` : ''}</p>
+        </section>
       </div>
       <div class="r-tools">
         <p class="tongue-line" id="tongues" role="group" aria-label="Language">${tongues.map(([c, name, lang], i) => (i ? '<span class="sep" aria-hidden="true">·</span>' : '') + `<button type="button" data-l="${c}"${lang ? ` lang="${lang}"` : ''} aria-pressed="false" onclick="chooseLang('${c}')"${c === 'ar' ? ' title="The imam\'s own words, in his voice"' : ''}>${name}</button>`).join('')}</p>
@@ -732,12 +738,6 @@
       <div class="pane pane-ar" id="paneAr" aria-label="The imam's Arabic">${khutbah}<div class="pane-end"><button type="button" class="to-end" onclick="toSources()">${bi('Every ayah and hadith, with its source')} ↓</button></div></div>
       <div class="stars-seam" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.2" y="5.2" width="13.6" height="13.6"/><rect x="5.2" y="5.2" width="13.6" height="13.6" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="2.3"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.2" y="5.2" width="13.6" height="13.6"/><rect x="5.2" y="5.2" width="13.6" height="13.6" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="2.3"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.2" y="5.2" width="13.6" height="13.6"/><rect x="5.2" y="5.2" width="13.6" height="13.6" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="2.3"/></svg></div>
       <div class="pane pane-tr" id="paneTr" aria-label="The translation">
-        <section class="r-lede" aria-label="In short">
-          <p class="r-lede-label">${bi('In Short')}</p>
-          <p class="share-text${TR.length ? ' chunk-en' : ''}">${escHtml(r.share_summary || r.summary || '')}</p>
-          ${trShare('share_summary')}
-          <p class="r-lede-links"><button class="copy-btn" onclick="copyShare()">${bi('Copy for WhatsApp')}</button>${qRefs.length + hadithRefs.length ? `<a class="to-sources" href="#sources" onclick="event.preventDefault(); toSources()">${bi('Every ayah and hadith, with its source')} (${qRefs.length + hadithRefs.length}) ↓</a>` : ''}</p>
-        </section>
         ${khutbah.replace(/class="reader-chunk"/g, 'class="tr-chunk"')}
         <div class="pane-end"><button type="button" class="to-end" onclick="toSources()">${bi('Every ayah and hadith, with its source')} ↓</button></div>
       </div>
