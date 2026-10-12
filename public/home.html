@@ -203,6 +203,13 @@
     .listen[aria-busy="true"] { opacity: .75; cursor: progress; }
     .read { color: var(--cream); font-size: 15.5px; font-weight: 400; text-decoration: none; border-bottom: 1.5px solid var(--gold-dim); padding-bottom: 2px; }
     .read:hover { border-color: var(--gold); }
+    .float-pause {
+      position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 20;
+      transform: translate(-50%, 28px); opacity: 0; visibility: hidden;
+      box-shadow: 0 16px 34px -12px rgba(0, 0, 0, .7), 0 2px 6px rgba(0, 0, 0, .3);
+      transition: transform .35s cubic-bezier(.16, 1, .3, 1), opacity .25s, visibility 0s .35s;
+    }
+    .float-pause.on { transform: translate(-50%, 0); opacity: 1; visibility: visible; transition: transform .35s cubic-bezier(.16, 1, .3, 1), opacity .25s; }
     .pg-status { flex-basis: 100%; font-size: 14px; color: #F1A48A; margin: 0; }
     .pg-status:empty { display: none; }
 
@@ -378,9 +385,7 @@
       .art { display: none; }
       .say > .minbar { float: right; position: relative; top: 0; left: 0; width: 150px; margin: -8px -6px 4px 8px; display: block; }
       .page { position: relative; right: auto; bottom: auto; width: auto; margin: 40px 0 0; padding: 18px 18px 18px; }
-      .page .tabs { display: none; }
-      .listen-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-      .listen-row .src { font-size: 13.5px; color: var(--mist); text-decoration: none; padding: 12px 0; }
+      .page .tabs { margin: -6px 0 0; } .page .tabs button { display: none; }
       .page .pg-foot { margin-top: 14px; }
       .pg-ar { font-size: 22px; }
       .pg-tr { font-size: 16px; } .pg-tr[lang="ur"] { font-size: 17px; }
@@ -421,11 +426,8 @@
       .say > .minbar { width: 118px; margin-left: 4px; }
       .tongue-line { font-size: 23px; gap: 0 8px; }
     }
-    @media (max-width: 900px) {
-      .listen-row { flex-wrap: wrap; row-gap: 0; }
-      .listen, .listen-row .src { white-space: nowrap; }
-    }
-    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } header, main { transition: none; } }
+    @media (max-width: 900px) { .listen { white-space: nowrap; } }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } header, main, .float-pause, .float-pause.on { transition: none; } }
   </style>
 </head>
 <body>
@@ -622,6 +624,7 @@
     </div>
   </section>
 </main>
+<button type="button" class="listen float-pause" id="floatPause" tabindex="-1" aria-hidden="true"><span class="disc"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg></span><span class="lbl">Pause</span></button>
 
 <footer>
   <div class="wrap">
@@ -671,25 +674,25 @@
     window.__chosen = true; window.dispatchEvent(new Event('kt-lang'));
     setTr(l);
   };
+  // A tap on a language plays it at once (a tap on the one already playing just brings it into view).
   tongues.addEventListener('click', e => {
     const b = e.target.closest('button');
     if (!b) return;
+    if (window.__demoPlaying?.() && window.__trLang === b.dataset.l) return window.__playDemo?.();
     if (b.dataset.l !== 'ar') { try { localStorage.setItem('kt-lang', b.dataset.l); } catch {} }
     choose(b.dataset.l);
+    window.__playDemo?.();
   });
   try { const saved = localStorage.getItem('kt-lang'); if (NAMES[saved]) choose(saved); } catch {}
 
-  // On a phone the minbar stands beside the heading and the example comes straight after the languages,
-  // Listen at its top beside the ayah's source; the gold line is its one language switch.
+  // On a phone the minbar stands beside the heading and the example comes straight after the languages;
+  // the gold line is its one language switch.
   {
     const art = document.querySelector('.art'), say = document.querySelector('.say'), minbar = art.querySelector('.minbar');
-    const tabs = demo.querySelector('.tabs'), src = tabs.querySelector('.src'), foot = demo.querySelector('.pg-foot');
-    const listenBtn = document.getElementById('listen'), row = document.createElement('div');
-    row.className = 'listen-row';
     const phone = matchMedia('(max-width: 900px)');
     const arrange = () => {
-      if (phone.matches) { say.prepend(minbar); document.querySelector('.tongue-wrap').after(demo); row.append(listenBtn, src); tabs.after(row); }
-      else { art.prepend(minbar); art.append(demo); foot.prepend(listenBtn); tabs.append(src); row.remove(); }
+      if (phone.matches) { say.prepend(minbar); document.querySelector('.tongue-wrap').after(demo); }
+      else { art.prepend(minbar); art.append(demo); }
     };
     arrange();
     phone.addEventListener('change', arrange);
@@ -1022,6 +1025,7 @@
     page.querySelectorAll('.said').forEach(w => w.classList.remove('said'));
     btn.querySelector('.disc').innerHTML = PLAY;
     setLabel();
+    syncFloat();
   };
   const tick = () => {
     const t = audios[cur.key].currentTime;
@@ -1055,7 +1059,7 @@
       await a.play();
       page.classList.add('playing'); if (l !== 'ar') page.classList.add('voicing');
       lit = -1; place(-1);
-      btn.querySelector('.disc').innerHTML = PAUSE; setLabel(2);
+      btn.querySelector('.disc').innerHTML = PAUSE; setLabel(2); syncFloat();
       raf = requestAnimationFrame(tick);
     } catch {
       stop();
@@ -1065,6 +1069,26 @@
   });
   addEventListener('kt-tr', () => { if (cur) stop(); else setLabel(); });
   setLabel();
+
+  // A language tapped plays at once, and the example comes into view with its words lighting up.
+  window.__demoPlaying = () => !!cur;
+  window.__playDemo = () => {
+    if (!cur) btn.click();
+    const r = page.getBoundingClientRect(), vh = innerHeight;
+    if (r.top < 12 || r.bottom > vh - 12) scrollTo({ top: scrollY + Math.min(r.top - 12, r.bottom - vh + 16), behavior: reduce ? 'auto' : 'smooth' });
+  };
+  // While it plays and its own button is out of sight, a Pause button waits at the bottom of the screen.
+  function syncFloat() {
+    const on = !!cur && page.classList.contains('playing') && !btnSeen;
+    floatPause.classList.toggle('on', on);
+    floatPause.toggleAttribute('aria-hidden', !on);
+    floatPause.tabIndex = on ? 0 : -1;
+    if (on) { const L = LABEL[cur.key]; floatLbl.textContent = L[2]; if (L[3]) floatLbl.setAttribute('lang', L[3]); else floatLbl.removeAttribute('lang'); }
+  }
+  const floatPause = document.getElementById('floatPause'), floatLbl = floatPause.querySelector('.lbl');
+  let btnSeen = true;
+  new IntersectionObserver(([e]) => { btnSeen = e.isIntersecting; syncFloat(); }).observe(btn);
+  floatPause.addEventListener('click', () => { if (cur) stop(); });
 </script>
 </body>
 </html>
