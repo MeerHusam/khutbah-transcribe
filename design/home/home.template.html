@@ -112,6 +112,7 @@
     /* ── Hero ── */
     .hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: 44px; align-items: start; padding-top: 34px; }
     .say { padding-top: 22px; }
+    .stage { display: contents; }
     .stars { display: flex; gap: 16px; margin: 0 0 26px; color: var(--gold); }
     .stars svg, .dinkus svg { width: 24px; height: 24px; }
     h1 { margin: 0; font: 600 clamp(38px, 4.3vw, 58px)/1.08 var(--display); letter-spacing: -.012em; text-wrap: balance; max-width: 11.5em; }
@@ -378,17 +379,24 @@
       .hero { display: block; padding-top: 14px; }
       .say { padding-top: 6px; }
       .stars { margin-bottom: 18px; gap: 14px; } .stars svg { width: 20px; height: 20px; }
-      /* the minbar stands behind the heading's right side; a night halo keeps its lines off the letters */
-      .say { position: relative; }
-      h1 { font-size: 34px; line-height: 1.12; position: relative; z-index: 1; text-shadow: 0 0 14px var(--night), 0 0 5px var(--night); }
-      .tongue-line { font-size: 21px; gap: 0 9px; margin-top: 24px; }
-      .tongue-help { font-size: 15px; margin-top: 42px; clear: both; }
+      /* the heading centred mid-screen, the languages below it and the example's top showing; the same 40 px from
+         the heading to the languages as from the languages to the example. The minbar stands large and faint behind
+         them, its floor just above the example, fading out upwards; a night halo keeps its lines off the letters. */
+      .stage { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; text-align: center;
+               min-height: calc(78vh - 80px); min-height: calc(78svh - 80px); padding-bottom: 40px; }
+      .stage > *:not(.minbar) { position: relative; z-index: 1; }
+      .stage .stars { justify-content: center; margin: 0 0 22px; }
+      .stage .minbar { position: absolute; z-index: 0; top: auto; bottom: 36px; left: 50%; width: 112%; max-width: none; margin: 0; display: block;
+                       opacity: .22; transform: translateX(-50%); pointer-events: none;
+                       -webkit-mask-image: linear-gradient(transparent 4%, #000 55%); mask-image: linear-gradient(transparent 4%, #000 55%); }
+      h1 { font-size: 36px; line-height: 1.12; max-width: 10.5em; margin: 0 auto; text-shadow: 0 0 18px var(--night), 0 0 6px var(--night); }
+      .tongue-line { font-size: 21px; gap: 0 9px; margin-top: 24px; justify-content: center; }
+      .tongue-help { font-size: 15px; margin-top: 40px; }
       .finger { width: 34px; height: 34px; }
       .ticks { margin-top: 40px; gap: 12px; clear: both; } .ticks li { font-size: 17px; gap: 12px; } .ticks svg { width: 22px; height: 22px; }
       .cta { margin-top: 20px; }
       .art { display: none; }
-      .say > .minbar { position: absolute; top: -10px; right: -12px; left: auto; width: 172px; margin: 0; display: block; z-index: 0; pointer-events: none; }
-      .page { position: relative; right: auto; bottom: auto; width: auto; margin: 50px 0 0; padding: 18px 18px 18px; }
+      .page { position: relative; right: auto; bottom: auto; width: auto; margin: 0; padding: 18px 18px 18px; }
       .page .tabs { margin: -6px 0 0; } .page .tabs button { display: none; }
       .page .pg-foot { margin-top: 14px; }
       .pg-ar { font-size: 22px; }
@@ -427,7 +435,6 @@
     }
     /* small phones (360 px): a little smaller all round, the four languages still on one line */
     @media (max-width: 380px) {
-      .say > .minbar { width: 150px; }
       h1 { font-size: 31px; }
       .tongue-line { font-size: 19.5px; gap: 0 8px; }
     }
@@ -460,6 +467,7 @@
 <main>
   <section class="wrap hero" aria-labelledby="hero-h">
     <div class="say">
+      <div class="stage">
       <p class="stars" aria-hidden="true">{{HIZB}}{{HIZB}}{{HIZB}}</p>
       <h1 id="hero-h">Understand the Friday khutbah, even if you don't speak Arabic.</h1>
       <p class="tongue-help" id="tongueHelp" aria-live="polite"><span id="helpText">Tap your language</span></p>
@@ -468,6 +476,7 @@
           <button type="button" class="t-ar" data-l="ar" lang="ar" aria-pressed="false" title="The imam's own words">العربية</button><span class="sep" aria-hidden="true">·</span><button type="button" data-l="en" aria-pressed="false">English</button><span class="sep" aria-hidden="true">·</span><button type="button" data-l="ur" lang="ur" aria-pressed="false">اردو</button><span class="sep" aria-hidden="true">·</span><button type="button" data-l="bn" lang="bn" aria-pressed="false">বাংলা</button>
         </p>
         <span class="finger" id="finger" aria-hidden="true"><span class="ring"></span><svg viewBox="0 0 256 256"><path d="M224,104v50.93c0,46.2-36.85,84.55-83,85.06A83.71,83.71,0,0,1,80.6,215.4C58.79,192.33,34.15,136,34.15,136a16,16,0,0,1,6.53-22.23c7.66-4,17.1-.84,21.4,6.62l21,36.44a6.09,6.09,0,0,0,6,3.09l.12,0A8.19,8.19,0,0,0,96,151.74V32a16,16,0,0,1,16.77-16c8.61.4,15.23,7.82,15.23,16.43V104a8,8,0,0,0,8.53,8,8.17,8.17,0,0,0,7.47-8.25V88a16,16,0,0,1,16.77-16c8.61.4,15.23,7.82,15.23,16.43V112a8,8,0,0,0,8.53,8,8.17,8.17,0,0,0,7.47-8.25v-7.28c0-8.61,6.62-16,15.23-16.43A16,16,0,0,1,224,104Z"/></svg></span>
+      </div>
       </div>
       <ul class="ticks">
         <li>{{TICK}}Hear it in your language</li>
@@ -643,13 +652,13 @@
   });
   try { const saved = localStorage.getItem('kt-lang'); if (NAMES[saved]) choose(saved); } catch {}
 
-  // On a phone the minbar stands beside the heading and the example comes straight after the languages;
+  // On a phone the minbar stands faint behind the heading and the example comes straight after the languages;
   // the gold line is its one language switch.
   {
     const art = document.querySelector('.art'), say = document.querySelector('.say'), minbar = art.querySelector('.minbar');
     const phone = matchMedia('(max-width: 900px)');
     const arrange = () => {
-      if (phone.matches) { say.prepend(minbar); document.querySelector('.tongue-wrap').after(demo); }
+      if (phone.matches) { say.querySelector('.stage').prepend(minbar); say.querySelector('.stage').after(demo); }
       else { art.prepend(minbar); art.append(demo); }
     };
     arrange();
