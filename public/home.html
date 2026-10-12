@@ -134,11 +134,11 @@
     .finger .ring { position: absolute; left: 44%; top: 6%; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; border: 2px solid var(--green); opacity: 0; }
     .tongue-line button.tap { border-bottom-color: var(--gold-dim); }
     .tongue-help b { color: var(--cream); font-weight: 500; }
-    /* what you get, as three drawn gold ticks: one short line each */
+    /* what you get, as two gold ticks: one short line each */
     .ticks { list-style: none; margin: 44px 0 0; padding: 0; display: grid; gap: 13px; }
     .ticks li { display: flex; align-items: flex-start; gap: 14px; font-size: 18px; line-height: 1.45; font-weight: 400; color: #D9DED3; }
-    .ticks svg { flex: none; width: 24px; height: 24px; margin-top: 1px; color: var(--gold); overflow: visible; }
-    .ticks path { fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+    .ticks svg { flex: none; width: 22px; height: 22px; margin-top: 2px; color: var(--gold); }
+    .ticks path { fill: currentColor; }
     .cta { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin-top: 24px; color: var(--green); font-size: 17px; font-weight: 400; text-decoration: none; }
     .cta svg { width: 20px; height: 20px; transition: transform .2s; }
     .cta:hover { color: #8BDDB8; }
@@ -450,9 +450,8 @@
         <span class="finger" id="finger" aria-hidden="true"><span class="ring"></span><svg viewBox="0 0 256 256"><path d="M224,104v50.93c0,46.2-36.85,84.55-83,85.06A83.71,83.71,0,0,1,80.6,215.4C58.79,192.33,34.15,136,34.15,136a16,16,0,0,1,6.53-22.23c7.66-4,17.1-.84,21.4,6.62l21,36.44a6.09,6.09,0,0,0,6,3.09l.12,0A8.19,8.19,0,0,0,96,151.74V32a16,16,0,0,1,16.77-16c8.61.4,15.23,7.82,15.23,16.43V104a8,8,0,0,0,8.53,8,8.17,8.17,0,0,0,7.47-8.25V88a16,16,0,0,1,16.77-16c8.61.4,15.23,7.82,15.23,16.43V112a8,8,0,0,0,8.53,8,8.17,8.17,0,0,0,7.47-8.25v-7.28c0-8.61,6.62-16,15.23-16.43A16,16,0,0,1,224,104Z"/></svg></span>
       </div>
       <ul class="ticks">
-        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12.7c1.7 1.5 3.2 3.1 4.8 5C12.1 12.4 15.6 8.3 19.6 5.4"/></svg>Read it in your language</li>
-        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12.7c1.7 1.5 3.2 3.1 4.8 5C12.1 12.4 15.6 8.3 19.6 5.4"/></svg>Listen as each word lights up</li>
-        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12.7c1.7 1.5 3.2 3.1 4.8 5C12.1 12.4 15.6 8.3 19.6 5.4"/></svg>Every ayah and hadith, with its source</li>
+        <li><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg>Hear it in your language</li>
+        <li><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg>Every ayah and hadith cited</li>
       </ul>
       <a class="cta" id="cta" href="#khutbahs"><span id="ctaText">This week's khutbahs</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9.5l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
     </div>
@@ -471,8 +470,8 @@
     <clipPath id="panel"><path d="M150 540 V470 L470 210 V540 Z"/></clipPath>
   </defs>
 
-  <!-- the window and the light it lets in -->
-  <path class="beam" d="M28 36 H96 L452 540 H236 Z" fill="url(#beam)"/>
+  <!-- the window and the light it lets in: the midday sun of Jumu'ah, the window's outline swept down to the floor -->
+  <path class="beam" d="M34 210 V78 Q34 40 62 26 Q76 33 83 46 L416 540 H257 Z" fill="url(#beam)"/>
   <path class="ln win" d="M34 210 V78 Q34 40 62 26 Q90 40 90 78 V210 Z"/>
   <path class="ln win" d="M62 30 V210 M34 120 H90"/>
 
@@ -845,8 +844,9 @@
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const DEMO = window.__DEMO;
   if (!reduce) {
-    const minbarLines = svg.createDrawable('.minbar path.ln'), ticks = svg.createDrawable('.ticks path');
-    utils.set([...minbarLines, ...ticks], { draw: '0 0' });
+    const minbarLines = svg.createDrawable('.minbar path.ln');
+    utils.set(minbarLines, { draw: '0 0' });
+    utils.set('.ticks svg', { clipPath: 'inset(0% 100% 0% 0%)' });
     utils.set('.minbar .lattice, .minbar .beam', { opacity: 0 });
     utils.set('#demo', { opacity: 0, y: 24 });
     window.__fontsReady.then(() => createTimeline({ defaults: { ease: 'inOutSine' } })
@@ -854,7 +854,7 @@
       .add('.minbar .lattice', { opacity: [0, .38], duration: 800 }, '-=500')
       .add('.minbar .beam', { opacity: [0, 1], duration: 1400 }, '-=900')
       .add('#demo', { opacity: [0, 1], y: [24, 0], duration: 800, ease: 'outExpo' }, '-=1200')
-      .add(ticks, { draw: ['0 0', '0 1'], duration: 480, delay: stagger(170), ease: 'outCubic' }, 300));
+      .add('.ticks svg', { clipPath: ['inset(0% 100% 0% 0%)', 'inset(0% 0% 0% 0%)'], duration: 420, delay: stagger(170), ease: 'outCubic' }, 300));
   }
 
   // ── How each khutbah is made: the gold line draws itself as the page scrolls, its arrow travelling with it,
