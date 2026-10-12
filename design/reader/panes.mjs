@@ -27,6 +27,7 @@ cut('    return `\n    <div class="layout">', '  async function enhanceQuranRefs
             <button class="copy-btn" onclick="copyShare()">\${bi('Copy for WhatsApp')}</button>
           </div>
         </details>
+        <div class="r-size" id="textSize" role="group" aria-label="Text size"><button type="button" data-ts="0.86" aria-label="Smaller text" aria-pressed="false">A</button><button type="button" data-ts="1" aria-label="Normal text" aria-pressed="true">A</button><button type="button" data-ts="1.16" aria-label="Larger text" aria-pressed="false">A</button></div>
       </div>
     </div>
     <div class="panes" id="panes">
@@ -94,7 +95,27 @@ rep(`    if (followEl && followEl !== el) delete followEl.dataset.follow;
     if (!el) { CSS.highlights.delete('kt-said'); CSS.highlights.delete('kt-word'); return; }
     host.dataset.follow = f.lang;`);
 rep(`    document.getElementById('app').innerHTML = renderResults(result);`, `    document.getElementById('app').innerHTML = renderResults(result);
-    setupPanes();`);
+    setupPanes();
+    setupSize();`);
+rep(`  function setupPanes() {`, `  // Text size (Meer, 12 Oct): three steps for both panes, kept for the next visit (localStorage 'kt-size')
+  function setupSize() {
+    const box = document.getElementById('textSize');
+    if (!box) return;
+    const set = v => {
+      document.documentElement.style.setProperty('--ts', v);
+      box.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.ts === String(v))));
+    };
+    let saved = null;
+    try { saved = localStorage.getItem('kt-size'); } catch {}
+    if (saved && box.querySelector(\`[data-ts="\${saved}"]\`)) set(saved);
+    box.addEventListener('click', e => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      set(b.dataset.ts);
+      try { localStorage.setItem('kt-size', b.dataset.ts); } catch {}
+    });
+  }
+  function setupPanes() {`);
 rep(`        btn.onclick = ev => { ev.stopPropagation(); btn.closest('.reader-chunk').classList.toggle('show-full-verse'); };`,
     `        btn.onclick = ev => { ev.stopPropagation(); const i = btn.closest('[data-i]').dataset.i; document.querySelectorAll(\`[data-i="\${i}"]\`).forEach(c => c.classList.toggle('show-full-verse')); };`);
 rep(`        if (activeChunk) activeChunk.classList.remove('chunk-active');
@@ -159,29 +180,29 @@ rep(`  </style>
     body { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
     body::before { display: none; }
     header { position: relative; flex: none; }
-    #app { flex: 1; min-height: 0; width: 100%; max-width: 720px; margin: 0 auto; padding: 0 0 calc(58px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; }
+    #app { order: 1; flex: 1; min-height: 0; width: 100%; max-width: 720px; margin: 0 auto; padding: 0; display: flex; flex-direction: column; }
     .site-footer { display: none; }
     .r-top { flex: none; padding: 0 20px; }
     .r-head { max-height: 220px; overflow: hidden; transition: max-height .4s cubic-bezier(.16, 1, .3, 1), opacity .25s; }
     body.reading .r-head { max-height: 0; opacity: 0; }
-    .r-title { margin-top: 2px; font: 600 21px/1.2 var(--display); letter-spacing: -.005em; text-wrap: balance; color: var(--cream); }
+    .r-title { margin-top: 2px; font: 600 24px/1.2 var(--display); letter-spacing: -.005em; text-wrap: balance; color: var(--cream); }
     .r-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 14px; padding-bottom: 2px; }
-    .r-tools .tongue-line { margin-top: 4px; }
+    .r-tools .tongue-line { margin-top: 4px; font-size: 20px; }
     .r-short > summary {
       display: inline-flex; align-items: center; gap: 6px; min-height: 40px; cursor: pointer; list-style: none;
-      color: var(--gold); font-size: 14.5px; text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px;
+      color: var(--gold); font-size: 16px; text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px;
     }
     .r-short > summary::-webkit-details-marker { display: none; }
     .r-short > summary::after { content: ''; width: 7px; height: 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-2px) rotate(45deg); }
     .r-short[open] { flex-basis: 100%; }
     .r-short[open] > summary::after { transform: translateY(2px) rotate(-135deg); }
     .r-short-body { max-height: 34vh; overflow-y: auto; padding-bottom: 8px; }
-    .r-short-body .share-text { font-size: 16px; line-height: 1.6; font-weight: 400; color: #DCDED5; }
+    .r-short-body .share-text { font-size: 18px; line-height: 1.6; font-weight: 400; color: #DCDED5; }
     body.rtl .r-short-body { text-align: right; }
-    body[class] .r-short > summary .tr-inline[lang] { font-size: 15px; }
+    body[class] .r-short > summary .tr-inline[lang] { font-size: 17px; }
 
     /* the imam's Arabic above in parchment, the translation below in cream, the three gold stars between them (Meer picked E) */
-    .panes { flex: 1; min-height: 0; display: grid; grid-template-rows: 2fr auto 3fr; }
+    .panes { flex: 1; min-height: 0; display: grid; grid-template-rows: 1fr auto 1fr; }
     .stars-seam { display: flex; justify-content: center; align-items: center; gap: 18px; padding: 8px 0 6px; color: var(--gold); }
     .stars-seam svg { width: 16px; height: 16px; }
     .pane {
@@ -195,12 +216,49 @@ rep(`  </style>
     .pane-ar :is(.chunk-en, .chunk-tr, .chunk-quran-translation, .verse-toggle, .trans-ours) { display: none !important; }
     .pane-tr .chunk-arabic { display: none; }
     .pane :is(.reader-chunk, .tr-chunk) { position: relative; padding: 0 0 12px; border: 0; transition: opacity .35s; cursor: pointer; }
-    .pane .chunk-arabic { margin: 0; font-size: 26px; line-height: 1.95; }
-    .pane .chunk-arabic-quran { font-size: 26px; text-align: right; padding: 0; }
-    .pane-tr .chunk-english { font-size: 19px; line-height: 1.6; }
-    .pane-tr .chunk-hadith-trans { font-size: 17.5px; }
+    .pane .chunk-arabic { margin: 0; font-size: calc(30px * var(--ts, 1)); line-height: 1.85; }
+    .pane .chunk-arabic-quran { font-size: calc(30px * var(--ts, 1)); text-align: right; padding: 0; }
+    .pane-tr .chunk-english { font-size: calc(22px * var(--ts, 1)); line-height: 1.55; }
+    .pane-tr .chunk-hadith-trans { font-size: calc(20px * var(--ts, 1)); }
+    /* Urdu and Bengali as large as English (the language files size them for running text beside the Arabic) */
+    .pane-tr .chunk-tr[lang] :is(.chunk-english, .chunk-hadith-trans), .pane-tr .chunk-quran-translation.chunk-tr[lang] { font-size: calc(22px * var(--ts, 1)); }
+    .pane-tr .chunk-tr[lang="ur"] :is(.chunk-english, .chunk-hadith-trans), .pane-tr .chunk-quran-translation.chunk-tr[lang="ur"] { line-height: 2.25; }
+    .pane-tr .chunk-tr[lang="bn"] :is(.chunk-english, .chunk-hadith-trans), .pane-tr .chunk-quran-translation.chunk-tr[lang="bn"] { line-height: 1.75; }
     .pane-tr :is(.chunk-en, .chunk-tr) { text-align: start; }
-    .pane-tr .chunk-quran-translation { text-align: start; margin: 0; font-size: 18px; }
+    .pane-tr .chunk-quran-translation { text-align: start; margin: 0; font-size: calc(21px * var(--ts, 1)); }
+    /* text size: three A's, small to large */
+    .r-size { display: inline-flex; align-items: baseline; gap: 2px; margin-left: auto; }
+    .r-size button { min-width: 40px; min-height: 40px; padding: 0 4px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--gold); cursor: pointer; font-family: var(--text); line-height: 1; }
+    .r-size button:nth-child(1) { font-size: 14px; } .r-size button:nth-child(2) { font-size: 18px; } .r-size button:nth-child(3) { font-size: 23px; }
+    .r-size button[aria-pressed="true"] { color: #F3DFA6; border-bottom-color: var(--gold); }
+    .pane :is(.chunk-quran-cite, .chunk-hadith-cite) { font-size: 16px; }
+
+    /* the player: part of the page (below the panes), the progress line with the time at both ends, then
+       speed · −10s · play · +10s · voice, play in the centre */
+    .audio-player { order: 2; flex: none; position: relative; left: auto; right: auto; bottom: auto; padding: 8px 16px calc(14px + env(safe-area-inset-bottom)); }
+    .audio-player.ready { display: grid; grid-template-columns: 1fr auto auto auto 1fr; grid-template-areas: "bar bar bar bar bar" "speed back play fwd voice"; align-items: center; column-gap: 6px; row-gap: 2px; }
+    .ap-bar { grid-area: bar; display: flex; align-items: center; gap: 10px; }
+    .ap-bar .audio-scrubber { flex: 1; width: auto; margin: 0; height: 28px; }
+    .ap-cur, .ap-dur { font-size: 14px; color: var(--mist); font-variant-numeric: tabular-nums; }
+    .audio-time { display: none; }
+    .ap-transport { display: contents; }
+    .skip-back { grid-area: back; } .skip-fwd { grid-area: fwd; }
+    .audio-player .skip-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 52px; min-height: 52px; font-size: 16px; color: var(--gold); }
+    .audio-player .play-btn { grid-area: play; width: 60px; height: 60px; margin: 0 6px; }
+    .audio-player .play-btn svg { width: 22px; height: 22px; }
+    .audio-player .speed-btn { grid-area: speed; justify-self: start; }
+    .audio-player .ap-group { grid-area: voice; justify-self: end; }
+    .audio-player .seg { display: none; }
+    .side-btn {
+      display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-width: 76px; min-height: 52px; padding: 4px 12px;
+      border: 1px solid var(--line); border-radius: 14px; background: none; color: var(--gold); cursor: pointer; line-height: 1.15;
+    }
+    .side-btn small { font-size: 12px; color: var(--mist); }
+    .side-btn b { font-size: 16px; font-weight: 500; }
+    .side-btn b[lang="ur"] { font-family: 'Noto Nastaliq Urdu', serif; font-size: 15px; line-height: 1.5; }
+    .side-btn b[lang="bn"] { font-family: 'Noto Serif Bengali', serif; }
+    .audio-player .skip-btn { min-width: 46px; }
+    .audio-player .back-to-active { font-size: 15px; }
     .pane .khutbah-divider { margin: 16px 0 14px; }
     body.playing .pane :is(.reader-chunk, .tr-chunk):not(.chunk-active) { opacity: .42; }
     .tr-chunk[data-follow="en"] :is(.chunk-en .chunk-english, .chunk-en .chunk-hadith-trans, .chunk-quran-translation:not(.chunk-tr)),
@@ -219,7 +277,9 @@ rep(`  </style>
       .panes { grid-template-rows: none; grid-template-columns: 1fr auto 1fr; }
       .pane-tr { order: 1; } .stars-seam { order: 2; flex-direction: column; padding: 0 6px; } .pane-ar { order: 3; }
       .pane { padding: 18px 28px 0; }
-      .pane .chunk-arabic, .pane .chunk-arabic-quran { font-size: 28px; }
+      .pane .chunk-arabic, .pane .chunk-arabic-quran { font-size: calc(32px * var(--ts, 1)); }
+      .pane-tr .chunk-english { font-size: calc(22px * var(--ts, 1)); }
+      .audio-player { padding-left: max(28px, calc(50vw - 590px)); padding-right: max(28px, calc(50vw - 590px)); }
       body.ar-only .panes { grid-template-columns: 1fr; }
       header { padding-left: max(28px, calc(50vw - 590px)); padding-right: max(28px, calc(50vw - 590px)); }
       .audio-player { padding-left: max(28px, calc(50vw - 590px)); padding-right: max(28px, calc(50vw - 590px)); }
@@ -227,5 +287,51 @@ rep(`  </style>
   </style>
 
 </head>`);
+// While a voice reads the translation, the Arabic it is translating lights too (Meer, 12 Oct): a group of four of the
+// imam's words at the same point in his passage as the voice is in its translation. By position, not an exact
+// word-for-word match, which is enough to cross-check that the translation follows the Arabic.
+rep(`    litRange = words[k].range;
+    onWord?.(litRange);`, `    litRange = words[k].range;
+    onWord?.(litRange);
+    nearArabic(el, f.lang, k, words.length);`);
+rep(`    if (!el) { CSS.highlights.delete('kt-said'); CSS.highlights.delete('kt-word'); return; }`,
+    `    if (!el) { CSS.highlights.delete('kt-said'); CSS.highlights.delete('kt-word'); CSS.highlights.delete('kt-near'); return; }`);
+rep(`    if (k < 0) { CSS.highlights.delete('kt-word'); return; }`, `    if (k < 0) { CSS.highlights.delete('kt-word'); CSS.highlights.delete('kt-near'); return; }`);
+rep(`  // Every frame while playing: timeupdate comes only about four times a second.`, `  function nearArabic(el, lang, k, n) {
+    if (lang === 'ar' || !el || !n) { CSS.highlights.delete('kt-near'); return; }
+    const key = 'near:' + el.dataset.i;
+    if (!wordMaps.has(key)) wordMaps.set(key, shownWords(el, 'ar'));
+    const ar = wordMaps.get(key);
+    if (!ar.length) { CSS.highlights.delete('kt-near'); return; }
+    const c = Math.min(ar.length - 1, Math.floor(((k + 0.5) / n) * ar.length));
+    const a = Math.max(0, Math.min(c - 1, ar.length - 4)), b = Math.min(ar.length, a + 4);
+    CSS.highlights.set('kt-near', new Highlight(...ar.slice(a, b).map(w => w.range)));
+  }
+
+  // Every frame while playing: timeupdate comes only about four times a second.`);
+rep(`    ::highlight(kt-word) {`, `    ::highlight(kt-near) { color: var(--gold-bright); background-color: rgba(216, 184, 108, .2); }
+    ::highlight(kt-word) {`);
+
+// the player (Meer, 12 Oct): the progress line with the time at both ends; below it speed on the left, −10s,
+// play/pause in the centre, +10s, and the voice (the imam or the language chosen) on the right
+rep(`    <input class="audio-scrubber" id="scrubber" type="range" min="0" max="100" value="0" step="0.1" aria-label="Position in the recording">`,
+    `    <div class="ap-bar"><span class="ap-cur" id="apCur">0:00</span><input class="audio-scrubber" id="scrubber" type="range" min="0" max="100" value="0" step="0.1" aria-label="Position in the recording"><span class="ap-dur" id="apDur">0:00</span></div>`);
+rep(`    <span id="apCur" hidden></span><span id="apDur" hidden></span>
+`, '');
+// the two side controls say what they are: Speed (1×) on the left, Voice (the imam or the language) on the right;
+// a tap on Voice switches between the language's own voice and the imam
+rep(`    <button class="speed-btn" id="speedBtn" onclick="cycleSpeed()" title="Playback speed" aria-label="Playback speed">1×</button>`,
+    `    <button class="speed-btn side-btn" id="speedBtn" onclick="cycleSpeed()" aria-label="Playback speed"><small>Speed</small><b id="speedVal">1×</b></button>`);
+rep(`    document.getElementById('speedBtn').textContent = SPEEDS[speedIdx] + '×';`, `    document.getElementById('speedVal').textContent = SPEEDS[speedIdx] + '×';`);
+rep(`<span class="seg" id="voiceSwitch">`, `<button type="button" class="side-btn" id="voiceToggle" onclick="toggleVoice()" aria-label="Voice: switch between the imam and the translation"><small>Voice</small><b id="voiceVal">Imam</b></button><span class="seg" id="voiceSwitch">`);
+rep(`    group.hidden = !own;
+  }`, `    group.hidden = !own;
+    const L = TR.find(x => x.code === voice), val = document.getElementById('voiceVal');
+    if (val) { val.textContent = voice === 'imam' ? 'Imam' : voice === 'en' ? 'English' : (L ? L.native : voice); val.lang = L ? L.code : ''; }
+  }
+  function toggleVoice() {
+    const own = !document.body.classList.contains('ar-only') && result['tts_' + pageLang] ? pageLang : null;
+    if (own) pickVoice(voice === 'imam' ? own : 'imam');
+  }`);
 writeFileSync(here + 'reader-panes.html', s);
 console.log('design/reader/reader-panes.html', s.length, 'bytes');
