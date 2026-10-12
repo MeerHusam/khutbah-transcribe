@@ -23,6 +23,8 @@ let server;
 
 before(async () => {
   for (const k of khutbahs) cpSync(FIXTURE, join(DATA, 'outputs', k.folder), { recursive: true });
+  // the first khutbah has a phrase matching (core/align_phrases.js); the others have none
+  writeFileSync(join(DATA, 'outputs', khutbahs[0].folder, 'align.json'), JSON.stringify({ langs: { en: { 0: [[1, 2], [4, 6]] } } }));
   server = spawn(process.execPath, ['server/server.js'], {
     env: { ...process.env, PORT: String(PORT), ADMIN_TOKEN: KEY, DATA_DIR: DATA },
     stdio: ['ignore', 'pipe', 'inherit'],
@@ -95,6 +97,13 @@ test('/api/results lists the published khutbahs, and each one loads', async () =
     assert.ok(r.reader_chunks.length > 0, k.folder);
   }
   assert.equal((await get('/api/results/not-a-published-folder')).status, 404);
+});
+
+test('a khutbah with a phrase matching sends it with its result (result.align); one without sends none', async () => {
+  const r = await (await get(`/api/results/${khutbahs[0].folder}`)).json();
+  assert.deepEqual(r.align, { en: { 0: [[1, 2], [4, 6]] } });
+  const r2 = await (await get(`/api/results/${khutbahs[1].folder}`)).json();
+  assert.equal(r2.align, undefined);
 });
 
 test('each khutbah has its masjid\'s id and an id of masjid + YYMMDD; a new masjid gets the next number', async () => {

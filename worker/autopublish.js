@@ -218,6 +218,12 @@ async function main() {
   // 4. Verses recited only in part.
   await run('verse excerpts', 'node', ['core/verse_excerpts.js', F]);
 
+  // 4b. Which Arabic phrase each translation phrase translates (align_phrases.js, ~9 cents), while the voices are
+  //     made: the page lights the Arabic the voice is translating. A page without it lights no part, so a failure
+  //     here is logged and the page goes up anyway.
+  const aligning = (resume && existsSync(join(ROOT, F, 'align.json')) ? Promise.resolve(log('= phrase matching (kept)'))
+    : run('phrase matching', 'node', ['core/align_phrases.js', F])).catch(e => log(`✗ phrase matching: ${whyFailed(e)} (the page goes up without it)`));
+
   // 5. Voices, then the recitation. Both are voiced a passage at a time with a direction per
   //    sentence (--direct): about 4 Gemini requests each since 3 Oct (13 before; one per block,
   //    67 for the English, on 2 Oct, when two runs in a day hit the 100-a-day limit), and the word
@@ -245,6 +251,8 @@ async function main() {
       log(`✗ ${label} voice: the page goes up without it for now`);
     }
   }
+
+  await aligning;
 
   // 6. Publish: checks, test set, then the site's publish API (one page). The page plays the
   // imam's recording (the echo-removed one with --clean).

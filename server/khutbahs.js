@@ -101,6 +101,9 @@ function buildResult(k) {
   // The languages the page can show besides English (core/languages.js), with what it needs for each.
   result.languages = LANGS.filter(L => (result.reader_chunks || []).some(c => c[L.field])).map(forPage);
   result.quran_en_name = quranEnglish(result).name; // the label under the ayah cards' English
+  // Which Arabic phrase each translation phrase translates (core/align_phrases.js), so the page lights the Arabic
+  // the voice is translating. The page checks each passage's word counts against its own text before using it.
+  try { result.align = JSON.parse(readFileSync(join(contentDir(k.folder), 'align.json'), 'utf8')).langs || null; } catch {}
   result.title = k.title || '';
   result.speaker = k.speaker || '';
   result.masjid = k.masjid || '';
