@@ -106,9 +106,21 @@
     .tongue-line button[lang="bn"] { font-family: var(--bn); font-size: .95em; }
     .tongue-line button:hover { border-bottom-color: var(--gold-dim); }
     .tongue-line button[aria-pressed="true"] { color: #F3DFA6; border-bottom-color: var(--green); }
-    .tongue-help { margin: 10px 0 0; font-size: 15.5px; color: var(--mist); font-weight: 400; }
+    .tongue-help { margin: 32px 0 0; min-height: 30px; font-size: 16px; line-height: 1.6; color: var(--mist); font-weight: 400; }
+    .tongue-help [lang="ur"] { font-size: 20px; line-height: 1.5; } .tongue-help [lang="bn"] { font-size: 17px; }
+    #helpText { display: inline-block; }
+    .tongue-wrap { position: relative; }
+    .tongue-line { margin-top: 2px !important; }
+    /* a hand that taps each language in turn until the visitor picks one */
+    .finger { position: absolute; left: 0; top: 0; width: 38px; height: 38px; pointer-events: none; opacity: 0; z-index: 3; }
+    .finger svg { position: relative; width: 100%; height: 100%; display: block; overflow: visible; }
+    .finger path { fill: #F4EEDD; stroke: var(--night); stroke-width: 14; paint-order: stroke; }
+    .finger .ring { position: absolute; left: 44%; top: 6%; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; border: 2px solid var(--green); opacity: 0; }
+    .tongue-line button.tap { border-bottom-color: var(--gold-dim); }
     .tongue-help b { color: var(--cream); font-weight: 500; }
-    .sub { margin: 22px 0 0; max-width: 28em; font-size: 18px; line-height: 1.6; color: var(--mist); }
+    .sub { margin: 46px 0 0; max-width: 29em; font-size: 18px; line-height: 1.6; color: var(--mist); }
+    .trust { display: flex; align-items: center; gap: 9px; margin: 14px 0 0; font-size: 15.5px; color: #CDD3C8; font-weight: 400; }
+    .trust svg { width: 22px; height: 22px; flex: none; color: var(--green); }
     .cta { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin-top: 14px; color: var(--green); font-size: 17px; font-weight: 400; text-decoration: none; }
     .cta svg { width: 20px; height: 20px; transition: transform .2s; }
     .cta:hover { color: #8BDDB8; }
@@ -286,8 +298,10 @@
       .stars { margin-bottom: 18px; gap: 14px; } .stars svg { width: 20px; height: 20px; }
       h1 { font-size: 34px; line-height: 1.12; }
       .tongue-line { font-size: 26px; gap: 0 10px; margin-top: 24px; }
-      .tongue-help { font-size: 15px; }
-      .sub { font-size: 16.5px; margin-top: 20px; }
+      .tongue-help { font-size: 15px; margin-top: 22px; }
+      .finger { width: 34px; height: 34px; }
+      .trust { font-size: 14.5px; align-items: flex-start; } .trust svg { margin-top: 1px; }
+      .sub { font-size: 16.5px; margin-top: 54px; }
       .art { min-height: 0; margin-top: 26px; }
       .minbar { position: relative; top: 0; left: 0; width: 100%; display: block; }
       .page { position: relative; right: auto; bottom: auto; width: auto; margin: -64px 0 0 12px; padding: 14px 18px 18px; }
@@ -346,11 +360,15 @@
     <div class="say">
       <p class="stars" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.2" y="5.2" width="13.6" height="13.6"/><rect x="5.2" y="5.2" width="13.6" height="13.6" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="2.3"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.2" y="5.2" width="13.6" height="13.6"/><rect x="5.2" y="5.2" width="13.6" height="13.6" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="2.3"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.2" y="5.2" width="13.6" height="13.6"/><rect x="5.2" y="5.2" width="13.6" height="13.6" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="2.3"/></svg></p>
       <h1 id="hero-h">Understand the Friday khutbah, even if you don't speak Arabic.</h1>
-      <p class="tongue-line" id="tongues" role="group" aria-label="Choose the language you read">
-        <span class="t-ar" lang="ar" title="The imam's own words">العربية</span><span class="sep" aria-hidden="true">·</span><button type="button" data-l="en" aria-pressed="false">English</button><span class="sep" aria-hidden="true">·</span><button type="button" data-l="ur" lang="ur" aria-pressed="false">اردو</button><span class="sep" aria-hidden="true">·</span><button type="button" data-l="bn" lang="bn" aria-pressed="false">বাংলা</button>
-      </p>
-      <p class="tongue-help" id="tongueHelp" aria-live="polite">Tap your language.</p>
-      <p class="sub">Every Friday, from our masjid in Riyadh and the two Haramain: beside the imam's Arabic, in his own voice.</p>
+      <p class="tongue-help" id="tongueHelp" aria-live="polite"><span id="helpText">Tap your language</span></p>
+      <div class="tongue-wrap">
+        <p class="tongue-line" id="tongues" role="group" aria-label="Choose the language you read">
+          <span class="t-ar" lang="ar" title="The imam's own words">العربية</span><span class="sep" aria-hidden="true">·</span><button type="button" data-l="en" aria-pressed="false">English</button><span class="sep" aria-hidden="true">·</span><button type="button" data-l="ur" lang="ur" aria-pressed="false">اردو</button><span class="sep" aria-hidden="true">·</span><button type="button" data-l="bn" lang="bn" aria-pressed="false">বাংলা</button>
+        </p>
+        <span class="finger" id="finger" aria-hidden="true"><span class="ring"></span><svg viewBox="0 0 256 256"><path d="M224,104v50.93c0,46.2-36.85,84.55-83,85.06A83.71,83.71,0,0,1,80.6,215.4C58.79,192.33,34.15,136,34.15,136a16,16,0,0,1,6.53-22.23c7.66-4,17.1-.84,21.4,6.62l21,36.44a6.09,6.09,0,0,0,6,3.09l.12,0A8.19,8.19,0,0,0,96,151.74V32a16,16,0,0,1,16.77-16c8.61.4,15.23,7.82,15.23,16.43V104a8,8,0,0,0,8.53,8,8.17,8.17,0,0,0,7.47-8.25V88a16,16,0,0,1,16.77-16c8.61.4,15.23,7.82,15.23,16.43V112a8,8,0,0,0,8.53,8,8.17,8.17,0,0,0,7.47-8.25v-7.28c0-8.61,6.62-16,15.23-16.43A16,16,0,0,1,224,104Z"/></svg></span>
+      </div>
+      <p class="sub">Listen to the imam in Arabic, or hear the khutbah read in English, Urdu or Bengali. Read along beside his words, with every ayah and hadith cited.</p>
+      <p class="trust"><svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor"><path d="M225.86,102.82c-3.77-3.94-7.67-8-9.14-11.57-1.36-3.27-1.44-8.69-1.52-13.94-.15-9.76-.31-20.82-8-28.51s-18.75-7.85-28.51-8c-5.25-.08-10.67-.16-13.94-1.52-3.56-1.47-7.63-5.37-11.57-9.14C146.28,23.51,138.44,16,128,16s-18.27,7.51-25.18,14.14c-3.94,3.77-8,7.67-11.57,9.14C88,40.64,82.56,40.72,77.31,40.8c-9.76.15-20.82.31-28.51,8S41,67.55,40.8,77.31c-.08,5.25-.16,10.67-1.52,13.94-1.47,3.56-5.37,7.63-9.14,11.57C23.51,109.72,16,117.56,16,128s7.51,18.27,14.14,25.18c3.77,3.94,7.67,8,9.14,11.57,1.36,3.27,1.44,8.69,1.52,13.94.15,9.76.31,20.82,8,28.51s18.75,7.85,28.51,8c5.25.08,10.67.16,13.94,1.52,3.56,1.47,7.63,5.37,11.57,9.14C109.72,232.49,117.56,240,128,240s18.27-7.51,25.18-14.14c3.94-3.77,8-7.67,11.57-9.14,3.27-1.36,8.69-1.44,13.94-1.52,9.76-.15,20.82-.31,28.51-8s7.85-18.75,8-28.51c.08-5.25.16-10.67,1.52-13.94,1.47-3.56,5.37-7.63,9.14-11.57C232.49,146.28,240,138.44,240,128S232.49,109.73,225.86,102.82Zm-52.2,6.84-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32Z"/></svg>Every translation is checked line by line against the Arabic.</p>
       <a class="cta" id="cta" href="#khutbahs"><span id="ctaText">This week's khutbahs</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9.5l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
     </div>
 
@@ -531,7 +549,8 @@
   const tongues = document.getElementById('tongues'), tongueHelp = document.getElementById('tongueHelp');
   const choose = l => {
     tongues.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.l === l)));
-    tongueHelp.innerHTML = `Reading in <b>${NAMES[l]}</b>.`;
+    document.getElementById('helpText').innerHTML = `Reading in <b>${NAMES[l]}</b>.`;
+    window.__chosen = true; window.dispatchEvent(new Event('kt-lang'));
     setTr(l);
   };
   tongues.addEventListener('click', e => {
@@ -710,6 +729,50 @@
       .add('.minbar .beam', { opacity: [0, 1], duration: 1400 }, '-=900')
       .add('#demo', { opacity: [0, 1], y: [24, 0], duration: 800, ease: 'outExpo' }, '-=1200');
   }
+
+  // ── The hand: taps English, اردو and বাংলা in turn, the prompt above it in that language, three times
+  // round or until the visitor picks one. With reduced motion it rests under English and the prompt says all three.
+  const PROMPTS = { en: ['Tap your language', ''], ur: ['اپنی زبان چنیں', 'ur'], bn: ['আপনার ভাষা বেছে নিন', 'bn'] };
+  const finger = document.getElementById('finger'), ring = finger.querySelector('.ring'), help = document.getElementById('helpText');
+  const tongueLine = document.getElementById('tongues'), wrap = tongueLine.parentElement;
+  const say = l => { const [t, lang] = PROMPTS[l]; help.innerHTML = lang ? `<span lang="${lang}">${t}</span>` : t; };
+  const spot = l => {
+    const b = tongueLine.querySelector(`button[data-l="${l}"]`), r = b.getBoundingClientRect(), w = wrap.getBoundingClientRect();
+    const size = finger.offsetWidth;
+    return { x: r.left - w.left + r.width / 2 - size * .44, y: r.bottom - w.top - size * .02 };
+  };
+  let handLoop = null;
+  const stopHand = () => {
+    if (handLoop) { handLoop.pause(); handLoop = null; }
+    tongueLine.querySelectorAll('button').forEach(b => b.classList.remove('tap'));
+    animate(finger, { opacity: 0, duration: 250 });
+  };
+  addEventListener('kt-lang', stopHand);
+  const startHand = () => {
+    if (window.__chosen) return;
+    if (reduce) {
+      utils.set(finger, { ...spot('en'), opacity: 1 });
+      help.innerHTML = 'Tap your language <span class="sep">·</span> <span lang="ur">اپنی زبان چنیں</span> <span class="sep">·</span> <span lang="bn">আপনার ভাষা বেছে নিন</span>';
+      return;
+    }
+    utils.set(finger, { ...spot('en'), y: spot('en').y + 30, opacity: 0 });
+    const tl = createTimeline({ loop: 2, loopDelay: 1600, onComplete: () => { stopHand(); say('en'); } });
+    let at = 0;
+    tl.add(finger, { opacity: [0, 1], y: spot('en').y, duration: 500, ease: 'outCubic' }, at);
+    for (const l of ['en', 'ur', 'bn']) {
+      if (l !== 'en') { tl.add(finger, { x: spot(l).x, y: spot(l).y, duration: 650, ease: 'inOutCubic' }, at); at += 650; }
+      else at += 500;
+      tl.call(() => { say(l); tongueLine.querySelectorAll('button').forEach(b => b.classList.toggle('tap', b.dataset.l === l)); }, at);
+      tl.add(finger, { scale: [1, .86, 1], duration: 380, ease: 'inOutSine' }, at + 60);
+      tl.add(ring, { opacity: [.9, 0], scale: [.4, 1.6], duration: 650, ease: 'outCubic' }, at + 160);
+      at += 1500;
+    }
+    tl.add(finger, { opacity: 0, duration: 400 }, at - 300);
+    tl.call(() => { utils.set(finger, spot('en')); say('en'); }, at + 120);
+    handLoop = tl;
+  };
+  // Start once the fonts have set the words where they will stay.
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => setTimeout(startHand, reduce ? 0 : 1800));
 
   const page = document.getElementById('demo'), para = document.getElementById('demoAr'), pen = document.getElementById('pen');
   const btn = document.getElementById('listen'), label = document.getElementById('listenLabel'), status = document.getElementById('demoStatus');
