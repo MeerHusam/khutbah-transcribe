@@ -132,13 +132,16 @@ Friday (the latest open), "Why I made this", "How each khutbah is made" (a gold 
 On a computer the hero is copy left, minbar and card right; on a phone everything stacks, the heading 95px below the
 bar, the minbar faint behind it.
 
+**Feedback** (`public/feedback.html`) and **page not found** (`public/404.html`) share the same header, type and gold
+buttons.
+
 **Reader** (`public/reader.html`): a stage the size of the screen between the bar and the player, then the page goes on.
 - The opening, above the reader: back link, title, the date and masjid on one line, the Summary (its label in Kufam,
   cream), Share (the phone's share sheet with the summary and the link; copied on a computer) and Sources (n) ↓. When
   reading starts (a scroll in a pane, or play) the page settles on the reader, which fills the screen below the bar.
 - The language line (العربية · English · اردو · বাংলা) and the three A's on one row, a gold line under them.
-- Two panes tied together: the imam's Arabic above and the chosen language below (side by side on a computer, the
-  Arabic on the left), each one continuous text, the three gold stars with fading gold lines between them. Scrolling
+- Two panes tied together: the imam's Arabic above and the chosen language below, on phones and computers alike; on a
+  computer a switch beside the three A's puts them side by side instead (the Arabic on the left), remembered (kt-layout), each one continuous text, the three gold stars with fading gold lines between them. Scrolling
   either scrolls both to the same passage.
 - After the reader: the end mark ("End of the khutbah"), every ayah and every hadith across the full width (side by
   side on a computer), the khutbah before and after at the same masjid, the footer.

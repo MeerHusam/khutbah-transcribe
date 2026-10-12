@@ -361,6 +361,12 @@
     .pane-tr .chunk-quran-translation { text-align: start; margin: 0; font-size: calc(21px * var(--ts, 1)); }
     /* text size: three A's, small to large */
     .r-size { display: inline-flex; align-items: baseline; gap: 2px; margin-left: auto; }
+    .r-layout { display: none; gap: 2px; margin-left: auto; margin-right: -8px; }
+    .r-layout + .r-size { margin-left: 18px; }
+    .r-layout button { width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--gold-dim); cursor: pointer; }
+    .r-layout button:hover { color: var(--gold); }
+    .r-layout button[aria-pressed="true"] { color: var(--gold); border-bottom-color: var(--gold); }
+    .r-layout svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; }
     .r-size button { min-width: 40px; min-height: 40px; padding: 0 4px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--gold); cursor: pointer; font-family: var(--text); line-height: 1; }
     .r-size button:nth-child(1) { font-size: 14px; } .r-size button:nth-child(2) { font-size: 18px; } .r-size button:nth-child(3) { font-size: 23px; }
     .r-size button[aria-pressed="true"] { color: #F3DFA6; border-bottom-color: var(--gold); }
@@ -426,21 +432,26 @@
     body.ar-only :is(.pane-tr, .stars-seam) { display: none; }
     body.ar-only .panes { grid-template-rows: 1fr; }
     @media (min-width: 901px) {
-      #app { max-width: 1180px; }
-      .panes { grid-template-rows: none; grid-template-columns: 1fr auto 1fr; }
-      .pane-ar { order: 1; } .stars-seam { order: 2; flex-direction: column; padding: 18px 6px; } .pane-tr { order: 3; }
+      #app { max-width: 960px; }
+      body.side #app { max-width: 1180px; }
+      /* top and bottom, as on phones (Meer's choice); side by side when the reader picks it (body.side) */
+      .stars-seam { padding: 10px 28px 8px; }
+      body.side .panes { grid-template-rows: none; grid-template-columns: 1fr auto 1fr; }
+      body.side .stars-seam { flex-direction: column; padding: 18px 6px; }
       .after-reader { padding: 44px 28px 8px; }
       .after-reader .sources { display: grid; grid-template-columns: 1fr 1fr; gap: 0 56px; }
       .after-reader .sources .section { margin-top: 36px; }
       .khutbah-nav { grid-template-columns: 1fr 1fr; gap: 0 56px; }
-      .stars-seam::before, .stars-seam::after { width: 1px; height: auto; }
-      .stars-seam::before { margin: 0 0 4px; background: linear-gradient(to bottom, transparent, var(--gold)); }
-      .stars-seam::after { margin: 4px 0 0; background: linear-gradient(to top, transparent, var(--gold)); }
+      body.side .stars-seam::before, body.side .stars-seam::after { width: 1px; height: auto; }
+      body.side .stars-seam::before { margin: 0 0 4px; background: linear-gradient(to bottom, transparent, var(--gold)); }
+      body.side .stars-seam::after { margin: 4px 0 0; background: linear-gradient(to top, transparent, var(--gold)); }
+      .r-layout { display: inline-flex; }
       .pane { padding: 18px 28px 0; }
       .pane .chunk-arabic, .pane .chunk-arabic-quran { font-size: calc(32px * var(--ts, 1)); }
       .pane-tr .chunk-english { font-size: calc(22px * var(--ts, 1)); }
       .audio-player { padding-left: max(28px, calc(50vw - 590px)); padding-right: max(28px, calc(50vw - 590px)); }
-      body.ar-only .panes { grid-template-columns: 1fr; }
+      body.ar-only .panes { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+      body.ar-only .r-layout { display: none; }
       header { padding-left: max(28px, calc(50vw - 590px)); padding-right: max(28px, calc(50vw - 590px)); }
       .audio-player { padding-left: max(28px, calc(50vw - 590px)); padding-right: max(28px, calc(50vw - 590px)); }
     }
@@ -619,6 +630,7 @@
     setupPanes();
     sizeStage();
     setupSize();
+    setupLayout();
     shortenHonorifics(document.getElementById('app'));
     // The language a page opens in: ?lang= in a shared link, else the reader's last choice, else the
     // phone's language when the khutbah has it, else the first translation (Urdu), else English.
@@ -739,6 +751,7 @@
     <div class="r-top" id="rTop">
       <div class="r-tools">
         <p class="tongue-line" id="tongues" role="group" aria-label="Language">${tongues.map(([c, name, lang], i) => (i ? '<span class="sep" aria-hidden="true">·</span>' : '') + `<button type="button" data-l="${c}"${lang ? ` lang="${lang}"` : ''} aria-pressed="false" onclick="chooseLang('${c}')"${c === 'ar' ? ' title="The imam\'s own words, in his voice"' : ''}>${name}</button>`).join('')}</p>
+        <div class="r-layout" id="layoutSwitch" role="group" aria-label="Layout"><button type="button" data-layout="stack" aria-pressed="true" aria-label="Arabic above the translation" title="Arabic above the translation"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="7" rx="1.5"/><rect x="4" y="13" width="16" height="7" rx="1.5"/></svg></button><button type="button" data-layout="side" aria-pressed="false" aria-label="Arabic beside the translation" title="Arabic beside the translation"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="16" rx="1.5"/><rect x="13" y="4" width="7" height="16" rx="1.5"/></svg></button></div>
         <div class="r-size" id="textSize" role="group" aria-label="Text size"><button type="button" data-ts="0.86" aria-label="Smaller text" aria-pressed="false">A</button><button type="button" data-ts="1" aria-label="Normal text" aria-pressed="true">A</button><button type="button" data-ts="1.16" aria-label="Larger text" aria-pressed="false">A</button></div>
       </div>
     </div>
@@ -1658,6 +1671,25 @@
       if (!b) return;
       set(b.dataset.ts);
       try { localStorage.setItem('kt-size', b.dataset.ts); } catch {}
+    });
+  }
+  // The panes on a computer: top and bottom (the default) or side by side, kept for the next visit (localStorage 'kt-layout').
+  function setupLayout() {
+    const box = document.getElementById('layoutSwitch');
+    if (!box) return;
+    const set = v => {
+      document.body.classList.toggle('side', v === 'side');
+      box.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.layout === v)));
+    };
+    let saved = null;
+    try { saved = localStorage.getItem('kt-layout'); } catch {}
+    set(saved === 'side' ? 'side' : 'stack');
+    box.addEventListener('click', e => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      set(b.dataset.layout);
+      try { localStorage.setItem('kt-layout', b.dataset.layout); } catch {}
+      document.getElementById('paneAr')?.dispatchEvent(new Event('scroll'));
     });
   }
   function setupPanes() {
