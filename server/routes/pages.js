@@ -3,7 +3,7 @@ import express from 'express';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { ROOT } from '../config.js';
-import { catalog, entryForFolder, shareSummary } from '../khutbahs.js';
+import { catalog, entryForFolder, shareSummary, ogImage } from '../khutbahs.js';
 
 const router = express.Router();
 
@@ -13,7 +13,7 @@ const router = express.Router();
 // The site's own address, for search engines: canonical links and the sitemap.
 const SITE = 'https://khutbah.dev';
 const escHtml = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-function withShareMeta(file, req, { title, description, path }) {
+function withShareMeta(file, req, { title, description, path, image = '/img/og.jpg' }) {
   const base = `${req.headers['x-forwarded-proto']?.split(',')[0] || req.protocol}://${req.get('host')}`;
   const tags = [
     `<title>${escHtml(title)}</title>`,
@@ -24,9 +24,11 @@ function withShareMeta(file, req, { title, description, path }) {
     `<meta property="og:description" content="${escHtml(description)}">`,
     `<meta property="og:url" content="${escHtml(base + path)}">`,
     `<link rel="canonical" href="${SITE}${escHtml(path)}">`,
-    `<meta property="og:image" content="${escHtml(base)}/img/og.png">`,
+    `<meta property="og:image" content="${escHtml(base + image)}">`,
+    `<meta property="og:image:type" content="image/jpeg">`,
     `<meta property="og:image:width" content="1200">`,
     `<meta property="og:image:height" content="630">`,
+    `<meta name="twitter:image" content="${escHtml(base + image)}">`,
     `<meta name="twitter:card" content="summary_large_image">`,
   ].join('\n  ');
   return readFileSync(join(ROOT, 'public', file), 'utf8')
@@ -60,7 +62,17 @@ router.get('/:slug', (req, res, next) => {
     title: `${k.title} · Khutbah.dev`,
     description: [where, shareSummary(k.folder)].filter(Boolean).join(' · ') || HOME_DESCRIPTION,
     path: `/${k.slug}`,
+    // its own picture (title, date, masjid, languages) when it has one
+    image: (o => (o ? `/og/${encodeURIComponent(k.slug)}.jpg?v=${o.stamp}` : '/img/og.jpg'))(ogImage(k.folder)),
   }));
+});
+// A khutbah's link-preview picture; the site's own when it has none.
+router.get('/og/:file', (req, res) => {
+  const slug = req.params.file.replace(/\.jpg$/, '');
+  const k = catalog().list.find(x => x.slug && x.slug === slug);
+  const o = k && ogImage(k.folder);
+  if (!o) return res.redirect(302, '/img/og.jpg');
+  res.set('Cache-Control', 'public, max-age=86400').type('image/jpeg').sendFile(o.file);
 });
 // The old reader address (/index.html?folder=<run folder>) opens the khutbah at its short link.
 router.get(['/index.html', '/reader-ur.html'], (req, res) => {

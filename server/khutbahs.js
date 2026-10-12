@@ -10,7 +10,7 @@
 // (outputs/, audio_files/). Its recording is audio_files/<audio>, or audio_files/<basename>.<ext>
 // where basename is its folder name after the timestamp. A khutbah with a media_url has its
 // recording (<media_url><audio>) and voice tracks (<media_url>tts_<lang>.mp3) there instead (R2).
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, statSync } from 'fs';
 import { join } from 'path';
 import { loadResult } from '../core/reader_chunks.js';
 import { ROOT, DATA_DIR } from './config.js';
@@ -211,6 +211,13 @@ export function getWords(folder, file) {
     } catch { return null; }
   }
   return wordsCache.get(key);
+}
+
+// A khutbah's link-preview picture (scripts/og_image.js), with a stamp that changes when the picture does (WhatsApp
+// keeps a preview by its address). Null when it has none: the site's own picture is shown.
+export function ogImage(folder) {
+  const file = join(contentDir(folder), 'og.jpg');
+  try { return { file, stamp: Math.round(statSync(file).mtimeMs / 1000).toString(36) }; } catch { return null; }
 }
 
 // A voice track's audio file.

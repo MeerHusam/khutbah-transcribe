@@ -111,7 +111,8 @@
     .here b { color: var(--cream); font-weight: 500; font-variant-numeric: tabular-nums; }
     .here .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
     .here.online .dot { background: var(--green); box-shadow: 0 0 0 4px rgba(99,199,155,.16); }
-    .here .more { color: var(--dim); }
+    /* only "reading now": the totals (people, visits) stay on /admin/traffic (Meer, 12 Oct) */
+    .here .more { display: none; }
 
     /* ── Hero ── */
     .hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: 44px; align-items: start; padding-top: 34px; }

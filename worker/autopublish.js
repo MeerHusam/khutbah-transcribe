@@ -178,6 +178,9 @@ async function main() {
   if (title && !existsSync(titleFile)) writeFileSync(titleFile, title + '\n'); // only a real title is kept
   title ||= (result.share_summary || 'Friday Khutbah').split(/\s+/).slice(0, 5).join(' ');
   await report('english', { title, message: title });
+  // The picture a shared link shows (title, date, masjid, languages), drawn by the Mac's Chrome; the site's own without it.
+  await run('link preview', 'node', ['scripts/og_image.js', F, '--title', title, '--date', dateText, '--masjid', masjid, '--langs', ['en', ...langs.map(L => L.code)].join(',')], { tries: 1 })
+    .catch(e => log(`✗ link preview: ${whyFailed(e)} (the site's own picture is used)`));
 
   // 3. The English review, then each language's translation and review side by side (API), beside
   // the imam's timing (local). The review corrects the English the languages then use as their
