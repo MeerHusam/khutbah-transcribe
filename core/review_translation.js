@@ -24,13 +24,13 @@ import Anthropic from '@anthropic-ai/sdk';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { spawnSync } from 'child_process';
-import { REVIEW_MODEL as MODEL, reviewRequest, reviewChunks } from './review_chunks.js';
+import { TRANSLATION_REVIEW_MODEL as MODEL, reviewClient, reviewRequest, reviewChunks } from './review_chunks.js';
 import { LANGS, langOf, cliArgs } from './languages.js';
 import { findRestarts, restartNotes } from './arabic.js';
 
-// Opus 5.5 at high (core/review_chunks.js): on the hard parts of 25 Sep (1 Oct 2026) its first
-// draft needed the fewest fixes; Sonnet 5.5 cost the same in practice (twice the output, more
-// review rounds) and slipped.
+// Gemini 3.8 Flash at LOW thinking since 11 Oct 2026, Opus for a batch it does not answer
+// (TRANSLATION_REVIEW_MODEL in core/review_chunks.js, which says why). Sonnet 5.5 cost more than Opus
+// in practice (more output) on 1 and 10 Oct.
 
 const args = process.argv.slice(2);
 const { opt, folder } = cliArgs(args);
@@ -71,20 +71,21 @@ if (dryRun) {
 }
 
 const before = [...texts];
-const { log, usage } = await reviewChunks({ anthropic, request, field, key: F, texts, batch: BATCH, rounds: ROUNDS, only });
+const { log, usage } = await reviewChunks({ anthropic: reviewClient({ anthropic, model: MODEL }), request, field, key: F, texts, batch: BATCH, rounds: ROUNDS, only });
+const models = Object.keys(usage.by_model).join(' + ') || MODEL;
 
 const reviewFile = join(folder, `review_${L.code}.json`);
 const earlier = only && existsSync(reviewFile) ? JSON.parse(readFileSync(reviewFile, 'utf8')).log.filter(l => !only.includes(l.chunk)) : [];
 log.unshift(...earlier);
 const corrected = only ? new Set(log.filter(l => l.applied).map(l => l.chunk)).size : texts.filter((u, i) => u !== before[i]).length;
 result[F].chunk_translations = texts;
-result[F].review = { model: MODEL, reviewed_at: new Date().toISOString(), rounds: ROUNDS, chunks_corrected: corrected, cost_usd: usage.cost_usd };
+result[F].review = { model: models, reviewed_at: new Date().toISOString(), rounds: ROUNDS, chunks_corrected: corrected, cost_usd: usage.cost_usd };
 writeFileSync(join(folder, 'result.json'), JSON.stringify(result, null, 2), 'utf8');
-writeFileSync(reviewFile, JSON.stringify({ model: MODEL, reviewed_at: result[F].review.reviewed_at, chunks: texts.length, corrected, usage, log }, null, 2), 'utf8');
+writeFileSync(reviewFile, JSON.stringify({ model: models, reviewed_at: result[F].review.reviewed_at, chunks: texts.length, corrected, usage, log }, null, 2), 'utf8');
 
 const count = s => log.flatMap(l => l.issues).filter(x => x.severity === s).length;
 console.log(`\n${corrected} of ${texts.length} chunks corrected (${count('high')} high, ${count('medium')} medium, ${count('low')} low issue(s)) — ` +
-  `${usage.calls} ${MODEL} call(s), $${usage.cost_usd}. Written to ${reviewFile}`);
+  `${Object.entries(usage.by_model).map(([m, u]) => `${u.calls} ${m} call(s) $${u.cost_usd}`).join(', ')}; $${usage.cost_usd}. Written to ${reviewFile}`);
 
 // The reader shows reader_<code>.txt: rebuild it from the corrected blocks (no model call).
 const rebuild = spawnSync(process.execPath, ['core/translate.js', folder, '--lang', L.code], { stdio: 'inherit' });

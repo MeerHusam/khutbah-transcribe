@@ -36,7 +36,7 @@ try { spent = JSON.parse(readFileSync('.tts_cache/gemini/limits.json', 'utf8'));
 const G = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 // The transcription models, in the order core/transcribe.js tries them (with GEMINI_API_KEY).
-for (const [i, model] of ['gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.6-flash'].entries()) {
+for (const [i, model] of ['gemini-3.6-flash', 'gemini-3.1-pro-preview'].entries()) {
   await check(`transcription ${model}${i ? ' (fallback)' : ''}`, async () => {
     await post(`${G}/${model}:generateContent`, { 'x-goog-api-key': process.env.GEMINI_API_KEY }, { contents: [{ parts: [{ text: 'Reply: ok' }] }], generationConfig: { maxOutputTokens: 5 } });
   }, { needed: i === 0 });
@@ -44,7 +44,7 @@ for (const [i, model] of ['gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-
 for (const name of geminiKeys) {
   const key = process.env[name];
   await check(`${name}: voice model listed`, async () => {
-    await get(`${G}/gemini-3.8-flash-tts`, { 'x-goog-api-key': key });
+    await get(`${G}/gemini-3.8-flash-lite-tts`, { 'x-goog-api-key': key });
     const until = spent[createHash('sha1').update(key).digest('hex').slice(0, 12)];
     return until > Date.now() ? `daily limit spent until ${new Date(until).toISOString()}` : 'daily limit not known to be spent';
   }, { needed: false });

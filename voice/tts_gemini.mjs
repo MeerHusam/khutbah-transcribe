@@ -21,6 +21,7 @@
 // Job: { out, blocks: [{ i, text, parts?, pause_before? }], block_pause,
 //        model, voice, style, concurrency?, passages?, lang? }
 
+import { retake } from './retake.js';
 import 'dotenv/config';
 import { GoogleGenAI } from '@google/genai';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
@@ -31,10 +32,14 @@ import { spawnSync } from 'child_process';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CACHE = process.env.TTS_CACHE_DIR || join(ROOT, '.tts_cache', 'gemini'); // the test points it elsewhere
-const PRICE_IN = 0.5 / 1e6, PRICE_OUT = 9 / 1e6; // USD per token, gemini-3.8-flash-tts, through 2026
 const SR = 24000;
 
 const job = JSON.parse(readFileSync(0, 'utf8'));
+// USD per million tokens, text in / audio out, through 2026 (both double on 1 Jan 2027).
+const PRICES = { 'gemini-3.8-flash-tts': [0.5, 9], 'gemini-3.8-flash-lite-tts': [0.5, 6] };
+// The Agent Platform route uses Flash TTS, the model tested there (3 Oct 2026), whatever job.model is.
+const VERTEX_MODEL = 'gemini-3.8-flash-tts';
+const priced = (model, input, output) => { const [pin, pout] = PRICES[model] ?? PRICES[VERTEX_MODEL]; return (input * pin + output * pout) / 1e6; };
 mkdirSync(CACHE, { recursive: true });
 
 // Keys: GEMINI_API_KEY, GEMINI_API_KEY2, … one per Google project, each with its own 100 voice
@@ -99,7 +104,7 @@ function pcmOf(wav) {
   throw new Error('no audio data in the WAV');
 }
 
-const usage = { calls: 0, cached: 0, input: 0, output: 0, vertex: 0 };
+const usage = { calls: 0, cached: 0, input: 0, output: 0, vertex: 0, cost: 0 };
 
 // The last route, when every Gemini key has used its day: the same model on Google Cloud's Agent
 // Platform (VERTEX_API_KEY), paid per use with no daily quota (tested 3 Oct 2026). With an API
@@ -112,7 +117,7 @@ const cue = style => {
 };
 async function askVertex(content, signal) {
   const base = process.env.VERTEX_BASE_URL || 'https://aiplatform.googleapis.com';
-  const r = await fetch(`${base}/v1/publishers/google/models/${job.model}:generateContent`, {
+  const r = await fetch(`${base}/v1/publishers/google/models/${VERTEX_MODEL}:generateContent`, {
     method: 'POST', signal,
     headers: { 'content-type': 'application/json', 'x-goog-api-key': process.env.VERTEX_API_KEY },
     body: JSON.stringify({
@@ -129,6 +134,7 @@ async function askVertex(content, signal) {
   }
   const u = j.usageMetadata ?? {};
   usage.calls++; usage.input += u.promptTokenCount ?? 0; usage.output += u.candidatesTokenCount ?? 0;
+  usage.cost += priced(VERTEX_MODEL, u.promptTokenCount ?? 0, u.candidatesTokenCount ?? 0);
   return pcmOf(Buffer.from(data, 'base64'));
 }
 // A request with no answer in 4 minutes is abandoned (aborted, so no connection is left open) and
@@ -193,6 +199,7 @@ async function ask(content) {
       const pcm = pcmOf(Buffer.from(b64, 'base64'));
       const u = r.usage ?? {};
       usage.calls++; usage.input += u.total_input_tokens ?? 0; usage.output += u.total_output_tokens ?? 0;
+      usage.cost += priced(job.model, u.total_input_tokens ?? 0, u.total_output_tokens ?? 0);
       return pcm;
     } catch (e) {
       const msg = String(e.message ?? e);
@@ -324,8 +331,9 @@ async function speakPassage(blocks, n) {
   const content = parts.map((p, k) => annotate(p.text + (k < parts.length - 1 ? ' ' : ''),
     p.style ? `${job.style}. For this sentence: ${p.style}` : job.style));
   const text = blocks.map(b => b.text).join(' ');
-  let best = null;
-  for (let take = 1; take <= 3; take++) {
+  const words = looseWords(text).length;
+  let best = null, before = null;
+  for (let take = 1; ; take++) {
     const pcm = await askAround(content, blocks, n);
     const heard = await hear(pcm);
     const share = heard == null ? null : heardShare(text, heard);
@@ -333,7 +341,8 @@ async function speakPassage(blocks, n) {
     if (!best || score > best.score) best = { pcm, share, score };
     console.error(`  passage ${n + 1} (blocks ${blocks[0].i}-${blocks.at(-1).i}), take ${take}: ${secs(pcm).toFixed(0)} s` +
       (share ? `, ${Math.round(share.said * 100)}% of the words heard, ${Math.round(share.extra * 100)}% as many words` : ', not checked'));
-    if (!share || (share.said >= 0.85 && share.extra <= 1.25)) break;
+    if (!retake({ take, words, share, score, before })) break; // voice/retake.js
+    before = score;
   }
   checks.push({ passage: n + 1, blocks: [blocks[0].i, blocks.at(-1).i], ...(best.share ?? {}) });
   writeFileSync(path, best.pcm);
@@ -421,6 +430,6 @@ if (job.passages) {
   writeFileSync(job.out, wavOf(Buffer.concat(parts)));
 }
 
-const cost = usage.input * PRICE_IN + usage.output * PRICE_OUT;
-console.error(`  ${usage.calls} Gemini call(s)${usage.vertex ? ` (${usage.vertex} on the Agent Platform)` : ''}, ${usage.cached} from cache, ${usage.input} in / ${usage.output} out tokens, about $${cost.toFixed(3)}`);
+const cost = usage.cost;
+console.error(`  ${usage.calls} ${job.model} call(s)${usage.vertex ? ` (${usage.vertex} on the Agent Platform)` : ''}, ${usage.cached} from cache, ${usage.input} in / ${usage.output} out tokens, about $${cost.toFixed(3)}`);
 console.log('\n' + JSON.stringify(times));

@@ -1,7 +1,7 @@
 // pipeline.js — The command line: one khutbah recording (or an earlier run's transcript) to an
 // outputs/<time>_<name>/ folder with transcript.txt, result.json, reader.txt and readable.txt.
 //
-//   node pipeline.js audio.mp3          Gemini 3.5 Flash text + Groq timing (best quality; --gemini says the same)
+//   node pipeline.js audio.mp3          Gemini 3.6 Flash text + Groq timing (best quality; --gemini says the same)
 //   node pipeline.js audio.mp3 --groq   Groq whisper-large-v3 alone (free & fast)
 //   node pipeline.js --transcript outputs/<run>/transcript.txt   reuse a transcript and its timings
 //   --type friday|arafah|eid            frames the summary (default friday)
@@ -18,7 +18,7 @@ import { writeFileSync, mkdirSync, readFileSync, existsSync, statSync } from 'fs
 import { fileURLToPath } from 'url';
 import path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
-import { stripAyahMarkup, prescanForQuranZones, dropBorrowedPhrases, buildProseChunks, scanTranscriptForQuran, buildZoneRefs, annotateRefAyahRange, yieldTailToLaterRefs, matchClaudeQuranRef, findRestarts, restartNotes } from './core/arabic.js';
+import { stripAyahMarkup, prescanForQuranZones, dropBorrowedPhrases, buildProseChunks, scanTranscriptForQuran, buildZoneRefs, annotateRefAyahRange, yieldTailToLaterRefs, matchClaudeQuranRef, findRestarts, restartNotes, transcriptProblem } from './core/arabic.js';
 import { loadHadithCorpus, deduplicateHadithRefs, scanTranscriptForHadith, findAttributedHadith, resolveSunnahLinksForRefs, matchClaudeHadithRef } from './core/hadith.js';
 import { KHUTBAH_TYPES, buildAnalysisPrompt, locateSecondKhutbah, splitChunkAtKhutbahBoundary, completeChunkTranslations } from './core/analyze.js';
 import { buildReadableOutput, buildReaderView } from './core/reader.js';
@@ -141,7 +141,7 @@ async function getTranscript({ existingTranscriptPath, audioPath, useGroq }) {
         console.log(`Transcribing via Groq whisper-large-v3 (${fileSizeMB.toFixed(1)} MB)...`);
         transcriptResult = await transcribeWithGroq(usedPath);
       } else {
-        console.log(`Transcribing via Gemini 3.5 Flash + Groq timing (${fileSizeMB.toFixed(1)} MB)...`);
+        console.log(`Transcribing via Gemini 3.6 Flash + Groq timing (${fileSizeMB.toFixed(1)} MB)...`);
         transcriptResult = await transcribeWithGemini(usedPath);
       }
     } catch (e) {
@@ -304,6 +304,13 @@ async function main() {
   // In --gemini mode the hybrid also produced a Groq transcript — save it for comparison.
   if (groqText) {
     writeFileSync(path.join(outDir, 'transcript_groq.txt'), groqText, 'utf8');
+  }
+  // A transcript that is not one stops here, before the paid steps (9 Oct 2026: the analysis, the
+  // English review and the Urdu translation ran on Gemini's working notes).
+  const notTranscript = transcriptProblem(transcript, groqText ?? '');
+  if (notTranscript) {
+    console.error(`✗ the transcript is not usable (${notTranscript}): stopping before the analysis (${path.join(outDir, 'transcript.txt')})`);
+    process.exit(1);
   }
   const wordCount = transcript.split(/\s+/).filter(Boolean).length;
 

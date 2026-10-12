@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // tts.js — A voice track for a khutbah (30 Sep 2026): reads each reader block's English
 // (--lang en) or another language's text (--lang ur, bn …; core/languages.js) aloud and writes one audio track the page can play in place of
-// the imam's, with Gemini TTS (gemini-3.8-flash-tts, tts_gemini.mjs), voice Charon or Orus.
+// the imam's, with Gemini TTS (gemini-3.8-flash-lite-tts since 11 Oct 2026, tts_gemini.mjs), voice Charon or Orus.
 // (The ElevenLabs engine, unused since 1 Oct 2026, was removed on 3 Oct; it is in git history.)
 //
 //  - Blocks are the page's blocks (reader_chunks.js), so the voice track and the reader
@@ -19,6 +19,9 @@
 //   --direct: a direction for every sentence (voice_directions.js, from delivery_imam.json when
 //     imam_delivery.py has run) and the blocks voiced a passage at a time, then split back into
 //     blocks with the word aligner (.venv-align).
+//   --direct-langs ur,bn,en: every voice being made (autopublish); the first one's directions call
+//     makes the others' too, which their runs then find in tts_<lang>_directions.json.
+//   --blocks-json prints the blocks this voice would speak, as JSON, and makes no audio.
 //   --limit N speaks only the first N blocks into tts_<lang>_preview_<voice>.mp3, to listen to;
 //     the page's track (tts_<lang>.mp3, tts_<lang>.json) is left as it is.
 //   --dry-run prints the text of every block and makes no audio.
@@ -42,7 +45,10 @@ const folder = args[0];
 const opt = (name, dflt) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : dflt; };
 const lang = opt('--lang', 'en');
 const L = langOf(lang); // undefined for English
-const model = opt('--model', 'gemini-3.8-flash-tts');
+// Flash-Lite TTS since 11 Oct 2026: a third cheaper ($6 against $9 a million audio tokens), and in a
+// blind listen of 9 Oct's opening (reports/voice-samples-2026-10-11) Meer preferred it in English, the
+// Flash voice a little in Urdu, and heard no difference in Bengali. --model gemini-3.8-flash-tts switches back.
+const model = opt('--model', process.env.KT_TTS_MODEL || 'gemini-3.8-flash-lite-tts');
 const voice = opt('--voice', 'Charon');
 // Gemini's delivery, given as a style note (text in the transcript itself would be spoken); another
 // language's is in its file (voice.style).
@@ -214,6 +220,9 @@ const blocks = chunks
   .filter(b => b.text)
   .slice(0, limit || undefined);
 
+// For another voice's run (--direct-langs): what this one would speak, on the last line.
+if (args.includes('--blocks-json')) { process.stdout.write(`\n${JSON.stringify(blocks)}\n`); process.exit(0); }
+
 if (dryRun) {
   for (const b of blocks) console.log(`[${b.i}] ${b.text}\n`);
   console.log(`${blocks.length} of ${chunks.length} blocks, ${blocks.reduce((n, b) => n + b.text.length, 0)} characters`);
@@ -229,8 +238,16 @@ const wav = join(folder, `${base}.wav`);
 const KHUTBAH_PAUSE = 4;
 const secondAt = chunks.findIndex(c => c.second_khutbah_start);
 const secondBlock = secondAt < 0 ? null : blocks.find(b => b.i >= secondAt)?.i ?? null;
-const notes = direct ? await directions({ folder, lang, blocks, effort: directEffort,
-  arabic: new Map(blocks.map(b => [b.i, chunks[b.i].arabic])) }) : null;
+// The other voices' blocks, as their own runs will speak them, so one call directs them all (10 Oct 2026).
+const others = direct && !limit ? opt('--direct-langs', '').split(',').filter(l => l && l !== lang).map(l => {
+  const r = spawnSync(process.execPath, [join(ROOT, 'voice', 'tts.js'), resolve(folder), '--lang', l, '--blocks-json'],
+    { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  if (r.status === 0) return { lang: l, blocks: JSON.parse(r.stdout.trim().split('\n').at(-1)) };
+  console.error(`  directions: no ${l} blocks (${(r.stderr || '').trim().split('\n').pop()}); its voice gets its own call`);
+  return null;
+}).filter(Boolean) : [];
+const notes = direct ? await directions({ folder, lang, blocks, effort: directEffort, others,
+  arabic: new Map(chunks.map((c, i) => [i, c.arabic])) }) : null;
 const job = {
   block_pause: 0.7,
   out: resolve(wav),

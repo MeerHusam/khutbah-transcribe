@@ -88,7 +88,7 @@ Register and wording, as in a published Urdu khutbah:
 Return one Urdu translation per chunk number given, and nothing for the context chunks.`,
     extras: {
       system: 'You prepare the Urdu edition of a khutbah reader for worshippers in Pakistan and India. Reply with JSON only.',
-      ask: (shareSummary, summary) => `Translate into the everyday, respectful Urdu a khateeb in Pakistan speaks: the religious terms and honorifics everyone knows (اللہ تعالیٰ، نبی کریم صلی اللہ علیہ وسلم، رضی اللہ عنہ), otherwise the words ordinary worshippers use, not bookish Urdu:\n"share_summary" (a two-sentence WhatsApp message): ${shareSummary}\n"summary": ${summary}`,
+      ask: (shareSummary, summary) => `Translate into the everyday, respectful Urdu a khateeb in Pakistan speaks: the religious terms and honorifics everyone knows (اللہ تعالیٰ، نبی کریم صلی اللہ علیہ وسلم، رضی اللہ عنہ), otherwise the words ordinary worshippers use, not bookish Urdu:\nTranslate only what they say: add no sentence of your own (no call to action, no closing line).\n"share_summary" (a two-sentence WhatsApp message): ${shareSummary}\n"summary": ${summary}`,
       hadith: `For each hadith below, give "narrator": the Companion's name as Urdu readers know it, with رضی اللہ عنہ / عنہا (for a family chain such as "Amr ibn Shu'ayb from his father from his grandfather", write that chain in Urdu). And give "from_companion": copied character for character from its Urdu text, the part that starts where the Companion (or the Prophet ﷺ, if the Companion is not named) is first mentioned, leaving out the chain of narrators before; the whole text if it already starts there, "" if it has no Urdu text.`,
     },
   },

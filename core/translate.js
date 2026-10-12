@@ -4,11 +4,12 @@
 // differs per language (prompts, editions, clean-up) is its file in core/langs/. Nothing English
 // is changed.
 //
-//  - Blocks: Claude translates each prose chunk from the imam's Arabic directly, on the same chunk
-//    boundaries as the English, so the page can switch language block by block. Chunks are sent in
-//    batches with the previous chunks as context and must come back one translation per chunk, by
-//    index: the English of the Sudais khutbah slipped onto its neighbouring blocks when two
-//    translations were missing.
+//  - Blocks: Gemini 3.8 Flash (Opus until 10 Oct 2026) translates each prose chunk from the imam's
+//    Arabic directly, on the same chunk boundaries as the English, so the page can switch language
+//    block by block. Chunks are sent in batches with the previous chunks as context and must come
+//    back one translation per chunk, by index: the English of the Sudais khutbah slipped onto its
+//    neighbouring blocks when two translations were missing. A batch Gemini does not answer goes
+//    to Opus.
 //  - Verses: the language's published Quran translation (fawazahmed0/quran-api).
 //  - Hadith: fawazahmed0/hadith-api's editions in the language. Their numbering is the local ara-*
 //    corpus's, not sunnah.com's (Sahih Muslim differs), so the hadith is found by its Arabic text.
@@ -21,6 +22,8 @@
 // Usage: node core/translate.js outputs/<folder> --lang ur|bn [--batch 12] [--retranslate] [--chunks 13,14] [--dry-run]
 //   Block translations already in result.<field> are kept unless --retranslate (all) or --chunks
 //   (those); verses and hadith are always read again (free, from hadith_data/).
+//   KT_TRANSLATE_MODEL=claude-opus-5-5: the blocks on Opus, as before 10 Oct 2026.
+//   KT_TRANSLATE_CAP: the most a run may spend, in USD (default 2).
 
 import 'dotenv/config';
 import Anthropic from '@anthropic-ai/sdk';
@@ -29,15 +32,42 @@ import { join } from 'path';
 import { buildReaderView } from './reader.js';
 import { normalizeArabic, findRestarts, restartNotes } from './arabic.js';
 import { LANGS, langOf, cliArgs } from './languages.js';
+import { geminiJSON, geminiPrice } from './gemini_text.js';
 
 
+// The blocks: Gemini 3.8 Flash since 10 Oct 2026. In a blind test on the 9 Oct khutbah (41 blocks,
+// these prompts) it made no serious error in Urdu or Bengali, like Opus's first drafts, and was as
+// good or better on 93% and 92% of the blocks, for $0.13 a language against Opus's $0.57 and $0.63.
+// A batch it does not answer (an error, a blocked answer, no text, not JSON) goes to Opus.
+const OPUS = 'claude-opus-5-5';
+const MODEL = process.env.KT_TRANSLATE_MODEL || 'gemini-3.8-flash';
 // Opus 5.5 at high: on the hard parts of 25 Sep (1 Oct 2026) its first draft needed the fewest
 // fixes; Sonnet 5.5 cost the same in practice (twice the output, more review rounds) and slipped.
-const MODEL = 'claude-opus-5-5';
-const PRICE_IN = 4 / 1e6, PRICE_OUT = 20 / 1e6; // USD per token, claude-opus-5-5
+const price = model => (model === OPUS ? [4, 20] : geminiPrice(model)); // USD per million tokens, in / out
+// The most a call may write. Gemini's thinking counts toward it (Google: maxOutputTokens caps
+// thinking and answer together): at HIGH it used 4,300 to 12,700 tokens a batch on 9 Oct's blocks,
+// and on 10 Oct a 12-chunk Urdu batch ran past 16,000 and was cut. Gemini 3 Flash models also get
+// caught in a thinking loop now and then (Google's forum, 2026) and run to the limit; such a cut
+// batch is asked once more at MEDIUM thinking (Google's advice: think less rather than squeeze the
+// limit), then goes to Opus. One user saw 3.8 Flash bill up to twice maxOutputTokens, so the cap
+// reckons a Gemini call at twice its limit.
+const maxOut = model => (model === OPUS ? 16000 : 32768);
+const billedOut = (model, out = maxOut(model)) => (model === OPUS ? 1 : 2) * out;
+// The extras answer is about 2,000 tokens; at LOW thinking 16,384 is room enough.
+const EXTRAS_OUT = 16384;
+// The extras call (summaries, narrators, surah names, hadith cuts) on Gemini 3.8 Flash at LOW thinking
+// since 11 Oct 2026, Opus if it gives no summary. Tested on 4 khutbahs x 2 languages: summaries on a par
+// with Opus's, its Bengali hadith cards cut at the Companion where Opus's kept the chain of narrators
+// (about 12 cards), $0.003-0.016 a language against about $0.05. KT_EXTRAS_MODEL picks another;
+// KT_TRANSLATE_MODEL=claude-opus-5-5 puts both back on Opus.
+const EXTRAS_MODEL = process.env.KT_EXTRAS_MODEL || (MODEL === OPUS ? OPUS : 'gemini-3.8-flash');
+const EXTRAS_THINKING = process.env.KT_EXTRAS_THINKING || 'LOW';
 // A request the model declines (the du'a names enemies: Houthis, Zionists) is re-run on the
 // fallback model the API picks for that kind of refusal, instead of leaving blocks untranslated.
 const FALLBACK = { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' };
+// A hard cap per run: a call that could take the run past it is refused. A language costs about
+// $0.15 on Gemini, $0.65 all on Opus.
+const CAP = +(process.env.KT_TRANSLATE_CAP || 2);
 
 const args = process.argv.slice(2);
 const { opt, folder } = cliArgs(args);
@@ -46,6 +76,7 @@ if (!folder || !existsSync(join(folder, 'result.json')) || !L) {
   console.error(`Usage: node core/translate.js outputs/<folder> --lang ${LANGS.map(l => l.code).join('|')} [--batch 12] [--retranslate] [--chunks 13,14] [--dry-run]`);
   process.exit(1);
 }
+if (!price(MODEL)) { console.error(`✗ KT_TRANSLATE_MODEL=${MODEL}: no price for it here (${OPUS} or gemini-3.8-flash)`); process.exit(1); }
 const F = L.field;
 const BATCH = args.includes('--batch') ? +opt('--batch') : 12;
 const dryRun = args.includes('--dry-run');
@@ -75,8 +106,34 @@ const SCHEMA = {
 };
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 300_000, maxRetries: 3 });
-const usage = { calls: 0, input_tokens: 0, output_tokens: 0 };
+// This run's calls, tokens and cost, by model.
+const usage = {};
+let spent = 0;
+function record(model, u, cost) {
+  const t = (usage[model] ??= { calls: 0, input_tokens: 0, output_tokens: 0, cost_usd: 0 });
+  for (const k of ['calls', 'input_tokens', 'output_tokens', 'thoughts_tokens']) if (u[k]) t[k] = (t[k] ?? 0) + u[k];
+  t.cost_usd += cost;
+  spent += cost;
+}
+// A call of `chars` characters (prompt and system) must fit under the cap at its worst: a token per
+// character in, all it may be billed for out. One that might not ends the run, with nothing written.
+function withinCap(model, chars, out) {
+  const [pin, pout] = price(model);
+  const worst = (chars * pin + billedOut(model, out) * pout) / 1e6;
+  if (spent + worst <= CAP) return;
+  console.error(`✗ ${model} call refused: $${spent.toFixed(3)} spent this run, one call could cost $${worst.toFixed(3)}, the cap is $${CAP} (KT_TRANSLATE_CAP); nothing written`);
+  process.exit(1);
+}
 
+async function opus(params) {
+  const response = await anthropic.beta.messages.create({ model: OPUS, max_tokens: maxOut(OPUS), ...FALLBACK, ...params });
+  const { input_tokens, output_tokens } = response.usage;
+  const [pin, pout] = price(OPUS);
+  record(OPUS, { calls: 1, input_tokens, output_tokens }, (input_tokens * pin + output_tokens * pout) / 1e6);
+  return response;
+}
+
+// The chunks of `indices` translated: { got: { i: text }, model }.
 async function translate(indices, done) {
   const first = indices[0];
   const context = [first - 2, first - 1].filter(i => i >= 0)
@@ -90,40 +147,54 @@ async function translate(indices, done) {
     (after ? `\n\nWhat follows, for context only (do not translate):\n${after}` : '');
   const notes = restartNotes(restarts.filter(r => indices.includes(r.chunk) || indices.includes(r.from)));
   if (notes) content += `\n\n${notes}`;
-  if (dryRun) { console.log(content.slice(0, 1500)); return {}; }
-  const response = await anthropic.beta.messages.create({
-    model: MODEL, max_tokens: 16000, system: L.translate.system, ...FALLBACK,
+  if (dryRun) { console.log(content.slice(0, 1500)); return { got: {} }; }
+  const pick = out => Object.fromEntries((Array.isArray(out?.translations) ? out.translations : [])
+    .filter(t => indices.includes(t.i) && typeof t[F] === 'string' && t[F].trim()).map(t => [t.i, t[F].trim()]));
+  const chars = content.length + L.translate.system.length;
+  // HIGH thinking, as in the blind test; an answer cut at the limit is asked once more at MEDIUM.
+  for (const thinkingLevel of MODEL === OPUS ? [] : ['HIGH', 'MEDIUM']) {
+    withinCap(MODEL, chars);
+    const g = await geminiJSON({ model: MODEL, system: L.translate.system, content, schema: SCHEMA, maxOutputTokens: maxOut(MODEL), thinkingLevel });
+    record(MODEL, g.usage, g.cost_usd);
+    const got = g.ok ? pick(g.json) : {};
+    if (Object.keys(got).length) return { got, model: MODEL };
+    const cut = !g.ok && /MAX_TOKENS/.test(g.why) && thinkingLevel === 'HIGH';
+    console.log(`  ${MODEL} (${thinkingLevel}), chunks ${indices[0]}-${indices.at(-1)}: ${g.ok ? 'none of them in its answer' : g.why}${g.ok ? '' : ` after ${g.usage.output_tokens} tokens`}; ${cut ? 'asking again at MEDIUM thinking' : `asking ${OPUS}`}`);
+    if (!cut) break;
+  }
+  withinCap(OPUS, chars);
+  const response = await opus({
+    system: L.translate.system,
     output_config: { effort: 'high', format: { type: 'json_schema', schema: SCHEMA } },
     messages: [{ role: 'user', content }],
   });
-  usage.calls++;
-  usage.input_tokens += response.usage.input_tokens;
-  usage.output_tokens += response.usage.output_tokens;
-  if (response.stop_reason === 'refusal') return {};
-  try {
-    const out = JSON.parse(response.content.find(b => b.type === 'text')?.text ?? '');
-    return Object.fromEntries(out.translations.filter(t => indices.includes(t.i) && t[F].trim()).map(t => [t.i, t[F].trim()]));
-  } catch { return {}; }
+  if (response.stop_reason === 'refusal') return { got: {} };
+  try { return { got: pick(JSON.parse(response.content.find(b => b.type === 'text')?.text ?? '')), model: OPUS }; } catch { return { got: {} }; }
 }
 
 // ── Blocks ───────────────────────────────────────────────────────────────────
 // Only the chunks without a translation are translated (all of them on a first run, or with
 // --retranslate); --chunks 13,14 translates those again, after a fix moved their boundaries.
 const only = args.includes('--chunks') ? opt('--chunks').split(',').map(Number) : [];
-const kept = result[F]?.chunk_translations;
+const prev = result[F];
+const kept = prev?.chunk_translations;
 const reuse = !args.includes('--retranslate') && kept?.length === chunks.length;
 const blocks = reuse ? kept.map((t, i) => (only.includes(i) ? null : t || null)) : new Array(chunks.length).fill(null);
+// Which model made each block (a result from before 10 Oct 2026 names one model for all).
+const models = blocks.map((t, i) => (t ? prev.block_models?.[i] ?? prev.model ?? OPUS : null));
 const todo = blocks.map((t, i) => (t ? null : i)).filter(i => i !== null);
 if (reuse) console.log(`  keeping ${chunks.length - todo.length} of the ${chunks.length} ${L.name} block translations already in result.json`);
+const put = ({ got, model }) => { for (const [i, t] of Object.entries(got)) { blocks[i] = t; models[i] = model; } };
 for (let k = 0; k < todo.length;) {
   // A batch: up to BATCH chunks in a row, so the chunks around it are the context.
   const idx = [todo[k++]];
   while (k < todo.length && idx.length < BATCH && todo[k] === idx.at(-1) + 1) idx.push(todo[k++]);
-  Object.assign(blocks, await translate(idx, blocks));
+  put(await translate(idx, blocks));
   if (dryRun) process.exit(0);
   // Anything missing is asked for again on its own, never left for a neighbour to fill.
-  for (const i of idx) if (!blocks[i]) Object.assign(blocks, await translate([i], blocks));
-  console.log(`  chunks ${idx[0]}-${idx.at(-1)}: ${idx.filter(i => blocks[i]).length}/${idx.length}`);
+  for (const i of idx) if (!blocks[i]) put(await translate([i], blocks));
+  const by = [...new Set(idx.map(i => models[i]).filter(Boolean))].join(', ');
+  console.log(`  chunks ${idx[0]}-${idx.at(-1)}: ${idx.filter(i => blocks[i]).length}/${idx.length}${by ? ` (${by})` : ''}`);
 }
 const missing = blocks.map((t, i) => (t ? null : i)).filter(i => i !== null);
 if (missing.length) { console.error(`✗ no ${L.name} for chunk(s) ${missing.join(', ')}; nothing written`); process.exit(1); }
@@ -208,6 +279,7 @@ const EXTRAS_SCHEMA = {
   required: ['share_summary', 'summary', 'hadith', ...(askSurahs ? ['surahs'] : [])],
   additionalProperties: false,
 };
+let extrasBy = result[F]?.extras_model ?? OPUS;
 let extras = !args.includes('--retranslate') && result[F]?.summary ? {
   share_summary: result[F].share_summary, summary: result[F].summary,
   narrators: result[F].narrators ?? {}, surahs: result[F].surahs ?? {},
@@ -218,21 +290,32 @@ if (!extras) {
     const key = m ? `${m[1]}:${m[2]}` : null;
     return { key, narrator: h.narrator, collection: h.collection, [F]: key && hadith[key]?.text };
   }).filter(h => h.key);
-  const response = await anthropic.beta.messages.create({
-    model: MODEL, max_tokens: 16000, ...FALLBACK,
-    system: L.translate.extras.system,
-    output_config: { effort: 'high', format: { type: 'json_schema', schema: EXTRAS_SCHEMA } },
-    messages: [{ role: 'user', content: [
-      L.translate.extras.ask(result.share_summary ?? '', result.summary ?? ''),
-      L.translate.extras.hadith,
-      JSON.stringify(hadithList, null, 1),
-      ...(askSurahs ? [L.translate.extras.surahs, surahNums.map(n => `${n}: ${quran[n - 1]?.transliteration} (${quran[n - 1]?.name})`).join('\n')] : []),
-    ].join('\n\n') }],
-  });
-  usage.calls++;
-  usage.input_tokens += response.usage.input_tokens;
-  usage.output_tokens += response.usage.output_tokens;
-  const out = JSON.parse(response.content.find(b => b.type === 'text')?.text ?? '{}');
+  const content = [
+    L.translate.extras.ask(result.share_summary ?? '', result.summary ?? ''),
+    L.translate.extras.hadith,
+    JSON.stringify(hadithList, null, 1),
+    ...(askSurahs ? [L.translate.extras.surahs, surahNums.map(n => `${n}: ${quran[n - 1]?.transliteration} (${quran[n - 1]?.name})`).join('\n')] : []),
+  ].join('\n\n');
+  const chars = content.length + L.translate.extras.system.length;
+  let out = null;
+  if (EXTRAS_MODEL !== OPUS) {
+    withinCap(EXTRAS_MODEL, chars, EXTRAS_OUT);
+    const g = await geminiJSON({ model: EXTRAS_MODEL, system: L.translate.extras.system, content, schema: EXTRAS_SCHEMA,
+      maxOutputTokens: EXTRAS_OUT, thinkingLevel: EXTRAS_THINKING });
+    record(EXTRAS_MODEL, g.usage, g.cost_usd);
+    if (g.ok && g.json?.summary?.trim()) { out = g.json; extrasBy = EXTRAS_MODEL; }
+    else console.log(`  ${EXTRAS_MODEL} (${EXTRAS_THINKING}), extras: ${g.ok ? 'no summary' : g.why}; asking ${OPUS}`);
+  }
+  if (!out) {
+    withinCap(OPUS, chars);
+    const response = await opus({
+      system: L.translate.extras.system,
+      output_config: { effort: 'high', format: { type: 'json_schema', schema: EXTRAS_SCHEMA } },
+      messages: [{ role: 'user', content }],
+    });
+    out = JSON.parse(response.content.find(b => b.type === 'text')?.text ?? '{}') ?? {};
+    extrasBy = OPUS;
+  }
   extras = { share_summary: out.share_summary, summary: out.summary, narrators: {},
     surahs: Object.fromEntries((out.surahs ?? []).filter(s => s.name?.trim()).map(s => [s.n, s.name.trim()])) };
   for (const x of out.hadith ?? []) {
@@ -259,20 +342,27 @@ for (const q of result.quran_references ?? []) {
   if (q.matched) surahs[q.surah_number] = askSurahs ? extras.surahs[q.surah_number] ?? quran[q.surah_number - 1]?.transliteration : quran[q.surah_number - 1]?.name;
 }
 
-const prev = result[F];
-const prevCost = reuse ? (prev.usage?.cost_usd ?? 0) : 0;
+// Usage by model, this run's added to the earlier runs' when blocks were kept (a result from before
+// 10 Oct 2026 has no by_model: its calls were all one model's).
+const round = x => Math.round(x * 10000) / 10000;
+const was = reuse ? prev.usage : null;
+const byModel = structuredClone(was?.by_model ?? (was?.calls ? { [prev.model ?? OPUS]:
+  { calls: was.calls, input_tokens: was.input_tokens, output_tokens: was.output_tokens, cost_usd: was.cost_usd ?? 0 } } : {}));
+for (const [m, u] of Object.entries(usage)) {
+  const t = (byModel[m] ??= {});
+  for (const [k, v] of Object.entries(u)) t[k] = round((t[k] ?? 0) + v);
+}
+const total = k => Object.values(byModel).reduce((s, u) => s + (u[k] ?? 0), 0);
+const blockCount = Object.entries(models.reduce((n, m) => ({ ...n, [m]: (n[m] ?? 0) + 1 }), {}));
 result[F] = {
-  model: MODEL, created_at: reuse ? prev.created_at : new Date().toISOString(),
+  model: blockCount.map(([m]) => m).join(' + '), block_models: models, extras_model: extrasBy,
+  created_at: reuse ? prev.created_at : new Date().toISOString(),
   chunk_translations: blocks,
   share_summary: extras.share_summary, summary: extras.summary, narrators: extras.narrators, surahs,
   verses, verse_source: L.quran,
   hadith, hadith_source: `fawazahmed0/hadith-api (${L.hadith.edition}-*)`, gaps,
-  usage: { calls: usage.calls + (reuse ? prev.usage?.calls ?? 0 : 0),
-    input_tokens: usage.input_tokens + (reuse ? prev.usage?.input_tokens ?? 0 : 0),
-    output_tokens: usage.output_tokens + (reuse ? prev.usage?.output_tokens ?? 0 : 0),
-    input_usd: Math.round(usage.input_tokens * PRICE_IN * 10000) / 10000,
-    output_usd: Math.round(usage.output_tokens * PRICE_OUT * 10000) / 10000,
-    cost_usd: Math.round((prevCost + usage.input_tokens * PRICE_IN + usage.output_tokens * PRICE_OUT) * 10000) / 10000 },
+  usage: { calls: total('calls'), input_tokens: total('input_tokens'), output_tokens: total('output_tokens'),
+    cost_usd: round(total('cost_usd')), by_model: byModel },
   ...(reuse && prev.review ? { review: prev.review } : {}),
 };
 
@@ -290,6 +380,8 @@ const trResult = {
 };
 writeFileSync(join(folder, `reader_${L.code}.txt`), buildReaderView(transcript, trResult, { untranslated: L.untranslated }), 'utf8');
 writeFileSync(join(folder, 'result.json'), JSON.stringify(result, null, 2), 'utf8');
-console.log(`✓ ${blocks.length} blocks, ${Object.keys(verses).length} verses, ${Object.keys(hadith).length} hadith in ${L.name} — ` +
-  `${usage.calls} ${MODEL} call(s) this run, ${usage.input_tokens} in / ${usage.output_tokens} out tokens, ` +
-  `$${Math.round((usage.input_tokens * PRICE_IN + usage.output_tokens * PRICE_OUT) * 10000) / 10000} (total $${result[F].usage.cost_usd})`);
+const thisRun = Object.entries(usage).map(([m, u]) =>
+  `${m}: ${u.calls} call(s), ${u.input_tokens} in / ${u.output_tokens} out tokens, $${round(u.cost_usd)}`).join('; ');
+console.log(`✓ ${blocks.length} blocks (${blockCount.map(([m, n]) => `${n} ${m}`).join(', ')}), ` +
+  `${Object.keys(verses).length} verses, ${Object.keys(hadith).length} hadith in ${L.name} — ` +
+  `this run: ${thisRun || 'no calls'}; $${round(spent)} (total $${result[F].usage.cost_usd})`);

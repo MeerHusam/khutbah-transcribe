@@ -50,6 +50,25 @@ test('pipeline.js --transcript with a stub Claude: every stage runs and the read
   }
 });
 
+// 9 Oct 2026: Gemini answered with its working notes and the analysis, the English review and the
+// Urdu translation ran on them. A transcript that is not one stops before the analysis.
+test('a transcript that is not one stops pipeline.js before the analysis', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pipeline-test-'));
+  writeFileSync(join(dir, 'transcript.txt'), 'Ah, "اللهم مزق شملهم" is indeed "اللهم مزق شملهم". Let\'s write it. The transcription is highly accurate and follows all formatting rules.');
+  const run = spawnSync(process.execPath, ['--import', './tests/stubs/register.mjs', 'pipeline.js', '--transcript', join(dir, 'transcript.txt')], {
+    encoding: 'utf8', env: { ...process.env, ANTHROPIC_API_KEY: 'stub', STUB_ANALYSIS: join(dir, 'none.json') },
+  });
+  const out = run.stdout.match(/Output folder: (outputs\/[^/]+)\//)?.[1];
+  try {
+    assert.equal(run.status, 1);
+    assert.match(run.stderr, /the transcript is not usable \(\d+% of its letters are Arabic\): stopping before the analysis/);
+    assert.doesNotMatch(run.stdout, /Pre-scanning Quran zones/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+    if (out?.startsWith('outputs/') && out.includes('_pipeline-test-')) rmSync(out, { recursive: true, force: true });
+  }
+});
+
 // 18 Sep 2026 (Madinah): the analysis gave 57 translations for 58 chunks and every later block
 // showed its neighbour's English. A chunk missing from the keyed answer is translated on its own.
 test('a chunk the analysis left out is translated on its own; the others keep their place', async () => {
