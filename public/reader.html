@@ -1,7 +1,12 @@
 <!DOCTYPE html>
 <!-- reader.html — the reader: one page for every khutbah (4 Oct 2026; index.html, the English-only
-     reader, was folded in). The Arabic with its English and Urdu, the imam's recording and the voices;
-     a khutbah without Urdu or voices simply shows no switch for them. -->
+     reader, was folded in). Redesigned 12 Oct 2026 with Meer, in the home page's world (minbar at night):
+     two panes tied together, the imam's Arabic above and the language chosen below, each one continuous
+     text; scrolling either scrolls both to the same place, and the three gold stars between them. One gold
+     language line (a tap reads and hears it; العربية is the imam alone), a player of speed · −10s · play ·
+     +10s · voice, text size (three A's), and while a voice plays the phrase being read lit in both panes
+     (matched by meaning: core/align_phrases.js, served as result.align), hadith in green, the Quran in gold.
+     A khutbah without Urdu or voices simply shows no choice for them. -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -13,863 +18,498 @@
   <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Amiri:ital,wght@0,400;0,700;1,400&family=Reem+Kufi:wght@400;500;600;700&family=Noto+Naskh+Arabic:wght@400;500;600&family=Noto+Nastaliq+Urdu:wght@400;500&family=Noto+Serif+Bengali:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Kufam:wght@500;600&family=Readex+Pro:wght@300;400;500&family=Amiri:wght@400;700&family=Amiri+Quran&family=Noto+Naskh+Arabic&family=Noto+Nastaliq+Urdu:wght@400;500&family=Noto+Serif+Bengali:wght@400;500&display=swap" rel="stylesheet">
   <style>
+    /* The reader in the home page's world (12 Oct 2026): the minbar at night. Green-black ground, gold for
+       everything tapped and for the Quran, cream for the imam's words and their translation; no boxes around
+       passages, no coloured side borders. One gold language line (read and hear in one tap), one slim gold
+       player, and the page following the voice word by word. */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      /* Mosque-at-night palette */
-      --bg: #0a1611;
-      --bg-soft: #0e1d16;
-      --surface: #112519;
-      --surface-2: #16331f;
-      --surface-3: #1b3d27;
-      --border: rgba(217,184,106,0.16);
-      --border-soft: rgba(236,227,207,0.09);
-      --gold: #d9b86a;
-      --gold-bright: #ecd497;
-      --gold-deep: #b8923f;
-      --green: #38b27a;
-      --green-soft: #2a8a5f;
-      --green-glow: rgba(56,178,122,0.22);
-      --cream: #ece3cf;
-      --text: #ece3cf;
-      --text-muted: #9aa99c;
-      --text-dim: #74857a;
-      --bg-elev: #0d1d15;
-      --white: #112519;            /* legacy alias → surface, so old refs stay dark */
-      --green-light: rgba(56,178,122,0.12);
-      --gold-light: rgba(217,184,106,0.12);
-      --radius: 16px;
-      --font-ui: 'Inter', -apple-system, sans-serif;
-      --font-serif: 'Lora', Georgia, serif;
-      --font-ar: 'Amiri', 'Noto Naskh Arabic', serif;
-      --font-kufi: 'Reem Kufi', 'Noto Naskh Arabic', sans-serif;
-      /* Faint Rub-el-Hizb (8-point star) lattice */
-      --pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Cg fill='none' stroke='%23d9b86a' stroke-width='1'%3E%3Cpath d='M32 4 L60 32 L32 60 L4 32 Z'/%3E%3Cpath d='M14 14 H50 V50 H14 Z'/%3E%3C/g%3E%3C/svg%3E");
+      --night: #0B1712;
+      --night-2: #0F1F18;
+      --night-3: #15291F;
+      --line: rgba(216, 184, 108, .16);
+      --line-soft: rgba(236, 230, 214, .09);
+      --gold: #D8B86C;
+      --gold-dim: rgba(216, 184, 108, .42);
+      --gold-bright: #F1D58E;
+      --gold-ink: #1A1508;
+      --parchment: #E8D5A0;
+      --hadith: #93DDB7;          /* a hadith's words, in green (the imam, 9 Oct 2026) */
+      --hadith-dim: rgba(147, 221, 183, .5);
+      --green: #63C79B;
+      --cream: #ECE6D6;
+      --mist: #A6B3AA;
+      --dim: #85948B;
+      --display: "Kufam", "Readex Pro", system-ui, sans-serif;
+      --text: "Readex Pro", system-ui, sans-serif;
+      --ar: "Amiri", "Noto Naskh Arabic", serif;
+      --quran: "Amiri Quran", "Amiri", serif;
+      /* names the reader's code still uses */
+      --text-muted: var(--mist);
+      --text-dim: var(--dim);
+      --font-ui: var(--text);
+      --lattice: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Cg fill='none' stroke='%23D8B86C' stroke-width='1'%3E%3Cpath d='M32 4 L60 32 L32 60 L4 32 Z'/%3E%3Cpath d='M14 14 H50 V50 H14 Z'/%3E%3C/g%3E%3C/svg%3E");
+      color-scheme: dark;
     }
-
-    /* No blue box flashed over a tapped button on Android Chrome; keyboard focus still shows. */
-    html { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
-
+    html { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; scrollbar-color: #2A4236 var(--night); }
     body {
-      font-family: var(--font-ui);
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      overflow-x: hidden;
-      -webkit-font-smoothing: antialiased;
+      font: 300 17px/1.6 var(--text); background: var(--night); color: var(--cream);
+      min-height: 100vh; overflow-x: hidden; -webkit-font-smoothing: antialiased; font-variant-numeric: lining-nums;
     }
-    /* Subtle geometric lattice across the whole page */
+    /* the star lattice as endpapers behind the top of the page */
     body::before {
-      content: '';
-      position: fixed; inset: 0; z-index: 0;
-      background-image: var(--pattern);
-      background-size: 64px 64px;
-      opacity: 0.035;
-      pointer-events: none;
+      content: ''; position: absolute; inset: 0 0 auto 0; height: 760px; z-index: 0; pointer-events: none;
+      background: var(--lattice) 0 0 / 64px 64px; opacity: .05;
+      -webkit-mask-image: linear-gradient(to bottom, #000, transparent); mask-image: linear-gradient(to bottom, #000, transparent);
     }
     body > * { position: relative; z-index: 1; }
+    ::selection { background: rgba(216, 184, 108, .32); color: #FFF8E6; }
+    :focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 4px; }
+    a { color: inherit; }
+    button, input, textarea, select { font: inherit; color: inherit; caret-color: var(--gold); }
+    [hidden] { display: none !important; }
+    .hon { font-family: 'Noto Naskh Arabic', serif; font-style: normal; font-weight: 400; font-size: 1.15em; line-height: 1; }
 
-    ::selection { background: rgba(217,184,106,0.28); }
-
+    /* ── Header ── */
     header {
-      background: rgba(10,22,17,0.82);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      border-bottom: 1px solid var(--border);
-      padding: 12px 24px;
-      padding-top: max(12px, env(safe-area-inset-top));
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 10px 18px;
-      position: sticky;
-      top: 0;
-      z-index: 50;
+      position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: 16px;
+      padding: 9px max(20px, calc(50vw - 380px)); padding-top: max(9px, env(safe-area-inset-top));
+      background: rgba(11, 23, 18, .88); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--line-soft);
     }
+    .brand { display: flex; align-items: center; gap: 9px; text-decoration: none; color: var(--cream); font: 500 17px/1 var(--display); }
+    .brand img { width: 28px; height: 28px; display: block; }
+    .viewers { margin-left: auto; display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--mist); white-space: nowrap; }
+    .viewers b { color: var(--cream); font-weight: 500; font-variant-numeric: tabular-nums; }
+    .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
+    .viewers.online .live-dot { background: var(--green); box-shadow: 0 0 0 4px rgba(99, 199, 155, .16); }
+    .viewers .total-views, .khutbah-select { display: none; }
 
-    .header-left { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
-
-    .logo-mark {
-      width: 38px; height: 38px;
-      border-radius: 50%;
-      display: block;
-      box-shadow: 0 0 16px rgba(217,184,106,0.22);
-      flex-shrink: 0;
-    }
-
-    header h1 {
-      font-family: var(--font-serif);
-      font-size: 17px; font-weight: 600; white-space: nowrap;
-      color: var(--cream); letter-spacing: 0.2px;
-    }
-    header h1 .tld { color: var(--gold); }
-
-    /* Audio player: a bar along the bottom of the screen, as in music apps (Spotify, YouTube
-       Music), lined up with the reading column. Phones get a fuller layout further down.
-         ↺10 ( ▶ ) ↻10   0:28 ━━━━━━●━━━━━━━━━━ 15:41   1×   READ [English|اردو]  HEAR [Imam|English|اردو] */
-    .audio-player {
-      display: none;
-      position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
-      align-items: center;
-      gap: 14px;
-      padding: 10px max(24px, calc(50vw - 526px)) calc(10px + env(safe-area-inset-bottom));
-      background: rgba(10, 22, 17, 0.96);
-      -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-      border-top: 1px solid var(--border);
-      box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.35);
-    }
-    .audio-player .play-btn { width: 40px; height: 40px; }
-
-    .play-btn {
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      background: linear-gradient(145deg, var(--green), var(--green-soft));
-      border: none;
-      color: #06120c;
-      font-size: 13px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      transition: box-shadow 0.2s, transform 0.1s;
-      box-shadow: 0 0 14px var(--green-glow);
-    }
-    .play-btn:hover { box-shadow: 0 0 20px var(--green-glow); transform: scale(1.05); }
-
-    /* Skip back/forward 10s */
-    .skip-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 1px;
-      background: transparent;
-      border: none;
-      color: var(--gold);
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      padding: 2px;
-      flex-shrink: 0;
-      line-height: 1;
-    }
-    .skip-btn small { font-size: 9px; font-weight: 700; }
-    .skip-btn:hover { color: var(--gold-bright); }
-
-    /* Playback speed toggle */
-    .speed-btn {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--gold);
-      border-radius: 99px;
-      font-size: 11px;
-      font-weight: 600;
-      padding: 4px 9px;
-      cursor: pointer;
-      flex-shrink: 0;
-      min-width: 36px;
-      text-align: center;
-    }
-    .speed-btn:hover { background: var(--gold-light); }
-    .audio-player.ready { display: flex; }
-    .ap-handle, .ap-min, .audio-time { display: none; }
-    .ap-cur, .ap-dur { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; flex-shrink: 0; }
-    .ap-switches { order: 6; display: flex; align-items: center; gap: 14px; flex-shrink: 0; margin-left: 6px; }
-    .ap-transport { order: 1; } .ap-cur { order: 2; } .audio-scrubber { order: 3; } .ap-dur { order: 4; } .speed-btn { order: 5; }
-    .ap-transport { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-    /* Two switches, each named for what it controls: Read (the translation on screen) and
-       Hear (the imam, or an AI voice in English or Urdu), set apart so any text goes with any
-       audio. Every option shows, the chosen one lit. (One button naming the other option read
-       as the current state: "Imam" while the AI played; one switch for both left "Imam" with
-       no say over the text.) */
-    .ap-group { display: inline-flex; align-items: center; gap: 6px; }
-    .ap-group[hidden] { display: none; }
-    .ap-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); }
-    .seg { display: inline-flex; flex-shrink: 0; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: 99px; }
-    .seg button {
-      background: transparent; border: 0; border-radius: 99px; cursor: pointer; white-space: nowrap;
-      color: var(--text-muted); font-family: inherit; font-size: 11px; font-weight: 600; padding: 5px 10px;
-      line-height: 16px; /* Nastaliq's tall line would otherwise make the اردو side a circle */
-    }
-    .seg button.on { color: var(--bg); background: var(--gold); }
-
-    .audio-time {
-      font-size: 12px;
-      color: var(--text-muted);
-      font-weight: 500;
-      white-space: nowrap;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .audio-scrubber {
-      flex: 1;
-      min-width: 160px;
-      height: 4px;
-      accent-color: var(--gold);
-      cursor: pointer;
-    }
-
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      margin-left: auto;
-      flex: 0 0 auto;
-    }
-
-    /* Viewer counts */
-    .viewers {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12.5px;
-      color: var(--text-muted);
-      white-space: nowrap;
-    }
-    .live-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--text-dim);
-      display: inline-block;
-      flex-shrink: 0;
-    }
-    .viewers.online .live-dot {
-      background: var(--green);
-      box-shadow: 0 0 0 0 rgba(56,178,122,0.6);
-      animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(56,178,122,0.5); }
-      70% { box-shadow: 0 0 0 6px rgba(56,178,122,0); }
-      100% { box-shadow: 0 0 0 0 rgba(56,178,122,0); }
-    }
-    .viewers b { color: var(--cream); font-weight: 600; }
-
-    /* Khutbah switcher */
-    .khutbah-select {
-      font-family: inherit;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--cream);
-      background-color: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 9px;
-      padding: 7px 30px 7px 12px;
-      cursor: pointer;
-      max-width: 60vw;
-      appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23d9b86a' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 10px center;
-    }
-    .khutbah-select:hover { border-color: var(--gold); }
-    .khutbah-select option { background: var(--bg-soft); color: var(--cream); }
-
-    /* Layout */
-    .layout {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 32px 24px 120px; /* clears the player bar */
-      display: grid;
-      grid-template-columns: 1fr 320px;
-      gap: 24px;
-      align-items: start;
-    }
-
-    .khutbah-heading { margin-bottom: 22px; }
-    /* The way back to the list: the logo also goes home, but few would guess it. */
-    .back-home {
-      display: inline-block; margin-bottom: 14px;
-      font-size: 13px; font-weight: 500; color: var(--text-muted); text-decoration: none;
-    }
+    /* ── The page ── */
+    #app { max-width: 720px; margin: 0 auto; padding: 0 20px calc(120px + env(safe-area-inset-bottom)); }
+    .back-home { display: inline-flex; align-items: center; min-height: 40px; margin-top: 4px; font-size: 14px; color: var(--mist); text-decoration: none; }
     .back-home:hover { color: var(--gold); }
-    .khutbah-heading h2 {
-      font-family: var(--font-serif);
-      font-size: 26px; font-weight: 600; line-height: 1.3; color: var(--cream);
-    }
-    .khutbah-heading .speaker {
-      font-size: 13.5px; color: var(--gold); margin-top: 6px;
-      letter-spacing: 0.3px; font-weight: 500;
-    }
-    .khutbah-heading .meta-row {
-      display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px;
-      margin-top: 7px; font-size: 13px; color: rgba(255,255,255,0.55);
-    }
-    .khutbah-heading .meta-row a {
-      color: var(--gold); text-decoration: none; opacity: 0.85;
-    }
-    .khutbah-heading .meta-row a:hover { opacity: 1; text-decoration: underline; }
-    .khutbah-heading .meta-dot { opacity: 0.35; }
+    .meta-row { margin-top: 8px; font-size: 14px; line-height: 1.55; color: var(--mist); }
+    .meta-row span { display: inline; }
+    .meta-row span + span::before { content: '·'; margin: 0 8px; color: var(--dim); }
+    .meta-row a { color: var(--cream); text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px; }
+    .meta-row a:hover { text-decoration-color: var(--gold); }
 
-    /* Share card */
-    .share-card {
-      background:
-        linear-gradient(150deg, rgba(56,178,122,0.10) 0%, transparent 55%),
-        #112519;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 28px;
-      color: var(--cream);
-      margin-bottom: 24px;
-      position: relative;
-      overflow: hidden;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+    /* the languages, as on the home page: one tap reads and hears it; العربية is the imam alone */
+    .tongue-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 10px; margin-top: 14px; font: 400 17px/1.45 var(--text); color: var(--gold); }
+    .tongue-line .sep { color: var(--gold-dim); }
+    .tongue-line button {
+      border: 0; background: none; padding: 9px 2px 7px; color: var(--gold); cursor: pointer;
+      border-bottom: 2px solid transparent; transition: border-color .2s, color .2s;
     }
-    .share-card::before {
-      content: '';
-      position: absolute; inset: 0;
-      background-image: var(--pattern);
-      background-size: 70px 70px;
-      opacity: 0.07;
-      pointer-events: none;
-    }
-    /* Translations besides English (Urdu, Bengali …; core/languages.js): each block carries every
-       translation and the switch shows one (body.lang-<code>, and body.tr for any but English). Each
-       language's font, sizes and direction come from its file (langStyles below). */
-    .chunk-tr { display: none; }
-    body.tr .chunk-en { display: none; }
+    .tongue-line button[lang="ar"] { font-family: var(--ar); font-size: 1.05em; }
+    .tongue-line button[lang="ur"] { font-family: 'Noto Nastaliq Urdu', serif; font-size: .92em; line-height: 1.25; }
+    .tongue-line button[lang="bn"] { font-family: 'Noto Serif Bengali', serif; font-size: .92em; }
+    .tongue-line button:hover { border-bottom-color: var(--gold-dim); }
+    .tongue-line button[aria-pressed="true"] { color: #F3DFA6; border-bottom-color: var(--gold); }
+
+
+    /* every translation is in the page; the language shown is the body's lang-<code> (tr = any but English) */
+    .chunk-tr, .tr-inline { display: none; }
+    body.tr .chunk-en, body.tr .en-inline { display: none; }
     .chunk-tr[dir="rtl"] { text-align: right; }
     .chunk-tr .trans-ours { display: none; }
-    /* A verse card shows the recited part; the button swaps in the full verse. */
+    /* العربية alone: the imam's words without a translation beside them */
+    body.ar-only .reader-chunk :is(.chunk-en, .chunk-tr, .chunk-quran-translation, .verse-toggle) { display: none !important; }
+
+    /* labels and links in another script: readable, not the language files' small inline size */
+    body[class] .verse-toggle .tr-inline[lang] { font-size: 15px; }
+    .reader-chunk { position: relative; padding: 18px 0; border-bottom: 1px solid var(--line-soft); transition: opacity .35s; scroll-margin-top: 64px; }
+    .reader-chunk:last-child { border-bottom: 0; }
+    .reader-chunk[data-start] { cursor: pointer; }
+    /* while a voice plays, the passage being heard stays bright and the rest step back */
+    body.playing .reader-chunk:not(.chunk-active) { opacity: .45; }
+    .chunk-arabic { font: 400 22px/2 var(--ar); direction: rtl; text-align: right; color: var(--cream); margin-bottom: 8px; }
+    .chunk-english { font-size: 17px; line-height: 1.65; font-weight: 400; color: #D4D8CE; }
+    .chunk-english + .chunk-english { margin-top: 10px; }
+
+    /* following the voice, word by word (CSS Custom Highlight API: no markup added to the text):
+       the words said so far bright, the one being said gold with the home page's gold pen under it,
+       the rest of the passage dim */
+    ::highlight(kt-said) { color: #F4EEDD; }
+    ::highlight(kt-near) { color: #FBF3DC; }
+    ::highlight(kt-near-h), ::highlight(kt-said-h) { color: #B8F2D3; }
+    ::highlight(kt-near-q), ::highlight(kt-said-q) { color: var(--gold-bright); }
+    .pane-ar .reader-chunk[data-near] .chunk-arabic, .pane-ar .reader-chunk[data-near] .chunk-arabic * { color: rgba(234, 223, 191, .3); transition: color .3s; }
+    ::highlight(kt-word) { color: var(--gold-bright); text-decoration: underline; text-decoration-color: var(--gold); text-decoration-thickness: 2px; text-underline-offset: 7px; }
+    .reader-chunk[data-follow="ar"] .chunk-arabic, .reader-chunk[data-follow="ar"] .chunk-arabic * {
+      color: rgba(236, 230, 214, .4);
+    }
+
+    .khutbah-divider { display: flex; align-items: center; gap: 14px; margin: 44px 0 10px; }
+    .khutbah-divider::before, .khutbah-divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+    .khutbah-divider span { font: 500 16px/1.5 var(--display); color: var(--gold); white-space: nowrap; }
+
+    /* ── The Quran: the mushaf's script, in gold, set apart by space; its source a quiet gold link ── */
+    .chunk-arabic-quran { font-family: var(--quran); font-size: 23px; line-height: 2.2; color: var(--gold); text-align: center; padding: 6px 0 2px; }
+    .reader-chunk:has(.chunk-arabic-quran) :is(.chunk-en, .chunk-tr) { text-align: center; }
+    .chunk-quran-translation { font-size: 16px; line-height: 1.65; color: #E3D3A6; font-style: italic; text-align: center; margin-top: 4px; }
+    .inline-ayah { font-family: var(--quran); color: var(--gold); font-size: 1.04em; }
+    .inline-ayah-en { color: var(--gold); font-style: italic; }
+    .recited { font-weight: 500; }
+    .not-recited { opacity: .5; }
     .v-full { display: none; }
     .show-full-verse .v-full { display: inline; }
     .show-full-verse .v-part { display: none; }
     .verse-toggle .lbl-full, .show-full-verse .verse-toggle .lbl-part { display: none; }
     .show-full-verse .verse-toggle .lbl-full { display: inline; }
     .verse-toggle {
-      margin-top: 10px; font-family: var(--font-ui); font-size: 12px; color: var(--gold); background: none;
-      border: 1px solid rgba(217,184,106,0.35); border-radius: 7px; padding: 3px 10px; cursor: pointer;
+      display: block; margin: 4px auto 0; min-height: 44px; padding: 0 4px; border: 0; background: none; cursor: pointer;
+      color: var(--gold); font-size: 15px; text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px;
     }
-    .verse-toggle:hover { background: rgba(217,184,106,0.1); }
-    .tr-inline { display: none; }
-    body.tr .en-inline { display: none; }
-    .tr-source { font-family: var(--font-ui); font-size: 11px; color: var(--text-dim); margin-right: 4px; white-space: nowrap; }
-    .share-label {
-      font-family: var(--font-kufi);
-      font-size: 11px; text-transform: uppercase; letter-spacing: 0.18em;
-      color: var(--gold); margin-bottom: 12px; position: relative; z-index: 1;
+    .chunk-quran-cite, .chunk-hadith-cite {
+      display: inline-flex; align-items: center; gap: 6px; min-height: 36px; margin-top: 4px;
+      font-size: 14px; color: var(--gold); text-decoration: none;
     }
-    .share-text {
-      font-family: var(--font-serif);
-      font-size: 16px; line-height: 1.75;
-      margin-bottom: 22px; position: relative; z-index: 1; color: #e6dcc6;
-    }
-    .copy-btn {
-      display: inline-flex; align-items: center; gap: 6px;
-      background: rgba(217,184,106,0.12); border: 1px solid var(--border);
-      color: var(--gold-bright); padding: 9px 18px; border-radius: 9px;
-      font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s;
-      position: relative; z-index: 1;
-    }
-    .copy-btn:hover { background: rgba(217,184,106,0.2); }
+    .chunk-quran-cite strong, a.chunk-hadith-cite { font-weight: 400; text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px; }
+    .chunk-quran-cite:hover strong, a.chunk-hadith-cite:hover { text-decoration-color: var(--gold); }
 
-    /* Section */
-    .section {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); overflow: hidden; margin-bottom: 20px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
-    }
-    .section-header {
-      padding: 18px 22px; border-bottom: 1px solid var(--border-soft);
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    .section-header h2 {
-      font-family: var(--font-serif);
-      font-size: 17px; font-weight: 600; color: var(--cream);
-      display: flex; align-items: center; gap: 10px;
-    }
-    .section-header h2::before {
-      content: '۞'; color: var(--gold); font-size: 15px; opacity: 0.85;
-    }
-    .count-badge {
-      background: var(--gold-light); color: var(--gold-bright);
-      font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 20px;
-      border: 1px solid var(--border);
-    }
-    .section-body { padding: 22px; }
+    /* ── Hadith: parchment rather than gold, with its narrator and collection beneath ── */
+    .inline-hadith { color: var(--hadith); }
+    .inline-hadith-en { color: var(--hadith); font-style: italic; }
+    .restated { text-decoration: underline dotted var(--hadith-dim); text-decoration-thickness: 1.5px; text-underline-offset: 8px; }
+    .chunk-hadith-trans { margin-top: 8px; padding-left: 14px; border-left: 1px solid var(--hadith-dim); font-size: 15.5px; line-height: 1.7; color: var(--hadith); font-style: italic; }
+    .chunk-tr[dir="rtl"] .chunk-hadith-trans { padding: 0 14px 0 0; border-left: 0; border-right: 1px solid var(--hadith-dim); }
+    .src-cite, .src-cite-en { color: #BFA66B; }
+    .src-cite-en { font-style: italic; }
+    .trans-ours, .tr-source, .ref-en-source { font-size: 13px; color: var(--dim); white-space: nowrap; }
+    .trans-ours { display: inline-block; margin-left: 8px; cursor: help; }
 
-    .summary-text { font-size: 14.5px; line-height: 1.85; color: #cfc7b3; }
+    /* ── Every ayah and hadith, once more, as a list at the end ── */
+    .sources { margin-top: 64px; }
+    .section { margin-top: 36px; }
+    .section-header h2 { font: 600 22px/1.25 var(--display); color: var(--cream); }
+    .count-badge { margin-left: 6px; font: 300 15px var(--text); color: var(--mist); }
+    .section-body { margin-top: 6px; }
+    .ref-card, .hadith-card { padding: 18px 0; border-bottom: 1px solid var(--line-soft); }
+    .ref-card { cursor: pointer; }
+    .ref-card-header, .hadith-header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+    .ref-surah, .hadith-source { font-size: 16px; font-weight: 400; color: var(--gold); }
+    .hadith-source { color: var(--cream); }
+    .verify-badge, .collection-badge { font-size: 13.5px; color: var(--mist); }
+    .ref-arabic { margin-top: 8px; font: 400 21px/2.05 var(--ar); direction: rtl; text-align: right; color: var(--cream); }
+    .ref-arabic-full { font-family: var(--quran); color: var(--gold); }
+    .hadith-arabic { margin-top: 8px; font: 400 20px/2 var(--ar); direction: rtl; text-align: right; color: var(--hadith); }
+    .ref-english, .hadith-english { margin-top: 6px; font-size: 16px; line-height: 1.7; color: #D9DCD2; }
+    .hadith-english { font-style: italic; }
+    .ref-link { display: inline-flex; min-height: 40px; align-items: center; font-size: 15px; color: var(--gold); text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px; }
+    .tafsir-hint { font-size: 14px; color: var(--dim); }
 
-    /* Translation reader chunks */
-    .reader-chunk {
-      margin-bottom: 28px; padding: 16px 18px 28px;
-      border-bottom: 2px solid transparent;
-      border-image: linear-gradient(to right, transparent 4%, rgba(217,184,106,0.6) 50%, transparent 96%) 1;
-      border-radius: 10px; transition: background 0.3s, box-shadow 0.3s;
+    /* ── The player: one slim gold bar along the bottom ── */
+    .audio-player {
+      display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+      padding: 0 max(14px, calc(50vw - 360px)) calc(6px + env(safe-area-inset-bottom));
+      background: rgba(11, 23, 18, .95); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+      border-top: 1px solid var(--line);
     }
-    .reader-chunk:last-child { border-image: none; border-bottom: none; margin-bottom: 0; padding-bottom: 16px; }
-    .reader-chunk[data-start] { cursor: pointer; }
-    /* Following along, as in Apple Music's word-by-word lyrics: in the block being heard, the
-       words already said are bright, the rest dim, and the word being said gold and heavier.
-       CSS Custom Highlight API, so no markup is added to the text; the heavier weight is an
-       outline (-webkit-text-stroke), because real bold would widen the word and shift the line.
-       data-follow names the text that follows the audio: ar (the imam), en, ur, bn … (a voice). */
-    ::highlight(kt-said) { color: #efe6cf; }
-    ::highlight(kt-word) { color: #f0cf7a; -webkit-text-stroke-width: 0.7px; -webkit-text-stroke-color: #f0cf7a; }
-    .reader-chunk[data-follow="ar"] .chunk-arabic, .reader-chunk[data-follow="ar"] .chunk-arabic *,
-    .reader-chunk[data-follow="en"] :is(.chunk-en .chunk-english, .chunk-en .chunk-hadith-trans, .chunk-quran-translation:not(.chunk-tr)),
-    .reader-chunk[data-follow="en"] :is(.chunk-en .chunk-english, .chunk-en .chunk-hadith-trans, .chunk-quran-translation:not(.chunk-tr)) *,
-    .reader-chunk[data-follow]:not([data-follow="ar"], [data-follow="en"]) :is(.chunk-tr .chunk-english, .chunk-tr .chunk-hadith-trans, .chunk-quran-translation.chunk-tr),
-    .reader-chunk[data-follow]:not([data-follow="ar"], [data-follow="en"]) :is(.chunk-tr .chunk-english, .chunk-tr .chunk-hadith-trans, .chunk-quran-translation.chunk-tr) * {
-      color: rgba(214, 204, 178, 0.42);
+    .audio-player.ready {
+      display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "bar bar bar bar" "play time speed voice";
+      align-items: center; column-gap: 10px;
     }
-    .reader-chunk[data-start]:hover { background: var(--surface-2); }
-    .reader-chunk.chunk-active {
-      background: var(--surface-3);
-      box-shadow: inset 3px 0 0 var(--green), 0 0 24px rgba(56,178,122,0.12);
+    .audio-scrubber {
+      grid-area: bar; -webkit-appearance: none; appearance: none; width: calc(100% + 28px); height: 20px; margin: -10px -14px -2px;
+      background: transparent; cursor: pointer; --p: 0%;
     }
-
-    .khutbah-divider {
-      display: flex; align-items: center; text-align: center;
-      gap: 16px; margin: 34px 4px 26px; color: var(--gold);
+    .audio-scrubber::-webkit-slider-runnable-track { height: 3px; border-radius: 3px; background: linear-gradient(to right, var(--gold) var(--p), rgba(216, 184, 108, .22) var(--p)); }
+    .audio-scrubber::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -5.5px; border-radius: 50%; background: var(--gold-bright); border: 0; }
+    .audio-scrubber::-moz-range-track { height: 3px; border-radius: 3px; background: rgba(216, 184, 108, .22); }
+    .audio-scrubber::-moz-range-progress { height: 3px; border-radius: 3px; background: var(--gold); }
+    .audio-scrubber::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--gold-bright); border: 0; }
+    .ap-transport { grid-area: play; display: flex; align-items: center; gap: 4px; }
+    .play-btn {
+      width: 42px; height: 42px; border-radius: 50%; border: 0; cursor: pointer; flex: none;
+      display: grid; place-items: center; background: var(--gold); color: var(--gold-ink); transition: background .2s, transform .1s;
     }
-    .khutbah-divider::before, .khutbah-divider::after {
-      content: ''; flex: 1; height: 1px;
-      background: linear-gradient(to right, transparent, var(--gold-deep), transparent);
+    .play-btn:hover { background: #E4C67F; }
+    .play-btn:active { transform: scale(.96); }
+    .play-btn svg { width: 16px; height: 16px; }
+    .skip-btn { display: none; min-width: 48px; min-height: 44px; border: 0; background: none; cursor: pointer; color: var(--gold); font-size: 14px; font-variant-numeric: tabular-nums; }
+    .audio-time { grid-area: time; font-size: 13px; color: var(--mist); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .speed-btn {
+      grid-area: speed; min-width: 40px; min-height: 34px; padding: 0 8px; border: 1px solid var(--line); border-radius: 999px;
+      background: none; color: var(--gold); font-size: 13px; cursor: pointer;
     }
-    .khutbah-divider span {
-      font-family: var(--font-kufi); font-size: 15px; font-weight: 600;
-      white-space: nowrap; letter-spacing: .4px; color: var(--gold-bright);
-    }
-
-    .chunk-arabic {
-      font-family: var(--font-ar); font-size: 23px;
-      direction: rtl; text-align: right; line-height: 2.15; color: var(--cream); margin-bottom: 12px;
-    }
-    .chunk-english { font-size: 14.5px; line-height: 1.85; color: #c3bca8; }
-
-    .chunk-arabic-quran {
-      font-size: 25px; color: var(--gold-bright); background: rgba(217,184,106,0.06);
-      border-right: 3px solid var(--gold); padding: 10px 16px 10px 0; letter-spacing: 0.01em;
-      border-radius: 4px;
-    }
-    .chunk-quran-translation {
-      font-size: 13.5px; line-height: 1.75; color: #b89a5a;
-      font-style: italic; margin-top: 8px; padding-right: 4px;
-    }
-    .inline-ayah {
-      color: var(--gold-bright); background: rgba(217,184,106,0.09);
-      border-radius: 4px; padding: 1px 5px; font-size: 1.04em;
-      box-decoration-break: clone; -webkit-box-decoration-break: clone;
-    }
-    .inline-ayah-en {
-      color: var(--gold-bright); font-style: italic;
-      background: rgba(217,184,106,0.07); border-radius: 4px; padding: 1px 4px;
-      box-decoration-break: clone; -webkit-box-decoration-break: clone;
-    }
-    /* A hadith quoted inside the imam's prose — teal, matching its citation badge, so it
-       reads apart from both the surrounding speech and a gilded verse. */
-    .inline-hadith {
-      color: #9fe8c2; background: rgba(56,178,122,0.10);
-      border-radius: 4px; padding: 1px 5px;
-      box-decoration-break: clone; -webkit-box-decoration-break: clone;
-    }
-    /* Words the khateeb said again inside a hadith: not the Prophet's ﷺ repetition. */
-    .restated { text-decoration: underline dotted rgba(159,232,194,0.75); text-decoration-thickness: 1.5px; text-underline-offset: 7px; }
-    .inline-hadith-en {
-      color: #9fe8c2; font-style: italic;
-      background: rgba(56,178,122,0.08); border-radius: 4px; padding: 1px 4px;
-      box-decoration-break: clone; -webkit-box-decoration-break: clone;
-    }
-    /* The imam's attribution of a hadith — "رواه مسلم" / "Reported by Muslim". Styled as a
-       source line so it does not read as part of his speech. Arabic stays upright (Amiri
-       has no bold italic), English is bold italic. */
-    .src-cite { color: #7fcfa6; font-weight: 700; opacity: 0.9; }
-    .src-cite-en { color: #7fcfa6; font-weight: 600; font-style: italic; opacity: 0.9; }
-    /* A verse card shows the whole verse; when the imam recited only part of it, that part
-       is bold and the rest recedes, in the Arabic and (by sentence) in the translation. */
-    .recited { font-weight: 700; }
-    .not-recited { opacity: 0.55; }
-    /* Short-form honorifics (ﷺ ﵁ …): Noto Naskh Arabic has all of them; Amiri, Lora and Noto Nastaliq only ﷺ. */
-    .hon { font-family: 'Noto Naskh Arabic', serif; font-style: normal; font-weight: 400; font-size: 1.15em; line-height: 1; }
-    .chunk-quran-cite {
-      display: inline-flex; align-items: center; gap: 7px; margin-top: 8px;
-      padding: 5px 12px 5px 10px; background: rgba(217,184,106,0.08); border: 1px solid var(--border);
-      border-left: 3px solid var(--gold); border-radius: 6px;
-      font-size: 13px; font-weight: 500; color: var(--gold-bright); text-decoration: none; transition: background 0.15s;
-    }
-    .chunk-quran-cite:hover { background: rgba(217,184,106,0.16); }
-    .chunk-hadith-cite {
-      display: inline-block; margin-top: 8px; padding: 4px 12px;
-      background: rgba(56,178,122,0.08); border: 1px solid rgba(56,178,122,0.28); border-left: 3px solid var(--green);
-      border-radius: 6px; font-size: 12.5px; color: #8fe0b6; text-decoration: none; transition: background 0.15s;
-    }
-    a.chunk-hadith-cite:hover { background: rgba(56,178,122,0.16); }
-    /* Published sunnah.com translation of the hadith — distinct from the prose
-       translation above it, which renders as .chunk-english */
-    .chunk-hadith-trans {
-      margin-top: 10px; padding: 10px 14px;
-      background: rgba(56,178,122,0.05); border-left: 2px solid rgba(56,178,122,0.45);
-      border-radius: 4px; font-size: 14px; line-height: 1.75;
-      color: #bfe8d1; font-style: italic;
-    }
-
-    /* Quran refs */
-    .ref-card {
-      border: 1px solid var(--border); border-left: 4px solid var(--gold);
-      background: var(--surface-2); border-radius: 10px; padding: 16px 18px; margin-bottom: 12px;
-      cursor: pointer; transition: all 0.2s; position: relative;
-    }
-    .ref-card:last-child { margin-bottom: 0; }
-    .ref-card:hover { background: var(--surface-3); box-shadow: 0 0 0 3px rgba(217,184,106,0.12); }
-    .ref-card-header {
-      display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px;
-    }
-    .ref-surah { font-family: var(--font-serif); font-size: 15px; font-weight: 600; color: var(--gold-bright); }
-    .ref-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-    .verify-badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 500; }
-    .verify-agree { background: rgba(56,178,122,0.16); color: #6ee7a8; }
-    .verify-claude { background: rgba(217,184,106,0.16); color: var(--gold-bright); }
-    .verify-algo { background: rgba(129,140,248,0.16); color: #a5b4fc; }
-    .verify-disagree { background: rgba(248,113,113,0.16); color: #fca5a5; }
-    .ref-arabic {
-      font-family: var(--font-ar); font-size: 20px;
-      direction: rtl; text-align: right; line-height: 2.1; color: var(--cream); margin-bottom: 8px;
-    }
-    .ref-arabic-full { font-size: 23px; color: var(--gold-bright); letter-spacing: 0.01em; }
-    .ref-link {
-      display: inline-flex; align-items: center; gap: 5px; margin-top: 8px;
-      padding: 5px 12px; background: transparent; border: 1px solid var(--border); border-radius: 6px;
-      font-size: 12px; font-weight: 500; color: var(--gold); text-decoration: none; transition: background 0.15s;
-    }
-    .ref-link:hover { background: var(--gold-light); }
-    .tafsir-hint { font-size: 12px; color: var(--text-dim); margin-top: 8px; }
-
-    /* Hadith refs */
-    .hadith-card { border: 1px solid var(--border-soft); background: var(--surface-2); border-radius: 10px; padding: 16px 18px; margin-bottom: 12px; }
-    .hadith-card:last-child { margin-bottom: 0; }
-    .hadith-header {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 10px; gap: 8px; flex-wrap: wrap;
-    }
-    .hadith-source { font-family: var(--font-serif); font-size: 14px; font-weight: 600; color: var(--cream); }
-    .collection-badge {
-      font-size: 11px; padding: 2px 9px; border-radius: 20px;
-      background: var(--gold-light); color: var(--gold-bright); font-weight: 500; border: 1px solid var(--border);
-    }
-    .hadith-arabic {
-      font-family: var(--font-ar); font-size: 19px;
-      direction: rtl; text-align: right; line-height: 2.05; color: #9fe8c2; margin-bottom: 8px;
-    }
-    /* Published translations under each reference: Sahih International for verses,
-       sunnah.com for hadith (the whole hadith, which is often longer than the quote). */
-    .ref-english, .hadith-english {
-      font-family: var(--font-serif); font-size: 14.5px; line-height: 1.75;
-      color: var(--text); margin: 4px 0 6px;
-    }
-    .hadith-english { font-style: italic; color: #cdeedd; }
-    .ref-en-source {
-      font-family: var(--font-ui); font-style: normal; font-size: 11px;
-      color: var(--text-dim); white-space: nowrap; margin-left: 4px;
-    }
-    /* The quote's English above is ours, not the published translation: the imam's words
-       differ from every published excerpt, or none could be matched safely. */
-    .trans-ours {
-      display: inline-block; margin: 8px 0 0 8px; font-family: var(--font-ui); font-size: 11px;
-      color: var(--text-dim); white-space: nowrap; cursor: help;
-    }
-    .hadith-card .collection-badge {
-      background: rgba(56,178,122,0.12); color: #9fe8c2; border-color: rgba(56,178,122,0.3);
-    }
-    .hadith-card .ref-link { color: #9fe8c2; border-color: rgba(56,178,122,0.3); }
-    .hadith-card .ref-link:hover { background: rgba(56,178,122,0.12); }
-    .hadith-note { font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 4px; }
-
-    /* Sidebar */
-    .sidebar-card {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); overflow: hidden; margin-bottom: 16px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
-    }
-    .sidebar-header {
-      padding: 14px 18px; border-bottom: 1px solid var(--border-soft);
-      font-family: var(--font-serif); font-size: 14px; font-weight: 600; color: var(--cream);
-    }
-    .sidebar-body { padding: 16px 18px; }
-    .stat-row {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 9px 0; border-bottom: 1px solid var(--border-soft); font-size: 13px;
-    }
-    .stat-row:last-child { border-bottom: none; padding-bottom: 0; }
-    .stat-label { color: var(--text-muted); }
-    .stat-value { font-weight: 600; color: var(--cream); }
-    .stat-green { color: var(--green); }
-
-    /* Tafsir popup */
-    .popup-overlay {
-      display: none; position: fixed; inset: 0; background: rgba(3,8,6,0.7);
-      backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
-      z-index: 200; align-items: center; justify-content: center; padding: 24px;
-    }
-    .popup-overlay.show { display: flex; }
-    .popup {
-      background: var(--bg-soft); border: 1px solid var(--border);
-      border-radius: var(--radius); max-width: 600px; width: 100%;
-      max-height: 80vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.6);
-    }
-    .popup-header {
-      padding: 20px 24px; border-bottom: 1px solid var(--border-soft);
-      display: flex; align-items: center; justify-content: space-between;
-      position: sticky; top: 0; background: var(--bg-soft);
-    }
-    .popup-header h3 { font-family: var(--font-serif); font-size: 17px; font-weight: 600; color: var(--cream); }
-    .popup-close {
-      width: 30px; height: 30px; border-radius: 50%; background: var(--surface-2);
-      border: 1px solid var(--border); cursor: pointer; font-size: 15px; color: var(--text-muted);
-      display: flex; align-items: center; justify-content: center;
-    }
-    .popup-close:hover { color: var(--cream); }
-    .popup-body { padding: 24px; }
-    .popup-arabic {
-      font-family: var(--font-ar); font-size: 24px; direction: rtl; text-align: right;
-      line-height: 2.1; background: rgba(217,184,106,0.06); border: 1px solid var(--border);
-      border-radius: 10px; padding: 20px; margin-bottom: 20px; color: var(--gold-bright);
-    }
-    .popup-tafsir-title {
-      font-family: var(--font-kufi);
-      font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
-      color: var(--gold); margin-bottom: 8px;
-    }
-    .popup-tafsir-text { font-size: 14px; line-height: 1.8; color: #c3bca8; margin-bottom: 16px; }
-    .popup-qurancom {
-      display: inline-flex; align-items: center; gap: 6px; color: var(--green);
-      font-size: 13px; font-weight: 500; text-decoration: none;
-    }
-    .popup-qurancom:hover { text-decoration: underline; }
-
-    /* Loading / empty */
-    .state-msg { text-align: center; padding: 80px 24px; color: var(--text-muted); }
-    .state-msg h2 { font-family: var(--font-serif); font-size: 19px; color: var(--cream); margin-bottom: 8px; }
-
-    /* Footer credit */
-    .site-footer {
-      text-align: center;
-      padding: 30px 24px calc(34px + env(safe-area-inset-bottom));
-      border-top: 1px solid var(--border);
-      color: var(--text-muted);
-      font-size: 13px;
-      position: relative; z-index: 1;
-    }
-    .site-footer strong { color: var(--cream); font-weight: 600; }
-    .site-footer a { color: var(--gold); text-decoration: none; font-weight: 500; margin: 0 6px; }
-    .site-footer a:hover { text-decoration: underline; }
-    .footer-sep { opacity: 0.4; }
-    .footer-sub { font-size: 12px; margin-top: 6px; opacity: 0.85; }
-
-    .about-credit { margin-top: 10px; }
-    .about-credit a { color: var(--gold); text-decoration: none; font-weight: 500; }
-    .about-credit a:hover { text-decoration: underline; }
-
-    .footer-feedback {
-      background: none; border: none; color: var(--gold);
-      font-family: inherit; font-size: 13px; font-weight: 500;
-      cursor: pointer; text-decoration: none; margin-top: 12px; padding: 0;
-    }
-    .footer-feedback:hover { text-decoration: underline; }
-
-    /* Feedback form fields */
-    .fb-intro { font-size: 13px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.5; }
-    .fb-field {
-      width: 100%; font-family: inherit; font-size: 14px; color: var(--cream);
-      background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px;
-    }
-    .fb-field::placeholder { color: var(--text-dim); }
-    .fb-field:focus { outline: none; border-color: var(--gold); }
-    textarea.fb-field { resize: vertical; min-height: 96px; }
-    .fb-send {
-      background: linear-gradient(145deg, var(--green), var(--green-soft)); color: #06120c; border: none; border-radius: 8px;
-      padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer;
-    }
-    .fb-send:hover { box-shadow: 0 0 16px var(--green-glow); }
-    .fb-send:disabled { opacity: 0.6; cursor: not-allowed; }
-    .fb-status { font-size: 13px; margin-top: 10px; min-height: 18px; }
-
-    /* ── Mobile ───────────────────────────────────────────────────── */
-    @media (max-width: 860px) {
-      .layout { grid-template-columns: 1fr; gap: 16px; padding: 20px 14px 90px; }
-      .sidebar { order: 2; }   /* stats below the reader on phones */
-    }
-    /* Tablets and small laptops: the switches take a second line inside the bar. */
-    @media (max-width: 920px) and (min-width: 601px) {
-      .audio-player.ready { flex-wrap: wrap; row-gap: 10px; }
-      .ap-switches { flex-basis: 100%; justify-content: center; gap: 18px; margin-left: 0; }
-      .layout { padding-bottom: 170px; }
-    }
-    @media (max-width: 600px) {
-      header { padding: 10px 14px; gap: 8px 12px; }
-      header h1 { font-size: 15px; }
-      /* The player floats at the bottom, in thumb reach, laid out like a music app's
-         (YouTube Music): the switches on their own row, a full-width bar with the times
-         under its ends, and play centred between its skips.
-                    ────            ⌄   (⌄, the handle, or a swipe down shrinks it)
-           READ                      HEAR
-           [English | اردو]          [Imam | English | اردو]
-           ━━━━━━━━━●━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-           0:28                                15:59
-           1×          ↺10    ( ▶ )    ↻10
-         Shrunk (.mini) it is one slim row while reading: ( ▶ ) ━━━━●━━━━ 0:28 / 15:59  ⌃
-         (⌃, a swipe up, or a tap on the bar opens it again)
-         Controls are 40-54px, and it clears the iPhone home bar. */
-      .audio-player.ready {
-        display: grid;
-        grid-template-columns: 1fr auto auto auto 1fr;
-        grid-template-areas:
-          "handle handle handle handle handle"
-          "sw sw sw sw sw"
-          "bar bar bar bar bar"
-          "cur cur . dur dur"
-          "speed back play fwd .";
-        align-items: center;
-        gap: 0 8px;
-        position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
-        min-width: 0; margin: 0;
-        padding: 0 16px calc(10px + env(safe-area-inset-bottom));
-        border: 1px solid var(--border); border-radius: 20px 20px 0 0; border-bottom: none;
-        touch-action: none; /* a swipe on the player moves the player, not the page behind */
-        background: rgba(10, 22, 17, 0.96);
-        -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-        box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.45);
-      }
-      .ap-handle {
-        grid-area: handle; display: flex; justify-content: center; align-items: center;
-        height: 26px; margin: 0 -16px; background: none; border: 0; cursor: pointer;
-      }
-      .ap-min {
-        display: flex; align-items: center; justify-content: center; position: absolute; top: 0; right: 6px;
-        width: 44px; height: 40px; background: none; border: 0; color: var(--text-muted); cursor: pointer;
-      }
-      .ap-handle span { width: 38px; height: 4px; border-radius: 4px; background: var(--border); }
-      /* Each switch with its name above it:  READ [English | اردو]    HEAR [Imam | English | اردو] */
-      /* A narrow phone (360 px) has no room for both on one row: Hear then goes under Read. */
-      .ap-switches { grid-area: sw; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 8px 10px; margin: 0 0 6px; }
-      .ap-group { flex-direction: column; align-items: flex-start; gap: 3px; }
-      .ap-label { padding-left: 4px; }
-      .seg button { min-height: 40px; padding: 0 12px; font-size: 13px; }
-      .audio-scrubber { grid-area: bar; width: 100%; min-width: 0; height: 26px; }
-      .audio-time { display: none; }
-      .ap-cur, .ap-dur { display: block; font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; margin-top: -2px; }
-      .ap-cur { grid-area: cur; justify-self: start; }
-      .ap-dur { grid-area: dur; justify-self: end; }
-      .ap-transport { display: contents; }
-      .skip-back { grid-area: back; } .skip-fwd { grid-area: fwd; }
-      .audio-player .play-btn { grid-area: play; width: 58px; height: 58px; margin: 2px 10px 0; }
-      .play-btn svg { width: 22px; height: 22px; }
-      .skip-btn { min-width: 48px; min-height: 48px; font-size: 21px; }
-      .speed-btn { grid-area: speed; justify-self: start; min-height: 38px; min-width: 50px; font-size: 13px; }
-      /* Shrunk: one slim row. */
-      .audio-player.ready.mini {
-        grid-template-columns: auto 1fr auto auto;
-        grid-template-areas: "handle handle handle handle" "play bar time min";
-        gap: 0 12px;
-      }
-      .audio-player.mini .ap-min { position: static; grid-area: min; width: 40px; height: 44px; margin-right: -10px; transform: rotate(180deg); }
-      .audio-player.mini .ap-switches, .audio-player.mini .ap-cur, .audio-player.mini .ap-dur,
-      .audio-player.mini .skip-btn, .audio-player.mini .speed-btn { display: none; }
-      .audio-player.mini .audio-time { display: block; grid-area: time; font-size: 12px; }
-      .audio-player.mini .play-btn { width: 44px; height: 44px; margin: 0; }
-      .audio-player.mini .play-btn svg { width: 16px; height: 16px; }
-      body.player-mini .layout { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
-      .layout { padding-bottom: calc(250px + env(safe-area-inset-bottom)); }
-      /* Brand and khutbah picker share the top row; the live count tucks under the name:
-           [logo] Khutbah.dev         [picker]
-                  ● 3 live                    */
-      header {
-        display: grid;
-        grid-template-columns: auto auto minmax(0, 1fr);
-        grid-template-areas: "logo name pick" "logo live pick";
-        align-items: center;
-        gap: 0 10px;
-      }
-      .header-left, .header-right { display: contents; }
-      .logo-mark { grid-area: logo; width: 34px; height: 34px; }
-      header h1 { grid-area: name; align-self: end; line-height: 1.2; font-size: 14.5px; }
-      .viewers { grid-area: live; align-self: start; font-size: 11px; gap: 5px; margin-top: 2px; }
-      .viewers .live-dot { width: 6px; height: 6px; }
-      /* The name stays whole; the picker takes what is left and truncates its label. */
-      .khutbah-select { grid-area: pick; justify-self: end; min-width: 0; max-width: 100%; font-size: 12.5px; padding: 6px 26px 6px 10px; text-overflow: ellipsis; }
-      .khutbah-heading h2 { font-size: 21px; }
-      .share-card { padding: 22px 18px; }
-      .section-body { padding: 16px; }
-      .reader-chunk { padding: 12px 14px 22px; margin-bottom: 22px; }
-      .chunk-arabic { font-size: 21px; }
-      .chunk-arabic-quran { font-size: 23px; }
-      .popup-overlay { padding: 12px; }
-      .popup-arabic { font-size: 21px; padding: 16px; }
-    }
-    /* The smallest phones (320px): the bottom row tightens so every control stays on screen. */
-    @media (max-width: 340px) {
-      .seg button { padding: 0 8px; font-size: 12px; }
-      .skip-btn { min-width: 40px; font-size: 19px; }
-      .audio-player .play-btn { width: 52px; height: 52px; margin: 2px 6px 0; }
-    }
-    /* Hidden while traffic is still small; the server keeps counting. Delete this
-       rule (and .badge-extra in home.html) to show unique + visits again. */
-    .viewers .total-views { display: none; }
-    /* The arrow back to the block being read, once the reader has scrolled away from it: just above
-       the player. */
-    .audio-player .back-to-active { position: absolute; right: max(16px, calc(50vw - 526px)); bottom: calc(100% + 14px); }
+    .ap-group { grid-area: voice; }
+    .seg { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--line); border-radius: 999px; }
+    .seg button { min-height: 30px; padding: 0 11px; border: 0; border-radius: 999px; background: none; color: var(--mist); font-size: 13px; line-height: 16px; white-space: nowrap; cursor: pointer; }
+    .seg button.on { background: var(--gold); color: var(--gold-ink); }
+    /* back to the passage being read, once the reader has scrolled away from it: just above the bar */
+    /* back to the part being read, once the reader has scrolled away from it: a round gold arrow on the right, just
+       above the player (as before the redesign; Meer) */
     .back-to-active {
-      width: 46px; height: 46px; border-radius: 50%; border: none; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      background: linear-gradient(135deg, var(--gold-bright), var(--gold-deep)); color: #0a1611;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+      position: absolute; right: max(16px, calc(50vw - 560px)); bottom: calc(100% + 14px); width: 48px; height: 48px; padding: 0;
+      display: grid; place-items: center; border: 0; border-radius: 50%; cursor: pointer;
+      background: var(--gold); color: var(--gold-ink); box-shadow: 0 10px 24px -8px rgba(0, 0, 0, .7);
     }
-    .back-to-active[hidden] { display: none; }
+    .back-to-active:hover { background: #E4C67F; }
+    .back-to-active svg { width: 22px; height: 22px; transition: transform .2s; }
     .back-to-active.up svg { transform: rotate(180deg); }
+
+    /* ── Footer, popups, states ── */
+    .site-footer { max-width: 720px; margin: 0 auto; padding: 28px 20px calc(130px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line-soft); font-size: 14.5px; color: var(--mist); }
+    .site-footer strong { color: var(--cream); font-weight: 400; }
+    .site-footer a, .footer-feedback { color: var(--gold); text-decoration: none; }
+    .site-footer a { margin-left: 12px; }
+    .footer-feedback { display: inline-flex; min-height: 44px; align-items: center; padding: 0; border: 0; background: none; cursor: pointer; }
+    .popup-overlay { display: none; position: fixed; inset: 0; z-index: 200; align-items: center; justify-content: center; padding: 16px; background: rgba(3, 8, 6, .72); }
+    .popup-overlay.show { display: flex; }
+    .popup { width: 100%; max-width: 600px; max-height: 82vh; overflow-y: auto; background: var(--night-2); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .7); }
+    .popup-header { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; background: var(--night-2); border-bottom: 1px solid var(--line-soft); }
+    .popup-header h3 { font: 600 19px/1.3 var(--display); color: var(--cream); }
+    .popup-close { width: 44px; height: 44px; border-radius: 50%; border: 0; background: none; color: var(--mist); font-size: 18px; cursor: pointer; }
+    .popup-close:hover { color: var(--cream); }
+    .popup-body { padding: 20px; }
+    .popup-arabic { margin-bottom: 18px; font: 400 24px/2.15 var(--quran); direction: rtl; text-align: right; color: var(--gold); }
+    .popup-tafsir-title { margin-bottom: 6px; font: 500 16px var(--display); color: var(--gold); }
+    .popup-tafsir-text { margin-bottom: 16px; font-size: 16px; line-height: 1.75; color: #D9DCD2; }
+    .popup-qurancom { color: var(--gold); font-size: 15px; }
+    .fb-intro { margin-bottom: 12px; font-size: 15px; color: var(--mist); }
+    .fb-field { width: 100%; margin-bottom: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--night); color: var(--cream); font-size: 16px; }
+    .fb-field::placeholder { color: var(--dim); }
+    .fb-field:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(216, 184, 108, .2); }
+    textarea.fb-field { min-height: 110px; resize: vertical; }
+    .fb-send { min-height: 48px; padding: 0 24px; border: 0; border-radius: 999px; background: var(--gold); color: var(--gold-ink); font-weight: 500; cursor: pointer; }
+    .fb-send:disabled { opacity: .5; }
+    .fb-status { min-height: 18px; margin-top: 10px; font-size: 14px; }
+    .state-msg { padding: 90px 0; text-align: center; color: var(--mist); }
+    .state-msg h2 { font: 600 22px var(--display); color: var(--cream); }
+
+    /* ── Computers: a little larger, the skips back in the bar ── */
+    @media (min-width: 901px) {
+      .tongue-line { font-size: 19px; }
+      .chunk-arabic { font-size: 25px; }
+      .chunk-arabic-quran { font-size: 26px; }
+      .chunk-english { font-size: 18px; }
+      .audio-player.ready { grid-template-columns: auto minmax(0, 1fr) auto auto; }
+      .skip-btn { display: inline-flex; align-items: center; justify-content: center; }
+    }
+    @media (max-width: 380px) {
+      .tongue-line { font-size: 16px; gap: 0 8px; }
+      .seg button { padding: 0 9px; }
+      .audio-player.ready { column-gap: 8px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .reader-chunk, .play-btn, .back-to-active svg { transition: none; }
+    }
+
+    /* ── Two teleprompters (the panes layout) ── */
+    /* The reader is a stage the size of the screen (between the header and the player); when a pane reaches its end the
+       page scrolls on, past the end of the khutbah, to every ayah and hadith and the khutbahs before and after (Meer) */
+    body { padding-bottom: var(--ply, 0px); }
+    body::before { display: none; }
+    #app { width: 100%; max-width: 720px; margin: 0 auto; padding: 0; }
+    .reader-stage { height: calc(100dvh - var(--hdr, 52px) - var(--ply, 0px)); min-height: 380px; display: flex; flex-direction: column; }
+    .site-footer { padding-bottom: 28px; }
+    .r-top { flex: none; padding: 0 20px; }
+    /* the opening (title, date, In Short, Share) sits above the reader; the reader keeps the whole screen below it,
+       and the page settles on it when reading starts (a scroll in a pane, or play) */
+    .r-head { padding: 0 20px 18px; }
+    html { scroll-snap-type: y proximity; }
+    .reader-stage { scroll-snap-align: start; scroll-margin-top: var(--hdr, 52px); }
+    .r-title { margin-top: 2px; font: 600 24px/1.2 var(--display); letter-spacing: -.005em; text-wrap: balance; color: var(--cream); }
+    .r-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 14px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+    .r-tools .tongue-line { margin-top: 4px; font-size: 20px; }
+    /* In Short: the first thing in the translation pane, scrolling away as the reader reads on */
+    .r-lede { margin-top: 12px; padding: 10px 0 2px; border-top: 1px solid var(--line-soft); max-width: 68ch; }
+    .r-lede-label { font: 500 14px/1.4 var(--display); color: var(--cream); }
+    .r-lede .share-text { margin-top: 4px; font-size: calc(19px * var(--ts, 1)); line-height: 1.55; font-weight: 400; color: #E2E4DB; }
+    .r-lede-links { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin-top: 10px; }
+    .share-btn { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px 0 13px; border: 1px solid var(--gold-dim); border-radius: 999px; background: none; color: var(--gold); font-size: 15px; cursor: pointer; }
+    .share-btn:hover { border-color: var(--gold); }
+    .share-btn svg { width: 18px; height: 18px; flex: none; }
+    body[class] .share-btn .tr-inline[lang] { font-size: 15px; }
+    .to-sources { display: inline-flex; align-items: center; gap: 5px; min-height: 40px; font-size: 14.5px; color: var(--gold); text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px; }
+    .to-sources:hover { text-decoration-color: var(--gold); }
+    body.rtl .r-lede { text-align: right; }
+    body[class] :is(.r-lede-label, .to-sources) .tr-inline[lang] { font-size: 15px; }
+
+    /* the imam's Arabic above in parchment, the translation below in cream, the three gold stars between them (Meer picked E) */
+    .panes { flex: 1; min-height: 0; display: grid; grid-template-rows: 1fr auto 1fr; }
+    /* the seam: the three stars with a gold line either side, fading out towards the edges (Meer picked it, 12 Oct) */
+    .stars-seam { display: flex; justify-content: center; align-items: center; gap: 14px; padding: 8px 20px 6px; color: var(--gold); }
+    .stars-seam svg { width: 16px; height: 16px; flex: none; }
+    .stars-seam::before, .stars-seam::after { content: ''; flex: 1; height: 1px; }
+    .stars-seam::before { margin-right: 4px; background: linear-gradient(to right, transparent, var(--gold)); }
+    .stars-seam::after { margin-left: 4px; background: linear-gradient(to left, transparent, var(--gold)); }
+    .pane {
+      position: relative; overflow-y: auto; overscroll-behavior-y: auto; padding: 14px 20px 0; scrollbar-width: none;
+      -webkit-mask-image: linear-gradient(transparent, #000 7%, #000 90%, transparent); mask-image: linear-gradient(transparent, #000 7%, #000 90%, transparent);
+    }
+    .pane::-webkit-scrollbar { display: none; }
+    .pane::after { content: ''; display: block; height: 66%; }
+    .pane-ar .chunk-arabic:not(.chunk-arabic-quran) { color: #EADFBF; }
+    /* the upper pane is the imam's words alone, the lower one the translation alone: continuous text, no rules between passages */
+    .pane-ar :is(.chunk-en, .chunk-tr, .chunk-quran-translation, .verse-toggle, .trans-ours) { display: none !important; }
+    .pane-tr .chunk-arabic { display: none; }
+    .pane :is(.reader-chunk, .tr-chunk) { position: relative; padding: 0 0 12px; border: 0; transition: opacity .35s; cursor: pointer; }
+    .pane .chunk-arabic { margin: 0; font-size: calc(30px * var(--ts, 1)); line-height: 1.85; }
+    .pane .chunk-arabic-quran { font-size: calc(30px * var(--ts, 1)); text-align: right; padding: 0; }
+    .pane-tr .chunk-english { font-size: calc(22px * var(--ts, 1)); line-height: 1.55; }
+    .pane-tr .chunk-hadith-trans { font-size: calc(20px * var(--ts, 1)); }
+    /* Urdu and Bengali as large as English (the language files size them for running text beside the Arabic) */
+    .pane-tr .chunk-tr[lang] :is(.chunk-english, .chunk-hadith-trans), .pane-tr .chunk-quran-translation.chunk-tr[lang] { font-size: calc(22px * var(--ts, 1)); }
+    .pane-tr .chunk-tr[lang="ur"] :is(.chunk-english, .chunk-hadith-trans), .pane-tr .chunk-quran-translation.chunk-tr[lang="ur"] { line-height: 2.25; }
+    .pane-tr .chunk-tr[lang="bn"] :is(.chunk-english, .chunk-hadith-trans), .pane-tr .chunk-quran-translation.chunk-tr[lang="bn"] { line-height: 1.75; }
+    .pane-tr :is(.chunk-en, .chunk-tr) { text-align: start; }
+    .pane-tr .chunk-quran-translation { text-align: start; margin: 0; font-size: calc(21px * var(--ts, 1)); }
+    /* text size: three A's, small to large */
+    .r-size { display: inline-flex; align-items: baseline; gap: 2px; margin-left: auto; }
+    .r-layout { display: none; gap: 2px; margin-left: auto; margin-right: -8px; }
+    .r-layout + .r-size { margin-left: 18px; }
+    .r-layout button { width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--gold-dim); cursor: pointer; }
+    .r-layout button:hover { color: var(--gold); }
+    .r-layout button[aria-pressed="true"] { color: var(--gold); border-bottom-color: var(--gold); }
+    .r-layout svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+    .r-size button { min-width: 40px; min-height: 40px; padding: 0 4px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--gold); cursor: pointer; font-family: var(--text); line-height: 1; }
+    .r-size button:nth-child(1) { font-size: 14px; } .r-size button:nth-child(2) { font-size: 18px; } .r-size button:nth-child(3) { font-size: 23px; }
+    .r-size button[aria-pressed="true"] { color: #F3DFA6; border-bottom-color: var(--gold); }
+    .pane :is(.chunk-quran-cite, .chunk-hadith-cite) { font-size: 16px; }
+
+    /* the player: part of the page (below the panes), the progress line with the time at both ends, then
+       speed · −10s · play · +10s · voice, play in the centre */
+    .audio-player { padding: 8px 16px calc(14px + env(safe-area-inset-bottom)); }
+    .audio-player.ready { display: grid; grid-template-columns: 1fr auto auto auto 1fr; grid-template-areas: "bar bar bar bar bar" "speed back play fwd voice"; align-items: center; column-gap: 6px; row-gap: 2px; }
+    .ap-bar { grid-area: bar; display: flex; align-items: center; gap: 10px; }
+    .ap-bar .audio-scrubber { flex: 1; width: auto; margin: 0; height: 28px; }
+    .ap-cur, .ap-dur { font-size: 14px; color: var(--mist); font-variant-numeric: tabular-nums; }
+    .audio-time { display: none; }
+    .ap-transport { display: contents; }
+    .skip-back { grid-area: back; } .skip-fwd { grid-area: fwd; }
+    .audio-player .skip-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 52px; min-height: 52px; font-size: 16px; color: var(--gold); }
+    .audio-player .play-btn { grid-area: play; width: 60px; height: 60px; margin: 0 6px; }
+    .audio-player .play-btn svg { width: 22px; height: 22px; }
+    .audio-player .speed-btn { grid-area: speed; justify-self: start; }
+    .audio-player .ap-group { grid-area: voice; justify-self: end; }
+    .audio-player .seg { display: none; }
+    .side-btn {
+      display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-width: 76px; min-height: 52px; padding: 4px 12px;
+      border: 1px solid var(--line); border-radius: 14px; background: none; color: var(--gold); cursor: pointer; line-height: 1.15;
+    }
+    .side-btn small { font-size: 12px; color: var(--mist); }
+    .side-btn b { font-size: 16px; font-weight: 500; }
+    .side-btn b[lang="ur"] { font-family: 'Noto Nastaliq Urdu', serif; font-size: 15px; line-height: 1.5; }
+    .side-btn b[lang="bn"] { font-family: 'Noto Serif Bengali', serif; }
+    .audio-player .skip-btn { min-width: 46px; }
+    .pane .khutbah-divider { margin: 16px 0 14px; }
+    body.playing .pane :is(.reader-chunk, .tr-chunk):not(.chunk-active) { opacity: .42; }
+    .tr-chunk[data-follow="en"] :is(.chunk-en .chunk-english, .chunk-en .chunk-hadith-trans, .chunk-quran-translation:not(.chunk-tr)),
+    .tr-chunk[data-follow="en"] :is(.chunk-en .chunk-english, .chunk-en .chunk-hadith-trans, .chunk-quran-translation:not(.chunk-tr)) *,
+    .tr-chunk[data-follow]:not([data-follow="ar"], [data-follow="en"]) :is(.chunk-tr .chunk-english, .chunk-tr .chunk-hadith-trans, .chunk-quran-translation.chunk-tr),
+    .tr-chunk[data-follow]:not([data-follow="ar"], [data-follow="en"]) :is(.chunk-tr .chunk-english, .chunk-tr .chunk-hadith-trans, .chunk-quran-translation.chunk-tr) * {
+      color: rgba(236, 230, 214, .32);
+    }
+    /* after the khutbah: its end, every ayah and hadith, the khutbahs before and after, across the whole width */
+    .after-reader { padding: 30px 20px 8px; }
+    .pane-end { padding: 26px 0 8px; text-align: center; }
+    .to-end { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin-top: 4px; padding: 0 18px; border: 1px solid var(--gold-dim); border-radius: 999px; background: none; color: var(--gold); font-size: 15px; cursor: pointer; }
+    .to-end:hover { border-color: var(--gold); }
+    .pane-ar .pane-end { display: none; }
+    body.ar-only .pane-ar .pane-end { display: block; }
+    body[class] .to-end .tr-inline[lang] { font-size: 15px; }
+    .end-mark { display: flex; align-items: center; gap: 14px; color: var(--gold); }
+    .end-mark svg { width: 16px; height: 16px; flex: none; }
+    .end-mark::before, .end-mark::after { content: ''; flex: 1; height: 1px; }
+    .end-mark::before { background: linear-gradient(to right, transparent, var(--gold)); }
+    .end-mark::after { background: linear-gradient(to left, transparent, var(--gold)); }
+    .end-label { margin-top: 10px; text-align: center; font: 500 15px/1.4 var(--display); color: var(--mist); }
+    .end-label .tr-inline[lang] { font-size: 16px; font-weight: 400; }
+    .after-reader .sources { margin-top: 10px; }
+    .khutbah-nav { display: grid; gap: 0; margin-top: 44px; border-top: 1px solid var(--line-soft); }
+    .khutbah-nav a { display: grid; gap: 2px; padding: 16px 2px; border-bottom: 1px solid var(--line-soft); text-decoration: none; }
+    .khutbah-nav small { font-size: 13.5px; color: var(--gold); }
+    .khutbah-nav b { font: 600 18px/1.3 var(--display); color: var(--cream); }
+    .khutbah-nav span { font-size: 14px; color: var(--mist); }
+    .khutbah-nav a:hover b { color: var(--gold-bright); }
+    .khutbah-nav .kn-next { text-align: right; }
+    /* العربية alone: the upper pane takes the whole space */
+    body.ar-only :is(.pane-tr, .stars-seam) { display: none; }
+    body.ar-only .panes { grid-template-rows: 1fr; }
+    @media (min-width: 901px) {
+      #app { max-width: 960px; }
+      body.side #app { max-width: 1180px; }
+      /* top and bottom, as on phones (Meer's choice); side by side when the reader picks it (body.side) */
+      .stars-seam { padding: 10px 28px 8px; }
+      body.side .panes { grid-template-rows: none; grid-template-columns: 1fr auto 1fr; }
+      body.side .stars-seam { flex-direction: column; padding: 18px 6px; }
+      .after-reader { padding: 44px 28px 8px; }
+      .after-reader .sources { display: grid; grid-template-columns: 1fr 1fr; gap: 0 56px; }
+      .after-reader .sources .section { margin-top: 36px; }
+      .khutbah-nav { grid-template-columns: 1fr 1fr; gap: 0 56px; }
+      body.side .stars-seam::before, body.side .stars-seam::after { width: 1px; height: auto; }
+      body.side .stars-seam::before { margin: 0 0 4px; background: linear-gradient(to bottom, transparent, var(--gold)); }
+      body.side .stars-seam::after { margin: 4px 0 0; background: linear-gradient(to top, transparent, var(--gold)); }
+      .r-layout { display: inline-flex; }
+      .pane { padding: 18px 28px 0; }
+      .pane .chunk-arabic, .pane .chunk-arabic-quran { font-size: calc(32px * var(--ts, 1)); }
+      .pane-tr .chunk-english { font-size: calc(22px * var(--ts, 1)); }
+      .audio-player { padding-left: max(28px, calc(50vw - 590px)); padding-right: max(28px, calc(50vw - 590px)); }
+      body.ar-only .panes { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+      body.ar-only .r-layout { display: none; }
+      header { padding-left: max(28px, calc(50vw - 590px)); padding-right: max(28px, calc(50vw - 590px)); }
+      .audio-player { padding-left: max(28px, calc(50vw - 590px)); padding-right: max(28px, calc(50vw - 590px)); }
+    }
+    .pane :is(.reader-chunk[data-near], .tr-chunk[data-follow]) :is(.inline-hadith, .inline-hadith-en, .chunk-hadith-trans),
+    .pane :is(.reader-chunk[data-near], .tr-chunk[data-follow]) :is(.inline-hadith, .inline-hadith-en, .chunk-hadith-trans) * { color: rgba(147, 221, 183, .38) !important; }
+    .pane :is(.reader-chunk[data-near], .tr-chunk[data-follow]) :is(.inline-ayah, .inline-ayah-en, .chunk-quran-translation, .chunk-arabic-quran),
+    .pane :is(.reader-chunk[data-near], .tr-chunk[data-follow]) :is(.inline-ayah, .inline-ayah-en, .chunk-quran-translation, .chunk-arabic-quran) * { color: rgba(216, 184, 108, .4) !important; }
+    /* phones: the languages and the three A's on one line */
+    @media (max-width: 900px) {
+      .r-tools .tongue-line { font-size: 17.5px; gap: 0 8px; }
+      .r-size { gap: 0; }
+      .r-size button { min-width: 32px; padding: 0 2px; }
+      .r-size button:nth-child(1) { font-size: 13px; } .r-size button:nth-child(2) { font-size: 16px; } .r-size button:nth-child(3) { font-size: 20px; }
+    }
+    @media (max-width: 900px) {
+      .back-home { min-height: 34px; margin-top: 0; font-size: 13.5px; }
+      .r-title { font-size: 21px; }
+      .meta-row { margin-top: 4px; font-size: 13.5px; }
+      .r-lede { margin-top: 10px; padding-top: 8px; }
+      .r-lede .share-text { font-size: calc(16.5px * var(--ts, 1)); line-height: 1.5; }
+      .r-lede-links { margin-top: 8px; }
+    }
+    @media (max-width: 380px) {
+      .r-tools .tongue-line { font-size: 16.5px; gap: 0 6px; }
+    }
+    /* the bar and the player solid: text never shows behind them */
+    header, .audio-player { background: var(--night); -webkit-backdrop-filter: none; backdrop-filter: none; }
   </style>
+
 </head>
 <body>
 
 <header>
-  <a class="header-left" href="/" style="text-decoration:none;color:inherit;">
-    <img class="logo-mark" src="/img/logo.svg" alt="" width="38" height="38">
-    <h1>Khutbah<span class="tld">.dev</span></h1>
-  </a>
-
-  <div class="header-right">
-    <span class="viewers" id="viewers" title="Live · unique visitors · total visits">
-      <span class="live-dot"></span>
-      <span><b id="liveCount">–</b> live</span>
-      <span class="total-views">· <b id="uniqueCount">–</b> unique · <b id="totalCount">–</b> visits</span>
-    </span>
-    <select class="khutbah-select" id="khutbahSelect" onchange="switchKhutbah(this.value)" aria-label="Choose a khutbah"></select>
-  </div>
+  <a class="brand" href="/"><img src="/img/logo.svg" alt="" width="34" height="34">Khutbah.dev</a>
+  <span class="viewers" id="viewers" title="People reading now">
+    <span class="live-dot" aria-hidden="true"></span>
+    <span><b id="liveCount">–</b> reading now</span>
+    <span class="total-views">· <b id="uniqueCount">–</b> unique · <b id="totalCount">–</b> visits</span>
+  </span>
+  <select class="khutbah-select" id="khutbahSelect" onchange="switchKhutbah(this.value)" aria-label="Choose a khutbah" tabindex="-1"></select>
 </header>
 
   <div class="audio-player" id="audioPlayer">
-    <button type="button" class="back-to-active" id="backToActive" hidden aria-label="Back to the part being read" title="Back to the part being read"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
-    <button type="button" class="ap-handle" id="apHandle" onclick="togglePlayerSize()" aria-label="Shrink or expand the player" aria-expanded="true"><span></span></button>
-    <button type="button" class="ap-min" id="apMin" onclick="togglePlayerSize()" aria-label="Shrink the player" title="Shrink the player"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
-    <div class="ap-switches">
-      <div class="ap-group" id="readGroup" role="group" aria-labelledby="readLabel">
-        <span class="ap-label" id="readLabel">Read in</span>
-        <span class="seg" id="readSwitch">
-          <button type="button" data-lang="en" aria-pressed="false" onclick="setLang('en')" title="The English translation on screen" aria-label="English">EN</button>
-        </span>
-      </div>
-      <div class="ap-group" id="hearGroup" role="group" aria-labelledby="hearLabel" hidden>
-        <span class="ap-label" id="hearLabel">Hear in</span>
-        <span class="seg" id="voiceSwitch">
-          <button type="button" data-voice="imam" class="on" aria-pressed="true" onclick="pickVoice('imam')" title="The imam's recording, in Arabic">Imam (Arabic)</button><button type="button" data-voice="en" aria-pressed="false" onclick="pickVoice('en')" title="The English translation, read aloud by an AI voice" aria-label="English" hidden>EN</button>
-        </span>
-      </div>
-    </div>
+    <button type="button" class="back-to-active" id="backToActive" hidden aria-label="Back to the part being read" title="Back to the part being read"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg></button>
+    <div class="ap-bar"><span class="ap-cur" id="apCur">0:00</span><input class="audio-scrubber" id="scrubber" type="range" min="0" max="100" value="0" step="0.1" aria-label="Position in the recording"><span class="ap-dur" id="apDur">0:00</span></div>
     <div class="ap-transport">
-      <button class="skip-btn skip-back" onclick="skip(-10)" title="Back 10 seconds" aria-label="Back 10 seconds">↺<small>10</small></button>
+      <button class="skip-btn skip-back" onclick="skip(-10)" title="Back 10 seconds" aria-label="Back 10 seconds">−10s</button>
       <button class="play-btn" id="playBtn" onclick="togglePlay()" aria-label="Play or pause">
-        <svg id="playIcon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg>
-        <svg id="pauseIcon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="display:none"><rect x="5" y="4" width="4" height="16"/><rect x="15" y="4" width="4" height="16"/></svg>
+        <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>
+        <svg id="pauseIcon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="display:none"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
       </button>
-      <button class="skip-btn skip-fwd" onclick="skip(10)" title="Forward 10 seconds" aria-label="Forward 10 seconds">↻<small>10</small></button>
+      <button class="skip-btn skip-fwd" onclick="skip(10)" title="Forward 10 seconds" aria-label="Forward 10 seconds">+10s</button>
     </div>
-    <input class="audio-scrubber" id="scrubber" type="range" min="0" max="100" value="0" step="0.1" aria-label="Position">
     <span class="audio-time" id="audioTime">0:00 / 0:00</span>
-    <span class="ap-cur" id="apCur">0:00</span><span class="ap-dur" id="apDur">0:00</span>
-    <button class="speed-btn" id="speedBtn" onclick="cycleSpeed()" title="Playback speed">1×</button>
+    <button class="speed-btn side-btn" id="speedBtn" onclick="cycleSpeed()" aria-label="Playback speed"><small>Speed</small><b id="speedVal">1×</b></button>
+    <div class="ap-group" id="hearGroup" role="group" aria-label="Voice" hidden>
+      <button type="button" class="side-btn" id="voiceToggle" onclick="toggleVoice()" aria-label="Voice: switch between the imam and the translation"><small>Voice</small><b id="voiceVal">Imam</b></button><span class="seg" id="voiceSwitch"><button type="button" data-voice="imam" class="on" aria-pressed="true" onclick="pickVoice('imam')" title="The imam's recording, in Arabic">Imam</button><button type="button" data-voice="en" aria-pressed="false" onclick="pickVoice('en')" title="The English translation, read aloud" hidden>English</button></span>
+    </div>
   </div>
 
 <div id="app">
@@ -877,12 +517,8 @@
 </div>
 
 <footer class="site-footer">
-  Built by <strong>Meer Husamuddin</strong>
-  <span class="footer-sep">·</span>
-  <a href="https://www.linkedin.com/in/meerhusam" target="_blank" rel="noopener">LinkedIn</a>
-  <a href="https://github.com/MeerHusam" target="_blank" rel="noopener">GitHub</a>
-  <div class="footer-sub">Khutbah transcribed &amp; translated with AI</div>
-  <div><button class="footer-feedback" onclick="openFeedback()">Send feedback</button></div>
+  Made by <strong>Meer Husamuddin</strong> in Riyadh.<a href="https://www.linkedin.com/in/meerhusam" target="_blank" rel="noopener">LinkedIn</a><a href="https://github.com/MeerHusam/khutbah-transcribe" target="_blank" rel="noopener">GitHub</a>
+  <div><button class="footer-feedback" onclick="openFeedback()">Tell us what to fix</button></div>
 </footer>
 
 <!-- Feedback modal -->
@@ -943,7 +579,7 @@
     }
     document.querySelectorAll('#readSwitch [data-lang]:not([data-lang="en"]), #voiceSwitch [data-voice]:not([data-voice="imam"], [data-voice="en"])').forEach(b => b.remove());
     for (const L of langs) {
-      document.getElementById('readSwitch').insertAdjacentHTML('beforeend', `<button type="button" data-lang="${L.code}" lang="${L.code}" aria-pressed="false" onclick="setLang('${L.code}')" title="The ${L.name} translation on screen">${L.native}</button>`);
+      document.getElementById('readSwitch')?.insertAdjacentHTML('beforeend', `<button type="button" data-lang="${L.code}" lang="${L.code}" aria-pressed="false" onclick="setLang('${L.code}')" title="The ${L.name} translation on screen">${L.native}</button>`);
       document.getElementById('voiceSwitch').insertAdjacentHTML('beforeend', `<button type="button" data-voice="${L.code}" lang="${L.code}" aria-pressed="false" onclick="pickVoice('${L.code}')" title="The ${L.name} translation, read aloud by an AI voice" hidden>${L.native}</button>`);
     }
   }
@@ -991,6 +627,10 @@
     TR = result.languages || [];
     langStyles(TR);
     document.getElementById('app').innerHTML = renderResults(result);
+    setupPanes();
+    sizeStage();
+    setupSize();
+    setupLayout();
     shortenHonorifics(document.getElementById('app'));
     // The language a page opens in: ?lang= in a shared link, else the reader's last choice, else the
     // phone's language when the khutbah has it, else the first translation (Urdu), else English.
@@ -1000,13 +640,24 @@
     const phone = (navigator.languages || []).map(l => l.slice(0, 2)).find(l => l !== 'en' && has(l));
     const lang = [new URLSearchParams(location.search).get('lang'), saved, phone, TR[0]?.code].find(l => l && has(l)) || 'en';
     // The language switch lives in the player only; it shows when the khutbah has a translation.
-    document.getElementById('readGroup').hidden = !TR.length;
     setLang(lang, false);
     enhanceQuranRefs(quranRefs);
     if (result.audio_url) initAudio(result.audio_url);
   }
 
+  // The khutbahs before and after this one, at the same masjid when it has others (the list is newest first).
+  let ITEMS = [];
+  function khutbahNav() {
+    const here = ITEMS.find(i => i.folder === currentFolder);
+    if (!here) return '';
+    const same = ITEMS.filter(i => i.masjid && i.masjid === here.masjid);
+    const list = same.length > 1 ? same : ITEMS;
+    const k = list.indexOf(here), older = list[k + 1], newer = list[k - 1];
+    const link = (i, cls, label) => i ? `<a class="${cls}" href="/${encodeURIComponent(i.slug || '')}"><small>${label}</small><b>${escHtml(i.title || 'Friday Khutbah')}</b><span>${escHtml([i.date, i.masjid].filter(Boolean).join(' · '))}</span></a>` : '<span></span>';
+    return older || newer ? `<nav class="khutbah-nav" aria-label="Other khutbahs">${link(older, 'kn-prev', '← ' + uiText('Previous khutbah'))}${link(newer, 'kn-next', uiText('Next khutbah') + ' →')}</nav>` : '';
+  }
   function populateSwitcher(list) {
+    ITEMS = list.items || [];
     const sel = document.getElementById('khutbahSelect');
     slugByFolder = new Map((list.items || []).map(i => [i.folder, i.slug]));
     sel.innerHTML = (list.items || []).map(i =>
@@ -1080,95 +731,76 @@
       : transcriptionMode.startsWith('gemini') ? 'Gemini'
       : transcriptionMode || 'n/a';
 
+    const masjid = r.masjid ? (r.maps_url ? `<a href="${escAttr(r.maps_url)}" target="_blank" rel="noopener">${escHtml(r.masjid)}</a>` : escHtml(r.masjid)) : '';
+    const khateeb = r.speaker && !/^friday khutbah$/i.test(r.speaker) ? escHtml(r.speaker) : '';
+    const tongues = [['ar', 'العربية', 'ar'], ['en', 'English', ''], ...TR.map(L => [L.code, L.native, L.code])];
+    const khutbah = renderTranslation(r);
     return `
-    <div class="layout">
-      <div class="main-col">
-
+    <div class="r-head">
         <a class="back-home" href="/#khutbahs">← All khutbahs</a>
-        ${r.title ? `<div class="khutbah-heading">
-          <h2>${escHtml(r.title)}</h2>
-          ${r.speaker ? `<div class="speaker">${escHtml(r.speaker)}</div>` : ''}
-          <div class="meta-row">
-            ${r.masjid ? (r.maps_url
-              ? `<a href="${escAttr(r.maps_url)}" target="_blank" rel="noopener">${escHtml(r.masjid)}</a>`
-              : `<span>${escHtml(r.masjid)}</span>`) : ''}
-            ${r.masjid && r.date ? `<span class="meta-dot">·</span>` : ''}
-            ${r.date ? `<span>${escHtml(r.date)}</span>` : ''}
-          </div>
-        </div>` : ''}
-
-
-        <div class="share-card">
-          <div class="share-label">${bi('In Short')}</div>
+        <h2 class="r-title">${escHtml(r.title || 'Friday Khutbah')}</h2>
+        <p class="meta-row">${r.date ? `<span>${escHtml(r.date)}</span>` : ''}${masjid ? `<span>${masjid}</span>` : ''}${khateeb ? `<span>${khateeb}</span>` : ''}</p>
+        <section class="r-lede" aria-label="In short">
+          <p class="r-lede-label">${bi('Summary')}</p>
           <p class="share-text${TR.length ? ' chunk-en' : ''}">${escHtml(r.share_summary || r.summary || '')}</p>
           ${trShare('share_summary')}
-          <button class="copy-btn" onclick="copyShare()">${bi('Copy for WhatsApp')}</button>
-        </div>
-
-        <div class="share-card">
-          <div class="share-label">${bi('Summary')}</div>
-          <p class="share-text${TR.length ? ' chunk-en' : ''}">${escHtml(r.summary || 'No summary available.')}</p>
-          ${trShare('summary')}
-        </div>
-
-        <div class="share-card" style="padding-bottom: 8px;">
-          <div class="share-label">${bi('Full Translation')}</div>
-          ${renderTranslation(r)}
-        </div>
-
-        <div class="section">
-          <div class="section-header">
-            <h2>Quranic References <span class="count-badge">${matched}/${qRefs.length} matched</span></h2>
-          </div>
-          <div class="section-body">
-            ${qRefs.length === 0
-              ? '<p style="color:var(--text-muted);font-size:14px;">No Quranic references detected.</p>'
-              // Listed in mushaf order (surah, then ayah). Each card keeps its original
-              // index, which the tafsir popup and verse-text loader look it up by.
-              : qRefs.map((q, i) => [q, i])
-                  .sort(([a, ia], [b, ib]) => (a.surah_number || 999) - (b.surah_number || 999)
-                    || (a.ayah_number || 0) - (b.ayah_number || 0) || ia - ib)
-                  .map(([q, i]) => renderQuranRef(q, i)).join('')}
-          </div>
-        </div>
-
-        <div class="section">
-          <div class="section-header">
-            <h2>Hadith References <span class="count-badge">${hadithRefs.length} found</span></h2>
-          </div>
-          <div class="section-body">
-            ${hadithRefs.length === 0
-              ? '<p style="color:var(--text-muted);font-size:14px;">No hadith references detected.</p>'
-              : hadithRefs.map(renderHadithRef).join('')}
-          </div>
-        </div>
-
+          <p class="r-lede-links"><button type="button" class="share-btn" id="shareBtn" onclick="shareKhutbah()"><svg viewBox="0 0 256 256" aria-hidden="true"><path fill="currentColor" d="M216,112v96a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V112A16,16,0,0,1,56,96H80a8,8,0,0,1,0,16H56v96H200V112H176a8,8,0,0,1,0-16h24A16,16,0,0,1,216,112ZM93.66,69.66,120,43.31V136a8,8,0,0,0,16,0V43.31l26.34,26.35a8,8,0,0,0,11.32-11.32l-40-40a8,8,0,0,0-11.32,0l-40,40A8,8,0,0,0,93.66,69.66Z"/></svg><span class="share-lbl">${bi('Share')}</span></button>${qRefs.length + hadithRefs.length ? `<a class="to-sources" href="#sources" onclick="event.preventDefault(); toSources()">${bi('Sources')} (${qRefs.length + hadithRefs.length}) ↓</a>` : ''}</p>
+        </section>
       </div>
-
-      <div class="sidebar">
-        <div class="sidebar-card">
-          <div class="sidebar-header">Stats</div>
-          <div class="sidebar-body">
-            <div class="stat-row"><span class="stat-label">Words transcribed</span><span class="stat-value">${wordCount.toLocaleString()}</span></div>
-            <div class="stat-row"><span class="stat-label">Quran ayaat</span><span class="stat-value stat-green">${matched}/${qRefs.length}</span></div>
-            <div class="stat-row"><span class="stat-label">Hadith references</span><span class="stat-value">${hadithRefs.length}</span></div>
-            <div class="stat-row"><span class="stat-label">Transcription</span><span class="stat-value">${modeLabel}</span></div>
-          </div>
-        </div>
-        <div class="sidebar-card">
-          <div class="sidebar-header">About</div>
-          <div class="sidebar-body" style="font-size:13px;color:var(--text-muted);line-height:1.65;">
-            Quran ayaat are verified using dual-verification: Claude AI + a local matching algorithm. Hadith references are matched against a local corpus and linked to sunnah.com.
-            <div class="about-credit">
-              Built by <strong style="color:var(--cream);">Meer Husamuddin</strong> ·
-              <a href="https://www.linkedin.com/in/meerhusam" target="_blank" rel="noopener">LinkedIn</a> ·
-              <a href="https://github.com/MeerHusam" target="_blank" rel="noopener">GitHub</a>
-            </div>
-          </div>
-        </div>
+    <div class="reader-stage" id="stage">
+    <div class="r-top" id="rTop">
+      <div class="r-tools">
+        <p class="tongue-line" id="tongues" role="group" aria-label="Language">${tongues.map(([c, name, lang], i) => (i ? '<span class="sep" aria-hidden="true">·</span>' : '') + `<button type="button" data-l="${c}"${lang ? ` lang="${lang}"` : ''} aria-pressed="false" onclick="chooseLang('${c}')"${c === 'ar' ? ' title="The imam\'s own words, in his voice"' : ''}>${name}</button>`).join('')}</p>
+        <div class="r-layout" id="layoutSwitch" role="group" aria-label="Layout"><button type="button" data-layout="stack" aria-pressed="true" aria-label="Arabic above the translation" title="Arabic above the translation"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="7" rx="1.5"/><rect x="4" y="13" width="16" height="7" rx="1.5"/></svg></button><button type="button" data-layout="side" aria-pressed="false" aria-label="Arabic beside the translation" title="Arabic beside the translation"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="16" rx="1.5"/><rect x="13" y="4" width="7" height="16" rx="1.5"/></svg></button></div>
+        <div class="r-size" id="textSize" role="group" aria-label="Text size"><button type="button" data-ts="0.86" aria-label="Smaller text" aria-pressed="false">A</button><button type="button" data-ts="1" aria-label="Normal text" aria-pressed="true">A</button><button type="button" data-ts="1.16" aria-label="Larger text" aria-pressed="false">A</button></div>
       </div>
-    </div>`;
+    </div>
+    <div class="panes" id="panes">
+      <div class="pane pane-ar" id="paneAr" aria-label="The imam's Arabic">${khutbah}<div class="pane-end"><button type="button" class="to-end" onclick="toSources()">${bi('Every ayah and hadith, with its source')} ↓</button></div></div>
+      <div class="stars-seam" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.2" y="5.2" width="13.6" height="13.6"/><rect x="5.2" y="5.2" width="13.6" height="13.6" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="2.3"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.2" y="5.2" width="13.6" height="13.6"/><rect x="5.2" y="5.2" width="13.6" height="13.6" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="2.3"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.2" y="5.2" width="13.6" height="13.6"/><rect x="5.2" y="5.2" width="13.6" height="13.6" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="2.3"/></svg></div>
+      <div class="pane pane-tr" id="paneTr" aria-label="The translation">
+        ${khutbah.replace(/class="reader-chunk"/g, 'class="tr-chunk"')}
+        <div class="pane-end"><button type="button" class="to-end" onclick="toSources()">${bi('Every ayah and hadith, with its source')} ↓</button></div>
+      </div>
+    </div>
+    </div>
+    <section class="after-reader" id="sources" aria-label="After the khutbah">
+      <div class="end-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.2" y="5.2" width="13.6" height="13.6"/><rect x="5.2" y="5.2" width="13.6" height="13.6" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="2.3"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.2" y="5.2" width="13.6" height="13.6"/><rect x="5.2" y="5.2" width="13.6" height="13.6" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="2.3"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.2" y="5.2" width="13.6" height="13.6"/><rect x="5.2" y="5.2" width="13.6" height="13.6" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="2.3"/></svg></div>
+      <p class="end-label">${bi('End of the khutbah')}</p>
+      <div class="sources">
+          <div class="section">
+            <div class="section-header"><h2>Every ayah <span class="count-badge">${qRefs.length}</span></h2></div>
+            <div class="section-body">${qRefs.map((q, i) => [q, i])
+              .sort(([a, ia], [b, ib]) => (a.surah_number || 999) - (b.surah_number || 999) || (a.ayah_number || 0) - (b.ayah_number || 0) || ia - ib)
+              .map(([q, i]) => renderQuranRef(q, i)).join('')}</div>
+          </div>
+          ${hadithRefs.length ? `<div class="section">
+            <div class="section-header"><h2>Every hadith <span class="count-badge">${hadithRefs.length}</span></h2></div>
+            <div class="section-body">${hadithRefs.map(renderHadithRef).join('')}</div>
+          </div>` : ''}
+      </div>
+      ${khutbahNav()}
+    </section>`;
   }
+
+  // The reader filling the screen under the bar (the opening scrolled away above it).
+  function toStage() {
+    const st = document.getElementById('stage'); if (!st) return;
+    const top = st.getBoundingClientRect().top + scrollY - (document.querySelector('header')?.offsetHeight || 0);
+    if (Math.abs(scrollY - top) > 4) scrollTo({ top, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  }
+  function toSources() {
+    const end = document.getElementById('sources');
+    if (end) scrollTo({ top: end.getBoundingClientRect().top + scrollY - (document.querySelector('header')?.offsetHeight || 0), behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  }
+  // The stage is the screen between the header and the player: their heights, kept as they change.
+  function sizeStage() {
+    const head = document.querySelector('header'), player = document.getElementById('audioPlayer');
+    document.documentElement.style.setProperty('--hdr', (head?.offsetHeight || 0) + 'px');
+    document.documentElement.style.setProperty('--ply', (player?.classList.contains('ready') ? player.offsetHeight : 0) + 'px');
+  }
+  addEventListener('resize', sizeStage);
+  if (window.ResizeObserver) { const ro = new ResizeObserver(sizeStage); addEventListener('DOMContentLoaded', () => { ro.observe(document.querySelector('header')); ro.observe(document.getElementById('audioPlayer')); }); }
 
   async function enhanceQuranRefs(refs) {
     for (let i = 0; i < refs.length; i++) {
@@ -1329,7 +961,7 @@
             const btn = document.createElement('button');
             btn.className = 'verse-toggle';
             btn.innerHTML = `<span class="lbl-part">${uiText('Show full ayah')}</span><span class="lbl-full">${uiText('Show recited part')}</span>`;
-            btn.onclick = ev => { ev.stopPropagation(); btn.closest('.reader-chunk').classList.toggle('show-full-verse'); };
+            btn.onclick = ev => { ev.stopPropagation(); const i = btn.closest('[data-i]').dataset.i; document.querySelectorAll(`[data-i="${i}"]`).forEach(c => c.classList.toggle('show-full-verse')); };
             lastEl.insertAdjacentElement('afterend', btn);
           }
         }
@@ -1506,14 +1138,28 @@
   function setLang(lang, remember = true) {
     for (const L of TR) document.body.classList.toggle(`lang-${L.code}`, lang === L.code);
     document.body.classList.toggle('tr', lang !== 'en');
-    for (const b of document.querySelectorAll('#readSwitch button')) {
-      const on = b.dataset.lang === lang;
-      b.classList.toggle('on', on);
-      b.setAttribute('aria-pressed', on);
-    }
     if (remember) { try { localStorage.setItem('kt-lang', lang); } catch {} }
     pageLang = lang;
+    document.body.classList.toggle('rtl', TR.some(L => L.code === lang && L.dir === 'rtl'));
+    markTongues();
     paintWord();
+  }
+
+  function markTongues() {
+    const ar = document.body.classList.contains('ar-only');
+    for (const b of document.querySelectorAll('#tongues button')) b.setAttribute('aria-pressed', String(ar ? b.dataset.l === 'ar' : b.dataset.l === pageLang));
+  }
+  // One tap reads and hears a language: its translation on screen and its voice (the imam where it has none);
+  // العربية is the imam's words alone, in his voice.
+  function chooseLang(l) {
+    const ar = l === 'ar';
+    document.body.classList.toggle('ar-only', ar);
+    if (!ar) setLang(l); else markTongues();
+    if (audio) {
+      const want = ar ? 'imam' : result['tts_' + l] ? l : 'imam';
+      if (want !== voice) switchTrack(want); else updateVoiceBtn();
+    }
+    wordMaps.clear(); litKey = null; paintWord();
   }
 
   // Marks a quote whose English above is a direct translation of the imam's words rather than
@@ -1859,17 +1505,25 @@
     }
   }
 
-  function copyShare() {
+  function shareKhutbah() {
     engage.copies++;
     const L = TR.find(L => L.code === pageLang);
     const own = L && result?.[L.field]?.share_summary;
     const text = own || result?.share_summary || result?.summary || '';
-    navigator.clipboard.writeText(text).then(() => {
-      const btn = document.querySelector('.copy-btn');
-      const label = btn.innerHTML;
-      btn.textContent = own ? L.ui.Copied : '✓ Copied!';
-      setTimeout(() => btn.innerHTML = label, 2000);
-    });
+    const url = location.origin + location.pathname;
+    if (navigator.share && matchMedia('(pointer: coarse)').matches) {
+      navigator.share({ title: result?.title || 'Khutbah.dev', text, url }).catch(() => {});
+      return;
+    }
+    const all = text + '\n\n' + url;
+    const done = () => {
+      const lbl = document.querySelector('#shareBtn .share-lbl'), before = lbl.innerHTML;
+      lbl.textContent = (L && L.ui['Link copied']) || 'Summary and link copied';
+      setTimeout(() => { lbl.innerHTML = before; }, 2200);
+    };
+    // the clipboard needs https; an http page (a test on the local network) copies the old way
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(all).then(done, () => {});
+    else { const t = document.createElement('textarea'); t.value = all; t.style.cssText = 'position:fixed;top:-100px'; document.body.append(t); t.select(); try { document.execCommand('copy'); done(); } catch {} t.remove(); }
   }
 
   // ── Engagement, for /admin/traffic: time the page is on screen, audio actually played,
@@ -1947,16 +1601,7 @@
 
   // Phones: the player shrinks to one slim row while reading. Every visit opens it again
   // (Meer, 2 Oct): a shrunk player is easy to miss.
-  function togglePlayerSize(mini) {
-    const player = document.getElementById('audioPlayer');
-    mini = mini ?? !player.classList.contains('mini');
-    player.classList.toggle('mini', mini);
-    document.body.classList.toggle('player-mini', mini);
-    document.getElementById('apHandle').setAttribute('aria-expanded', String(!mini));
-    const min = document.getElementById('apMin');
-    min.title = mini ? 'Open the player' : 'Shrink the player';
-    min.setAttribute('aria-label', min.title);
-  }
+  function togglePlayerSize() {}
 
   // Hear is the audio only; the text stays as Read has it.
   function pickVoice(which) {
@@ -1969,15 +1614,20 @@
   function updateVoiceBtn() {
     const group = document.getElementById('hearGroup');
     if (!group || !audio) return;
-    let voices = 0;
+    const own = !document.body.classList.contains('ar-only') && result['tts_' + pageLang] ? pageLang : null;
     for (const b of document.querySelectorAll('#voiceSwitch button')) {
       const v = b.dataset.voice, on = v === voice;
-      b.hidden = v !== 'imam' && !result['tts_' + v];
-      if (v !== 'imam' && !b.hidden) voices++;
+      b.hidden = !(v === 'imam' || v === own);
       b.classList.toggle('on', on);
       b.setAttribute('aria-pressed', on);
     }
-    group.hidden = !voices;
+    group.hidden = !own;
+    const L = TR.find(x => x.code === voice), val = document.getElementById('voiceVal');
+    if (val) { val.textContent = voice === 'imam' ? 'Imam' : voice === 'en' ? 'English' : (L ? L.native : voice); val.lang = L ? L.code : ''; }
+  }
+  function toggleVoice() {
+    const own = !document.body.classList.contains('ar-only') && result['tts_' + pageLang] ? pageLang : null;
+    if (own) pickVoice(voice === 'imam' ? own : 'imam');
   }
 
   // ── Word by word ──
@@ -1990,6 +1640,83 @@
   const wordTimes = {};        // 'imam' | 'en' | 'ur' | 'bn' … -> { <block>: [[word, start, end], ...] }, once loaded
   const wordMaps = new Map();  // `${voice}:${block}:${full verse?}` -> [{ range, start }] in reading order
   let litKey = null, followEl = null, wordRaf = 0;
+  let onWord = null, litRange = null;
+  const HADITH = '.inline-hadith, .inline-hadith-en, .chunk-hadith-trans, .hadith-arabic';
+  const QURAN = '.inline-ayah, .inline-ayah-en, .chunk-arabic-quran, .chunk-quran-translation';
+  const kindOf = range => { const n = range.startContainer, el = n.nodeType === 1 ? n : n.parentElement; return el.closest(HADITH) ? 'h' : el.closest(QURAN) ? 'q' : ''; };
+  function setHL(name, ranges) {
+    const by = { '': [], q: [], h: [] };
+    for (const x of ranges || []) by[kindOf(x)].push(x);
+    for (const [k, list] of Object.entries(by)) { const nm = k ? name + '-' + k : name; if (list.length) CSS.highlights.set(nm, new Highlight(...list)); else CSS.highlights.delete(nm); }
+  }
+  function delHL(name) { for (const nm of [name, name + '-q', name + '-h']) CSS.highlights.delete(nm); }
+  // A passage's translation lives in the lower pane (.tr-chunk), its Arabic in the upper one (.reader-chunk).
+  const twinOf = el => (el && document.querySelector(`#paneTr .tr-chunk[data-i="${el.dataset.i}"]`)) || el;
+  // Scrolling either pane scrolls the other to the same passage and the same point in it, on a reading line a third
+  // of the way down. driveBy(pane) marks a pane the page itself is moving, so the other follows it and not back.
+  let driveBy = () => {};
+  // Text size (Meer, 12 Oct): three steps for both panes, kept for the next visit (localStorage 'kt-size')
+  function setupSize() {
+    const box = document.getElementById('textSize');
+    if (!box) return;
+    const set = v => {
+      document.documentElement.style.setProperty('--ts', v);
+      box.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.ts === String(v))));
+    };
+    let saved = null;
+    try { saved = localStorage.getItem('kt-size'); } catch {}
+    if (saved && box.querySelector(`[data-ts="${saved}"]`)) set(saved);
+    box.addEventListener('click', e => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      set(b.dataset.ts);
+      try { localStorage.setItem('kt-size', b.dataset.ts); } catch {}
+    });
+  }
+  // The panes on a computer: top and bottom (the default) or side by side, kept for the next visit (localStorage 'kt-layout').
+  function setupLayout() {
+    const box = document.getElementById('layoutSwitch');
+    if (!box) return;
+    const set = v => {
+      document.body.classList.toggle('side', v === 'side');
+      box.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.layout === v)));
+    };
+    let saved = null;
+    try { saved = localStorage.getItem('kt-layout'); } catch {}
+    set(saved === 'side' ? 'side' : 'stack');
+    box.addEventListener('click', e => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      set(b.dataset.layout);
+      try { localStorage.setItem('kt-layout', b.dataset.layout); } catch {}
+      document.getElementById('paneAr')?.dispatchEvent(new Event('scroll'));
+    });
+  }
+  function setupPanes() {
+    const A = document.getElementById('paneAr'), B = document.getElementById('paneTr');
+    if (!A || !B) return;
+    let driver = null, at = 0;
+    driveBy = p => { driver = p; at = performance.now(); };
+    const items = p => [...p.querySelectorAll(':scope > [data-i]')];
+    const sync = (src, dst) => {
+      const a = items(src), b = items(dst);
+      if (!a.length || !b.length || dst.offsetParent === null) return;
+      const line = src.scrollTop + src.clientHeight * 0.34;
+      let i = a.findIndex(el => el.offsetTop + el.offsetHeight > line);
+      if (i < 0) i = a.length - 1;
+      const el = a[i], tw = b[Math.min(i, b.length - 1)];
+      const f = Math.min(1, Math.max(0, (line - el.offsetTop) / Math.max(1, el.offsetHeight)));
+      dst.scrollTop = tw.offsetTop + f * tw.offsetHeight - dst.clientHeight * 0.34;
+    };
+    for (const [src, dst] of [[A, B], [B, A]]) src.addEventListener('scroll', () => {
+      const now = performance.now();
+      if (driver !== src && now - at < 160) return;   // being moved by the other pane
+      driver = src; at = now;
+      sync(src, dst);
+      // reading has started in a pane while the opening is still on screen: the reader comes up to fill it
+      if (src.scrollTop > 30 && driver === src && document.getElementById('stage').getBoundingClientRect().top > (document.querySelector('header')?.offsetHeight || 0) + 6) toStage();
+    }, { passive: true });
+  }   // the line follower (initAudio) and the word lit now
 
   async function loadWordTimes(v) {
     const url = v === 'imam' ? result && result.imam_words_url
@@ -2122,7 +1849,7 @@
     const add = (lang, spoken, tag, from, until) => {
       if (!spoken || !spoken.length) return;
       const key = `${tag}:${i}:${full}`;
-      if (!wordMaps.has(key)) wordMaps.set(key, matchWords(shownWords(el, lang), spoken, lang));
+      if (!wordMaps.has(key)) wordMaps.set(key, matchWords(shownWords(lang === 'ar' ? el : twinOf(el), lang), spoken, lang));
       if (wordMaps.get(key).length) out.push({ lang, words: wordMaps.get(key), from, until });
     };
     if (voice === 'imam') add('ar', wordTimes.imam[i], 'imam', -Infinity, Infinity);
@@ -2148,15 +1875,76 @@
     const key = el ? `${voice}:${el.dataset.i}:${f.lang}:${k}:${pageLang}` : null;
     if (key === litKey) return;
     litKey = key;
-    if (followEl && followEl !== el) delete followEl.dataset.follow;
-    followEl = el;
-    if (!el) { CSS.highlights.delete('kt-said'); CSS.highlights.delete('kt-word'); return; }
-    el.dataset.follow = f.lang;
-    CSS.highlights.set('kt-said', new Highlight(...words.slice(0, k + 1).map(w => w.range)));
-    if (k < 0) { CSS.highlights.delete('kt-word'); return; }
+    const host = el && (f.lang === 'ar' ? el : twinOf(el));
+    if (followEl && followEl !== host) delete followEl.dataset.follow;
+    followEl = host;
+    if (!el) { delHL('kt-said'); CSS.highlights.delete('kt-word'); clearNear(); return; }
+    host.dataset.follow = f.lang;
+    setHL('kt-said', words.slice(0, k + 1).map(w => w.range));
+    if (k < 0) { CSS.highlights.delete('kt-word'); clearNear(); return; }
     const now = new Highlight(words[k].range);
     now.priority = 1; // painted over kt-said
     CSS.highlights.set('kt-word', now);
+    litRange = words[k].range;
+    onWord?.(litRange);
+    nearArabic(el, f.lang, k, words.length);
+  }
+
+  // The part of the imam's sentence the voice is translating, matched by meaning (Meer, 12 Oct): each passage's
+  // Arabic and translation split into matching phrases when the khutbah is made (design/reader/align/), and the
+  // Arabic phrase whose translation the voice is reading is bright, the rest of his passage dimmed. A passage with
+  // no matching (or one that does not check out) lights no part: nothing is guessed.
+  // The translation does the same (Meer, 12 Oct): the phrase being read bright, the rest of its passage dimmed,
+  // the word being said still gold.
+  let nearEl = null, nearKey = null, nearTr = null;
+  const alignCache = new Map();
+  function clearNear() { if (nearEl) delete nearEl.dataset.near; nearEl = null; nearKey = null; nearTr = null; delHL('kt-near'); }
+  const rawWords = t => t.split(/\s+/).filter(Boolean);
+  const rawTr = t => (t || '').split(/\n\n+/).map(p => p.trim()).filter(p => p && !/^(📖|📑|📚)/u.test(p)).map(p => p.replace(/^❝\s*/, '')).join(' ');
+  function alignOf(el, lang) {
+    const i = el.dataset.i, key = lang + ':' + i;
+    if (alignCache.has(key)) return alignCache.get(key);
+    let out = null;
+    const pairs = (result.align || {})[lang]?.[i];
+    const c = result.reader_chunks?.[i];
+    if (pairs && c) {
+      const L = TR.find(x => x.code === lang);
+      const ar = rawWords(c.arabic), tr = rawWords(rawTr(lang === 'en' ? c.english : c[L?.field]));
+      let pa = -1, pt = -1, good = true;
+      for (const [a, t] of pairs) { if (!(a > pa && t > pt)) good = false; pa = a; pt = t; }
+      if (good && pa === ar.length - 1 && pt === tr.length - 1) {
+        // the words on screen, each with its place in the passage's text
+        const arShown = matchWords(shownWords(el, 'ar'), ar.map((w, j) => [w, j, j]), 'ar');
+        const trShown = matchWords(shownWords(twinOf(el), lang), tr.map((w, j) => [w, j, j]), lang);
+        out = { pairs, arShown, trShown };
+      }
+    }
+    alignCache.set(key, out);
+    return out;
+  }
+  function nearArabic(el, lang, k, n) {
+    if (lang === 'ar' || !el || !litRange) return clearNear();
+    const A = alignOf(el, lang);
+    if (!A) return clearNear();
+    const at = A.trShown.find(w => w.range.startContainer === litRange.startContainer && w.range.startOffset === litRange.startOffset);
+    if (!at) { if (nearTr) setHL('kt-said', nearTr); return; }   // a lead-in the voice adds: keep the phrase lit
+    const j = at.start;
+    let s0 = 0, a0 = 0, a1 = -1, prevT = -1, t0 = 0, t1 = -1;
+    for (const [a, t] of A.pairs) { if (j <= t && j > prevT) { a0 = s0; a1 = a; t0 = prevT + 1; t1 = t; break; } prevT = t; s0 = a + 1; }
+    if (a1 < 0) return clearNear();
+    const k2 = el.dataset.i + ':' + a0 + ':' + a1;
+    if (k2 !== nearKey) {
+      const trLit = A.trShown.filter(w => w.start >= t0 && w.start <= t1).map(w => w.range);
+      nearTr = trLit.length ? trLit : null;
+    }
+    // the translation phrase bright in place of the words said so far (paintWord sets those on every word)
+    if (nearTr) setHL('kt-said', nearTr);
+    if (k2 === nearKey) return;
+    const lit = A.arShown.filter(w => w.start >= a0 && w.start <= a1).map(w => w.range);
+    if (!lit.length) return clearNear();
+    if (nearEl && nearEl !== el) delete nearEl.dataset.near;
+    nearEl = el; nearKey = k2; el.dataset.near = '';
+    setHL('kt-near', lit);
   }
 
   // Every frame while playing: timeupdate comes only about four times a second.
@@ -2194,7 +1982,7 @@
     if (!audio) return;
     speedIdx = (speedIdx + 1) % SPEEDS.length;
     audio.playbackRate = SPEEDS[speedIdx];
-    document.getElementById('speedBtn').textContent = SPEEDS[speedIdx] + '×';
+    document.getElementById('speedVal').textContent = SPEEDS[speedIdx] + '×';
   }
 
   function initAudio(url) {
@@ -2207,26 +1995,10 @@
     const scrubber = document.getElementById('scrubber');
     const timeEl = document.getElementById('audioTime');
     player.classList.add('ready');
-    togglePlayerSize(false);
     updateVoiceBtn();
-
-    // Phones: a swipe down on the player shrinks it and a swipe up opens it; a tap on the
-    // shrunk bar outside its controls opens it too.
-    const phone = matchMedia('(max-width: 600px)');
-    let swipeFrom = null;
-    player.addEventListener('touchstart', e => {
-      swipeFrom = phone.matches && !e.target.closest('input') ? e.touches[0].clientY : null;
-    }, { passive: true });
-    player.addEventListener('touchend', e => {
-      if (swipeFrom == null) return;
-      const dy = e.changedTouches[0].clientY - swipeFrom, shrunk = player.classList.contains('mini');
-      swipeFrom = null;
-      if (dy > 30 && !shrunk) togglePlayerSize(true);
-      else if (dy < -30 && shrunk) togglePlayerSize(false);
-    }, { passive: true });
-    player.addEventListener('click', e => {
-      if (phone.matches && player.classList.contains('mini') && !e.target.closest('button, input')) togglePlayerSize(false);
-    });
+    audio.addEventListener('play', () => { document.body.classList.add('playing', 'reading'); if (following) toActive(); });
+    audio.addEventListener('pause', () => document.body.classList.remove('playing'));
+    audio.addEventListener('ended', () => document.body.classList.remove('playing'));
 
     // The time shows as "0:28 / 15:59" in the row, and as two ends under the phone's bar.
     const showTime = () => {
@@ -2242,15 +2014,46 @@
     let following = true, byHand = false;
     const backBtn = document.getElementById('backToActive');
     const follow = () => { following = true; backBtn.hidden = true; };
-    const toActive = () => { follow(); byHand = false; activeChunk?.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+    const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const paneAr = document.getElementById('paneAr');
+    const paneOf = node => (node.nodeType === 1 ? node : node.parentElement).closest('.pane') || paneAr;
+    let glidedAt = 0;   // one glide at a time: while a pane moves, the line is not yet where it will be
+    const toLine = range => {
+      const r = range.getBoundingClientRect();
+      if (!r.height) return false;
+      const pane = paneOf(range.startContainer), p = pane.getBoundingClientRect();
+      glidedAt = performance.now(); driveBy(pane);
+      pane.scrollTo({ top: pane.scrollTop + (r.top - p.top) - pane.clientHeight * 0.34, behavior: still() ? 'auto' : 'smooth' });
+      return true;
+    };
+    onWord = range => {
+      if (!following || audio.paused || performance.now() - glidedAt < 900) return;
+      const r = range.getBoundingClientRect();
+      if (!r.height) return;
+      const pane = paneOf(range.startContainer), p = pane.getBoundingClientRect(), h = pane.clientHeight;
+      if (r.top - p.top < h * 0.16 || r.bottom - p.top > h * 0.6) toLine(range);
+    };
+    const toActive = () => {
+      follow(); byHand = false;
+      toStage();
+      if (!activeChunk) return;
+      if (litRange && [activeChunk, twinOf(activeChunk)].some(x => x.contains(litRange.startContainer)) && toLine(litRange)) return;
+      const p = paneAr.getBoundingClientRect(), r = activeChunk.getBoundingClientRect();
+      driveBy(paneAr);
+      paneAr.scrollTo({ top: paneAr.scrollTop + (r.top - p.top) - paneAr.clientHeight * 0.12, behavior: still() ? 'auto' : 'smooth' });
+    };
     const showBack = () => {
       const r = activeChunk?.getBoundingClientRect();
-      const away = !!r && (r.bottom < 90 || r.top > innerHeight - 140);
+      const pr = document.getElementById('paneAr').getBoundingClientRect();
+      // scrolled on past the khutbah, or the passage out of its pane
+      const below = document.getElementById('stage').getBoundingClientRect().bottom < innerHeight * 0.55;
+      const away = !!r && (below || r.bottom < pr.top + 8 || r.top > pr.bottom - 8);
       if (byHand) following = !away;
       backBtn.hidden = following;
-      if (away) backBtn.classList.toggle('up', r.bottom < 90);
+      if (away) backBtn.classList.toggle('up', below || r.bottom < pr.top + 8);
     };
     ['wheel', 'touchmove', 'keydown'].forEach(t => addEventListener(t, () => { byHand = true; }, { passive: true }));
+    document.querySelectorAll('.pane').forEach(p => p.addEventListener('scroll', () => { if (byHand) showBack(); }, { passive: true }));
     addEventListener('scroll', () => { if (byHand) showBack(); }, { passive: true });
     backBtn.addEventListener('click', toActive);
 
@@ -2268,6 +2071,7 @@
       engage.maxPos = Math.max(engage.maxPos, audio.currentTime);
       if (!audio.duration) return;
       scrubber.value = (audio.currentTime / audio.duration) * 100;
+      scrubber.style.setProperty('--p', scrubber.value + '%');
       showTime();
 
       const t = audio.currentTime;
@@ -2280,10 +2084,10 @@
         else break;
       }
       if (best !== activeChunk) {
-        if (activeChunk) activeChunk.classList.remove('chunk-active');
-        best.classList.add('chunk-active');
+        if (activeChunk) { activeChunk.classList.remove('chunk-active'); twinOf(activeChunk).classList.remove('chunk-active'); }
+        best.classList.add('chunk-active'); twinOf(best).classList.add('chunk-active');
         activeChunk = best;
-        if (following) toActive(); else showBack();
+        if (!audio.paused) { if (following) toActive(); else showBack(); }
       }
     });
 
@@ -2306,6 +2110,16 @@
         setPlayIcon(false);
       });
     });
+
+    document.querySelectorAll('#paneTr .tr-chunk').forEach(tw => tw.addEventListener('click', e => {
+      if (e.target.closest('a, button')) return;
+      const a = document.querySelector(`#paneAr .reader-chunk[data-i="${tw.dataset.i}"]`);
+      if (!a) return;
+      follow();
+      const w = wordTimeAt(a, e.clientX, e.clientY), t = w ?? chunkTime(a);
+      if (t == null) return;
+      audio.currentTime = t; audio.play(); setPlayIcon(false);
+    }));
 
     scrubber.addEventListener('input', () => {
       follow();

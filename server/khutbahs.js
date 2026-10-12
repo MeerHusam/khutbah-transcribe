@@ -10,7 +10,7 @@
 // (outputs/, audio_files/). Its recording is audio_files/<audio>, or audio_files/<basename>.<ext>
 // where basename is its folder name after the timestamp. A khutbah with a media_url has its
 // recording (<media_url><audio>) and voice tracks (<media_url>tts_<lang>.mp3) there instead (R2).
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, statSync } from 'fs';
 import { join } from 'path';
 import { loadResult } from '../core/reader_chunks.js';
 import { ROOT, DATA_DIR } from './config.js';
@@ -101,6 +101,9 @@ function buildResult(k) {
   // The languages the page can show besides English (core/languages.js), with what it needs for each.
   result.languages = LANGS.filter(L => (result.reader_chunks || []).some(c => c[L.field])).map(forPage);
   result.quran_en_name = quranEnglish(result).name; // the label under the ayah cards' English
+  // Which Arabic phrase each translation phrase translates (core/align_phrases.js), so the page lights the Arabic
+  // the voice is translating. The page checks each passage's word counts against its own text before using it.
+  try { result.align = JSON.parse(readFileSync(join(contentDir(k.folder), 'align.json'), 'utf8')).langs || null; } catch {}
   result.title = k.title || '';
   result.speaker = k.speaker || '';
   result.masjid = k.masjid || '';
@@ -208,6 +211,13 @@ export function getWords(folder, file) {
     } catch { return null; }
   }
   return wordsCache.get(key);
+}
+
+// A khutbah's link-preview picture (scripts/og_image.js), with a stamp that changes when the picture does (WhatsApp
+// keeps a preview by its address). Null when it has none: the site's own picture is shown.
+export function ogImage(folder) {
+  const file = join(contentDir(folder), 'og.jpg');
+  try { return { file, stamp: Math.round(statSync(file).mtimeMs / 1000).toString(36) }; } catch { return null; }
 }
 
 // A voice track's audio file.
