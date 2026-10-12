@@ -302,21 +302,39 @@ rep(`    litRange = words[k].range;
     onWord?.(litRange);
     nearArabic(el, f.lang, k, words.length);`);
 rep(`    if (!el) { CSS.highlights.delete('kt-said'); CSS.highlights.delete('kt-word'); return; }`,
-    `    if (!el) { CSS.highlights.delete('kt-said'); CSS.highlights.delete('kt-word'); CSS.highlights.delete('kt-near'); return; }`);
-rep(`    if (k < 0) { CSS.highlights.delete('kt-word'); return; }`, `    if (k < 0) { CSS.highlights.delete('kt-word'); CSS.highlights.delete('kt-near'); return; }`);
-rep(`  // Every frame while playing: timeupdate comes only about four times a second.`, `  function nearArabic(el, lang, k, n) {
-    if (lang === 'ar' || !el || !n) { CSS.highlights.delete('kt-near'); return; }
+    `    if (!el) { CSS.highlights.delete('kt-said'); CSS.highlights.delete('kt-word'); clearNear(); return; }`);
+rep(`    if (k < 0) { CSS.highlights.delete('kt-word'); return; }`, `    if (k < 0) { CSS.highlights.delete('kt-word'); clearNear(); return; }`);
+rep(`  // Every frame while playing: timeupdate comes only about four times a second.`, `  // The part of the imam's sentence the voice is translating: the clause (between his commas and full stops) at the
+  // same point in his passage as the voice is in its translation, bright; the rest of his passage dimmed (Meer, 12 Oct).
+  let nearEl = null, nearKey = null;
+  function clearNear() { if (nearEl) delete nearEl.dataset.near; nearEl = null; nearKey = null; CSS.highlights.delete('kt-near'); }
+  function nearArabic(el, lang, k, n) {
+    if (lang === 'ar' || !el || !n) return clearNear();
     const key = 'near:' + el.dataset.i;
-    if (!wordMaps.has(key)) wordMaps.set(key, shownWords(el, 'ar'));
-    const ar = wordMaps.get(key);
-    if (!ar.length) { CSS.highlights.delete('kt-near'); return; }
+    if (!wordMaps.has(key)) {
+      const ar = shownWords(el, 'ar');
+      // clause boundaries: a word that ends with the imam's punctuation closes its clause
+      const ends = ar.map(w => /[،,.؛;:؟?!»﴾]$/.test(w.range.toString()));
+      wordMaps.set(key, { ar, ends });
+    }
+    const { ar, ends } = wordMaps.get(key);
+    if (!ar.length) return clearNear();
     const c = Math.min(ar.length - 1, Math.floor(((k + 0.5) / n) * ar.length));
-    const a = Math.max(0, Math.min(c - 1, ar.length - 4)), b = Math.min(ar.length, a + 4);
-    CSS.highlights.set('kt-near', new Highlight(...ar.slice(a, b).map(w => w.range)));
+    let a = c, b = c;
+    while (a > 0 && !ends[a - 1]) a--;
+    while (b < ar.length - 1 && !ends[b]) b++;
+    // a very long clause: the ten words around the point instead
+    if (b - a > 11) { a = Math.max(a, c - 4); b = Math.min(b, a + 9); }
+    const k2 = el.dataset.i + ':' + a + ':' + b;
+    if (k2 === nearKey) return;
+    if (nearEl && nearEl !== el) delete nearEl.dataset.near;
+    nearEl = el; nearKey = k2; el.dataset.near = '';
+    CSS.highlights.set('kt-near', new Highlight(...ar.slice(a, b + 1).map(w => w.range)));
   }
 
   // Every frame while playing: timeupdate comes only about four times a second.`);
-rep(`    ::highlight(kt-word) {`, `    ::highlight(kt-near) { color: var(--gold-bright); background-color: rgba(216, 184, 108, .2); }
+rep(`    ::highlight(kt-word) {`, `    ::highlight(kt-near) { color: #FBF3DC; }
+    .pane-ar .reader-chunk[data-near] .chunk-arabic, .pane-ar .reader-chunk[data-near] .chunk-arabic * { color: rgba(234, 223, 191, .3); transition: color .3s; }
     ::highlight(kt-word) {`);
 
 // the player (Meer, 12 Oct): the progress line with the time at both ends; below it speed on the left, −10s,
