@@ -17,6 +17,7 @@ export default {
   ui: {
     'In Short': 'সংক্ষেপে', 'Summary': 'সারসংক্ষেপ', 'Full Translation': 'সম্পূর্ণ অনুবাদ',
     'Copy for WhatsApp': 'হোয়াটসঅ্যাপের জন্য কপি করুন', 'Copied': '✓ কপি হয়েছে',
+    'Read and listen in': 'পড়ুন ও শুনুন', 'Read the summary': 'সারাংশ পড়ুন', 'The khutbah': 'খুতবা',
     'Show full ayah': 'পুরো আয়াত দেখুন', 'Show recited part': 'শুধু তিলাওয়াত করা অংশ',
   },
   collections: {
