@@ -93,9 +93,7 @@
     .back-home:hover { color: var(--gold); }
     .meta-row { margin-top: 8px; font-size: 14px; line-height: 1.55; color: var(--mist); }
     .meta-row span { display: inline; }
-    .meta-row .hijri { font-family: var(--ar); font-size: 15.5px; }
-    .meta-row span:first-child::after { content: '·'; margin: 0 8px; color: var(--dim); }
-    .meta-row span:nth-child(3) { display: block; }
+    .meta-row span + span::before { content: '·'; margin: 0 8px; color: var(--dim); }
     .meta-row a { color: var(--cream); text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px; }
     .meta-row a:hover { text-decoration-color: var(--gold); }
 
@@ -112,11 +110,6 @@
     .tongue-line button:hover { border-bottom-color: var(--gold-dim); }
     .tongue-line button[aria-pressed="true"] { color: #F3DFA6; border-bottom-color: var(--gold); }
 
-    .copy-btn {
-      display: inline-flex; align-items: center; min-height: 40px; margin-top: 2px; padding: 0; border: 0; background: none; cursor: pointer;
-      color: var(--gold); font-size: 14.5px; text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px;
-    }
-    .copy-btn:hover { text-decoration-color: var(--gold); }
 
     /* every translation is in the page; the language shown is the body's lang-<code> (tr = any but English) */
     .chunk-tr, .tr-inline { display: none; }
@@ -127,7 +120,7 @@
     body.ar-only .reader-chunk :is(.chunk-en, .chunk-tr, .chunk-quran-translation, .verse-toggle) { display: none !important; }
 
     /* labels and links in another script: readable, not the language files' small inline size */
-    body[class] :is(.copy-btn, .verse-toggle) .tr-inline[lang] { font-size: 15px; }
+    body[class] .verse-toggle .tr-inline[lang] { font-size: 15px; }
     .reader-chunk { position: relative; padding: 18px 0; border-bottom: 1px solid var(--line-soft); transition: opacity .35s; scroll-margin-top: 64px; }
     .reader-chunk:last-child { border-bottom: 0; }
     .reader-chunk[data-start] { cursor: pointer; }
@@ -288,8 +281,6 @@
 
     /* ── Computers: a little larger, the skips back in the bar ── */
     @media (min-width: 901px) {
-      .meta-row span:nth-child(3) { display: inline; }
-      .meta-row span:nth-child(2)::after { content: '·'; margin: 0 8px; color: var(--dim); }
       .tongue-line { font-size: 19px; }
       .chunk-arabic { font-size: 25px; }
       .chunk-arabic-quran { font-size: 26px; }
@@ -315,16 +306,23 @@
     .reader-stage { height: calc(100dvh - var(--hdr, 52px) - var(--ply, 0px)); min-height: 380px; display: flex; flex-direction: column; }
     .site-footer { padding-bottom: 28px; }
     .r-top { flex: none; padding: 0 20px; }
-    .r-head { max-height: 640px; overflow: hidden; transition: max-height .4s cubic-bezier(.16, 1, .3, 1), opacity .25s; }
-    body.reading .r-head { max-height: 0; opacity: 0; }
+    /* the opening (title, date, In Short, Share) sits above the reader; the reader keeps the whole screen below it,
+       and the page settles on it when reading starts (a scroll in a pane, or play) */
+    .r-head { padding: 0 20px 18px; }
+    html { scroll-snap-type: y proximity; }
+    .reader-stage { scroll-snap-align: start; scroll-margin-top: var(--hdr, 52px); }
     .r-title { margin-top: 2px; font: 600 24px/1.2 var(--display); letter-spacing: -.005em; text-wrap: balance; color: var(--cream); }
-    .r-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 14px; padding-bottom: 2px; }
+    .r-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 14px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
     .r-tools .tongue-line { margin-top: 4px; font-size: 20px; }
     /* In Short: the first thing in the translation pane, scrolling away as the reader reads on */
     .r-lede { margin-top: 12px; padding: 10px 0 2px; border-top: 1px solid var(--line-soft); max-width: 68ch; }
-    .r-lede-label { font-size: 13px; color: var(--dim); }
+    .r-lede-label { font: 500 14px/1.4 var(--display); color: var(--cream); }
     .r-lede .share-text { margin-top: 4px; font-size: calc(19px * var(--ts, 1)); line-height: 1.55; font-weight: 400; color: #E2E4DB; }
-    .r-lede-links { display: flex; flex-wrap: wrap; align-items: center; gap: 0 18px; margin-top: 4px; }
+    .r-lede-links { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin-top: 10px; }
+    .share-btn { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px 0 13px; border: 1px solid var(--gold-dim); border-radius: 999px; background: none; color: var(--gold); font-size: 15px; cursor: pointer; }
+    .share-btn:hover { border-color: var(--gold); }
+    .share-btn svg { width: 18px; height: 18px; flex: none; }
+    body[class] .share-btn .tr-inline[lang] { font-size: 15px; }
     .to-sources { display: inline-flex; align-items: center; gap: 5px; min-height: 40px; font-size: 14.5px; color: var(--gold); text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px; }
     .to-sources:hover { text-decoration-color: var(--gold); }
     body.rtl .r-lede { text-align: right; }
@@ -456,9 +454,19 @@
       .r-size button { min-width: 32px; padding: 0 2px; }
       .r-size button:nth-child(1) { font-size: 13px; } .r-size button:nth-child(2) { font-size: 16px; } .r-size button:nth-child(3) { font-size: 20px; }
     }
+    @media (max-width: 900px) {
+      .back-home { min-height: 34px; margin-top: 0; font-size: 13.5px; }
+      .r-title { font-size: 21px; }
+      .meta-row { margin-top: 4px; font-size: 13.5px; }
+      .r-lede { margin-top: 10px; padding-top: 8px; }
+      .r-lede .share-text { font-size: calc(16.5px * var(--ts, 1)); line-height: 1.5; }
+      .r-lede-links { margin-top: 8px; }
+    }
     @media (max-width: 380px) {
       .r-tools .tongue-line { font-size: 16.5px; gap: 0 6px; }
     }
+    /* the bar and the player solid: text never shows behind them */
+    header, .audio-player { background: var(--night); -webkit-backdrop-filter: none; backdrop-filter: none; }
   </style>
 
 </head>
@@ -710,25 +718,24 @@
       : transcriptionMode.startsWith('gemini') ? 'Gemini'
       : transcriptionMode || 'n/a';
 
-    const hijri = (() => { const t = Date.parse((r.date || '') + ' 12:00 UTC'); if (!Number.isFinite(t)) return ''; try { return new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura-nu-arab', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(t)).replace(/\s*هـ$/, ''); } catch { return ''; } })();
     const masjid = r.masjid ? (r.maps_url ? `<a href="${escAttr(r.maps_url)}" target="_blank" rel="noopener">${escHtml(r.masjid)}</a>` : escHtml(r.masjid)) : '';
     const khateeb = r.speaker && !/^friday khutbah$/i.test(r.speaker) ? escHtml(r.speaker) : '';
     const tongues = [['ar', 'العربية', 'ar'], ['en', 'English', ''], ...TR.map(L => [L.code, L.native, L.code])];
     const khutbah = renderTranslation(r);
     return `
-    <div class="reader-stage" id="stage">
-    <div class="r-top" id="rTop">
-      <div class="r-head">
+    <div class="r-head">
         <a class="back-home" href="/#khutbahs">← All khutbahs</a>
         <h2 class="r-title">${escHtml(r.title || 'Friday Khutbah')}</h2>
-        <p class="meta-row">${r.date ? `<span>${escHtml(r.date)}</span>` : ''}${hijri ? `<span class="hijri" lang="ar">${hijri}</span>` : ''}${masjid ? `<span>${masjid}</span>` : ''}${khateeb ? `<span>${khateeb}</span>` : ''}</p>
+        <p class="meta-row">${r.date ? `<span>${escHtml(r.date)}</span>` : ''}${masjid ? `<span>${masjid}</span>` : ''}${khateeb ? `<span>${khateeb}</span>` : ''}</p>
         <section class="r-lede" aria-label="In short">
-          <p class="r-lede-label">${bi('In Short')}</p>
+          <p class="r-lede-label">${bi('Summary')}</p>
           <p class="share-text${TR.length ? ' chunk-en' : ''}">${escHtml(r.share_summary || r.summary || '')}</p>
           ${trShare('share_summary')}
-          <p class="r-lede-links"><button class="copy-btn" onclick="copyShare()">${bi('Copy for WhatsApp')}</button>${qRefs.length + hadithRefs.length ? `<a class="to-sources" href="#sources" onclick="event.preventDefault(); toSources()">${bi('Every ayah and hadith, with its source')} (${qRefs.length + hadithRefs.length}) ↓</a>` : ''}</p>
+          <p class="r-lede-links"><button type="button" class="share-btn" id="shareBtn" onclick="shareKhutbah()"><svg viewBox="0 0 256 256" aria-hidden="true"><path fill="currentColor" d="M216,112v96a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V112A16,16,0,0,1,56,96H80a8,8,0,0,1,0,16H56v96H200V112H176a8,8,0,0,1,0-16h24A16,16,0,0,1,216,112ZM93.66,69.66,120,43.31V136a8,8,0,0,0,16,0V43.31l26.34,26.35a8,8,0,0,0,11.32-11.32l-40-40a8,8,0,0,0-11.32,0l-40,40A8,8,0,0,0,93.66,69.66Z"/></svg><span class="share-lbl">${bi('Share')}</span></button>${qRefs.length + hadithRefs.length ? `<a class="to-sources" href="#sources" onclick="event.preventDefault(); toSources()">${bi('Sources')} (${qRefs.length + hadithRefs.length}) ↓</a>` : ''}</p>
         </section>
       </div>
+    <div class="reader-stage" id="stage">
+    <div class="r-top" id="rTop">
       <div class="r-tools">
         <p class="tongue-line" id="tongues" role="group" aria-label="Language">${tongues.map(([c, name, lang], i) => (i ? '<span class="sep" aria-hidden="true">·</span>' : '') + `<button type="button" data-l="${c}"${lang ? ` lang="${lang}"` : ''} aria-pressed="false" onclick="chooseLang('${c}')"${c === 'ar' ? ' title="The imam\'s own words, in his voice"' : ''}>${name}</button>`).join('')}</p>
         <div class="r-size" id="textSize" role="group" aria-label="Text size"><button type="button" data-ts="0.86" aria-label="Smaller text" aria-pressed="false">A</button><button type="button" data-ts="1" aria-label="Normal text" aria-pressed="true">A</button><button type="button" data-ts="1.16" aria-label="Larger text" aria-pressed="false">A</button></div>
@@ -762,6 +769,12 @@
     </section>`;
   }
 
+  // The reader filling the screen under the bar (the opening scrolled away above it).
+  function toStage() {
+    const st = document.getElementById('stage'); if (!st) return;
+    const top = st.getBoundingClientRect().top + scrollY - (document.querySelector('header')?.offsetHeight || 0);
+    if (Math.abs(scrollY - top) > 4) scrollTo({ top, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  }
   function toSources() {
     const end = document.getElementById('sources');
     if (end) scrollTo({ top: end.getBoundingClientRect().top + scrollY - (document.querySelector('header')?.offsetHeight || 0), behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
@@ -1478,17 +1491,25 @@
     }
   }
 
-  function copyShare() {
+  function shareKhutbah() {
     engage.copies++;
     const L = TR.find(L => L.code === pageLang);
     const own = L && result?.[L.field]?.share_summary;
     const text = own || result?.share_summary || result?.summary || '';
-    navigator.clipboard.writeText(text).then(() => {
-      const btn = document.querySelector('.copy-btn');
-      const label = btn.innerHTML;
-      btn.textContent = own ? L.ui.Copied : '✓ Copied!';
-      setTimeout(() => btn.innerHTML = label, 2000);
-    });
+    const url = location.origin + location.pathname;
+    if (navigator.share && matchMedia('(pointer: coarse)').matches) {
+      navigator.share({ title: result?.title || 'Khutbah.dev', text, url }).catch(() => {});
+      return;
+    }
+    const all = text + '\n\n' + url;
+    const done = () => {
+      const lbl = document.querySelector('#shareBtn .share-lbl'), before = lbl.innerHTML;
+      lbl.textContent = (L && L.ui['Link copied']) || 'Summary and link copied';
+      setTimeout(() => { lbl.innerHTML = before; }, 2200);
+    };
+    // the clipboard needs https; an http page (a test on the local network) copies the old way
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(all).then(done, () => {});
+    else { const t = document.createElement('textarea'); t.value = all; t.style.cssText = 'position:fixed;top:-100px'; document.body.append(t); t.select(); try { document.execCommand('copy'); done(); } catch {} t.remove(); }
   }
 
   // ── Engagement, for /admin/traffic: time the page is on screen, audio actually played,
@@ -1659,7 +1680,8 @@
       if (driver !== src && now - at < 160) return;   // being moved by the other pane
       driver = src; at = now;
       sync(src, dst);
-      document.body.classList.toggle('reading', src.scrollTop > 30 || document.body.classList.contains('playing'));
+      // reading has started in a pane while the opening is still on screen: the reader comes up to fill it
+      if (src.scrollTop > 30 && driver === src && document.getElementById('stage').getBoundingClientRect().top > (document.querySelector('header')?.offsetHeight || 0) + 6) toStage();
     }, { passive: true });
   }   // the line follower (initAudio) and the word lit now
 
@@ -1980,7 +2002,7 @@
     };
     const toActive = () => {
       follow(); byHand = false;
-      if (scrollY > 2) scrollTo({ top: 0, behavior: still() ? 'auto' : 'smooth' });
+      toStage();
       if (!activeChunk) return;
       if (litRange && [activeChunk, twinOf(activeChunk)].some(x => x.contains(litRange.startContainer)) && toLine(litRange)) return;
       const p = paneAr.getBoundingClientRect(), r = activeChunk.getBoundingClientRect();

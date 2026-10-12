@@ -133,9 +133,10 @@ On a computer the hero is copy left, minbar and card right; on a phone everythin
 bar, the minbar faint behind it.
 
 **Reader** (`public/reader.html`): a stage the size of the screen between the bar and the player, then the page goes on.
-- Top: back link, title, date with the Hijri date, masjid; In Short with "Copy for WhatsApp" and a link down to the
-  sources. This folds away once reading starts.
-- The language line (العربية · English · اردو · বাংলা) and the three A's on one row.
+- The opening, above the reader: back link, title, the date and masjid on one line, the Summary (its label in Kufam,
+  cream), Share (the phone's share sheet with the summary and the link; copied on a computer) and Sources (n) ↓. When
+  reading starts (a scroll in a pane, or play) the page settles on the reader, which fills the screen below the bar.
+- The language line (العربية · English · اردو · বাংলা) and the three A's on one row, a gold line under them.
 - Two panes tied together: the imam's Arabic above and the chosen language below (side by side on a computer, the
   Arabic on the left), each one continuous text, the three gold stars with fading gold lines between them. Scrolling
   either scrolls both to the same passage.
@@ -148,7 +149,7 @@ bar, the minbar faint behind it.
 
 Flat. Depth comes from the night tones (`night` → `night-3`) and from light: the soft radial glow behind the minbar.
 The only shadows: the home page's example card and the floating buttons (Pause, "Show what's playing"), one soft
-offset shadow each. No glass except the bars (header, player) over the page, blurred so text stays readable.
+offset shadow each. No glass: the bars (header, player) are solid night, so text never shows behind them.
 
 ## Shapes
 
