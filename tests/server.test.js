@@ -23,6 +23,10 @@ let server;
 
 before(async () => {
   for (const k of khutbahs) cpSync(FIXTURE, join(DATA, 'outputs', k.folder), { recursive: true });
+  // the first khutbah has a phrase matching (core/align_phrases.js); the others have none
+  writeFileSync(join(DATA, 'outputs', khutbahs[0].folder, 'align.json'), JSON.stringify({ langs: { en: { 0: [[1, 2], [4, 6]] } } }));
+  // and its own link-preview picture (scripts/og_image.js)
+  writeFileSync(join(DATA, 'outputs', khutbahs[0].folder, 'og.jpg'), Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
   server = spawn(process.execPath, ['server/server.js'], {
     env: { ...process.env, PORT: String(PORT), ADMIN_TOKEN: KEY, DATA_DIR: DATA },
     stdio: ['ignore', 'pipe', 'inherit'],
@@ -95,6 +99,25 @@ test('/api/results lists the published khutbahs, and each one loads', async () =
     assert.ok(r.reader_chunks.length > 0, k.folder);
   }
   assert.equal((await get('/api/results/not-a-published-folder')).status, 404);
+});
+
+test('a shared link shows the khutbah\'s own picture when it has one (/og/<slug>.jpg), else the site\'s', async () => {
+  const [a, b] = khutbahs.filter(k => k.slug);
+  const pa = await (await get(`/${a.slug}`)).text();
+  assert.match(pa, new RegExp(`og:image" content="[^"]*/og/${a.slug}\\.jpg\\?v=`));
+  const img = await get(`/og/${a.slug}.jpg`);
+  assert.equal(img.status, 200);
+  assert.equal(img.headers.get('content-type'), 'image/jpeg');
+  const pb = await (await get(`/${b.slug}`)).text();
+  assert.match(pb, /og:image" content="[^"]*\/img\/og\.jpg"/);
+  assert.equal((await fetch(`http://localhost:${PORT}/og/${b.slug}.jpg`, { redirect: 'manual' })).status, 302);
+});
+
+test('a khutbah with a phrase matching sends it with its result (result.align); one without sends none', async () => {
+  const r = await (await get(`/api/results/${khutbahs[0].folder}`)).json();
+  assert.deepEqual(r.align, { en: { 0: [[1, 2], [4, 6]] } });
+  const r2 = await (await get(`/api/results/${khutbahs[1].folder}`)).json();
+  assert.equal(r2.align, undefined);
 });
 
 test('each khutbah has its masjid\'s id and an id of masjid + YYMMDD; a new masjid gets the next number', async () => {

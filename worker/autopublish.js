@@ -178,6 +178,9 @@ async function main() {
   if (title && !existsSync(titleFile)) writeFileSync(titleFile, title + '\n'); // only a real title is kept
   title ||= (result.share_summary || 'Friday Khutbah').split(/\s+/).slice(0, 5).join(' ');
   await report('english', { title, message: title });
+  // The picture a shared link shows (title, date, masjid, languages), drawn by the Mac's Chrome; the site's own without it.
+  await run('link preview', 'node', ['scripts/og_image.js', F, '--title', title, '--date', dateText, '--masjid', masjid, '--langs', ['en', ...langs.map(L => L.code)].join(',')], { tries: 1 })
+    .catch(e => log(`✗ link preview: ${whyFailed(e)} (the site's own picture is used)`));
 
   // 3. The English review, then each language's translation and review side by side (API), beside
   // the imam's timing (local). The review corrects the English the languages then use as their
@@ -218,6 +221,12 @@ async function main() {
   // 4. Verses recited only in part.
   await run('verse excerpts', 'node', ['core/verse_excerpts.js', F]);
 
+  // 4b. Which Arabic phrase each translation phrase translates (align_phrases.js, ~9 cents), while the voices are
+  //     made: the page lights the Arabic the voice is translating. A page without it lights no part, so a failure
+  //     here is logged and the page goes up anyway.
+  const aligning = (resume && existsSync(join(ROOT, F, 'align.json')) ? Promise.resolve(log('= phrase matching (kept)'))
+    : run('phrase matching', 'node', ['core/align_phrases.js', F])).catch(e => log(`✗ phrase matching: ${whyFailed(e)} (the page goes up without it)`));
+
   // 5. Voices, then the recitation. Both are voiced a passage at a time with a direction per
   //    sentence (--direct): about 4 Gemini requests each since 3 Oct (13 before; one per block,
   //    67 for the English, on 2 Oct, when two runs in a day hit the 100-a-day limit), and the word
@@ -248,6 +257,8 @@ async function main() {
       log(`✗ ${label} voice: the page goes up without it for now`);
     }
   }
+
+  await aligning;
 
   // 6. Publish: checks, test set, then the site's publish API (one page). The page plays the
   // imam's recording (the echo-removed one with --clean).

@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Khutbah.dev</title>
+  <meta name="theme-color" content="#0B1712">
+  <link rel="icon" type="image/svg+xml" href="/img/logo.svg">
+  <link rel="icon" type="image/png" href="/img/favicon-48.png">
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+  <meta name="description" content="Arabic Friday Khutbahs with English, Urdu and Bengali translations, every Quran ayah and Hadith cited and linked.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Kufam:wght@500;600&family=Readex+Pro:wght@300;400;500&family=Amiri:wght@400;700&family=Amiri+Quran&family=Noto+Nastaliq+Urdu:wght@400;500&family=Noto+Serif+Bengali:wght@400;500&family=Noto+Naskh+Arabic&display=swap" rel="stylesheet">
+  <script>
+    // The words wait for their fonts (at most 1.6 s) and come in with the minbar, so nothing changes size as they arrive.
+    (function () {
+      var root = document.documentElement, f = document.fonts;
+      root.classList.add('fonts-wait');
+      var want = [['600 40px Kufam', 'Understand'], ['500 20px Kufam', 'Khutbah'], ['400 18px "Readex Pro"', 'Tap'], ['300 17px "Readex Pro"', 'Read'],
+        ['500 16px "Readex Pro"', 'Listen'], ['400 30px Amiri', 'العربية'], ['400 26px "Noto Nastaliq Urdu"', 'اردو'],
+        ['400 26px "Noto Serif Bengali"', 'বাংলা'], ['400 26px "Amiri Quran"', 'ٱدۡعُونِيٓ']];
+      window.__fontsReady = new Promise(function (done) {
+        setTimeout(done, 1600);
+        if (f && f.load) Promise.all(want.map(function (w) { return f.load(w[0], w[1]); })).then(done, done); else done();
+      }).then(function () { root.classList.remove('fonts-wait'); });
+    })();
+  </script>
+  <style>
+    :root {
+      --night: #0B1712;
+      --night-2: #0F1F18;
+      --night-3: #15291F;
+      --line: rgba(216, 184, 108, .16);
+      --line-soft: rgba(236, 230, 214, .09);
+      --gold: #D8B86C;
+      --gold-dim: rgba(216, 184, 108, .42);
+      --green: #63C79B;
+      --green-wash: rgba(99, 199, 155, .09);
+      --green-ink: #07150F;
+      --gold-ink: #1A1508;
+      --gold-bright: #F1D58E;
+      --cream: #ECE6D6;
+      --mist: #A6B3AA;
+      --dim: #85948B;
+      --paper: #F2EFE6;
+      --ink: #1A201C;
+      --ink-2: #4B554F;
+      --unsaid: #A3ABA5;
+      --pen: #A27D2E;
+      --hadith: #1F6E4E;
+      --light: #F8E9BC;
+      --display: "Kufam", "Readex Pro", system-ui, sans-serif;
+      --text: "Readex Pro", system-ui, sans-serif;
+      --ar: "Amiri", "Noto Naskh Arabic", serif;
+      --ur: "Noto Nastaliq Urdu", serif;
+      --bn: "Noto Serif Bengali", serif;
+      --hon: "Noto Naskh Arabic", "Amiri", serif;
+      --lattice: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Cg fill='none' stroke='%23D8B86C' stroke-width='1'%3E%3Cpath d='M32 4 L60 32 L32 60 L4 32 Z'/%3E%3Cpath d='M14 14 H50 V50 H14 Z'/%3E%3C/g%3E%3C/svg%3E");
+      color-scheme: dark;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+    body {
+      margin: 0; background: var(--night); color: var(--cream);
+      font: 300 17px/1.6 var(--text); -webkit-font-smoothing: antialiased; overflow-x: hidden;
+      font-variant-numeric: lining-nums;
+    }
+    ::selection { background: rgba(216, 184, 108, .32); color: #FFF8E6; }
+    :focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 4px; }
+    a { color: inherit; }
+    input, textarea, button { font: inherit; color: inherit; caret-color: var(--gold); }
+    html { scrollbar-color: #2A4236 var(--night); }
+    [lang="ar"] { font-family: var(--ar); }
+    [lang="ur"] { font-family: var(--ur); }
+    [lang="bn"] { font-family: var(--bn); }
+    .hon { font-family: var(--hon); font-weight: 400; font-size: 1.05em; line-height: 1; }
+    .wrap { max-width: 1240px; margin: 0 auto; padding: 0 40px; }
+    .skip { position: absolute; left: 16px; top: -60px; z-index: 50; background: var(--gold); color: var(--gold-ink); padding: 10px 16px; border-radius: 8px; text-decoration: none; font-weight: 500; }
+    .skip:focus { top: 12px; }
+
+    /* the star lattice, as endpapers behind the top of the page */
+    .endpaper {
+      position: absolute; inset: 0 0 auto 0; height: 820px; pointer-events: none; z-index: 0;
+      background: var(--lattice) 0 0 / 64px 64px; opacity: .055;
+      -webkit-mask-image: linear-gradient(to bottom, #000 0%, rgba(0,0,0,.6) 40%, transparent 100%);
+      mask-image: linear-gradient(to bottom, #000 0%, rgba(0,0,0,.6) 40%, transparent 100%);
+    }
+    .glow {
+      position: absolute; inset: 0 0 auto 0; height: 980px; pointer-events: none; z-index: 0;
+      background:
+        radial-gradient(52% 58% at 76% 52%, rgba(248, 233, 188, .075), transparent 70%),
+        radial-gradient(70% 50% at 8% 0%, rgba(40, 84, 63, .55), transparent 70%);
+    }
+    header, main, footer { position: relative; z-index: 1; }
+    /* the bar stays at the top as the page scrolls (Meer, 12 Oct): clear over the top of the page, solid once scrolled */
+    header { position: sticky; top: 0; z-index: 40; border-bottom: 1px solid transparent; transition: background-color .25s, border-color .25s; }
+    header.scrolled { background: rgba(11, 23, 18, .9); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border-bottom-color: var(--line-soft); }
+    #khutbahs, #how-it-works, #why, #contact { scroll-margin-top: 84px; }
+    html.fonts-wait header, html.fonts-wait main { opacity: 0; }
+    header, main { transition: opacity .5s cubic-bezier(.16, 1, .3, 1); }
+
+    /* ── Bar ── */
+    .bar { display: flex; align-items: center; gap: 28px; padding-top: 22px; padding-bottom: 22px; }
+    .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; font: 500 21px/1 var(--display); letter-spacing: .01em; }
+    .brand img { width: 38px; height: 38px; }
+    .nav { display: flex; gap: 26px; margin-left: auto; font-size: 16px; font-weight: 400; }
+    .nav a { text-decoration: none; color: var(--mist); padding: 8px 0; }
+    .nav a:hover { color: var(--cream); }
+    .here { display: flex; align-items: center; gap: 8px; font-size: 14.5px; color: var(--mist); white-space: nowrap; }
+    .here b { color: var(--cream); font-weight: 500; font-variant-numeric: tabular-nums; }
+    .here .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
+    .here.online .dot { background: var(--green); box-shadow: 0 0 0 4px rgba(99,199,155,.16); }
+    /* only "reading now": the totals (people, visits) stay on /admin/traffic (Meer, 12 Oct) */
+    .here .more { display: none; }
+
+    /* ── Hero ── */
+    .hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: 44px; align-items: start; padding-top: 34px; }
+    .say { padding-top: 22px; }
+    .stage { display: contents; }
+    .stars { display: flex; gap: 16px; margin: 0 0 26px; color: var(--gold); }
+    .stars svg, .dinkus svg { width: 24px; height: 24px; }
+    h1 { margin: 0; font: 600 clamp(38px, 4.3vw, 58px)/1.08 var(--display); letter-spacing: -.012em; text-wrap: balance; max-width: 11.5em; }
+    /* the languages, in gold, as on the old page; tapping one makes it the language every khutbah opens in */
+    .tongue-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; margin: 30px 0 0; font: 400 clamp(28px, 2.9vw, 38px)/1.45 var(--text); color: var(--gold); }
+    .tongue-line .t-ar { font-family: var(--ar); font-size: 1.05em; }
+    .tongue-line .sep { color: var(--gold-dim); }
+    .tongue-line button { border: 0; background: none; padding: 0 2px 2px; margin: 0; font: inherit; color: var(--gold); cursor: pointer; border-bottom: 3px solid transparent; transition: border-color .2s, color .2s; }
+    .tongue-line button[lang="ur"] { font-family: var(--ur); font-size: .95em; line-height: 1.25; }
+    .tongue-line button[lang="bn"] { font-family: var(--bn); font-size: .95em; }
+    .tongue-line button:hover { border-bottom-color: var(--gold-dim); }
+    .tongue-line button[aria-pressed="true"] { color: #F3DFA6; border-bottom-color: var(--gold); }
+    .tongue-help { margin: 32px 0 0; min-height: 30px; font-size: 16px; line-height: 1.6; color: var(--mist); font-weight: 400; }
+    .tongue-help [lang="ur"] { font-size: 20px; line-height: 1.5; } .tongue-help [lang="bn"] { font-size: 17px; }
+    #helpText { display: inline-block; }
+    .tongue-wrap { position: relative; }
+    .tongue-line { margin-top: 2px !important; }
+    /* a hand that taps each language in turn until the visitor picks one */
+    .finger { position: absolute; left: 0; top: 0; width: 38px; height: 38px; pointer-events: none; opacity: 0; z-index: 3; }
+    .finger svg { position: relative; width: 100%; height: 100%; display: block; overflow: visible; }
+    .finger path { fill: #F4EEDD; stroke: var(--night); stroke-width: 14; paint-order: stroke; }
+    .finger .ring { position: absolute; left: 44%; top: 6%; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; border: 2px solid var(--gold); opacity: 0; }
+    .tongue-line button.tap { border-bottom-color: var(--gold-dim); }
+    .tongue-help b { color: var(--cream); font-weight: 500; }
+    /* what you get, as two gold ticks: one short line each */
+    .ticks { list-style: none; margin: 44px 0 0; padding: 0; display: grid; gap: 13px; }
+    .ticks li { display: flex; align-items: flex-start; gap: 14px; font-size: 18px; line-height: 1.45; font-weight: 400; color: #D9DED3; }
+    .ticks svg { flex: none; width: 22px; height: 22px; margin-top: 2px; color: var(--gold); }
+    .ticks path { fill: currentColor; }
+    .cta { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin-top: 24px; color: var(--gold); font-size: 17px; font-weight: 400; text-decoration: none; }
+    .cta svg { width: 20px; height: 20px; transition: transform .2s; }
+    .cta:hover { color: var(--gold-bright); }
+    .cta:hover svg { transform: translateY(2px); }
+
+    /* the minbar, with the khutbah's page resting on its floor */
+    .art { position: relative; min-height: 610px; }
+    .minbar { position: absolute; top: -12px; left: -6px; width: min(600px, 100%); height: auto; overflow: visible; }
+    .minbar .ln { fill: none; stroke: var(--gold); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .minbar .thin { stroke-width: 1; opacity: .7; }
+    .minbar .b { stroke-width: 1.1; opacity: .75; }
+    .minbar .win { stroke-width: 1.2; opacity: .8; }
+    .minbar .floor { opacity: .45; }
+    .minbar .lattice { color: var(--gold); opacity: .38; }
+
+    .page {
+      position: absolute; right: -24px; bottom: -112px; width: 440px; margin: 0; z-index: 2;
+      background: #13291F; color: var(--cream); border-radius: 10px; padding: 18px 26px 20px;
+      border: 1px solid rgba(216, 184, 108, .24);
+      box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .6), 0 2px 6px rgba(0, 0, 0, .3);
+    }
+    .tabs { display: flex; gap: 2px; margin: 0 0 4px -10px; }
+    .tabs button { border: 0; background: none; cursor: pointer; padding: 9px 10px 7px; color: var(--mist); border-bottom: 2px solid transparent; font-size: 15px; font-weight: 400; min-height: 40px; }
+    .tabs button[aria-pressed="true"] { color: var(--cream); border-bottom-color: var(--gold); font-weight: 500; }
+    .tabs [lang="ur"] { font-size: 15px; } .tabs [lang="bn"] { font-size: 15px; } .tabs [lang="ar"] { font-size: 17px; line-height: 1; }
+    .tabs { align-items: center; flex-wrap: wrap; }
+    .tabs .src { margin-left: auto; font-size: 13.5px; color: var(--mist); text-decoration: none; padding: 9px 0 7px; }
+    .tabs .src:hover { color: var(--cream); text-decoration: underline; }
+    .pg-ar { position: relative; margin: 10px 0 0; direction: rtl; text-align: right; font: 400 26px/2 var(--ar); }
+    .pg-ar .w { transition: color .2s; }
+    .page.playing:not(.voicing) .pg-ar .w { color: #66796E; }
+    .pg-tr[hidden] { display: none; }
+    .page.playing .pg-ar .w.said { color: #F4EEDD; }
+    .pen { position: absolute; left: 0; top: 0; width: 40px; height: 9px; color: var(--gold); pointer-events: none; opacity: 0; }
+    .page.playing .pen { opacity: 1; }
+    .pen svg { display: block; width: 100%; height: 100%; } .pen path { fill: currentColor; }
+    .pg-tr { margin: 12px 0 0; font-size: 17px; line-height: 1.62; font-weight: 300; color: #D9DCD2; }
+    .pg-tr[lang="ur"] { direction: rtl; text-align: right; font-size: 18.5px; line-height: 2.3; }
+    .pg-tr[lang="bn"] { font-size: 17.5px; line-height: 1.85; }
+    .pg-tr q { color: var(--green); font-style: italic; quotes: none; }
+    .pg-tr q.ayah, .pg-tr .w.ayah { color: var(--gold); font-style: italic; }
+    .pg-tr[lang="ur"] .w.ayah, .pg-tr[lang="bn"] .w.ayah { font-style: normal; }
+    .pg-ar .q { color: var(--gold); font-family: "Amiri Quran", var(--ar); font-size: 1.06em; }
+    .page.playing:not(.voicing) .pg-ar .q .w { color: rgba(216, 184, 108, .45); }
+    .page.playing .pg-ar .q .w.said { color: #F1D58E; }
+    .page.voicing .pg-tr .w.ayah { color: rgba(216, 184, 108, .45); }
+    .page.voicing .pg-tr .w.ayah.said { color: #F1D58E; }
+    .pg-tr[lang="ur"] q, .pg-tr[lang="bn"] q { font-style: normal; }
+    .pg-foot { margin-top: 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; }
+    .listen .lbl[lang="ur"] { font-size: 16px; line-height: 1.6; }
+    .listen .lbl[lang="bn"] { font-size: 16px; }
+    .pg-tr { position: relative; }
+    .page.voicing .pg-tr .w { color: #66796E; transition: color .2s; }
+    .page.voicing .pg-tr .w.said { color: #F4EEDD; }
+    .listen {
+      display: inline-flex; align-items: center; gap: 10px; border: 0; cursor: pointer; min-height: 48px;
+      padding: 0 22px 0 8px; border-radius: 999px; background: var(--gold); color: #1A1508; font-size: 16px; font-weight: 500; transition: background .2s;
+    }
+    .listen:hover { background: #E4C67F; }
+    .listen .disc { width: 34px; height: 34px; border-radius: 50%; background: rgba(26, 21, 8, .12); display: grid; place-items: center; }
+    .listen svg { width: 14px; height: 14px; }
+    .listen[aria-busy="true"] { opacity: .75; cursor: progress; }
+    .read { color: var(--cream); font-size: 15.5px; font-weight: 400; text-decoration: none; border-bottom: 1.5px solid var(--gold-dim); padding-bottom: 2px; }
+    .read:hover { border-color: var(--gold); }
+    .float-pause {
+      position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 20;
+      transform: translate(-50%, 28px); opacity: 0; visibility: hidden;
+      box-shadow: 0 16px 34px -12px rgba(0, 0, 0, .7), 0 2px 6px rgba(0, 0, 0, .3);
+      transition: transform .35s cubic-bezier(.16, 1, .3, 1), opacity .25s, visibility 0s .35s;
+    }
+    .float-pause.on { transform: translate(-50%, 0); opacity: 1; visibility: visible; transition: transform .35s cubic-bezier(.16, 1, .3, 1), opacity .25s; }
+    .pg-status { flex-basis: 100%; font-size: 14px; color: #F1A48A; margin: 0; }
+    .pg-status:empty { display: none; }
+
+    /* ── Section break: the three stars ── */
+    .dinkus { display: flex; justify-content: center; gap: 30px; margin: 128px 0 0; color: var(--gold); opacity: .9; }
+
+    /* ── The khutbahs ── */
+    .list { padding-top: 64px; }
+    h2 { margin: 0; font: 600 34px/1.15 var(--display); letter-spacing: -.008em; text-wrap: balance; }
+    .finder { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 22px; margin: 26px 0 8px; }
+    .find { position: relative; flex: 0 1 380px; }
+    .find label { display: block; font-size: 14.5px; color: var(--mist); margin-bottom: 6px; font-weight: 400; }
+    .find input {
+      width: 100%; min-height: 48px; padding: 0 16px 0 44px; border-radius: 12px; border: 1px solid #2B4337;
+      background: var(--night-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A6B3AA' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='6.5'/%3E%3Cpath d='m20 20-4.2-4.2'/%3E%3C/svg%3E") no-repeat 15px 50% / 18px;
+      font-size: 16.5px; font-weight: 300;
+    }
+    .find input::placeholder { color: var(--dim); }
+    .find input:focus { border-color: var(--gold); outline: none; box-shadow: 0 0 0 3px rgba(216,184,108,.2); }
+    .masjids { display: flex; flex-wrap: wrap; gap: 8px; align-self: flex-end; }
+    .masjids button {
+      border: 1px solid #2B4337; background: none; color: var(--mist); border-radius: 999px; padding: 0 14px; min-height: 40px;
+      cursor: pointer; font-size: 15px; font-weight: 400;
+    }
+    .masjids button span { color: var(--dim); margin-left: 6px; font-variant-numeric: tabular-nums; }
+    .masjids button[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); }
+    .masjids button[aria-pressed="true"] span { color: var(--gold-ink); opacity: .7; }
+
+    /* each Friday is one row that opens to its khutbahs; the latest starts open */
+    .friday { border-top: 1px solid var(--line-soft); }
+    .friday:first-child { border-top: 0; }
+    .when-h { margin: 0; font-weight: 400; }
+    .day {
+      width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto 26px; align-items: center; gap: 18px;
+      padding: 24px 6px; background: none; border: 0; cursor: pointer; text-align: left; color: inherit; font: inherit; border-radius: 12px;
+    }
+    .day:hover { background: rgba(236, 230, 214, .03); }
+    .day .when { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 16px; }
+    .when-h .lead { flex-basis: 100%; font: 500 15px/1.4 var(--text); color: var(--gold); }
+    .when-h .d { font: 500 25px/1.2 var(--text); letter-spacing: -.01em; color: var(--cream); }
+    .when-h .h { font: 400 19px/1.5 var(--ar); color: var(--mist); }
+    .when-h .count { font-size: 15px; color: var(--dim); font-weight: 300; }
+    .day .mini { display: flex; gap: 8px; }
+    .day .mini .glyph { width: 30px; height: 30px; color: var(--gold); opacity: .75; }
+    .day .mini .glyph .dome { stroke: var(--gold-bright); }
+    .day .chev { width: 24px; height: 24px; color: var(--gold); transition: transform .3s; }
+    .friday.open .chev { transform: rotate(180deg); }
+    .day-body { padding: 0 0 26px; }
+    .day-body.moving { overflow: hidden; }
+    .rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+    .row {
+      display: grid; grid-template-columns: 52px minmax(0, 1fr); column-gap: 18px; padding: 16px 18px 18px 14px; margin: 0 -18px 0 -14px;
+      border-radius: 14px; text-decoration: none; transition: background .2s;
+    }
+    .row:hover { background: rgba(236, 230, 214, .04); }
+    .row .glyph { width: 52px; height: 52px; color: var(--gold); opacity: .85; margin-top: 2px; }
+    .row .glyph .dome { stroke: var(--gold-bright); }
+    .row h3 { margin: 0; font: 500 23px/1.3 var(--text); letter-spacing: -.005em; color: var(--cream); text-wrap: balance; }
+    .row .by { margin: 4px 0 0; font-size: 16px; color: var(--mist); font-weight: 400; }
+    .row .map { color: var(--mist); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 4px; cursor: pointer; }
+    .row .map:hover { color: var(--cream); }
+    .row .sum { margin: 8px 0 0; max-width: 46em; font-size: 16.5px; line-height: 1.6; color: #C9CFC6; }
+    .row .tongues { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; margin: 10px 0 0; font-size: 15px; color: var(--gold); font-weight: 400; }
+    .row .tongues [lang="ur"] { font-size: 15px; line-height: 1.7; }
+    .row .tongues .voice { color: var(--dim); font-weight: 300; }
+    .row.first h3 { font-size: 27px; }
+    .empty { padding: 30px 0; color: var(--mist); }
+    .empty button { margin-left: 8px; border: 0; background: none; color: var(--gold); cursor: pointer; text-decoration: underline; font-size: inherit; }
+
+    /* ── Why, how, feedback ── */
+    .why { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); column-gap: 64px; padding-top: 72px; }
+    .why p { margin: 0 0 18px; font-size: 18.5px; line-height: 1.7; color: #D6D8CF; max-width: 36em; }
+    .why .sig { font-family: var(--text); font-weight: 500; color: var(--cream); margin-top: 26px; font-size: 18px; }
+    .why .sig span { display: block; font: 300 15.5px/1.5 var(--text); color: var(--mist); margin-top: 2px; }
+    .why .links { display: flex; gap: 18px; font-size: 15.5px; margin-top: 6px; }
+    .why .links a { color: var(--gold); text-decoration: none; }
+    .why .links a:hover { text-decoration: underline; }
+    .why-more { display: none; }
+    .ahadith { display: grid; gap: 30px; align-content: start; padding-top: 6px; }
+    .hadith { margin: 0; padding: 0 0 0 22px; border-left: 1px solid var(--gold-dim); }
+    .hadith [lang="ar"] { margin: 0; direction: rtl; text-align: right; font: 400 22px/1.95 var(--ar); color: var(--gold); }
+    .hadith .en { margin: 10px 0 0; font-size: 16px; line-height: 1.6; color: #C9CFC6; }
+    .hadith figcaption { margin-top: 8px; font-size: 14.5px; color: var(--dim); }
+    .hadith figcaption a { color: var(--mist); }
+
+    .how { padding-top: 96px; }
+    /* the four steps on one gold line, drawn as the page scrolls (anime.js onScroll) */
+    .trail { position: relative; margin: 40px auto 0; max-width: 1160px; aspect-ratio: 1160 / 640; --p: 0; }
+    .trail-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+    .trail-base { fill: none; stroke: rgba(216, 184, 108, .16); stroke-width: 2; stroke-dasharray: 2 8; stroke-linecap: round; }
+    .trail-line { fill: none; stroke: var(--gold); stroke-width: 2.5; stroke-linecap: round; }
+    .trail-dot { fill: var(--gold); }
+    .trail-head { fill: var(--gold); }
+    .rail { display: none; }
+    .trail-steps { list-style: none; margin: 0; padding: 0; }
+    .step {
+      position: absolute; left: var(--x); top: var(--y); width: 28.45%; transform: translateY(-50%);
+      display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 0 16px; align-items: start;
+      padding: 22px 22px 20px; border-radius: 12px; background: #12251C; border: 1px solid rgba(216, 184, 108, .14);
+      opacity: .5; transition: opacity .4s, border-color .4s;
+    }
+    .step.on { opacity: 1; border-color: rgba(216, 184, 108, .45); }
+    .step .num {
+      position: absolute; top: -15px; left: 50%; margin-left: -15px; width: 30px; height: 30px; border-radius: 50%;
+      display: grid; place-items: center; font: 600 15px/1 var(--text); color: var(--gold);
+      background: var(--night); border: 1.5px solid rgba(216, 184, 108, .5);
+    }
+    .step.on .num { background: var(--gold); color: #1A1508; border-color: var(--gold); }
+    .step .ico { width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; background: rgba(216, 184, 108, .1); color: var(--gold); }
+    .step .ico svg { width: 24px; height: 24px; }
+    .step b { display: block; font: 500 18px/1.3 var(--text); color: var(--cream); margin-bottom: 5px; }
+    .step .txt > span { display: block; font-size: 15.5px; line-height: 1.55; color: var(--mist); }
+    .trail-end {
+      position: absolute; left: 63.8%; top: 89.06%; transform: translateY(-50%);
+      display: inline-flex; align-items: center; min-height: 52px; padding: 0 28px; border-radius: 999px;
+      background: var(--gold); color: #1A1508; font-size: 17px; font-weight: 500; text-decoration: none; transition: background .2s;
+    }
+    .trail-end:hover { background: #E4C67F; }
+    details.tech { margin-top: 34px; border-top: 1px solid var(--line-soft); }
+    details.tech summary { cursor: pointer; padding: 18px 0; font-size: 16.5px; color: var(--cream); font-weight: 400; list-style: none; display: flex; align-items: center; gap: 10px; }
+    details.tech summary::-webkit-details-marker { display: none; }
+    details.tech summary::before { content: ""; width: 9px; height: 9px; border-right: 1.5px solid var(--gold); border-bottom: 1.5px solid var(--gold); transform: rotate(-45deg); transition: transform .2s; }
+    details.tech[open] summary::before { transform: rotate(45deg); }
+    .tech-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 48px; padding-bottom: 10px; }
+    .tech-grid h3 { margin: 0 0 6px; font: 500 17px/1.3 var(--text); color: var(--cream); }
+    .tech-grid p { margin: 0; font-size: 15.5px; line-height: 1.65; color: var(--mist); }
+    .tech-grid strong { color: var(--cream); font-weight: 400; }
+
+    .talk { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); column-gap: 64px; padding-top: 96px; }
+    .talk .intro p { margin: 14px 0 0; font-size: 17.5px; line-height: 1.65; color: var(--mist); max-width: 28em; }
+    .talk .intro a { color: var(--gold); }
+    .form { display: grid; gap: 18px; }
+    .field label { display: block; font-size: 15px; color: var(--cream); margin-bottom: 7px; font-weight: 400; }
+    .field label .opt { color: var(--dim); font-weight: 300; }
+    .field input, .field textarea {
+      width: 100%; border-radius: 12px; border: 1px solid #2B4337; background: var(--night-2); padding: 12px 14px; font-size: 16.5px; font-weight: 300;
+    }
+    .field textarea { min-height: 132px; resize: vertical; line-height: 1.55; }
+    .field input { min-height: 48px; }
+    .field input:focus, .field textarea:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(216,184,108,.2); }
+    .check { display: flex; gap: 10px; align-items: flex-start; font-size: 15px; color: var(--mist); }
+    .check input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--gold); }
+    .trap { position: absolute; left: -9999px; width: 1px; height: 1px; }
+    .send { justify-self: start; min-height: 50px; padding: 0 28px; border: 0; border-radius: 999px; background: var(--gold); color: var(--gold-ink); font-size: 16.5px; font-weight: 500; cursor: pointer; }
+    .send:disabled { opacity: .5; cursor: progress; }
+    .status { margin: 0; font-size: 15.5px; color: var(--gold); }
+    .status.error { color: #F1A48A; }
+    .status:empty { display: none; }
+    .others { font-size: 15.5px; color: var(--mist); }
+
+    footer { margin-top: 110px; border-top: 1px solid var(--line-soft); }
+    footer .wrap { display: flex; flex-wrap: wrap; gap: 10px 26px; padding-top: 28px; padding-bottom: 44px; font-size: 15px; color: var(--dim); }
+    footer a { color: var(--mist); text-decoration: none; }
+    footer a:hover { color: var(--cream); }
+    footer .spacer { flex: 1; }
+
+    /* ── Phones ── */
+    @media (max-width: 900px) {
+      .wrap { padding: 0 20px; }
+      .nav { display: none; }
+      .here { margin-left: auto; }
+      .here .more { display: none; }
+      .bar { padding-top: 16px; padding-bottom: 12px; }
+      .brand { font-size: 19px; } .brand img { width: 34px; height: 34px; }
+      .hero { display: block; padding-top: 14px; }
+      .say { padding-top: 6px; }
+      .stars { margin-bottom: 18px; gap: 14px; } .stars svg { width: 20px; height: 20px; }
+      /* the heading the same 95 px below the header on every phone (a taller phone shows more of the example, it does
+         not push the heading down), the languages below it; the same 40 px from the heading to the languages as from
+         the languages to the example. The minbar stands large and faint behind
+         them, its floor just above the example, fading out upwards; a night halo keeps its lines off the letters. */
+      .stage { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 75px 0 40px; }
+      .stage > *:not(.minbar) { position: relative; z-index: 1; }
+      .stage .stars { justify-content: center; margin: 0 0 22px; }
+      .stage .minbar { position: absolute; z-index: 0; top: auto; bottom: 36px; left: 50%; width: 112%; max-width: none; margin: 0; display: block;
+                       opacity: .22; transform: translateX(-50%); pointer-events: none;
+                       -webkit-mask-image: linear-gradient(transparent 4%, #000 55%); mask-image: linear-gradient(transparent 4%, #000 55%); }
+      h1 { font-size: 36px; line-height: 1.12; max-width: 10.5em; margin: 0 auto; text-shadow: 0 0 18px var(--night), 0 0 6px var(--night); }
+      .tongue-line { font-size: 21px; gap: 0 9px; margin-top: 24px; justify-content: center; }
+      .tongue-help { font-size: 15px; margin-top: 40px; }
+      .finger { width: 34px; height: 34px; }
+      .ticks { margin-top: 40px; gap: 12px; clear: both; } .ticks li { font-size: 17px; gap: 12px; } .ticks svg { width: 22px; height: 22px; }
+      .cta { margin-top: 20px; }
+      .art { display: none; }
+      .page { position: relative; right: auto; bottom: auto; width: auto; margin: 0; padding: 18px 18px 18px; }
+      .page .tabs { margin: -6px 0 0; } .page .tabs button { display: none; }
+      .page .pg-foot { margin-top: 14px; }
+      .pg-ar { font-size: 22px; }
+      .pg-tr { font-size: 16px; } .pg-tr[lang="ur"] { font-size: 17px; }
+      .dinkus { margin-top: 64px; gap: 24px; } .dinkus svg { width: 20px; height: 20px; }
+      .list { padding-top: 44px; }
+      h2 { font-size: 27px; }
+      .find { flex-basis: 100%; }
+      .day { padding: 18px 2px; gap: 12px; }
+      .when-h .d { font-size: 21px; }
+      .when-h .h { font-size: 17px; }
+      .when-h .count { font-size: 14px; }
+      .day .mini { gap: 4px; }
+      .day .mini .glyph { width: 24px; height: 24px; }
+      .row { grid-template-columns: 40px minmax(0, 1fr); column-gap: 14px; padding: 12px 10px 14px 8px; margin: 0 -10px 0 -8px; }
+      .row .glyph { width: 40px; height: 40px; }
+      .row h3, .row.first h3 { font-size: 21px; }
+      .row .by { font-size: 15px; } .row .sum { font-size: 15.5px; }
+      .why, .talk { display: block; padding-top: 64px; }
+      .why p { font-size: 17px; }
+      /* on a phone the story's first paragraph and the first hadith; the rest on a tap */
+      .why:not(.open) .more { display: none; }
+      .why-more { display: inline-flex; align-items: center; min-height: 44px; margin: -6px 0 0; padding: 0; border: 0; background: none;
+                  color: var(--gold); font: 400 16.5px/1 var(--text); text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
+      .why .sig { margin-top: 18px; }
+      .ahadith { margin-top: 30px; }
+      .how { padding-top: 64px; }
+      .trail { aspect-ratio: auto; margin-top: 30px; padding: 6px 0 0 50px; }
+      .trail-svg { display: none; }
+      .rail { display: block; position: absolute; left: 17px; top: 0; bottom: 26px; width: 0; border-left: 2px dotted rgba(216, 184, 108, .3); }
+      .rail-fill { position: absolute; top: 0; bottom: 0; left: -2px; width: 2px; background: var(--gold); transform-origin: top; transform: scaleY(var(--p)); }
+      .rail-head { position: absolute; left: -10px; top: calc(var(--p) * 100%); width: 0; height: 0; margin-top: -4px; border-left: 9px solid transparent; border-right: 9px solid transparent; border-top: 13px solid var(--gold); }
+      .step { position: relative; left: auto; top: auto; width: auto; transform: none; margin: 0 0 30px; padding: 22px 18px 18px; grid-template-columns: 40px minmax(0, 1fr); gap: 0 14px; }
+      .step .num { left: -48px; top: 20px; margin: 0; }
+      .step .ico { width: 40px; height: 40px; }
+      .step b { font-size: 17px; } .step .txt > span { font-size: 15px; }
+      .trail-end { position: relative; left: auto; top: auto; transform: none; margin: 4px 0 0; }
+      .tech-grid { grid-template-columns: 1fr; }
+      .talk .form { margin-top: 26px; }
+      footer { margin-top: 72px; }
+    }
+    /* small phones (360 px): a little smaller all round, the four languages still on one line */
+    @media (max-width: 380px) {
+      h1 { font-size: 31px; }
+      .tongue-line { font-size: 19.5px; gap: 0 8px; }
+    }
+    @media (max-width: 900px) { .listen { white-space: nowrap; } }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } header, main, .float-pause, .float-pause.on { transition: none; } }
+  </style>
+</head>
+<body>
+<a class="skip" href="#khutbahs">Skip to the khutbahs</a>
+<div class="glow" aria-hidden="true"></div>
+<div class="endpaper" aria-hidden="true"></div>
+
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="/"><img src="/img/logo.svg" alt="" width="38" height="38">Khutbah.dev</a>
+    <nav class="nav" aria-label="On this page">
+      <a href="#khutbahs">Khutbahs</a>
+      <a href="#how-it-works">How it's made</a>
+      <a href="#why">Why</a>
+      <a href="#contact">Feedback</a>
+    </nav>
+    <div class="here" id="viewersBadge" title="People reading now · unique visitors · total visits">
+      <span class="dot" aria-hidden="true"></span>
+      <span><b id="liveCount">–</b> reading now</span>
+      <span class="more">· <b id="uniqueCount">–</b> <span id="uniqueLabel">people</span> · <b id="totalCount">–</b> <span id="totalLabel">visits</span></span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="wrap hero" aria-labelledby="hero-h">
+    <div class="say">
+      <div class="stage">
+      <p class="stars" aria-hidden="true">{{HIZB}}{{HIZB}}{{HIZB}}</p>
+      <h1 id="hero-h">Understand the Friday khutbah, even if you don't speak Arabic.</h1>
+      <p class="tongue-help" id="tongueHelp" aria-live="polite"><span id="helpText">Tap your language</span></p>
+      <div class="tongue-wrap">
+        <p class="tongue-line" id="tongues" role="group" aria-label="Choose the language you read">
+          <button type="button" class="t-ar" data-l="ar" lang="ar" aria-pressed="false" title="The imam's own words">العربية</button><span class="sep" aria-hidden="true">·</span><button type="button" data-l="en" aria-pressed="false">English</button><span class="sep" aria-hidden="true">·</span><button type="button" data-l="ur" lang="ur" aria-pressed="false">اردو</button><span class="sep" aria-hidden="true">·</span><button type="button" data-l="bn" lang="bn" aria-pressed="false">বাংলা</button>
+        </p>
+        <span class="finger" id="finger" aria-hidden="true"><span class="ring"></span><svg viewBox="0 0 256 256"><path d="M224,104v50.93c0,46.2-36.85,84.55-83,85.06A83.71,83.71,0,0,1,80.6,215.4C58.79,192.33,34.15,136,34.15,136a16,16,0,0,1,6.53-22.23c7.66-4,17.1-.84,21.4,6.62l21,36.44a6.09,6.09,0,0,0,6,3.09l.12,0A8.19,8.19,0,0,0,96,151.74V32a16,16,0,0,1,16.77-16c8.61.4,15.23,7.82,15.23,16.43V104a8,8,0,0,0,8.53,8,8.17,8.17,0,0,0,7.47-8.25V88a16,16,0,0,1,16.77-16c8.61.4,15.23,7.82,15.23,16.43V112a8,8,0,0,0,8.53,8,8.17,8.17,0,0,0,7.47-8.25v-7.28c0-8.61,6.62-16,15.23-16.43A16,16,0,0,1,224,104Z"/></svg></span>
+      </div>
+      </div>
+      <ul class="ticks">
+        <li>{{TICK}}Hear it in your language</li>
+        <li>{{TICK}}Every ayah and hadith cited</li>
+      </ul>
+      <a class="cta" id="cta" href="#khutbahs"><span id="ctaText">This week's khutbahs</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9.5l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+    </div>
+
+    <div class="art">
+      {{MINBAR}}
+      <figure class="page" id="demo" aria-label="An example from a khutbah">
+        <div class="tabs" role="group" aria-label="Language">
+          <button type="button" data-l="ar" lang="ar" aria-pressed="false">العربية</button>
+          <button type="button" data-l="en" aria-pressed="true">English</button>
+          <button type="button" data-l="ur" lang="ur" aria-pressed="false">اردو</button>
+          <button type="button" data-l="bn" lang="bn" aria-pressed="false">বাংলা</button>
+          <a class="src" href="https://quran.com/40/60" target="_blank" rel="noopener">Ghafir 40:60</a>
+        </div>
+        <p class="pg-ar" lang="ar" dir="rtl" id="demoAr"></p>
+        <p class="pg-tr" id="demoTr" lang="en"></p>
+        <figcaption class="pg-foot">
+          <button type="button" class="listen" id="listen"><span class="disc">{{PLAY}}</span><span class="lbl" id="listenLabel">Listen</span></button>
+          <a class="read" href="/2026-10-09">Read this khutbah</a>
+          <p class="pg-status" id="demoStatus" role="status" aria-live="polite"></p>
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <p class="dinkus" aria-hidden="true">{{HIZB}}{{HIZB}}{{HIZB}}</p>
+
+  <section class="wrap list" id="khutbahs" aria-labelledby="list-h">
+    <h2 id="list-h">The khutbahs</h2>
+    <div class="finder">
+      <div class="find">
+        <label for="search">Find a khutbah</label>
+        <input type="search" id="search" placeholder="Title, imam, masjid or topic" autocomplete="off">
+      </div>
+      <div class="masjids" id="masjidFilter" role="group" aria-label="Show khutbahs from one masjid"></div>
+    </div>
+    <div id="grid"><p class="empty">Loading the khutbahs…</p></div>
+  </section>
+
+  <section class="wrap why" id="why" aria-labelledby="why-h">
+    <div>
+      <h2 id="why-h">Why I made this</h2>
+      <div style="margin-top:22px">
+        <p>Every Friday I'd look around the masjid and see non-native Arabic speakers chatting, drifting off, or on their phones during the khutbah. Not because they didn't care, but because they couldn't follow it. The khutbah is for all of us, so I wanted everyone in the room to be able to understand it in full, including the ayaat and hadith the imam builds it on.</p>
+        <p class="more" id="whyMore2">For now each khutbah is recorded, translated and put here after Jumu'ah. The next step, and the more important one, is following it in your language while the imam is speaking.</p>
+        <p class="more" id="whyMore3">I built Khutbah.dev and look after it. Every khutbah here is one I've processed, reviewed, and chosen to publish. I'm also a hafidh of the Qur'an, alhamdulillah, which is a big part of why the Quranic references matter to me: when the imam recites an ayah, I want every listener to know exactly which ayah it is and what it means.</p>
+        <button type="button" class="why-more" id="whyMore" aria-expanded="false" aria-controls="whyMore2 whyMore3 whyMore4">Read more</button>
+        <p class="sig">Meer Husamuddin<span>AI software engineer, hafidh of the Qur'an, Riyadh</span></p>
+        <p class="links"><a href="https://www.linkedin.com/in/meerhusam" target="_blank" rel="noopener">LinkedIn</a><a href="https://github.com/MeerHusam/khutbah-transcribe" target="_blank" rel="noopener">GitHub</a></p>
+      </div>
+    </div>
+    <div class="ahadith">
+      <figure class="hadith">
+        <p lang="ar" dir="rtl">إِذَا قُلْتَ لِصَاحِبِكَ يَوْمَ الْجُمُعَةِ أَنْصِتْ. وَالإِمَامُ يَخْطُبُ فَقَدْ لَغَوْتَ</p>
+        <p class="en">“When the Imam is delivering the Khutba, and you ask your companion to keep quiet and listen, then no doubt you have done an evil act.”</p>
+        <figcaption>Abu Huraira, <a href="https://sunnah.com/bukhari:934" target="_blank" rel="noopener">Sahih al-Bukhari 934</a></figcaption>
+      </figure>
+      <figure class="hadith more" id="whyMore4">
+        <p lang="ar" dir="rtl">مَنْ تَوَضَّأَ فَأَحْسَنَ الْوُضُوءَ ثُمَّ أَتَى الْجُمُعَةَ فَاسْتَمَعَ وَأَنْصَتَ غُفِرَ لَهُ مَا بَيْنَهُ وَبَيْنَ الْجُمُعَةِ وَزِيَادَةُ ثَلاَثَةِ أَيَّامٍ وَمَنْ مَسَّ الْحَصَى فَقَدْ لَغَا</p>
+        <p class="en">“He who performed ablution well, then came to Friday prayer, listened (to the sermon), kept silence all (his sins) between that time and the next Friday would be forgiven with three days extra, and he who touched pebbles caused an interruption.”</p>
+        <figcaption>Abu Huraira, <a href="https://sunnah.com/muslim:857b" target="_blank" rel="noopener">Sahih Muslim 857b</a></figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="wrap how" id="how-it-works" aria-labelledby="how-h">
+    <h2 id="how-h">How each khutbah is made</h2>
+    <div class="trail" id="trail">
+      <svg class="trail-svg" viewBox="0 0 1160 640" aria-hidden="true" focusable="false">
+        <path class="trail-base" d="M20 90 H1050 C1150 90 1150 330 1050 330 H110 C10 330 10 570 110 570 H716"/>
+        <path class="trail-line" d="M20 90 H1050 C1150 90 1150 330 1050 330 H110 C10 330 10 570 110 570 H716"/>
+        <circle class="trail-dot" cx="20" cy="90" r="8"/>
+        <path class="trail-head" d="M-13 -9 L9 0 L-13 9 Z"/>
+      </svg>
+      <span class="rail" aria-hidden="true"><span class="rail-fill"></span><span class="rail-head"></span></span>
+      <ol class="trail-steps">
+        <li class="step" style="--x:7.759%;--y:14.062%"><span class="num">1</span><span class="ico"><svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor"><path d="M128,176a48.05,48.05,0,0,0,48-48V64a48,48,0,0,0-96,0v64A48.05,48.05,0,0,0,128,176ZM96,64a32,32,0,0,1,64,0v64a32,32,0,0,1-64,0Zm40,143.6V240a8,8,0,0,1-16,0V207.6A80.11,80.11,0,0,1,48,128a8,8,0,0,1,16,0,64,64,0,0,0,128,0,8,8,0,0,1,16,0A80.11,80.11,0,0,1,136,207.6Z"/></svg></span><span class="txt"><b>Recorded at Jumu'ah</b><span>The khutbah is recorded in the masjid and sent here the same day.</span></span></li>
+        <li class="step" style="--x:51.724%;--y:14.062%"><span class="num">2</span><span class="ico"><svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor"><path d="M248,92.68a15.86,15.86,0,0,0-4.69-11.31L174.63,12.68a16,16,0,0,0-22.63,0L123.57,41.11l-58,21.77A16.06,16.06,0,0,0,55.35,75.23L32.11,214.68A8,8,0,0,0,40,224a8.4,8.4,0,0,0,1.32-.11l139.44-23.24a16,16,0,0,0,12.35-10.17l21.77-58L243.31,104A15.87,15.87,0,0,0,248,92.68Zm-69.87,92.19L63.32,204l47.37-47.37a28,28,0,1,0-11.32-11.32L52,192.7,71.13,77.86,126,57.29,198.7,130ZM112,132a12,12,0,1,1,12,12A12,12,0,0,1,112,132Zm96-15.32L139.31,48l24-24L232,92.68Z"/></svg></span><span class="txt"><b>Written down</b><span>The imam's Arabic is written out word by word, with the moment each word was said.</span></span></li>
+        <li class="step" style="--x:51.724%;--y:51.562%"><span class="num">3</span><span class="ico"><svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor"><path d="M247.15,212.42l-56-112a8,8,0,0,0-14.31,0l-21.71,43.43A88,88,0,0,1,108,126.93,103.65,103.65,0,0,0,135.69,64H160a8,8,0,0,0,0-16H104V32a8,8,0,0,0-16,0V48H32a8,8,0,0,0,0,16h87.63A87.76,87.76,0,0,1,96,116.35a87.74,87.74,0,0,1-19-31,8,8,0,1,0-15.08,5.34A103.63,103.63,0,0,0,84,127a87.55,87.55,0,0,1-52,17,8,8,0,0,0,0,16,103.46,103.46,0,0,0,64-22.08,104.18,104.18,0,0,0,51.44,21.31l-26.6,53.19a8,8,0,0,0,14.31,7.16L148.94,192h70.11l13.79,27.58A8,8,0,0,0,240,224a8,8,0,0,0,7.15-11.58ZM156.94,176,184,121.89,211.05,176Z"/></svg></span><span class="txt"><b>Translated and checked</b><span>It is translated into English, Urdu and Bengali, then checked again against the Arabic.</span></span></li>
+        <li class="step" style="--x:7.759%;--y:51.562%"><span class="num">4</span><span class="ico"><svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor"><path d="M232,48H160a40,40,0,0,0-32,16A40,40,0,0,0,96,48H24a8,8,0,0,0-8,8V200a8,8,0,0,0,8,8H96a24,24,0,0,1,24,24,8,8,0,0,0,16,0,24,24,0,0,1,24-24h72a8,8,0,0,0,8-8V56A8,8,0,0,0,232,48ZM96,192H32V64H96a24,24,0,0,1,24,24V200A39.81,39.81,0,0,0,96,192Zm128,0H160a39.81,39.81,0,0,0-24,8V88a24,24,0,0,1,24-24h64ZM160,88h40a8,8,0,0,1,0,16H160a8,8,0,0,1,0-16Zm48,40a8,8,0,0,1-8,8H160a8,8,0,0,1,0-16h40A8,8,0,0,1,208,128Zm0,32a8,8,0,0,1-8,8H160a8,8,0,0,1,0-16h40A8,8,0,0,1,208,160Z"/></svg></span><span class="txt"><b>Sources found</b><span>Every ayah is matched to the mushaf and every hadith to sunnah.com, so you can check them yourself.</span></span></li>
+      </ol>
+      <a class="trail-end" id="trailEnd" href="#khutbahs">Read the latest khutbah</a>
+    </div>
+    <details class="tech">
+      <summary>The technical details</summary>
+      <div class="tech-grid">
+        <div><h3>Arabic first</h3><p>Audio is transcribed using <strong>Gemini 3.5 Flash</strong>, which handles dense Arabic speech well. <strong>Groq Whisper</strong> runs in parallel for word-level timestamps, over the whole file and again in short overlapping windows so no stretch of the audio is skipped. The outputs are aligned using Needleman-Wunsch sequence matching, so the final transcript carries Gemini's text with Whisper's real audio timing.</p></div>
+        <div><h3>Read as it was said</h3><p>The transcript is split at breath-pause boundaries rather than fixed word counts. <strong>Claude</strong> (Sonnet 5.5) translates each segment with the full khutbah in view, so the English reads as the imam intended rather than as a word-for-word substitution. Where the imam quotes an ayah or a hadith mid-sentence, the published translation (Sahih International for ayaat, sunnah.com for hadith) replaces Claude's wording.</p></div>
+        <div><h3>Nothing missed</h3><p>Detection runs in three passes: Claude catches explicit citations ("قال الله تعالى"), a sliding-window scan finds ayahs cited without a signal phrase, and a 4-gram index catches partial recitations the other two miss. Each ayah is matched against the corpus and linked to <strong>quran.com</strong>. The full ayah is shown with the recited part in bold, alongside the Sahih International translation.</p></div>
+        <div><h3>Linked to the source</h3><p>Claude flags the hadith the imam quotes. The Arabic matn is searched on <strong>sunnah.com</strong>, preferring the collection the imam names ("رواه مسلم"), and a result is only accepted if its wording matches what was said. The link and narrator come from that sunnah.com page, so they are right regardless of numbering differences between hadith databases.</p></div>
+      </div>
+    </details>
+  </section>
+
+  <section class="wrap talk" id="contact" aria-labelledby="talk-h">
+    <div class="intro">
+      <h2 id="talk-h">Tell us what to fix</h2>
+      <p>A wrong word, a missing ayah, an idea for the site: big or small, it helps. JazakAllahu khayran.</p>
+      <p><a href="/feedback">See what others said</a></p>
+    </div>
+    <div class="form">
+      <div class="field"><label for="fbMessage">Message</label><textarea id="fbMessage" placeholder="Your feedback, correction or suggestion"></textarea></div>
+      <div class="field"><label for="fbName">Name <span class="opt">(optional, leave empty to stay anonymous)</span></label><input id="fbName" type="text" maxlength="60" autocomplete="name"></div>
+      <div class="field"><label for="fbContact">Email <span class="opt">(optional, only if you'd like a reply; never shown)</span></label><input id="fbContact" type="email" maxlength="200" autocomplete="email"></div>
+      <input class="trap" id="fbWebsite" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <label class="check"><input type="checkbox" id="fbPublic" checked> Show my message on the feedback page for others to read</label>
+      <button class="send" id="fbSubmit" type="button" onclick="submitFeedback()">Send</button>
+      <p class="status" id="fbStatus" role="status" aria-live="polite"></p>
+    </div>
+  </section>
+</main>
+<button type="button" class="listen float-pause" id="floatPause" tabindex="-1" aria-hidden="true"><span class="disc"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg></span><span class="lbl">Pause</span></button>
+
+<footer>
+  <div class="wrap">
+    <span>Made by <a href="https://www.linkedin.com/in/meerhusam" target="_blank" rel="noopener">Meer Husamuddin</a> in Riyadh.</span>
+    <span class="spacer"></span>
+    <a href="#how-it-works">How it's made</a>
+    <a href="/feedback">Feedback</a>
+    <a href="https://github.com/MeerHusam/khutbah-transcribe" target="_blank" rel="noopener">GitHub</a>
+  </div>
+</footer>
+
+<script>
+  const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const escAttr = s => esc(s).replace(/"/g, '&quot;');
+
+  // ── The example on the khutbah's page: a hadith the imam quoted, his words lit as he says them ──
+  const DEMO = {{DEMO}};
+  window.__DEMO = DEMO;
+  const demo =document.getElementById('demo'), demoAr = document.getElementById('demoAr'), demoTr = document.getElementById('demoTr');
+  let arHtml = '', open = false;
+  DEMO.words.forEach(([w, t, ayah, after], i) => {
+    if (ayah && !open) { arHtml += (i ? ' ' : '') + '<span class="q">﴿'; open = true; }
+    else if (!ayah && open) { arHtml += '﴾</span>' + (DEMO.words[i - 1][3] || '') + ' '; open = false; }
+    else if (i) arHtml += ' ';
+    arHtml += `<span class="w" data-i="${i}">${w}</span>`;
+  });
+  if (open) arHtml += '﴾</span>';
+  demoAr.innerHTML = arHtml
+    + '<span class="pen" id="pen" aria-hidden="true"><svg viewBox="0 0 100 10" preserveAspectRatio="none"><path d="M0 6.2 C18 3.9 42 3.2 64 3.6 C80 3.9 92 4.6 100 5.9 C91 7.3 77 8.1 60 8.0 C38 7.9 17 7.6 0 6.2Z"/></svg></span>';
+  const setTr = l => {
+    demoTr.hidden = l === 'ar';
+    if (l !== 'ar') { demoTr.innerHTML = DEMO.tr[l]; demoTr.lang = l; demoTr.dir = l === 'ur' ? 'rtl' : 'ltr'; }
+    window.__trLang = l; window.dispatchEvent(new Event('kt-tr'));
+    demo.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.l === l)));
+  };
+  demo.querySelector('.tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setTr(b.dataset.l); });
+  window.__setTr = setTr;
+  setTr('en');
+
+  // The language a visitor reads: tapping one keeps it (localStorage 'kt-lang', which the reader opens in),
+  // and the example switches to it. It points at no particular khutbah, so it holds for every masjid.
+  const NAMES = { en: 'English', ur: '<span lang="ur">اردو</span>', bn: '<span lang="bn">বাংলা</span>' };
+  const tongues = document.getElementById('tongues'), tongueHelp = document.getElementById('tongueHelp');
+  const choose = l => {
+    tongues.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.l === l)));
+    document.getElementById('helpText').innerHTML = l === 'ar' ? 'The imam’s own words.' : `Reading in <b>${NAMES[l]}</b>.`;
+    window.__chosen = true; window.dispatchEvent(new Event('kt-lang'));
+    setTr(l);
+  };
+  // A tap on a language plays it at once (a tap on the one already playing just brings it into view).
+  tongues.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (window.__demoPlaying?.() && window.__trLang === b.dataset.l) return window.__playDemo?.();
+    if (b.dataset.l !== 'ar') { try { localStorage.setItem('kt-lang', b.dataset.l); } catch {} }
+    choose(b.dataset.l);
+    window.__playDemo?.();
+  });
+  try { const saved = localStorage.getItem('kt-lang'); if (NAMES[saved]) choose(saved); } catch {}
+
+  // On a phone the minbar stands faint behind the heading and the example comes straight after the languages;
+  // the gold line is its one language switch.
+  {
+    const art = document.querySelector('.art'), say = document.querySelector('.say'), minbar = art.querySelector('.minbar');
+    const phone = matchMedia('(max-width: 900px)');
+    const arrange = () => {
+      if (phone.matches) { say.querySelector('.stage').prepend(minbar); say.querySelector('.stage').after(demo); }
+      else { art.prepend(minbar); art.append(demo); }
+    };
+    arrange();
+    phone.addEventListener('change', arrange);
+  }
+
+  // ── The khutbahs, grouped by Friday ──
+  const LANGS = { English: ['en', 'English', 'Read in English'], Urdu: ['ur', 'اردو', 'اردو میں پڑھیں'], Bengali: ['bn', 'বাংলা', 'বাংলায় পড়ুন'] };
+  const linkOf = k => (k.slug ? `/${encodeURIComponent(k.slug)}` : `/index.html?folder=${encodeURIComponent(k.folder)}`);
+  const dayOf = k => { const t = Date.parse(k.date + ' 12:00 UTC'); return Number.isFinite(t) ? t : null; };
+  const hijri = t => { try { return new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura-nu-arab', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(t)).replace(/\s*هـ$/, ''); } catch { return ''; } };
+  const firstSentence = s => { const m = String(s || '').match(/^.*?[.!?](\s|$)/); return (m ? m[0] : s || '').trim(); };
+  const tongueHtml = k => {
+    const parts = (k.languages || []).filter(l => l !== 'Arabic').map(l => LANGS[l] ? `<span${LANGS[l][0] !== 'en' ? ` lang="${LANGS[l][0]}"` : ''}>${LANGS[l][1]}</span>` : `<span>${esc(l)}</span>`);
+    const v = (k.voices || []).length;
+    return parts.join('') + `<span class="voice">${v ? `with the imam's recording and ${v === 1 ? 'a voice reading it' : v + ' voices reading it'}` : "with the imam's recording"}</span>`;
+  };
+  // A small line drawing of each masjid: the gate of the Haram, the Green Dome, a Najdi masjid for ours.
+  const GLYPHS = {
+    1: '<svg class="glyph" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 44H45"/><path d="M8 44V15M13 44V15M6.5 15H14.5M9 15V9.5L10.5 6L12 9.5V15"/><path d="M35 44V15M40 44V15M33.5 15H41.5M36 15V9.5L37.5 6L39 9.5V15"/><path d="M17 44V27Q24 17 31 27V44"/><path d="M20.5 44V31Q24 25.5 27.5 31V44"/></svg>',
+    2: '<svg class="glyph" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 44H45"/><path d="M10 44V30H32V44"/><path class="dome" d="M10 30C10 21 18 18.5 21 13C24 18.5 32 21 32 30"/><path d="M21 13V8"/><circle cx="21" cy="6.5" r="1.4"/><path d="M37 44V17M41 44V17M35.5 17H42.5M38 17V11L39 8L40 11V17"/><path d="M18 44V38Q21 34.5 24 38V44"/></svg>',
+    3: '<svg class="glyph" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 44H45"/><path d="M6 44V28H29V44"/><path d="M6 28L8 25L10 28L12 25L14 28L16 25L18 28L20 25L22 28L24 25L26 28L28 25L29 26.5"/><path d="M33 44L34.2 14H39.8L41 44"/><path d="M34.2 14L35.6 11L37 14L38.4 11L39.8 14"/><path d="M35.6 20H38.4M35.4 26H38.6"/><path d="M14 44V37Q17.5 32.5 21 37V44"/></svg>',
+    0: '<svg class="glyph" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 44H45"/><path d="M11 44V28H37V44"/><path d="M11 28C11 19 19 16 24 11C29 16 37 19 37 28"/><path d="M24 11V7"/><path d="M20 44V36Q24 31 28 36V44"/></svg>',
+  };
+  const rowHtml = (k, first) => {
+    const by = [k.speaker && !/^(Friday|Eid) Khutbah$/.test(k.speaker) ? esc(k.speaker) : '',
+      k.masjid ? (k.maps_url ? `<span class="map" role="link" tabindex="0" data-href="${escAttr(k.maps_url)}">${esc(k.masjid)}</span>` : esc(k.masjid)) : ''].filter(Boolean).join(', ');
+    return `<li><a class="row${first ? ' first' : ''}" href="${escAttr(linkOf(k))}">${GLYPHS[k.masjid_id] || GLYPHS[0]}<div>
+      <h3>${esc(k.title)}</h3><p class="by">${by}</p><p class="sum">${esc(firstSentence(k.summary))}</p><p class="tongues">${tongueHtml(k)}</p></div></a></li>`;
+  };
+
+  fetch('/api/results')
+    .then(r => r.json())
+    .then(data => {
+      const order = k => (k.featured ? 0 : ({ 3: 1, 1: 2, 2: 3 })[k.masjid_id] ?? 4);
+      const items = data.items.slice().sort((a, b) => (dayOf(b) ?? -1) - (dayOf(a) ?? -1) || order(a) - order(b));
+      if (items[0]) document.getElementById('trailEnd').href = linkOf(items[0]);
+            const newest = dayOf(items[0]);
+      const thisWeek = newest && Date.now() - newest < 7 * 864e5;
+
+      if (!thisWeek) document.getElementById('ctaText').textContent = 'The latest khutbahs';
+
+      const grid = document.getElementById('grid'), bar = document.getElementById('masjidFilter'), search = document.getElementById('search');
+      // Case and marks ignored (Ka'bah = kabah, تشكيل dropped); every word typed must appear.
+      const fold = s => String(s ?? '').normalize('NFD').replace(/\p{M}/gu, '').replace(/['’`]/g, '').toLowerCase();
+      const haystack = k => fold([k.title, k.speaker, k.masjid, k.masjid_ar, k.date, k.summary].join(' '));
+      let masjid = '';
+      const show = (m = masjid) => {
+        masjid = m;
+        const words = fold(search.value).split(/\s+/).filter(Boolean);
+        const shown = items.filter(k => (!m || k.masjid === m) && words.every(w => haystack(k).includes(w)));
+        const groups = [];
+        for (const k of shown) {
+          const key = k.date || 'Undated';
+          if (!groups.length || groups[groups.length - 1].key !== key) groups.push({ key, t: dayOf(k), items: [] });
+          groups[groups.length - 1].items.push(k);
+        }
+        // The latest Friday opens; the rest open on a tap. A search or a masjid filter opens every match.
+        const filtering = !!(words.length || m);
+        grid.innerHTML = groups.length ? groups.map((g, gi) => {
+          const lead = gi === 0 && !filtering ? `<span class="lead">${g.t === newest && thisWeek ? 'This Friday' : 'The latest khutbahs'}</span>` : '';
+          const d = g.t ? new Date(g.t) : null;
+          const day = d ? `${d.getUTCDate()} ${d.toLocaleDateString('en-GB', { month: 'long', timeZone: 'UTC' })} ${d.getUTCFullYear()}` : 'Undated';
+          const open = filtering || gi === 0, n = g.items.length;
+          return `<section class="friday${open ? ' open' : ''}"><h3 class="when-h"><button type="button" class="day" aria-expanded="${open}" aria-controls="day-${gi}">
+              <span class="when">${lead}<span class="d">${esc(day)}</span>${d ? `<span class="h" lang="ar">${hijri(g.t)}</span>` : ''}<span class="count">${n} ${n === 1 ? 'khutbah' : 'khutbahs'}</span></span>
+              <span class="mini" aria-hidden="true">${g.items.map(k => GLYPHS[k.masjid_id] || GLYPHS[0]).join('')}</span>
+              <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9.5l6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button></h3>
+            <div class="day-body" id="day-${gi}"${open ? '' : ' hidden'}><ul class="rows">${g.items.map((k, i) => rowHtml(k, gi === 0 && i === 0 && lead)).join('')}</ul></div></section>`;
+        }).join('') : `<p class="empty">No khutbah matches “${esc(search.value.trim())}”.<button type="button" id="clearSearch">Clear the search</button></p>`;
+        document.getElementById('clearSearch')?.addEventListener('click', () => { search.value = ''; show(''); search.focus(); });
+        bar.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.m === m)));
+        window.dispatchEvent(new Event('kt-list'));
+      };
+      search.addEventListener('input', () => show());
+      const perMasjid = new Map();
+      for (const k of items) if (k.masjid) perMasjid.set(k.masjid, (perMasjid.get(k.masjid) || 0) + 1);
+      if (perMasjid.size > 1) {
+        // Short labels so the row fits a phone: the city after the comma ("Masjid al-Haram, Makkah" → Makkah).
+        const short = m => (m.includes(',') ? m.split(',').pop().trim() : m.replace(/\s+Mosque$/i, ''));
+        bar.innerHTML = [['', 'All', items.length], ...[...perMasjid].sort((a, b) => b[1] - a[1]).map(([m, n]) => [m, short(m), n])]
+          .map(([m, label, n]) => `<button type="button" data-m="${escAttr(m)}" title="${escAttr(m || 'All masjids')}">${esc(label)}<span>${n}</span></button>`).join('');
+        bar.addEventListener('click', e => { const b = e.target.closest('button'); if (b) show(b.dataset.m); });
+      }
+      // /?masjid=1 opens on one masjid's khutbahs (its id: server/db.js).
+      const want = new URLSearchParams(location.search).get('masjid');
+      show(items.find(k => want && String(k.masjid_id) === want)?.masjid ?? '');
+      // The masjid's name opens its map instead of the khutbah behind it.
+      const openMap = e => {
+        const el = e.target.closest('.map');
+        if (!el || (e.type === 'keydown' && e.key !== 'Enter')) return;
+        e.preventDefault(); e.stopPropagation();
+        window.open(el.dataset.href, '_blank', 'noopener');
+      };
+      grid.addEventListener('click', openMap);
+      // A Friday opens and closes on a tap (anime.js does the motion once it has loaded).
+      grid.addEventListener('click', e => {
+        const b = e.target.closest('.day');
+        if (!b) return;
+        const open = b.getAttribute('aria-expanded') !== 'true', body = document.getElementById(b.getAttribute('aria-controls'));
+        b.setAttribute('aria-expanded', String(open));
+        b.closest('.friday').classList.toggle('open', open);
+        (window.__animateDay || ((el, o) => { el.hidden = !o; }))(body, open);
+      });
+      grid.addEventListener('keydown', openMap);
+    })
+    .catch(() => {
+      document.getElementById('grid').innerHTML = '<p class="empty">The khutbahs did not load. Check your connection and refresh the page.</p>';
+    });
+
+  async function submitFeedback() {
+    const msg = document.getElementById('fbMessage').value.trim();
+    const contact = document.getElementById('fbContact').value.trim();
+    const name = document.getElementById('fbName').value.trim();
+    const status = document.getElementById('fbStatus');
+    const btn = document.getElementById('fbSubmit');
+    if (!msg) { status.textContent = 'Write a message first.'; status.className = 'status error'; return; }
+    btn.disabled = true; status.textContent = ''; status.className = 'status';
+    try {
+      const res = await fetch('/api/feedback', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, contact, name, public: document.getElementById('fbPublic').checked,
+          website: document.getElementById('fbWebsite').value })
+      });
+      if (res.status === 429) { status.textContent = 'Too many messages for now. Try again in a few minutes.'; status.className = 'status error'; btn.disabled = false; return; }
+      if (res.ok) {
+        status.textContent = 'Thank you. Your message was received.';
+        document.getElementById('fbMessage').value = '';
+      } else { throw new Error(); }
+    } catch {
+      status.textContent = 'The message was not sent. Check your connection and try again.';
+      status.className = 'status error';
+    }
+    btn.disabled = false;
+  }
+
+  // A random ID this browser keeps, so people sharing one Wi-Fi count separately.
+  function deviceId() {
+    try {
+      let id = localStorage.getItem('kt_device');
+      if (!id) {
+        id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+          : Math.random().toString(36).slice(2) + Date.now().toString(36);
+        localStorage.setItem('kt_device', id);
+      }
+      return id;
+    } catch { return ''; }
+  }
+  // Live viewer count via WebSocket
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  // /admin/traffic: this is the home page; the link's ?s= tag and the site that linked here.
+  const viewQ = new URLSearchParams({ d: deviceId(), p: 'home' });
+  const sTag = new URLSearchParams(location.search).get('s');
+  if (sTag) viewQ.set('s', sTag);
+  try { const r = document.referrer && new URL(document.referrer).hostname; if (r) viewQ.set('r', r); } catch {}
+  let viewerTries = 0;
+  function connectViewers(again = false) {
+    const ws = new WebSocket(`${proto}://${location.host}/?${viewQ}${again ? '&re=1' : ''}`);
+    ws.onmessage = e => {
+      const m = JSON.parse(e.data);
+      if (m.type !== 'viewers') return;
+      document.getElementById('liveCount').textContent = m.live;
+      document.getElementById('uniqueCount').textContent = (m.unique ?? '–').toLocaleString();
+      document.getElementById('totalCount').textContent = m.total.toLocaleString();
+      document.getElementById('uniqueLabel').textContent = m.unique === 1 ? 'person' : 'people';
+      document.getElementById('totalLabel').textContent = m.total === 1 ? 'visit' : 'visits';
+      document.getElementById('viewersBadge').classList.toggle('online', m.live > 0);
+    };
+    // A phone drops the socket when its screen locks, a redeploy drops everyone: come back into
+    // the live count (?re=1, not a new view), waiting longer after each failed try.
+    ws.onopen = () => { viewerTries = 0; };
+    ws.onclose = () => setTimeout(() => connectViewers(true), Math.min(60_000, 3000 * 2 ** viewerTries++) + Math.random() * 2000);
+  }
+  connectViewers();
+  { const bar = document.querySelector('header'); const mark = () => bar.classList.toggle('scrolled', scrollY > 8); addEventListener('scroll', mark, { passive: true }); mark(); }
+</script>
+
+<script type="module">
+  // The one authored moment: the minbar is drawn, the light comes in, the page settles. Then the
+  // example plays only when asked: the imam's real recording, each word lit at the time he says it.
+  import { animate, svg, stagger, createTimeline, utils, onScroll, createScope } from '/vendor/anime.esm.min.js';
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const DEMO = window.__DEMO;
+  if (!reduce) {
+    const minbarLines = svg.createDrawable('.minbar path.ln');
+    utils.set(minbarLines, { draw: '0 0' });
+    utils.set('.ticks svg', { clipPath: 'inset(0% 100% 0% 0%)' });
+    utils.set('.minbar .lattice, .minbar .beam', { opacity: 0 });
+    utils.set('#demo', { opacity: 0, y: 24 });
+    window.__fontsReady.then(() => createTimeline({ defaults: { ease: 'inOutSine' } })
+      .add(minbarLines, { draw: ['0 0', '0 1'], duration: 1400, delay: stagger(22) })
+      .add('.minbar .lattice', { opacity: [0, .38], duration: 800 }, '-=500')
+      .add('.minbar .beam', { opacity: [0, 1], duration: 1400 }, '-=900')
+      .add('#demo', { opacity: [0, 1], y: [24, 0], duration: 800, ease: 'outExpo' }, '-=1200')
+      .add('.ticks svg', { clipPath: ['inset(0% 100% 0% 0%)', 'inset(0% 0% 0% 0%)'], duration: 420, delay: stagger(170), ease: 'outCubic' }, 300));
+  }
+
+  // ── How each khutbah is made: the gold line draws itself as the page scrolls, its arrow travelling with it,
+  // and each step lights up as the line reaches it. On phones it runs straight down beside the steps.
+  // ── Why I made this, on a phone: Read more shows the rest of the story and the second hadith
+  {
+    const why = document.getElementById('why'), more = document.getElementById('whyMore');
+    more.addEventListener('click', () => {
+      const open = !why.classList.contains('open');
+      why.classList.toggle('open', open);
+      more.setAttribute('aria-expanded', String(open));
+      more.textContent = open ? 'Show less' : 'Read more';
+      if (open && !reduce) animate(why.querySelectorAll('.more'), { opacity: [0, 1], y: [10, 0], duration: 420, delay: stagger(80), ease: 'outCubic' });
+      if (!open && why.getBoundingClientRect().top < 0) why.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth' });
+    });
+  }
+
+  window.__animateDay = (body, open) => {
+    utils.remove(body); utils.remove(body.querySelectorAll('.row'));
+    if (reduce) { body.hidden = !open; body.style.height = ''; return; }
+    body.classList.add('moving');
+    const done = () => { body.classList.remove('moving'); body.style.height = ''; body.style.opacity = ''; if (!open) body.hidden = true; };
+    if (open) {
+      body.hidden = false;
+      animate(body, { height: [0, body.scrollHeight], opacity: [0, 1], duration: 420, ease: 'outCubic', onComplete: done });
+      animate(body.querySelectorAll('.row'), { y: [12, 0], opacity: [0, 1], delay: stagger(60), duration: 420, ease: 'outCubic' });
+    } else {
+      animate(body, { height: [body.offsetHeight, 0], opacity: [1, 0], duration: 260, ease: 'inCubic', onComplete: done });
+    }
+  };
+
+  const trailScope = createScope({ mediaQueries: { phone: '(max-width: 900px)', still: '(prefers-reduced-motion: reduce)' } }).add(self => {
+    const { phone, still } = self.matches;
+    const trail = document.getElementById('trail'), steps = [...trail.querySelectorAll('.step')];
+    let marks;
+    if (phone) {
+      const r = trail.querySelector('.rail').getBoundingClientRect();
+      marks = steps.map(s => (s.getBoundingClientRect().top + 24 - r.top) / r.height);
+    } else {
+      // Where the line first touches each step, as a share of its length.
+      const path = trail.querySelector('.trail-line'), total = path.getTotalLength();
+      const svgEl = path.ownerSVGElement, box = svgEl.getBoundingClientRect(), k = 1160 / box.width;
+      marks = steps.map(s => {
+        const r = s.getBoundingClientRect();
+        const x0 = (r.left - box.left) * k, x1 = (r.right - box.left) * k, y0 = (r.top - box.top) * k, y1 = (r.bottom - box.top) * k;
+        for (let L = 0; L <= total; L += 3) { const p = path.getPointAtLength(L); if (p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1) return L / total; }
+        return 1;
+      });
+    }
+    const light = p => steps.forEach((s, i) => s.classList.toggle('on', p >= marks[i] - .002));
+    if (still) {
+      trail.style.setProperty('--p', 1); light(1);
+      if (!phone) utils.set(svg.createDrawable('.trail-line'), { draw: '0 1' });
+      return;
+    }
+    const tl = createTimeline({
+      defaults: { ease: 'linear', duration: 1000 },
+      onUpdate: t => light(t.progress),
+      autoplay: onScroll({ target: trail, enter: '85% top', leave: '50% bottom', sync: .25 }),
+    });
+    if (phone) tl.add(trail, { '--p': [0, 1] }, 0);
+    else tl.add(svg.createDrawable('.trail-line'), { draw: ['0 0', '0 1'] }, 0)
+           .add('.trail-head', { ...svg.createMotionPath('.trail-line') }, 0);
+  });
+
+  addEventListener('kt-list', () => trailScope.refresh());
+  document.fonts?.ready.then(() => trailScope.refresh());
+
+  // ── The hand: taps English, اردو and বাংলা in turn, the prompt above it in that language, three times
+  // round or until the visitor picks one. With reduced motion it rests under English and the prompt says all three.
+  const PROMPTS = { en: ['Tap your language', ''], ur: ['اپنی زبان چنیں', 'ur'], bn: ['আপনার ভাষা বেছে নিন', 'bn'] };
+  const finger = document.getElementById('finger'), ring = finger.querySelector('.ring'), help = document.getElementById('helpText');
+  const tongueLine = document.getElementById('tongues'), wrap = tongueLine.parentElement;
+  const say = l => { const [t, lang] = PROMPTS[l]; help.innerHTML = lang ? `<span lang="${lang}">${t}</span>` : t; };
+  const spot = l => {
+    const b = tongueLine.querySelector(`button[data-l="${l}"]`), r = b.getBoundingClientRect(), w = wrap.getBoundingClientRect();
+    const size = finger.offsetWidth;
+    return { x: r.left - w.left + r.width / 2 - size * .44, y: r.bottom - w.top - size * .02 };
+  };
+  let handLoop = null;
+  const stopHand = () => {
+    if (handLoop) { handLoop.pause(); handLoop = null; }
+    tongueLine.querySelectorAll('button').forEach(b => b.classList.remove('tap'));
+    animate(finger, { opacity: 0, duration: 250 });
+  };
+  addEventListener('kt-lang', stopHand);
+  const startHand = () => {
+    if (window.__chosen) return;
+    if (reduce) {
+      utils.set(finger, { ...spot('en'), opacity: 1 });
+      help.innerHTML = 'Tap your language <span class="sep">·</span> <span lang="ur">اپنی زبان چنیں</span> <span class="sep">·</span> <span lang="bn">আপনার ভাষা বেছে নিন</span>';
+      return;
+    }
+    utils.set(finger, { ...spot('en'), y: spot('en').y + 30, opacity: 0 });
+    const tl = createTimeline({ loop: 2, loopDelay: 1600, onComplete: () => { stopHand(); say('en'); } });
+    let at = 0;
+    tl.add(finger, { opacity: [0, 1], y: spot('en').y, duration: 500, ease: 'outCubic' }, at);
+    for (const l of ['en', 'ur', 'bn']) {
+      if (l !== 'en') { tl.add(finger, { x: spot(l).x, y: spot(l).y, duration: 650, ease: 'inOutCubic' }, at); at += 650; }
+      else at += 500;
+      tl.call(() => { say(l); tongueLine.querySelectorAll('button').forEach(b => b.classList.toggle('tap', b.dataset.l === l)); }, at);
+      tl.add(finger, { scale: [1, .86, 1], duration: 380, ease: 'inOutSine' }, at + 60);
+      tl.add(ring, { opacity: [.9, 0], scale: [.4, 1.6], duration: 650, ease: 'outCubic' }, at + 160);
+      at += 1500;
+    }
+    tl.add(finger, { opacity: 0, duration: 400 }, at - 300);
+    tl.call(() => { utils.set(finger, spot('en')); say('en'); }, at + 120);
+    handLoop = tl;
+  };
+  // Start once the fonts have set the words where they will stay.
+  window.__fontsReady.then(() => setTimeout(startHand, reduce ? 0 : 1800));
+
+  // ── The example's recording: on العربية the imam (his words lit); on English, اردو or বাংলা the voice
+  // reading that translation (its words lit, the Arabic above it as it is).
+  const page = document.getElementById('demo'), para = document.getElementById('demoAr'), trEl = document.getElementById('demoTr');
+  const pen = document.getElementById('pen'), status = document.getElementById('demoStatus');
+  const btn = document.getElementById('listen'), label = document.getElementById('listenLabel');
+  const PLAY = btn.querySelector('svg').outerHTML;
+  const PAUSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg>';
+  // The button says only what it does, in the language chosen; what it plays is that language's voice (the imam's for Arabic).
+  const LABEL = { ar: ['Listen', 'Loading…', 'Pause', ''], en: ['Listen', 'Loading…', 'Pause', ''], ur: ['سنیں', 'لوڈ ہو رہا ہے…', 'روکیں', 'ur'], bn: ['শুনুন', 'লোড হচ্ছে…', 'থামান', 'bn'] };
+  const escT = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const audios = {};
+  let cur = null, raf = 0, lit = -1;
+
+  const setLabel = (state = 0) => {
+    const L = LABEL[window.__trLang || 'en'];
+    label.textContent = L[state];
+    if (L[3]) label.setAttribute('lang', L[3]); else label.removeAttribute('lang');
+  };
+  const place = i => {
+    cur.ev.forEach((e, j) => e.el.classList.toggle('said', j <= i));
+    if (i < 0) return;
+    const { el, box } = cur.ev[i];
+    if (pen.parentElement !== box) { box.appendChild(pen); utils.set(pen, { opacity: 0 }); }
+    const r = el.getBoundingClientRect(), p = box.getBoundingClientRect();
+    const to = { x: r.left - p.left - r.width * .06, y: r.bottom - p.top - (box === para ? 8 : 2), width: r.width * 1.12 };
+    if (reduce || pen.style.opacity === '0') utils.set(pen, { ...to, opacity: 1 }); else animate(pen, { ...to, duration: 300, ease: 'outBack(1.3)' });
+  };
+  const stop = () => {
+    cancelAnimationFrame(raf); raf = 0;
+    const c = cur;
+    if (!c) return;
+    cur = null; lit = -1;
+    audios[c.key]?.pause();
+    page.classList.remove('playing', 'voicing');
+    if (c.key !== 'ar' && window.__trLang === c.key) window.__setTr(c.key);
+    para.appendChild(pen); pen.style.opacity = '';
+    page.querySelectorAll('.said').forEach(w => w.classList.remove('said'));
+    btn.querySelector('.disc').innerHTML = PLAY;
+    setLabel();
+    syncFloat();
+  };
+  const tick = () => {
+    const t = audios[cur.key].currentTime;
+    if (t >= cur.end) return stop();
+    let i = -1;
+    for (let j = 0; j < cur.ev.length && cur.ev[j].t <= t + .03; j++) i = j;
+    if (i !== lit) { lit = i; place(i); }
+    raf = requestAnimationFrame(tick);
+  };
+  btn.addEventListener('click', async () => {
+    if (cur) return stop();
+    const l = window.__trLang || 'en';
+    const v = l === 'ar' ? { audio: DEMO.audio, start: DEMO.start, end: DEMO.end, words: DEMO.words } : DEMO.voices[l];
+    // Every word that lights, in time order: the Arabic for the imam; for a voice its words, and the
+    // ayah's Arabic while the imam's own recitation of it plays inside the voice track.
+    let ev;
+    if (l === 'ar') ev = [...para.querySelectorAll('.w')].map((el, i) => ({ t: v.words[i][1], el, box: para }));
+    else {
+      trEl.innerHTML = v.words.map(([w, , ayah]) => `<span class="w${ayah ? ' ayah' : ''}">${escT(w)}</span>`).join(' ') + '\u00A0…';
+      const ayahAr = [...para.querySelectorAll('.q .w')];
+      ev = [...[...trEl.querySelectorAll('.w')].map((el, i) => ({ t: v.words[i][1], el, box: trEl })),
+            ...ayahAr.map((el, i) => ({ t: v.ar[i], el, box: para }))].sort((a, b) => a.t - b.t);
+    }
+    cur = { key: l, end: v.end, ev };
+    const a = (audios[l] ??= Object.assign(new Audio(v.audio), { preload: 'auto' }));
+    btn.setAttribute('aria-busy', 'true'); setLabel(1);
+    status.textContent = '';
+    try {
+      if (a.readyState < 1) await new Promise((ok, no) => { a.addEventListener('loadedmetadata', ok, { once: true }); a.addEventListener('error', no, { once: true }); a.load(); });
+      a.currentTime = v.start;
+      await a.play();
+      page.classList.add('playing'); if (l !== 'ar') page.classList.add('voicing');
+      lit = -1; place(-1);
+      btn.querySelector('.disc').innerHTML = PAUSE; setLabel(2); syncFloat();
+      raf = requestAnimationFrame(tick);
+    } catch {
+      stop();
+      status.textContent = 'The recording did not play. Check your connection and try again.';
+    }
+    btn.removeAttribute('aria-busy');
+  });
+  addEventListener('kt-tr', () => { if (cur) stop(); else setLabel(); });
+  setLabel();
+
+  // A language tapped plays at once, and the example comes into view with its words lighting up.
+  window.__demoPlaying = () => !!cur;
+  window.__playDemo = () => {
+    if (!cur) btn.click();
+    const r = page.getBoundingClientRect(), vh = innerHeight;
+    if (r.top < 12 || r.bottom > vh - 12) scrollTo({ top: scrollY + Math.min(r.top - 12, r.bottom - vh + 16), behavior: reduce ? 'auto' : 'smooth' });
+  };
+  // While it plays and its own button is out of sight, a Pause button waits at the bottom of the screen.
+  function syncFloat() {
+    const on = !!cur && page.classList.contains('playing') && !btnSeen;
+    floatPause.classList.toggle('on', on);
+    floatPause.toggleAttribute('aria-hidden', !on);
+    floatPause.tabIndex = on ? 0 : -1;
+    if (on) { const L = LABEL[cur.key]; floatLbl.textContent = L[2]; if (L[3]) floatLbl.setAttribute('lang', L[3]); else floatLbl.removeAttribute('lang'); }
+  }
+  const floatPause = document.getElementById('floatPause'), floatLbl = floatPause.querySelector('.lbl');
+  let btnSeen = true;
+  new IntersectionObserver(([e]) => { btnSeen = e.isIntersecting; syncFloat(); }).observe(btn);
+  floatPause.addEventListener('click', () => { if (cur) stop(); });
+</script>
+</body>
+</html>

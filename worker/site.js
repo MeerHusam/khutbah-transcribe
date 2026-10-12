@@ -12,7 +12,7 @@ import { LANGS } from '../core/languages.js';
 
 // The files of a pipeline run that the site reads (server/khutbahs.js); the rest stay on the Mac.
 export const SITE_FILES = ['result.json', 'reader.txt', ...LANGS.map(L => `reader_${L.code}.txt`),
-  ...['en', ...LANGS.map(L => L.code)].flatMap(l => [`tts_${l}.json`, `tts_${l}.mp3`]), 'words_imam.json'];
+  ...['en', ...LANGS.map(L => L.code)].flatMap(l => [`tts_${l}.json`, `tts_${l}.mp3`]), 'words_imam.json', 'align.json', 'og.jpg'];
 const AUDIO_TYPES = { '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4', '.mp4': 'audio/mp4', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.flac': 'audio/flac' };
 
 const R2_SETTINGS = ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET', 'R2_PUBLIC_URL'];

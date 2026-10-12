@@ -18,6 +18,10 @@ export default {
   ui: {
     'In Short': 'مختصر', 'Summary': 'خلاصہ', 'Full Translation': 'مکمل ترجمہ',
     'Copy for WhatsApp': 'واٹس ایپ کے لیے کاپی کریں', 'Copied': '✓ کاپی ہو گیا',
+    'Read and listen in': 'پڑھیں اور سنیں', 'Read the summary': 'خلاصہ پڑھیں', 'The khutbah': 'خطبہ',
+    'Every ayah and hadith, with its source': 'ہر آیت اور حدیث، حوالے کے ساتھ',
+    'End of the khutbah': 'خطبہ ختم ہوا', 'Previous khutbah': 'پچھلا خطبہ', 'Next khutbah': 'اگلا خطبہ',
+    'Share': 'شیئر کریں', 'Sources': 'حوالے', 'Link copied': 'خلاصہ اور لنک کاپی ہو گئے',
     'Show full ayah': 'مکمل آیت دیکھیں', 'Show recited part': 'صرف تلاوت شدہ حصہ',
   },
   // Collection names as Urdu readers know them; both Sahihs for «متفق عليه».
