@@ -11,7 +11,7 @@
   <meta name="description" content="Arabic Friday Khutbahs with English, Urdu and Bengali translations, every Quran ayah and Hadith cited and linked.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Kufam:wght@500;600&family=Readex+Pro:wght@300;400;500&family=Amiri:wght@400;700&family=Noto+Nastaliq+Urdu:wght@400;500&family=Noto+Serif+Bengali:wght@400;500&family=Noto+Naskh+Arabic&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Kufam:wght@500;600&family=Readex+Pro:wght@300;400;500&family=Amiri:wght@400;700&family=Amiri+Quran&family=Noto+Nastaliq+Urdu:wght@400;500&family=Noto+Serif+Bengali:wght@400;500&family=Noto+Naskh+Arabic&display=swap" rel="stylesheet">
   <style>
     :root {
       --night: #0B1712;
@@ -161,6 +161,13 @@
     .pg-tr[lang="ur"] { direction: rtl; text-align: right; font-size: 18.5px; line-height: 2.3; }
     .pg-tr[lang="bn"] { font-size: 17.5px; line-height: 1.85; }
     .pg-tr q { color: var(--green); font-style: italic; quotes: none; }
+    .pg-tr q.ayah, .pg-tr .w.ayah { color: var(--gold); font-style: italic; }
+    .pg-tr[lang="ur"] .w.ayah, .pg-tr[lang="bn"] .w.ayah { font-style: normal; }
+    .pg-ar .q { color: var(--gold); font-family: "Amiri Quran", var(--ar); font-size: 1.06em; }
+    .page.playing:not(.voicing) .pg-ar .q .w { color: rgba(216, 184, 108, .45); }
+    .page.playing .pg-ar .q .w.said { color: #F1D58E; }
+    .page.voicing .pg-tr .w.ayah { color: rgba(216, 184, 108, .45); }
+    .page.voicing .pg-tr .w.ayah.said { color: #F1D58E; }
     .pg-tr[lang="ur"] q, .pg-tr[lang="bn"] q { font-style: normal; }
     .pg-foot { margin-top: 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; }
     .listen .lbl[lang="ur"] { font-size: 16px; line-height: 1.6; }
@@ -433,13 +440,13 @@
           <button type="button" data-l="en" aria-pressed="true">English</button>
           <button type="button" data-l="ur" lang="ur" aria-pressed="false">اردو</button>
           <button type="button" data-l="bn" lang="bn" aria-pressed="false">বাংলা</button>
-          <a class="src" href="https://sunnah.com/bukhari:6724" target="_blank" rel="noopener">Sahih al-Bukhari 6724</a>
+          <a class="src" href="https://quran.com/40/60" target="_blank" rel="noopener">Ghafir 40:60</a>
         </div>
         <p class="pg-ar" lang="ar" dir="rtl" id="demoAr"></p>
         <p class="pg-tr" id="demoTr" lang="en"></p>
         <figcaption class="pg-foot">
           <button type="button" class="listen" id="listen"><span class="disc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></span><span class="lbl" id="listenLabel">Listen in English</span></button>
-          <a class="read" href="/2026-09-18-al-haram-makkah">Read this khutbah</a>
+          <a class="read" href="/2026-10-09">Read this khutbah</a>
           <p class="pg-status" id="demoStatus" role="status" aria-live="polite"></p>
         </figcaption>
       </figure>
@@ -537,10 +544,18 @@
   const escAttr = s => esc(s).replace(/"/g, '&quot;');
 
   // ── The example on the khutbah's page: a hadith the imam quoted, his words lit as he says them ──
-  const DEMO = {"audio":"https://media.khutbah.dev/2026-10-04T15-20-20_khutbah-2026-09-18-al-haram-makkah/khutbah-2026-09-18-al-haram-makkah.mp3","start":153.05,"end":165.29,"words":[["ففي",153.3],["الصحيحين",153.5],["من",154.58],["حديث",154.74],["أبي",155.2],["هريرة",155.4],["<span class=\"hon\" title=\"رضي الله عنه\">﵁</span>",155.92],["أن",157.78],["رسول",158.04],["الله",158.42],["<span class=\"hon\" title=\"صلى الله عليه وسلم\">ﷺ</span>",158.8],["قال:",160.26],["«إياكم",161.26],["والظن",161.76],["فإن",163.14],["الظن",163.54],["أكذب",164.04],["الحديث …»",164.48]],"voices":{"en":{"audio":"https://media.khutbah.dev/2026-10-04T15-20-20_khutbah-2026-09-18-al-haram-makkah/tts_en.mp3","start":137.46,"end":149.63,"words":[["In",137.66],["the",137.73],["two",137.83],["Sahih",138.02],["collections,",138.39],["from",139.12],["the",139.26],["Hadith",139.35],["of",139.69],["Abu",139.83],["Hurayrah,",140.02],["may",140.67],["Allah",140.79],["be",141],["pleased",141.12],["with",141.4],["him,",141.52],["the",142.09],["Messenger",142.2],["of",142.6],["Allah,",142.69],["peace",143.21],["and",143.5],["blessings",143.62],["be",144.01],["upon",144.11],["him,",144.39],["said:",144.58],["\"Beware",145.36],["of",145.99],["suspicion,",146.16],["for",147.22],["suspicion",147.4],["is",147.97],["the",148.06],["most",148.16],["false",148.46],["of",148.88],["speech.",149.03]]},"ur":{"audio":"https://media.khutbah.dev/2026-10-04T15-20-20_khutbah-2026-09-18-al-haram-makkah/tts_ur.mp3","start":152.4,"end":161.75,"words":[["چنانچہ",152.6],["صحیح",153.03],["بخاری",153.22],["اور",153.59],["صحیح",153.69],["مسلم",153.89],["میں",154.16],["حضرت",154.3],["ابوہریرہ",154.55],["رضی",154.98],["اللہ",155.19],["عنہ",155.43],["کی",155.64],["حدیث",155.76],["ہے",156.06],["کہ",156.16],["رسول",156.27],["اللہ",156.49],["صلی",156.69],["اللہ",156.84],["علیہ",157.03],["وسلم",157.14],["نے",157.45],["فرمایا:",157.52],["“بدگمانی",158.63],["سے",159.12],["بچو،",159.21],["کیونکہ",159.94],["بدگمانی",160.16],["سب",160.67],["سے",160.84],["جھوٹی",160.95],["بات",161.19],["ہے،",161.38]]},"bn":{"audio":"https://media.khutbah.dev/2026-10-04T15-20-20_khutbah-2026-09-18-al-haram-makkah/tts_bn.mp3","start":149.96,"end":159.58,"words":[["বুখারী",150.16],["ও",150.6],["মুসলিমে",150.65],["আবু",151.15],["হুরায়রা",151.38],["রাদিয়াল্লাহু",151.71],["আনহু",152.16],["থেকে",152.37],["বর্ণিত,",152.56],["রাসূলুল্লাহ",153.31],["সাল্লাল্লাহু",153.8],["আলাইহি",154.29],["ওয়াসাল্লাম",154.53],["বলেছেন:",154.88],["“তোমরা",155.71],["ধারণা",156.01],["থেকে",156.35],["বেঁচে",156.53],["থাকো,",156.74],["কেননা",157.36],["ধারণা",157.66],["হলো",158.04],["সবচেয়ে",158.29],["বড়",158.63],["মিথ্যা",158.81],["কথা।",159.09]]}},"tr":{"en":"<span class=\"seg\" data-from=\"0\">In the two Sahih collections, from the Hadith of Abu Hurayrah <span class=\"hon\">﵁</span>, the Messenger of Allah <span class=\"hon\">ﷺ</span> said:</span> <q class=\"seg\" data-from=\"12\">“Beware of suspicion, for suspicion is the most false of speech …”</q>","ur":"<span class=\"seg\" data-from=\"0\">چنانچہ صحیح بخاری اور صحیح مسلم میں حضرت ابوہریرہ <span class=\"hon\">﵁</span> کی حدیث ہے کہ رسول اللہ <span class=\"hon\">ﷺ</span> نے فرمایا:</span> <q class=\"seg\" data-from=\"12\">“بدگمانی سے بچو، کیونکہ بدگمانی سب سے جھوٹی بات ہے …”</q>","bn":"<span class=\"seg\" data-from=\"0\">বুখারী ও মুসলিমে আবু হুরায়রা রাদিয়াল্লাহু আনহু থেকে বর্ণিত, রাসূলুল্লাহ <span class=\"hon\">ﷺ</span> বলেছেন:</span> <q class=\"seg\" data-from=\"12\">“তোমরা ধারণা থেকে বেঁচে থাকো, কেননা ধারণা হলো সবচেয়ে বড় মিথ্যা কথা …”</q>"}};
+  const DEMO = {"audio":"https://media.khutbah.dev/2026-10-09T09-11-11_khutbah-2026-10-09/khutbah-2026-10-09.m4a","start":641.07,"end":650.17,"words":[["يا",641.32,0,""],["من",641.48,0,""],["قال",641.7,0,""],["ٱدۡعُونِيٓ",642,1,""],["أَسۡتَجِبۡ",642.64,1,""],["لَكُمۡ",643.16,1,"،"],["نسألك",644.06,0,""],["يا",644.62,0,""],["الله",644.88,0,""],["يا",645.4,0,""],["ذا",645.64,0,""],["الجلال",645.74,0,""],["والإكرام،",646.5,0,""],["أنت",647.76,0,""],["ربنا",648.08,0,""],["ورب",648.7,0,""],["كل",649.12,0,""],["شيء …",649.46,0,""]],"voices":{"en":{"audio":"https://media.khutbah.dev/2026-10-09T09-11-11_khutbah-2026-10-09/tts_en.mp3","start":636.03,"end":648.96,"words":[["O",636.23,0],["You",636.35,0],["who",636.57,0],["said,",636.75,0],["\"Call",640.07,1],["upon",640.43,1],["Me,",640.76,1],["I",641.32,1],["will",641.35,1],["respond",641.51,1],["to",642.08,1],["you,\"",642.22,1],["we",643.01,0],["ask",643.22,0],["You,",643.48,0],["O",643.67,0],["Allah,",643.77,0],["Possessor",644.36,0],["of",644.85,0],["Majesty",645.01,0],["and",645.55,0],["Honor,",645.74,0],["You",646.48,0],["are",646.69,0],["our",646.87,0],["Lord",647.09,0],["and",647.58,0],["the",647.67,0],["Lord",647.79,0],["of",647.98,0],["everything,",648.14,0]],"ar":[637.66,638.3,638.82]},"ur":{"audio":"https://media.khutbah.dev/2026-10-09T09-11-11_khutbah-2026-10-09/tts_ur.mp3","start":641.41,"end":656.56,"words":[["اے",641.61,0],["وہ",641.75,0],["ذات",641.88,0],["جس",642.37,0],["نے",642.53,0],["فرمایا:",642.63,0],["“مجھے",646.14,1],["پکارو،",646.46,1],["میں",647.15,1],["تمہاری",647.31,1],["دعا",647.64,1],["قبول",647.93,1],["کروں",648.3,1],["گا”،",648.53,1],["اے",649.17,0],["اللہ!",649.34,0],["اے",650.73,0],["جلال",650.96,0],["اور",651.38,0],["عزت",651.52,0],["والے!",651.83,0],["ہم",652.46,0],["تجھ",652.63,0],["سے",652.82,0],["مانگتے",652.96,0],["ہیں،",653.38,0],["تو",654.06,0],["ہمارا",654.18,0],["رب",654.56,0],["ہے",654.75,0],["اور",655.19,0],["ہر",655.33,0],["چیز",655.55,0],["کا",655.85,0],["رب",655.95,0],["ہے،",656.11,0]],"ar":[643.73,644.37,644.89]},"bn":{"audio":"https://media.khutbah.dev/2026-10-09T09-11-11_khutbah-2026-10-09/tts_bn.mp3","start":710.21,"end":724.15,"words":[["হে",710.41,0],["যিনি",710.95,0],["বলেছেন,",711.16,0],["“তোমরা",714.72,1],["আমাকে",714.98,1],["ডাকো,",715.26,1],["আমি",715.98,1],["তোমাদের",716.15,1],["ডাকে",716.43,1],["সাড়া",716.65,1],["দেব”,",716.93,1],["হে",717.63,0],["আল্লাহ,",717.77,0],["হে",718.46,0],["মহিমা",718.62,0],["ও",719.05,0],["সম্মানের",719.16,0],["অধিকারী,",719.58,0],["আমরা",720.34,0],["আপনার",720.53,0],["কাছে",720.76,0],["চাই,",720.98,0],["আপনি",721.63,0],["আমাদের",721.84,0],["রব",722.18,0],["এবং",722.76,0],["সব",723.02,0],["কিছুর",723.31,0],["রব,",723.63,0]],"ar":[712.31,712.95,713.47]}},"tr":{"en":"O You who said, <q class=\"ayah\">“Call upon Me, I will respond to you,”</q> we ask You, O Allah, Possessor of Majesty and Honor, You are our Lord and the Lord of everything …","ur":"اے وہ ذات جس نے فرمایا: <q class=\"ayah\">“مجھے پکارو، میں تمہاری دعا قبول کروں گا”</q>، اے اللہ! اے جلال اور عزت والے! ہم تجھ سے مانگتے ہیں، تو ہمارا رب ہے اور ہر چیز کا رب ہے …","bn":"হে যিনি বলেছেন, <q class=\"ayah\">“তোমরা আমাকে ডাকো, আমি তোমাদের ডাকে সাড়া দেব”</q>, হে আল্লাহ, হে মহিমা ও সম্মানের অধিকারী, আমরা আপনার কাছে চাই, আপনি আমাদের রব এবং সব কিছুর রব …"}};
   window.__DEMO = DEMO;
   const demo =document.getElementById('demo'), demoAr = document.getElementById('demoAr'), demoTr = document.getElementById('demoTr');
-  demoAr.innerHTML = DEMO.words.map(([w, t], i) => `<span class="w" data-i="${i}">${w}</span>`).join(' ')
+  let arHtml = '', open = false;
+  DEMO.words.forEach(([w, t, ayah, after], i) => {
+    if (ayah && !open) { arHtml += (i ? ' ' : '') + '<span class="q">﴿'; open = true; }
+    else if (!ayah && open) { arHtml += '﴾</span>' + (DEMO.words[i - 1][3] || '') + ' '; open = false; }
+    else if (i) arHtml += ' ';
+    arHtml += `<span class="w" data-i="${i}">${w}</span>`;
+  });
+  if (open) arHtml += '﴾</span>';
+  demoAr.innerHTML = arHtml
     + '<span class="pen" id="pen" aria-hidden="true"><svg viewBox="0 0 100 10" preserveAspectRatio="none"><path d="M0 6.2 C18 3.9 42 3.2 64 3.6 C80 3.9 92 4.6 100 5.9 C91 7.3 77 8.1 60 8.0 C38 7.9 17 7.6 0 6.2Z"/></svg></span>';
   const setTr = l => {
     demoTr.hidden = l === 'ar';
@@ -793,7 +808,7 @@
   const LABEL = { ar: ['Listen to the imam', ''], en: ['Listen in English', ''], ur: ['اردو میں سنیں', 'ur'], bn: ['বাংলায় শুনুন', 'bn'] };
   const escT = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const audios = {};
-  let cur = null, raf = 0, lit = -1, els = [], box = para;
+  let cur = null, raf = 0, lit = -1;
 
   const setLabel = text => {
     const l = window.__trLang || 'en', [t, lang] = LABEL[l];
@@ -801,11 +816,13 @@
     if (!text && lang) label.setAttribute('lang', lang); else label.removeAttribute('lang');
   };
   const place = i => {
-    els.forEach((w, j) => w.classList.toggle('said', j <= i));
+    cur.ev.forEach((e, j) => e.el.classList.toggle('said', j <= i));
     if (i < 0) return;
-    const r = els[i].getBoundingClientRect(), p = box.getBoundingClientRect();
+    const { el, box } = cur.ev[i];
+    if (pen.parentElement !== box) { box.appendChild(pen); utils.set(pen, { opacity: 0 }); }
+    const r = el.getBoundingClientRect(), p = box.getBoundingClientRect();
     const to = { x: r.left - p.left - r.width * .06, y: r.bottom - p.top - (box === para ? 8 : 2), width: r.width * 1.12 };
-    if (reduce) utils.set(pen, to); else animate(pen, { ...to, duration: 300, ease: 'outBack(1.3)' });
+    if (reduce || pen.style.opacity === '0') utils.set(pen, { ...to, opacity: 1 }); else animate(pen, { ...to, duration: 300, ease: 'outBack(1.3)' });
   };
   const stop = () => {
     cancelAnimationFrame(raf); raf = 0;
@@ -815,8 +832,8 @@
     audios[c.key]?.pause();
     page.classList.remove('playing', 'voicing');
     if (c.key !== 'ar' && window.__trLang === c.key) window.__setTr(c.key);
-    para.appendChild(pen);
-    para.querySelectorAll('.w').forEach(w => w.classList.remove('said'));
+    para.appendChild(pen); pen.style.opacity = '';
+    page.querySelectorAll('.said').forEach(w => w.classList.remove('said'));
     btn.querySelector('.disc').innerHTML = PLAY;
     setLabel();
   };
@@ -824,7 +841,7 @@
     const t = audios[cur.key].currentTime;
     if (t >= cur.end) return stop();
     let i = -1;
-    for (let j = 0; j < cur.times.length && cur.times[j] <= t + .03; j++) i = j;
+    for (let j = 0; j < cur.ev.length && cur.ev[j].t <= t + .03; j++) i = j;
     if (i !== lit) { lit = i; place(i); }
     raf = requestAnimationFrame(tick);
   };
@@ -832,13 +849,17 @@
     if (cur) return stop();
     const l = window.__trLang || 'en';
     const v = l === 'ar' ? { audio: DEMO.audio, start: DEMO.start, end: DEMO.end, words: DEMO.words } : DEMO.voices[l];
-    cur = { key: l, end: v.end, times: v.words.map(w => w[1]) };
-    if (l === 'ar') { els = [...para.querySelectorAll('.w')]; box = para; }
+    // Every word that lights, in time order: the Arabic for the imam; for a voice its words, and the
+    // ayah's Arabic while the imam's own recitation of it plays inside the voice track.
+    let ev;
+    if (l === 'ar') ev = [...para.querySelectorAll('.w')].map((el, i) => ({ t: v.words[i][1], el, box: para }));
     else {
-      trEl.innerHTML = v.words.map(([w]) => `<span class="w">${escT(w)}</span>`).join(' ') + ' …';
-      els = [...trEl.querySelectorAll('.w')]; box = trEl;
+      trEl.innerHTML = v.words.map(([w, , ayah]) => `<span class="w${ayah ? ' ayah' : ''}">${escT(w)}</span>`).join(' ') + ' …';
+      const ayahAr = [...para.querySelectorAll('.q .w')];
+      ev = [...[...trEl.querySelectorAll('.w')].map((el, i) => ({ t: v.words[i][1], el, box: trEl })),
+            ...ayahAr.map((el, i) => ({ t: v.ar[i], el, box: para }))].sort((a, b) => a.t - b.t);
     }
-    box.appendChild(pen);
+    cur = { key: l, end: v.end, ev };
     const a = (audios[l] ??= Object.assign(new Audio(v.audio), { preload: 'auto' }));
     btn.setAttribute('aria-busy', 'true'); setLabel('Loading…');
     status.textContent = '';
