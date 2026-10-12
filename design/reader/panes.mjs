@@ -392,5 +392,32 @@ rep(`    group.hidden = !own;
   const data = Object.fromEntries(Object.entries(A.langs).map(([l, v]) => [l, Object.fromEntries((v.passages || []).map(p => [p.i, p.pairs]))]));
   rep(`<script src="/recited.js"></script>`, `<script>window.__ALIGN = ${JSON.stringify(data)};</script>\n<script src="/recited.js"></script>`);
 }
+// Highlights by kind (Meer, 12 Oct: hadith green): a lit or dimmed word keeps its colour, a hadith's green,
+// the Quran's gold, the imam's own words cream. Each highlight is split into name, name-q and name-h.
+rep(`  let onWord = null, litRange = null;`, `  let onWord = null, litRange = null;
+  const HADITH = '.inline-hadith, .inline-hadith-en, .chunk-hadith-trans, .hadith-arabic';
+  const QURAN = '.inline-ayah, .inline-ayah-en, .chunk-arabic-quran, .chunk-quran-translation';
+  const kindOf = range => { const n = range.startContainer, el = n.nodeType === 1 ? n : n.parentElement; return el.closest(HADITH) ? 'h' : el.closest(QURAN) ? 'q' : ''; };
+  function setHL(name, ranges) {
+    const by = { '': [], q: [], h: [] };
+    for (const x of ranges || []) by[kindOf(x)].push(x);
+    for (const [k, list] of Object.entries(by)) { const nm = k ? name + '-' + k : name; if (list.length) CSS.highlights.set(nm, new Highlight(...list)); else CSS.highlights.delete(nm); }
+  }
+  function delHL(name) { for (const nm of [name, name + '-q', name + '-h']) CSS.highlights.delete(nm); }`);
+s = s.replace(`CSS.highlights.set('kt-said', new Highlight(...words.slice(0, k + 1).map(w => w.range)));`, `setHL('kt-said', words.slice(0, k + 1).map(w => w.range));`);
+s = s.split(`CSS.highlights.delete('kt-said')`).join(`delHL('kt-said')`);
+s = s.split(`CSS.highlights.delete('kt-near')`).join(`delHL('kt-near')`);
+s = s.replace(`CSS.highlights.set('kt-near', new Highlight(...lit));`, `setHL('kt-near', lit);`);
+s = s.replace(`nearTr = trLit.length ? new Highlight(...trLit) : null;`, `nearTr = trLit.length ? trLit : null;`);
+s = s.split(`CSS.highlights.set('kt-said', nearTr)`).join(`setHL('kt-said', nearTr)`);
+rep(`    ::highlight(kt-near) { color: #FBF3DC; }`, `    ::highlight(kt-near) { color: #FBF3DC; }
+    ::highlight(kt-near-h), ::highlight(kt-said-h) { color: #B8F2D3; }
+    ::highlight(kt-near-q), ::highlight(kt-said-q) { color: var(--gold-bright); }`);
+// dimmed, a hadith stays a dim green and the Quran a dim gold
+rep(`  </style>\n\n</head>`, `    .pane :is(.reader-chunk[data-near], .tr-chunk[data-follow]) :is(.inline-hadith, .inline-hadith-en, .chunk-hadith-trans),
+    .pane :is(.reader-chunk[data-near], .tr-chunk[data-follow]) :is(.inline-hadith, .inline-hadith-en, .chunk-hadith-trans) * { color: rgba(147, 221, 183, .38) !important; }
+    .pane :is(.reader-chunk[data-near], .tr-chunk[data-follow]) :is(.inline-ayah, .inline-ayah-en, .chunk-quran-translation, .chunk-arabic-quran),
+    .pane :is(.reader-chunk[data-near], .tr-chunk[data-follow]) :is(.inline-ayah, .inline-ayah-en, .chunk-quran-translation, .chunk-arabic-quran) * { color: rgba(216, 184, 108, .4) !important; }
+  </style>\n\n</head>`);
 writeFileSync(here + 'reader-panes.html', s);
 console.log('design/reader/reader-panes.html', s.length, 'bytes');
