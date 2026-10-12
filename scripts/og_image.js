@@ -1,5 +1,6 @@
 // og_image.js — The picture a shared link shows (WhatsApp, iMessage, Telegram…), in the site's look (12 Oct 2026):
-// the khutbah's title, its date (with the Hijri date) and masjid, its languages in gold, beside the gold minbar.
+// the khutbah's title, its date (with the Hijri date) and masjid, its languages in gold, beside the gold minbar, and
+// who made it (Meer Husamuddin).
 // Most visitors arrive through a link shared on WhatsApp, so this card is the first thing they see.
 // Drawn by the Mac's Chrome (headless screenshot) and saved as a JPEG of 1200 × 630.
 //
@@ -49,6 +50,9 @@ function cardHtml({ title, date = '', masjid = '', langs = ['en', 'ur', 'bn'], h
   .tongues [lang="ar"] { font-family: Amiri, serif; font-size: 1.1em; }
   .tongues [lang="ur"] { font-family: "Noto Nastaliq Urdu", serif; font-size: .9em; line-height: 1.3; }
   .tongues [lang="bn"] { font-family: "Noto Serif Bengali", serif; font-size: .92em; }
+  /* who made it, under the minbar (as on the card before the redesign; Meer) */
+  .by { position: absolute; right: 72px; bottom: 54px; text-align: right; font-size: 24px; line-height: 1.4; color: #A6B3AA; }
+  .by b { font-weight: 400; color: #E8D5A0; }
 </style></head><body>
 <div class="glow"></div><div class="lattice"></div>
 <div class="minbar-box">${MINBAR.replace(/ role="img" aria-label="[^"]*"/, '').replaceAll('stop-color="var(--light)"', 'stop-color="#F8E9BC"')}</div>
@@ -59,6 +63,7 @@ function cardHtml({ title, date = '', masjid = '', langs = ['en', 'ur', 'bn'], h
     : `<p class="meta">${esc(date)}${hijri ? ` · <span class="hijri">${hijri}</span>` : ''}${masjid ? `<b>${esc(masjid)}</b>` : ''}</p>`}
   <p class="tongues">${tongues}</p>
 </div>
+<p class="by">Made by <b>Meer Husamuddin</b><br>AI software engineer, hafidh of the Qur'an</p>
 <script>
   // a long title steps down until it fits in three lines
   document.fonts.ready.then(() => { const h = document.getElementById('t'); let s = 64; while (h.scrollHeight > h.clientHeight + 2 && s > 36) { s -= 2; h.style.fontSize = s + 'px'; } if (h.getBoundingClientRect().height > 3 * s * 1.1 + 4) { h.style.fontSize = (s = Math.max(36, s - 6)) + 'px'; } document.title = 'ready'; });
