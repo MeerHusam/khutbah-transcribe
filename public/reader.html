@@ -307,30 +307,28 @@
     }
 
     /* ── Two teleprompters (the panes layout) ── */
-    html, body { height: 100%; }
-    body { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+    /* The reader is a stage the size of the screen (between the header and the player); when a pane reaches its end the
+       page scrolls on, past the end of the khutbah, to every ayah and hadith and the khutbahs before and after (Meer) */
+    body { padding-bottom: var(--ply, 0px); }
     body::before { display: none; }
-    header { position: relative; flex: none; }
-    #app { order: 1; flex: 1; min-height: 0; width: 100%; max-width: 720px; margin: 0 auto; padding: 0; display: flex; flex-direction: column; }
-    .site-footer { display: none; }
+    #app { width: 100%; max-width: 720px; margin: 0 auto; padding: 0; }
+    .reader-stage { height: calc(100dvh - var(--hdr, 52px) - var(--ply, 0px)); min-height: 380px; display: flex; flex-direction: column; }
+    .site-footer { padding-bottom: 28px; }
     .r-top { flex: none; padding: 0 20px; }
     .r-head { max-height: 220px; overflow: hidden; transition: max-height .4s cubic-bezier(.16, 1, .3, 1), opacity .25s; }
     body.reading .r-head { max-height: 0; opacity: 0; }
     .r-title { margin-top: 2px; font: 600 24px/1.2 var(--display); letter-spacing: -.005em; text-wrap: balance; color: var(--cream); }
     .r-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 14px; padding-bottom: 2px; }
     .r-tools .tongue-line { margin-top: 4px; font-size: 20px; }
-    .r-short > summary {
-      display: inline-flex; align-items: center; gap: 6px; min-height: 40px; cursor: pointer; list-style: none;
-      color: var(--gold); font-size: 16px; text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px;
-    }
-    .r-short > summary::-webkit-details-marker { display: none; }
-    .r-short > summary::after { content: ''; width: 7px; height: 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-2px) rotate(45deg); }
-    .r-short[open] { flex-basis: 100%; }
-    .r-short[open] > summary::after { transform: translateY(2px) rotate(-135deg); }
-    .r-short-body { max-height: 34vh; overflow-y: auto; padding-bottom: 8px; }
-    .r-short-body .share-text { font-size: 18px; line-height: 1.6; font-weight: 400; color: #DCDED5; }
-    body.rtl .r-short-body { text-align: right; }
-    body[class] .r-short > summary .tr-inline[lang] { font-size: 17px; }
+    /* In Short: the first thing in the translation pane, scrolling away as the reader reads on */
+    .r-lede { padding: 2px 0 16px; margin-bottom: 18px; border-bottom: 1px solid var(--line-soft); }
+    .r-lede-label { font-size: 13px; color: var(--dim); }
+    .r-lede .share-text { margin-top: 4px; font-size: calc(19px * var(--ts, 1)); line-height: 1.55; font-weight: 400; color: #E2E4DB; }
+    .r-lede-links { display: flex; flex-wrap: wrap; align-items: center; gap: 0 18px; margin-top: 4px; }
+    .to-sources { display: inline-flex; align-items: center; gap: 5px; min-height: 40px; font-size: 14.5px; color: var(--gold); text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px; }
+    .to-sources:hover { text-decoration-color: var(--gold); }
+    body.rtl .r-lede { text-align: right; }
+    body[class] :is(.r-lede-label, .to-sources) .tr-inline[lang] { font-size: 15px; }
 
     /* the imam's Arabic above in parchment, the translation below in cream, the three gold stars between them (Meer picked E) */
     .panes { flex: 1; min-height: 0; display: grid; grid-template-rows: 1fr auto 1fr; }
@@ -341,7 +339,7 @@
     .stars-seam::before { margin-right: 4px; background: linear-gradient(to right, transparent, var(--gold)); }
     .stars-seam::after { margin-left: 4px; background: linear-gradient(to left, transparent, var(--gold)); }
     .pane {
-      position: relative; overflow-y: auto; overscroll-behavior: contain; padding: 14px 20px 0; scrollbar-width: none;
+      position: relative; overflow-y: auto; overscroll-behavior-y: auto; padding: 14px 20px 0; scrollbar-width: none;
       -webkit-mask-image: linear-gradient(transparent, #000 7%, #000 90%, transparent); mask-image: linear-gradient(transparent, #000 7%, #000 90%, transparent);
     }
     .pane::-webkit-scrollbar { display: none; }
@@ -370,7 +368,7 @@
 
     /* the player: part of the page (below the panes), the progress line with the time at both ends, then
        speed · −10s · play · +10s · voice, play in the centre */
-    .audio-player { order: 2; flex: none; position: relative; left: auto; right: auto; bottom: auto; padding: 8px 16px calc(14px + env(safe-area-inset-bottom)); }
+    .audio-player { padding: 8px 16px calc(14px + env(safe-area-inset-bottom)); }
     .audio-player.ready { display: grid; grid-template-columns: 1fr auto auto auto 1fr; grid-template-areas: "bar bar bar bar bar" "speed back play fwd voice"; align-items: center; column-gap: 6px; row-gap: 2px; }
     .ap-bar { grid-area: bar; display: flex; align-items: center; gap: 10px; }
     .ap-bar .audio-scrubber { flex: 1; width: auto; margin: 0; height: 28px; }
@@ -402,15 +400,40 @@
     .tr-chunk[data-follow]:not([data-follow="ar"], [data-follow="en"]) :is(.chunk-tr .chunk-english, .chunk-tr .chunk-hadith-trans, .chunk-quran-translation.chunk-tr) * {
       color: rgba(236, 230, 214, .32);
     }
-    .pane-tr .sources { margin-top: 40px; }
-    .pane-feedback { margin: 24px 0 0; }
+    /* after the khutbah: its end, every ayah and hadith, the khutbahs before and after, across the whole width */
+    .after-reader { padding: 30px 20px 8px; }
+    .pane-end { padding: 26px 0 8px; text-align: center; }
+    .to-end { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin-top: 4px; padding: 0 18px; border: 1px solid var(--gold-dim); border-radius: 999px; background: none; color: var(--gold); font-size: 15px; cursor: pointer; }
+    .to-end:hover { border-color: var(--gold); }
+    .pane-ar .pane-end { display: none; }
+    body.ar-only .pane-ar .pane-end { display: block; }
+    body[class] .to-end .tr-inline[lang] { font-size: 15px; }
+    .end-mark { display: flex; align-items: center; gap: 14px; color: var(--gold); }
+    .end-mark svg { width: 16px; height: 16px; flex: none; }
+    .end-mark::before, .end-mark::after { content: ''; flex: 1; height: 1px; }
+    .end-mark::before { background: linear-gradient(to right, transparent, var(--gold)); }
+    .end-mark::after { background: linear-gradient(to left, transparent, var(--gold)); }
+    .end-label { margin-top: 10px; text-align: center; font: 500 15px/1.4 var(--display); color: var(--mist); }
+    .end-label .tr-inline[lang] { font-size: 16px; font-weight: 400; }
+    .after-reader .sources { margin-top: 10px; }
+    .khutbah-nav { display: grid; gap: 0; margin-top: 44px; border-top: 1px solid var(--line-soft); }
+    .khutbah-nav a { display: grid; gap: 2px; padding: 16px 2px; border-bottom: 1px solid var(--line-soft); text-decoration: none; }
+    .khutbah-nav small { font-size: 13.5px; color: var(--gold); }
+    .khutbah-nav b { font: 600 18px/1.3 var(--display); color: var(--cream); }
+    .khutbah-nav span { font-size: 14px; color: var(--mist); }
+    .khutbah-nav a:hover b { color: var(--gold-bright); }
+    .khutbah-nav .kn-next { text-align: right; }
     /* العربية alone: the upper pane takes the whole space */
     body.ar-only :is(.pane-tr, .stars-seam) { display: none; }
     body.ar-only .panes { grid-template-rows: 1fr; }
     @media (min-width: 901px) {
       #app { max-width: 1180px; }
       .panes { grid-template-rows: none; grid-template-columns: 1fr auto 1fr; }
-      .pane-tr { order: 1; } .stars-seam { order: 2; flex-direction: column; padding: 18px 6px; } .pane-ar { order: 3; }
+      .pane-ar { order: 1; } .stars-seam { order: 2; flex-direction: column; padding: 18px 6px; } .pane-tr { order: 3; }
+      .after-reader { padding: 44px 28px 8px; }
+      .after-reader .sources { display: grid; grid-template-columns: 1fr 1fr; gap: 0 56px; }
+      .after-reader .sources .section { margin-top: 36px; }
+      .khutbah-nav { grid-template-columns: 1fr 1fr; gap: 0 56px; }
       .stars-seam::before, .stars-seam::after { width: 1px; height: auto; }
       .stars-seam::before { margin: 0 0 4px; background: linear-gradient(to bottom, transparent, var(--gold)); }
       .stars-seam::after { margin: 4px 0 0; background: linear-gradient(to top, transparent, var(--gold)); }
@@ -426,6 +449,16 @@
     .pane :is(.reader-chunk[data-near], .tr-chunk[data-follow]) :is(.inline-hadith, .inline-hadith-en, .chunk-hadith-trans) * { color: rgba(147, 221, 183, .38) !important; }
     .pane :is(.reader-chunk[data-near], .tr-chunk[data-follow]) :is(.inline-ayah, .inline-ayah-en, .chunk-quran-translation, .chunk-arabic-quran),
     .pane :is(.reader-chunk[data-near], .tr-chunk[data-follow]) :is(.inline-ayah, .inline-ayah-en, .chunk-quran-translation, .chunk-arabic-quran) * { color: rgba(216, 184, 108, .4) !important; }
+    /* phones: the languages and the three A's on one line */
+    @media (max-width: 900px) {
+      .r-tools .tongue-line { font-size: 17.5px; gap: 0 8px; }
+      .r-size { gap: 0; }
+      .r-size button { min-width: 32px; padding: 0 2px; }
+      .r-size button:nth-child(1) { font-size: 13px; } .r-size button:nth-child(2) { font-size: 16px; } .r-size button:nth-child(3) { font-size: 20px; }
+    }
+    @media (max-width: 380px) {
+      .r-tools .tongue-line { font-size: 16.5px; gap: 0 6px; }
+    }
   </style>
 
 </head>
@@ -575,6 +608,7 @@
     langStyles(TR);
     document.getElementById('app').innerHTML = renderResults(result);
     setupPanes();
+    sizeStage();
     setupSize();
     shortenHonorifics(document.getElementById('app'));
     // The language a page opens in: ?lang= in a shared link, else the reader's last choice, else the
@@ -590,7 +624,19 @@
     if (result.audio_url) initAudio(result.audio_url);
   }
 
+  // The khutbahs before and after this one, at the same masjid when it has others (the list is newest first).
+  let ITEMS = [];
+  function khutbahNav() {
+    const here = ITEMS.find(i => i.folder === currentFolder);
+    if (!here) return '';
+    const same = ITEMS.filter(i => i.masjid && i.masjid === here.masjid);
+    const list = same.length > 1 ? same : ITEMS;
+    const k = list.indexOf(here), older = list[k + 1], newer = list[k - 1];
+    const link = (i, cls, label) => i ? `<a class="${cls}" href="/${encodeURIComponent(i.slug || '')}"><small>${label}</small><b>${escHtml(i.title || 'Friday Khutbah')}</b><span>${escHtml([i.date, i.masjid].filter(Boolean).join(' · '))}</span></a>` : '<span></span>';
+    return older || newer ? `<nav class="khutbah-nav" aria-label="Other khutbahs">${link(older, 'kn-prev', '← ' + uiText('Previous khutbah'))}${link(newer, 'kn-next', uiText('Next khutbah') + ' →')}</nav>` : '';
+  }
   function populateSwitcher(list) {
+    ITEMS = list.items || [];
     const sel = document.getElementById('khutbahSelect');
     slugByFolder = new Map((list.items || []).map(i => [i.folder, i.slug]));
     sel.innerHTML = (list.items || []).map(i =>
@@ -670,6 +716,7 @@
     const tongues = [['ar', 'العربية', 'ar'], ['en', 'English', ''], ...TR.map(L => [L.code, L.native, L.code])];
     const khutbah = renderTranslation(r);
     return `
+    <div class="reader-stage" id="stage">
     <div class="r-top" id="rTop">
       <div class="r-head">
         <a class="back-home" href="/#khutbahs">← All khutbahs</a>
@@ -678,22 +725,28 @@
       </div>
       <div class="r-tools">
         <p class="tongue-line" id="tongues" role="group" aria-label="Language">${tongues.map(([c, name, lang], i) => (i ? '<span class="sep" aria-hidden="true">·</span>' : '') + `<button type="button" data-l="${c}"${lang ? ` lang="${lang}"` : ''} aria-pressed="false" onclick="chooseLang('${c}')"${c === 'ar' ? ' title="The imam\'s own words, in his voice"' : ''}>${name}</button>`).join('')}</p>
-        <details class="r-short">
-          <summary>${bi('In Short')}</summary>
-          <div class="r-short-body">
-            <p class="share-text${TR.length ? ' chunk-en' : ''}">${escHtml(r.share_summary || r.summary || '')}</p>
-            ${trShare('share_summary')}
-            <button class="copy-btn" onclick="copyShare()">${bi('Copy for WhatsApp')}</button>
-          </div>
-        </details>
         <div class="r-size" id="textSize" role="group" aria-label="Text size"><button type="button" data-ts="0.86" aria-label="Smaller text" aria-pressed="false">A</button><button type="button" data-ts="1" aria-label="Normal text" aria-pressed="true">A</button><button type="button" data-ts="1.16" aria-label="Larger text" aria-pressed="false">A</button></div>
       </div>
     </div>
     <div class="panes" id="panes">
-      <div class="pane pane-ar" id="paneAr" aria-label="The imam's Arabic">${khutbah}</div>
+      <div class="pane pane-ar" id="paneAr" aria-label="The imam's Arabic">${khutbah}<div class="pane-end"><button type="button" class="to-end" onclick="toSources()">${bi('Every ayah and hadith, with its source')} ↓</button></div></div>
       <div class="stars-seam" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.2" y="5.2" width="13.6" height="13.6"/><rect x="5.2" y="5.2" width="13.6" height="13.6" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="2.3"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.2" y="5.2" width="13.6" height="13.6"/><rect x="5.2" y="5.2" width="13.6" height="13.6" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="2.3"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.2" y="5.2" width="13.6" height="13.6"/><rect x="5.2" y="5.2" width="13.6" height="13.6" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="2.3"/></svg></div>
-      <div class="pane pane-tr" id="paneTr" aria-label="The translation">${khutbah.replace(/class="reader-chunk"/g, 'class="tr-chunk"')}
-        <div class="sources">
+      <div class="pane pane-tr" id="paneTr" aria-label="The translation">
+        <section class="r-lede" aria-label="In short">
+          <p class="r-lede-label">${bi('In Short')}</p>
+          <p class="share-text${TR.length ? ' chunk-en' : ''}">${escHtml(r.share_summary || r.summary || '')}</p>
+          ${trShare('share_summary')}
+          <p class="r-lede-links"><button class="copy-btn" onclick="copyShare()">${bi('Copy for WhatsApp')}</button>${qRefs.length + hadithRefs.length ? `<a class="to-sources" href="#sources" onclick="event.preventDefault(); toSources()">${bi('Every ayah and hadith, with its source')} (${qRefs.length + hadithRefs.length}) ↓</a>` : ''}</p>
+        </section>
+        ${khutbah.replace(/class="reader-chunk"/g, 'class="tr-chunk"')}
+        <div class="pane-end"><button type="button" class="to-end" onclick="toSources()">${bi('Every ayah and hadith, with its source')} ↓</button></div>
+      </div>
+    </div>
+    </div>
+    <section class="after-reader" id="sources" aria-label="After the khutbah">
+      <div class="end-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.2" y="5.2" width="13.6" height="13.6"/><rect x="5.2" y="5.2" width="13.6" height="13.6" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="2.3"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.2" y="5.2" width="13.6" height="13.6"/><rect x="5.2" y="5.2" width="13.6" height="13.6" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="2.3"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.2" y="5.2" width="13.6" height="13.6"/><rect x="5.2" y="5.2" width="13.6" height="13.6" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="2.3"/></svg></div>
+      <p class="end-label">${bi('End of the khutbah')}</p>
+      <div class="sources">
           <div class="section">
             <div class="section-header"><h2>Every ayah <span class="count-badge">${qRefs.length}</span></h2></div>
             <div class="section-body">${qRefs.map((q, i) => [q, i])
@@ -704,11 +757,23 @@
             <div class="section-header"><h2>Every hadith <span class="count-badge">${hadithRefs.length}</span></h2></div>
             <div class="section-body">${hadithRefs.map(renderHadithRef).join('')}</div>
           </div>` : ''}
-        </div>
-        <p class="pane-feedback"><button class="footer-feedback" onclick="openFeedback()">Tell us what to fix</button></p>
       </div>
-    </div>`;
+      ${khutbahNav()}
+    </section>`;
   }
+
+  function toSources() {
+    const end = document.getElementById('sources');
+    if (end) scrollTo({ top: end.getBoundingClientRect().top + scrollY - (document.querySelector('header')?.offsetHeight || 0), behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  }
+  // The stage is the screen between the header and the player: their heights, kept as they change.
+  function sizeStage() {
+    const head = document.querySelector('header'), player = document.getElementById('audioPlayer');
+    document.documentElement.style.setProperty('--hdr', (head?.offsetHeight || 0) + 'px');
+    document.documentElement.style.setProperty('--ply', (player?.classList.contains('ready') ? player.offsetHeight : 0) + 'px');
+  }
+  addEventListener('resize', sizeStage);
+  if (window.ResizeObserver) { const ro = new ResizeObserver(sizeStage); addEventListener('DOMContentLoaded', () => { ro.observe(document.querySelector('header')); ro.observe(document.getElementById('audioPlayer')); }); }
 
   async function enhanceQuranRefs(refs) {
     for (let i = 0; i < refs.length; i++) {
@@ -1915,6 +1980,7 @@
     };
     const toActive = () => {
       follow(); byHand = false;
+      if (scrollY > 2) scrollTo({ top: 0, behavior: still() ? 'auto' : 'smooth' });
       if (!activeChunk) return;
       if (litRange && [activeChunk, twinOf(activeChunk)].some(x => x.contains(litRange.startContainer)) && toLine(litRange)) return;
       const p = paneAr.getBoundingClientRect(), r = activeChunk.getBoundingClientRect();
@@ -1924,13 +1990,16 @@
     const showBack = () => {
       const r = activeChunk?.getBoundingClientRect();
       const pr = document.getElementById('paneAr').getBoundingClientRect();
-      const away = !!r && (r.bottom < pr.top + 8 || r.top > pr.bottom - 8);
+      // scrolled on past the khutbah, or the passage out of its pane
+      const below = document.getElementById('stage').getBoundingClientRect().bottom < innerHeight * 0.55;
+      const away = !!r && (below || r.bottom < pr.top + 8 || r.top > pr.bottom - 8);
       if (byHand) following = !away;
       backBtn.hidden = following;
-      if (away) backBtn.classList.toggle('up', r.bottom < pr.top + 8);
+      if (away) backBtn.classList.toggle('up', below || r.bottom < pr.top + 8);
     };
     ['wheel', 'touchmove', 'keydown'].forEach(t => addEventListener(t, () => { byHand = true; }, { passive: true }));
     document.querySelectorAll('.pane').forEach(p => p.addEventListener('scroll', () => { if (byHand) showBack(); }, { passive: true }));
+    addEventListener('scroll', () => { if (byHand) showBack(); }, { passive: true });
     backBtn.addEventListener('click', toActive);
 
     let lastT = null;
