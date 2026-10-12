@@ -144,11 +144,15 @@
     }
     .tabs { display: flex; gap: 2px; margin: 0 0 4px -10px; }
     .tabs button { border: 0; background: none; cursor: pointer; padding: 9px 10px 7px; color: var(--mist); border-bottom: 2px solid transparent; font-size: 15px; font-weight: 400; min-height: 40px; }
-    .tabs button[aria-pressed="true"] { color: var(--cream); border-bottom-color: var(--green); font-weight: 500; }
-    .tabs [lang="ur"] { font-size: 15px; } .tabs [lang="bn"] { font-size: 15px; }
+    .tabs button[aria-pressed="true"] { color: var(--cream); border-bottom-color: var(--gold); font-weight: 500; }
+    .tabs [lang="ur"] { font-size: 15px; } .tabs [lang="bn"] { font-size: 15px; } .tabs [lang="ar"] { font-size: 17px; line-height: 1; }
+    .tabs { align-items: center; flex-wrap: wrap; }
+    .tabs .src { margin-left: auto; font-size: 13.5px; color: var(--mist); text-decoration: none; padding: 9px 0 7px; }
+    .tabs .src:hover { color: var(--cream); text-decoration: underline; }
     .pg-ar { position: relative; margin: 10px 0 0; direction: rtl; text-align: right; font: 400 26px/2 var(--ar); }
     .pg-ar .w { transition: color .2s; }
     .page.playing:not(.voicing) .pg-ar .w { color: #66796E; }
+    .pg-tr[hidden] { display: none; }
     .page.playing .pg-ar .w.said { color: #F4EEDD; }
     .pen { position: absolute; left: 0; top: 0; width: 40px; height: 9px; color: var(--gold); pointer-events: none; opacity: 0; }
     .page.playing .pen { opacity: 1; }
@@ -157,33 +161,24 @@
     .pg-tr[lang="ur"] { direction: rtl; text-align: right; font-size: 18.5px; line-height: 2.3; }
     .pg-tr[lang="bn"] { font-size: 17.5px; line-height: 1.85; }
     .pg-tr q { color: var(--green); font-style: italic; quotes: none; }
-    .pg-tr .seg { transition: opacity .3s; }
-    .page.playing .pg-tr .seg { opacity: .42; }
-    .page.playing .pg-tr .seg.now { opacity: 1; }
     .pg-tr[lang="ur"] q, .pg-tr[lang="bn"] q { font-style: normal; }
-    .pg-foot { margin-top: 18px; display: grid; row-gap: 10px; }
-    .plays { display: flex; flex-wrap: wrap; gap: 10px; }
-    .listen.alt { background: transparent; color: var(--green); box-shadow: inset 0 0 0 1.5px rgba(99,199,155,.6); }
-    .listen.alt .disc { background: rgba(99,199,155,.14); }
-    .listen.alt.on { background: var(--green); color: var(--green-ink); box-shadow: none; }
+    .pg-foot { margin-top: 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; }
     .listen .lbl[lang="ur"] { font-size: 16px; line-height: 1.6; }
+    .listen .lbl[lang="bn"] { font-size: 16px; }
     .pg-tr { position: relative; }
     .page.voicing .pg-tr .w { color: #66796E; transition: color .2s; }
     .page.voicing .pg-tr .w.said { color: #F4EEDD; }
     .listen {
       display: inline-flex; align-items: center; gap: 10px; border: 0; cursor: pointer; min-height: 48px;
-      padding: 0 20px 0 8px; border-radius: 999px; background: var(--green); color: var(--green-ink); font-size: 16px; font-weight: 500;
+      padding: 0 22px 0 8px; border-radius: 999px; background: var(--gold); color: #1A1508; font-size: 16px; font-weight: 500; transition: background .2s;
     }
-    .listen .disc { width: 34px; height: 34px; border-radius: 50%; background: rgba(7, 21, 15, .12); display: grid; place-items: center; }
+    .listen:hover { background: #E4C67F; }
+    .listen .disc { width: 34px; height: 34px; border-radius: 50%; background: rgba(26, 21, 8, .12); display: grid; place-items: center; }
     .listen svg { width: 14px; height: 14px; }
     .listen[aria-busy="true"] { opacity: .75; cursor: progress; }
-    .cap { font-size: 14px; line-height: 1.45; color: var(--mist); font-weight: 300; }
-    .cap a { color: var(--green); font-weight: 500; text-decoration: none; }
-    .cap a:hover { text-decoration: underline; }
-    .pg-more { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14.5px; }
-    .pg-more a { color: var(--green); font-weight: 500; text-decoration: none; }
-    .pg-more a:hover { text-decoration: underline; }
-    .pg-status { font-size: 14px; color: #F1A48A; margin: 0; }
+    .read { color: var(--cream); font-size: 15.5px; font-weight: 400; text-decoration: none; border-bottom: 1.5px solid var(--gold-dim); padding-bottom: 2px; }
+    .read:hover { border-color: var(--gold); }
+    .pg-status { flex-basis: 100%; font-size: 14px; color: #F1A48A; margin: 0; }
     .pg-status:empty { display: none; }
 
     /* ── Section break: the three stars ── */
@@ -433,21 +428,19 @@
   <circle class="ln" cx="527" cy="4" r="2.6"/>
 </svg>
       <figure class="page" id="demo" aria-label="An example from a khutbah">
-        <div class="tabs" role="group" aria-label="Translation">
+        <div class="tabs" role="group" aria-label="Language">
+          <button type="button" data-l="ar" lang="ar" aria-pressed="false">العربية</button>
           <button type="button" data-l="en" aria-pressed="true">English</button>
           <button type="button" data-l="ur" lang="ur" aria-pressed="false">اردو</button>
           <button type="button" data-l="bn" lang="bn" aria-pressed="false">বাংলা</button>
+          <a class="src" href="https://sunnah.com/bukhari:6724" target="_blank" rel="noopener">Sahih al-Bukhari 6724</a>
         </div>
         <p class="pg-ar" lang="ar" dir="rtl" id="demoAr"></p>
         <p class="pg-tr" id="demoTr" lang="en"></p>
         <figcaption class="pg-foot">
-          <div class="plays">
-            <button type="button" class="listen" data-src="imam" data-label="The imam, in Arabic"><span class="disc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></span><span class="lbl">The imam, in Arabic</span></button>
-            <button type="button" class="listen alt" data-src="voice" data-label="Listen in English"><span class="disc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></span><span class="lbl">Listen in English</span></button>
-          </div>
-          <span class="cap">Each word lights up as it is said. <a href="https://sunnah.com/bukhari:6724" target="_blank" rel="noopener">Sahih al-Bukhari 6724</a></span>
+          <button type="button" class="listen" id="listen"><span class="disc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></span><span class="lbl" id="listenLabel">Listen in English</span></button>
+          <a class="read" href="/2026-09-18-al-haram-makkah">Read this khutbah</a>
           <p class="pg-status" id="demoStatus" role="status" aria-live="polite"></p>
-          <span class="pg-more"><span class="cap">Sheikh Bandar Baleelah, Masjid al-Haram, 18 September 2026</span><a href="/2026-09-18-al-haram-makkah">Read this khutbah</a></span>
         </figcaption>
       </figure>
     </div>
@@ -550,8 +543,8 @@
   demoAr.innerHTML = DEMO.words.map(([w, t], i) => `<span class="w" data-i="${i}">${w}</span>`).join(' ')
     + '<span class="pen" id="pen" aria-hidden="true"><svg viewBox="0 0 100 10" preserveAspectRatio="none"><path d="M0 6.2 C18 3.9 42 3.2 64 3.6 C80 3.9 92 4.6 100 5.9 C91 7.3 77 8.1 60 8.0 C38 7.9 17 7.6 0 6.2Z"/></svg></span>';
   const setTr = l => {
-    demoTr.innerHTML = DEMO.tr[l];
-    demoTr.lang = l; demoTr.dir = l === 'ur' ? 'rtl' : 'ltr';
+    demoTr.hidden = l === 'ar';
+    if (l !== 'ar') { demoTr.innerHTML = DEMO.tr[l]; demoTr.lang = l; demoTr.dir = l === 'ur' ? 'rtl' : 'ltr'; }
     window.__trLang = l; window.dispatchEvent(new Event('kt-tr'));
     demo.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.l === l)));
   };
@@ -790,95 +783,81 @@
   // Start once the fonts have set the words where they will stay.
   (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => setTimeout(startHand, reduce ? 0 : 1800));
 
-  // ── The example's four recordings: the imam (his Arabic lit, the translation following), or a voice
-  // reading the translation on show (its words lit). One plays at a time.
+  // ── The example's recording: on العربية the imam (his words lit); on English, اردو or বাংলা the voice
+  // reading that translation (its words lit, the Arabic above it as it is).
   const page = document.getElementById('demo'), para = document.getElementById('demoAr'), trEl = document.getElementById('demoTr');
   const pen = document.getElementById('pen'), status = document.getElementById('demoStatus');
-  const btns = [...page.querySelectorAll('.listen')];
-  const PLAY = btns[0].querySelector('svg').outerHTML;
+  const btn = document.getElementById('listen'), label = document.getElementById('listenLabel');
+  const PLAY = btn.querySelector('svg').outerHTML;
   const PAUSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg>';
-  const VOICE_LABEL = { en: ['Listen in English', ''], ur: ['اردو میں سنیں', 'ur'], bn: ['বাংলায় শুনুন', 'bn'] };
+  const LABEL = { ar: ['Listen to the imam', ''], en: ['Listen in English', ''], ur: ['اردو میں سنیں', 'ur'], bn: ['বাংলায় শুনুন', 'bn'] };
   const escT = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const audios = {};
   let cur = null, raf = 0, lit = -1, els = [], box = para;
 
-  const labelVoice = () => {
-    const [t, lang] = VOICE_LABEL[window.__trLang || 'en'];
-    const b = btns[1], l = b.querySelector('.lbl');
-    b.dataset.label = t; if (!b.classList.contains('on')) l.textContent = t;
-    if (lang) l.setAttribute('lang', lang); else l.removeAttribute('lang');
+  const setLabel = text => {
+    const l = window.__trLang || 'en', [t, lang] = LABEL[l];
+    label.textContent = text ?? t;
+    if (!text && lang) label.setAttribute('lang', lang); else label.removeAttribute('lang');
   };
   const place = i => {
     els.forEach((w, j) => w.classList.toggle('said', j <= i));
-    if (cur.kind === 'imam') {
-      const segs = [...trEl.querySelectorAll('.seg')];
-      const now = segs.filter(x => +x.dataset.from <= Math.max(i, 0)).pop();
-      segs.forEach(x => x.classList.toggle('now', x === now));
-    }
     if (i < 0) return;
     const r = els[i].getBoundingClientRect(), p = box.getBoundingClientRect();
-    const to = { x: r.left - p.left - r.width * .06, y: r.bottom - p.top - (cur.kind === 'imam' ? 8 : 2), width: r.width * 1.12 };
+    const to = { x: r.left - p.left - r.width * .06, y: r.bottom - p.top - (box === para ? 8 : 2), width: r.width * 1.12 };
     if (reduce) utils.set(pen, to); else animate(pen, { ...to, duration: 300, ease: 'outBack(1.3)' });
   };
-  const setBtn = (b, playing, text) => {
-    b.querySelector('.disc').innerHTML = playing ? PAUSE : PLAY;
-    b.querySelector('.lbl').textContent = text ?? b.dataset.label;
-    b.classList.toggle('on', playing);
-  };
-  const stop = done => {
+  const stop = () => {
     cancelAnimationFrame(raf); raf = 0;
     const c = cur;
     if (!c) return;
     cur = null; lit = -1;
     audios[c.key]?.pause();
     page.classList.remove('playing', 'voicing');
-    if (c.kind === 'voice') window.__setTr(window.__trLang || 'en');
+    if (c.key !== 'ar' && window.__trLang === c.key) window.__setTr(c.key);
     para.appendChild(pen);
     para.querySelectorAll('.w').forEach(w => w.classList.remove('said'));
-    setBtn(c.btn, false, done && c.kind === 'imam' ? 'Hear him again' : undefined);
+    btn.querySelector('.disc').innerHTML = PLAY;
+    setLabel();
   };
   const tick = () => {
     const t = audios[cur.key].currentTime;
-    if (t >= cur.end) return stop(true);
+    if (t >= cur.end) return stop();
     let i = -1;
     for (let j = 0; j < cur.times.length && cur.times[j] <= t + .03; j++) i = j;
     if (i !== lit) { lit = i; place(i); }
     raf = requestAnimationFrame(tick);
   };
-  const start = async b => {
+  btn.addEventListener('click', async () => {
+    if (cur) return stop();
     const l = window.__trLang || 'en';
-    const kind = b.dataset.src;
-    const v = kind === 'imam' ? { audio: DEMO.audio, start: DEMO.start, end: DEMO.end, words: DEMO.words } : DEMO.voices[l];
-    cur = { kind, btn: b, key: kind === 'imam' ? 'imam' : l, end: v.end, times: v.words.map(w => w[1]) };
-    if (kind === 'voice') {
+    const v = l === 'ar' ? { audio: DEMO.audio, start: DEMO.start, end: DEMO.end, words: DEMO.words } : DEMO.voices[l];
+    cur = { key: l, end: v.end, times: v.words.map(w => w[1]) };
+    if (l === 'ar') { els = [...para.querySelectorAll('.w')]; box = para; }
+    else {
       trEl.innerHTML = v.words.map(([w]) => `<span class="w">${escT(w)}</span>`).join(' ') + ' …';
       els = [...trEl.querySelectorAll('.w')]; box = trEl;
-    } else { els = [...para.querySelectorAll('.w')]; box = para; }
+    }
     box.appendChild(pen);
-    const a = (audios[cur.key] ??= Object.assign(new Audio(v.audio), { preload: 'auto' }));
-    b.setAttribute('aria-busy', 'true'); b.querySelector('.lbl').textContent = 'Loading…';
+    const a = (audios[l] ??= Object.assign(new Audio(v.audio), { preload: 'auto' }));
+    btn.setAttribute('aria-busy', 'true'); setLabel('Loading…');
     status.textContent = '';
     try {
       if (a.readyState < 1) await new Promise((ok, no) => { a.addEventListener('loadedmetadata', ok, { once: true }); a.addEventListener('error', no, { once: true }); a.load(); });
       a.currentTime = v.start;
       await a.play();
-      page.classList.add('playing'); if (kind === 'voice') page.classList.add('voicing');
+      page.classList.add('playing'); if (l !== 'ar') page.classList.add('voicing');
       lit = -1; place(-1);
-      setBtn(b, true, 'Pause');
+      btn.querySelector('.disc').innerHTML = PAUSE; setLabel('Pause');
       raf = requestAnimationFrame(tick);
     } catch {
-      stop(false);
+      stop();
       status.textContent = 'The recording did not play. Check your connection and try again.';
     }
-    b.removeAttribute('aria-busy');
-  };
-  btns.forEach(b => b.addEventListener('click', () => {
-    const was = cur?.btn;
-    stop(false);
-    if (was !== b) start(b);
-  }));
-  addEventListener('kt-tr', () => { if (cur?.kind === 'voice') stop(false); labelVoice(); });
-  labelVoice();
+    btn.removeAttribute('aria-busy');
+  });
+  addEventListener('kt-tr', () => { if (cur) stop(); else setLabel(); });
+  setLabel();
 </script>
 </body>
 </html>
