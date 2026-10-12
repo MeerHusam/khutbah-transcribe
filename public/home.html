@@ -378,17 +378,16 @@
       .hero { display: block; padding-top: 14px; }
       .say { padding-top: 6px; }
       .stars { margin-bottom: 18px; gap: 14px; } .stars svg { width: 20px; height: 20px; }
-      h1 { font-size: 34px; line-height: 1.12; margin-top: 18px; }
-      .say { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; }
-      .say > * { grid-column: 1 / -1; }
-      .say > .stars { grid-column: 1; grid-row: 1; align-self: end; margin: 0 0 4px; }
+      /* the minbar stands behind the heading's right side; a night halo keeps its lines off the letters */
+      .say { position: relative; }
+      h1 { font-size: 34px; line-height: 1.12; position: relative; z-index: 1; text-shadow: 0 0 14px var(--night), 0 0 5px var(--night); }
       .tongue-line { font-size: 21px; gap: 0 9px; margin-top: 24px; }
       .tongue-help { font-size: 15px; margin-top: 22px; clear: both; }
       .finger { width: 34px; height: 34px; }
       .ticks { margin-top: 40px; gap: 12px; clear: both; } .ticks li { font-size: 17px; gap: 12px; } .ticks svg { width: 22px; height: 22px; }
       .cta { margin-top: 20px; }
       .art { display: none; }
-      .say > .minbar { grid-column: 2; grid-row: 1; position: relative; top: 0; left: 0; width: 168px; margin: 0 -6px 0 0; display: block; }
+      .say > .minbar { position: absolute; top: -10px; right: -12px; left: auto; width: 172px; margin: 0; display: block; z-index: 0; pointer-events: none; }
       .page { position: relative; right: auto; bottom: auto; width: auto; margin: 40px 0 0; padding: 18px 18px 18px; }
       .page .tabs { margin: -6px 0 0; } .page .tabs button { display: none; }
       .page .pg-foot { margin-top: 14px; }
