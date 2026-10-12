@@ -52,13 +52,13 @@
     /* ── Header ── */
     header {
       position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: 16px;
-      padding: 12px max(20px, calc(50vw - 380px)); padding-top: max(12px, env(safe-area-inset-top));
+      padding: 9px max(20px, calc(50vw - 380px)); padding-top: max(9px, env(safe-area-inset-top));
       background: rgba(11, 23, 18, .88); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--line-soft);
     }
-    .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--cream); font: 500 19px/1 var(--display); }
-    .brand img { width: 34px; height: 34px; display: block; }
-    .viewers { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--mist); white-space: nowrap; }
+    .brand { display: flex; align-items: center; gap: 9px; text-decoration: none; color: var(--cream); font: 500 17px/1 var(--display); }
+    .brand img { width: 28px; height: 28px; display: block; }
+    .viewers { margin-left: auto; display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--mist); white-space: nowrap; }
     .viewers b { color: var(--cream); font-weight: 500; font-variant-numeric: tabular-nums; }
     .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
     .viewers.online .live-dot { background: var(--green); box-shadow: 0 0 0 4px rgba(99, 199, 155, .16); }
@@ -66,23 +66,24 @@
 
     /* ── The page ── */
     #app { max-width: 720px; margin: 0 auto; padding: 0 20px calc(120px + env(safe-area-inset-bottom)); }
-    .back-home { display: inline-flex; align-items: center; min-height: 44px; margin-top: 8px; font-size: 15px; color: var(--mist); text-decoration: none; }
+    .back-home { display: inline-flex; align-items: center; min-height: 40px; margin-top: 4px; font-size: 14px; color: var(--mist); text-decoration: none; }
     .back-home:hover { color: var(--gold); }
-    .khutbah-heading { margin-top: 10px; }
-    .khutbah-heading h2 { font: 600 31px/1.14 var(--display); letter-spacing: -.01em; text-wrap: balance; color: var(--cream); }
-    .meta-row { margin-top: 12px; font-size: 15px; line-height: 1.6; color: var(--mist); }
-    .meta-row span { display: block; }
-    .meta-row .hijri { font-family: var(--ar); font-size: 17px; }
+    .khutbah-heading { margin-top: 4px; }
+    .khutbah-heading h2 { font: 600 24px/1.2 var(--display); letter-spacing: -.005em; text-wrap: balance; color: var(--cream); }
+    .meta-row { margin-top: 8px; font-size: 14px; line-height: 1.55; color: var(--mist); }
+    .meta-row span { display: inline; }
+    .meta-row .hijri { font-family: var(--ar); font-size: 15.5px; }
+    .meta-row span:first-child::after { content: '·'; margin: 0 8px; color: var(--dim); }
+    .meta-row span:nth-child(3) { display: block; }
     .meta-row a { color: var(--cream); text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px; }
     .meta-row a:hover { text-decoration-color: var(--gold); }
 
     /* the languages, as on the home page: one tap reads and hears it; العربية is the imam alone */
-    .tongue-help { margin-top: 28px; font-size: 15px; color: var(--mist); }
-    .tongue-help .tr-inline { font-size: 17px; }
-    .tongue-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 12px; margin-top: 2px; font: 400 23px/1.45 var(--text); color: var(--gold); }
+    .tongue-help { display: none; }
+    .tongue-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 10px; margin-top: 14px; font: 400 17px/1.45 var(--text); color: var(--gold); }
     .tongue-line .sep { color: var(--gold-dim); }
     .tongue-line button {
-      border: 0; background: none; padding: 6px 2px 4px; color: var(--gold); cursor: pointer;
+      border: 0; background: none; padding: 9px 2px 7px; color: var(--gold); cursor: pointer;
       border-bottom: 2px solid transparent; transition: border-color .2s, color .2s;
     }
     .tongue-line button[lang="ar"] { font-family: var(--ar); font-size: 1.05em; }
@@ -92,22 +93,23 @@
     .tongue-line button[aria-pressed="true"] { color: #F3DFA6; border-bottom-color: var(--gold); }
 
     /* In Short, the khutbah in two or three sentences, then the summary on a tap */
-    .lede { margin-top: 30px; }
-    .lede .share-text { font-size: 19px; line-height: 1.65; font-weight: 300; color: var(--cream); }
+    .lede { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
+    .lede-label { font-size: 13px; color: var(--dim); }
+    .lede .share-text { margin-top: 4px; font-size: 16.5px; line-height: 1.6; font-weight: 400; color: #DCDED5; }
     .copy-btn {
-      display: inline-flex; align-items: center; min-height: 44px; margin-top: 6px; padding: 0; border: 0; background: none; cursor: pointer;
-      color: var(--gold); font-size: 15.5px; text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px;
+      display: inline-flex; align-items: center; min-height: 40px; margin-top: 2px; padding: 0; border: 0; background: none; cursor: pointer;
+      color: var(--gold); font-size: 14.5px; text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px;
     }
     .copy-btn:hover { text-decoration-color: var(--gold); }
-    .summary-more { margin-top: 4px; }
+    .summary-more { margin-top: -4px; }
     .summary-more > summary {
-      display: inline-flex; align-items: center; gap: 6px; min-height: 44px; cursor: pointer; list-style: none;
-      color: var(--gold); font-size: 15.5px; text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px;
+      display: inline-flex; align-items: center; gap: 6px; min-height: 40px; cursor: pointer; list-style: none;
+      color: var(--gold); font-size: 14.5px; text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px;
     }
     .summary-more > summary::-webkit-details-marker { display: none; }
     .summary-more > summary::after { content: ''; width: 8px; height: 8px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-2px) rotate(45deg); transition: transform .2s; }
     .summary-more[open] > summary::after { transform: translateY(2px) rotate(-135deg); }
-    .summary-more .share-text { margin-top: 8px; font-size: 17px; line-height: 1.7; color: #D9DCD2; }
+    .summary-more .share-text { margin-top: 6px; font-size: 16.5px; line-height: 1.6; font-weight: 400; color: #D4D8CE; }
 
     /* every translation is in the page; the language shown is the body's lang-<code> (tr = any but English) */
     .chunk-tr, .tr-inline { display: none; }
@@ -118,22 +120,22 @@
     body.ar-only .reader-chunk :is(.chunk-en, .chunk-tr, .chunk-quran-translation, .verse-toggle) { display: none !important; }
 
     /* ── The khutbah ── */
-    .khutbah-h { margin-top: 52px; font: 600 25px/1.2 var(--display); color: var(--cream); }
+    .khutbah-h { margin-top: 30px; font: 600 19px/1.3 var(--display); color: var(--cream); }
     /* a heading in another script keeps the heading's size (the language files size inline words for running text) */
     body[class] .khutbah-h .tr-inline[lang] { font-size: .92em; font-weight: 400; line-height: 1.6; }
     /* labels and links in another script: readable, not the language files' small inline size */
-    body[class] :is(.tongue-help, .copy-btn, .summary-more > summary, .verse-toggle) .tr-inline[lang] { font-size: 16px; }
+    body[class] :is(.lede-label, .copy-btn, .summary-more > summary, .verse-toggle) .tr-inline[lang] { font-size: 15px; }
     /* a right-to-left language (اردو): its In Short, its links and the heading read from the right */
     body.rtl :is(.lede, .summary-more, .khutbah-h) { text-align: right; }
     body.rtl .summary-more > summary { flex-direction: row-reverse; }
     .khutbah-text { margin-top: 8px; }
-    .reader-chunk { position: relative; padding: 24px 0; border-bottom: 1px solid var(--line-soft); transition: opacity .35s; scroll-margin-top: 72px; }
+    .reader-chunk { position: relative; padding: 18px 0; border-bottom: 1px solid var(--line-soft); transition: opacity .35s; scroll-margin-top: 64px; }
     .reader-chunk:last-child { border-bottom: 0; }
     .reader-chunk[data-start] { cursor: pointer; }
     /* while a voice plays, the passage being heard stays bright and the rest step back */
     body.playing .reader-chunk:not(.chunk-active) { opacity: .45; }
-    .chunk-arabic { font: 400 23px/2.1 var(--ar); direction: rtl; text-align: right; color: var(--cream); margin-bottom: 10px; }
-    .chunk-english { font-size: 17px; line-height: 1.72; color: #D9DCD2; }
+    .chunk-arabic { font: 400 22px/2 var(--ar); direction: rtl; text-align: right; color: var(--cream); margin-bottom: 8px; }
+    .chunk-english { font-size: 17px; line-height: 1.65; font-weight: 400; color: #D4D8CE; }
     .chunk-english + .chunk-english { margin-top: 10px; }
 
     /* following the voice, word by word (CSS Custom Highlight API: no markup added to the text):
@@ -154,9 +156,9 @@
     .khutbah-divider span { font: 500 16px/1.5 var(--display); color: var(--gold); white-space: nowrap; }
 
     /* ── The Quran: the mushaf's script, in gold, set apart by space; its source a quiet gold link ── */
-    .chunk-arabic-quran { font-family: var(--quran); font-size: 25px; line-height: 2.25; color: var(--gold); text-align: center; padding: 6px 0 2px; }
+    .chunk-arabic-quran { font-family: var(--quran); font-size: 23px; line-height: 2.2; color: var(--gold); text-align: center; padding: 6px 0 2px; }
     .reader-chunk:has(.chunk-arabic-quran) :is(.chunk-en, .chunk-tr) { text-align: center; }
-    .chunk-quran-translation { font-size: 17px; line-height: 1.7; color: #E3D3A6; font-style: italic; text-align: center; margin-top: 4px; }
+    .chunk-quran-translation { font-size: 16px; line-height: 1.65; color: #E3D3A6; font-style: italic; text-align: center; margin-top: 4px; }
     .inline-ayah { font-family: var(--quran); color: var(--gold); font-size: 1.04em; }
     .inline-ayah-en { color: var(--gold); font-style: italic; }
     .recited { font-weight: 500; }
@@ -171,8 +173,8 @@
       color: var(--gold); font-size: 15px; text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px;
     }
     .chunk-quran-cite, .chunk-hadith-cite {
-      display: inline-flex; align-items: center; gap: 6px; min-height: 40px; margin-top: 6px;
-      font-size: 15px; color: var(--gold); text-decoration: none;
+      display: inline-flex; align-items: center; gap: 6px; min-height: 36px; margin-top: 4px;
+      font-size: 14px; color: var(--gold); text-decoration: none;
     }
     .chunk-quran-cite strong, a.chunk-hadith-cite { font-weight: 400; text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px; }
     .chunk-quran-cite:hover strong, a.chunk-hadith-cite:hover { text-decoration-color: var(--gold); }
@@ -181,7 +183,7 @@
     .inline-hadith { color: var(--parchment); }
     .inline-hadith-en { color: var(--parchment); font-style: italic; }
     .restated { text-decoration: underline dotted rgba(232, 213, 160, .7); text-decoration-thickness: 1.5px; text-underline-offset: 8px; }
-    .chunk-hadith-trans { margin-top: 10px; padding-left: 14px; border-left: 1px solid var(--gold-dim); font-size: 16px; line-height: 1.7; color: var(--parchment); font-style: italic; }
+    .chunk-hadith-trans { margin-top: 8px; padding-left: 14px; border-left: 1px solid var(--gold-dim); font-size: 15.5px; line-height: 1.7; color: var(--parchment); font-style: italic; }
     .chunk-tr[dir="rtl"] .chunk-hadith-trans { padding: 0 14px 0 0; border-left: 0; border-right: 1px solid var(--gold-dim); }
     .src-cite, .src-cite-en { color: #BFA66B; }
     .src-cite-en { font-style: italic; }
@@ -216,7 +218,7 @@
     /* ── The player: one slim gold bar along the bottom ── */
     .audio-player {
       display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
-      padding: 0 max(14px, calc(50vw - 360px)) calc(8px + env(safe-area-inset-bottom));
+      padding: 0 max(14px, calc(50vw - 360px)) calc(6px + env(safe-area-inset-bottom));
       background: rgba(11, 23, 18, .95); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
       border-top: 1px solid var(--line);
     }
@@ -235,28 +237,28 @@
     .audio-scrubber::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--gold-bright); border: 0; }
     .ap-transport { grid-area: play; display: flex; align-items: center; gap: 4px; }
     .play-btn {
-      width: 48px; height: 48px; border-radius: 50%; border: 0; cursor: pointer; flex: none;
+      width: 42px; height: 42px; border-radius: 50%; border: 0; cursor: pointer; flex: none;
       display: grid; place-items: center; background: var(--gold); color: var(--gold-ink); transition: background .2s, transform .1s;
     }
     .play-btn:hover { background: #E4C67F; }
     .play-btn:active { transform: scale(.96); }
-    .play-btn svg { width: 18px; height: 18px; }
+    .play-btn svg { width: 16px; height: 16px; }
     .skip-btn { display: none; min-width: 48px; min-height: 44px; border: 0; background: none; cursor: pointer; color: var(--gold); font-size: 14px; font-variant-numeric: tabular-nums; }
-    .audio-time { grid-area: time; font-size: 14px; color: var(--mist); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .audio-time { grid-area: time; font-size: 13px; color: var(--mist); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .speed-btn {
-      grid-area: speed; min-width: 44px; min-height: 40px; padding: 0 8px; border: 1px solid var(--line); border-radius: 999px;
-      background: none; color: var(--gold); font-size: 14px; cursor: pointer;
+      grid-area: speed; min-width: 40px; min-height: 34px; padding: 0 8px; border: 1px solid var(--line); border-radius: 999px;
+      background: none; color: var(--gold); font-size: 13px; cursor: pointer;
     }
     .ap-group { grid-area: voice; }
     .seg { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--line); border-radius: 999px; }
-    .seg button { min-height: 36px; padding: 0 12px; border: 0; border-radius: 999px; background: none; color: var(--mist); font-size: 14px; line-height: 16px; white-space: nowrap; cursor: pointer; }
+    .seg button { min-height: 30px; padding: 0 11px; border: 0; border-radius: 999px; background: none; color: var(--mist); font-size: 13px; line-height: 16px; white-space: nowrap; cursor: pointer; }
     .seg button.on { background: var(--gold); color: var(--gold-ink); }
     /* back to the passage being read, once the reader has scrolled away from it: just above the bar */
     .back-to-active {
       position: absolute; left: 50%; bottom: calc(100% + 12px); transform: translateX(-50%);
-      display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; white-space: nowrap;
+      display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px; white-space: nowrap;
       border: 1px solid var(--gold-dim); border-radius: 999px; background: rgba(11, 23, 18, .94); color: var(--gold);
-      font-size: 15px; cursor: pointer; box-shadow: 0 12px 28px -10px rgba(0, 0, 0, .7);
+      font-size: 14px; cursor: pointer; box-shadow: 0 12px 28px -10px rgba(0, 0, 0, .7);
     }
     .back-to-active svg { width: 16px; height: 16px; transition: transform .2s; }
     .back-to-active.up svg { transform: rotate(180deg); }
@@ -293,18 +295,18 @@
 
     /* ── Computers: a little larger, the skips back in the bar ── */
     @media (min-width: 901px) {
-      .khutbah-heading h2 { font-size: 40px; }
-      .meta-row span { display: inline; }
-      .meta-row span + span::before { content: '·'; margin: 0 10px; color: var(--dim); }
-      .tongue-line { font-size: 28px; }
-      .chunk-arabic { font-size: 26px; }
-      .chunk-arabic-quran { font-size: 28px; }
+      .khutbah-heading h2 { font-size: 32px; }
+      .meta-row span:nth-child(3) { display: inline; }
+      .meta-row span:nth-child(2)::after { content: '·'; margin: 0 8px; color: var(--dim); }
+      .tongue-line { font-size: 19px; }
+      .chunk-arabic { font-size: 25px; }
+      .chunk-arabic-quran { font-size: 26px; }
       .chunk-english { font-size: 18px; }
       .audio-player.ready { grid-template-columns: auto minmax(0, 1fr) auto auto; }
       .skip-btn { display: inline-flex; align-items: center; justify-content: center; }
     }
     @media (max-width: 380px) {
-      .tongue-line { font-size: 20px; gap: 0 9px; }
+      .tongue-line { font-size: 16px; gap: 0 8px; }
       .seg button { padding: 0 9px; }
       .audio-player.ready { column-gap: 8px; }
     }

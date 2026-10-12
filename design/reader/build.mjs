@@ -76,6 +76,7 @@ cut('    return `\n    <div class="layout">', '  async function enhanceQuranRefs
         <p class="tongue-line" id="tongues" role="group" aria-label="Language">\${tongues.map(([c, name, lang], i) => (i ? '<span class="sep" aria-hidden="true">·</span>' : '') + \`<button type="button" data-l="\${c}"\${lang ? \` lang="\${lang}"\` : ''} aria-pressed="false" onclick="chooseLang('\${c}')"\${c === 'ar' ? ' title="The imam\\'s own words, in his voice"' : ''}>\${name}</button>\`).join('')}</p>
 
         <div class="lede">
+          <p class="lede-label">\${bi('In Short')}</p>
           <p class="share-text\${TR.length ? ' chunk-en' : ''}">\${escHtml(r.share_summary || r.summary || '')}</p>
           \${trShare('share_summary')}
           <button class="copy-btn" onclick="copyShare()">\${bi('Copy for WhatsApp')}</button>
