@@ -529,7 +529,7 @@
         <p class="pg-ar" lang="ar" dir="rtl" id="demoAr"></p>
         <p class="pg-tr" id="demoTr" lang="en"></p>
         <figcaption class="pg-foot">
-          <button type="button" class="listen" id="listen"><span class="disc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></span><span class="lbl" id="listenLabel">Listen in English</span></button>
+          <button type="button" class="listen" id="listen"><span class="disc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></span><span class="lbl" id="listenLabel">Listen</span></button>
           <a class="read" href="/2026-10-09">Read this khutbah</a>
           <p class="pg-status" id="demoStatus" role="status" aria-live="polite"></p>
         </figcaption>
@@ -990,15 +990,16 @@
   const btn = document.getElementById('listen'), label = document.getElementById('listenLabel');
   const PLAY = btn.querySelector('svg').outerHTML;
   const PAUSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg>';
-  const LABEL = { ar: ['Listen to the imam', ''], en: ['Listen in English', ''], ur: ['اردو میں سنیں', 'ur'], bn: ['বাংলায় শুনুন', 'bn'] };
+  // The button says only what it does, in the language chosen; what it plays is that language's voice (the imam's for Arabic).
+  const LABEL = { ar: ['Listen', 'Loading…', 'Pause', ''], en: ['Listen', 'Loading…', 'Pause', ''], ur: ['سنیں', 'لوڈ ہو رہا ہے…', 'روکیں', 'ur'], bn: ['শুনুন', 'লোড হচ্ছে…', 'থামান', 'bn'] };
   const escT = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const audios = {};
   let cur = null, raf = 0, lit = -1;
 
-  const setLabel = text => {
-    const l = window.__trLang || 'en', [t, lang] = LABEL[l];
-    label.textContent = text ?? t;
-    if (!text && lang) label.setAttribute('lang', lang); else label.removeAttribute('lang');
+  const setLabel = (state = 0) => {
+    const L = LABEL[window.__trLang || 'en'];
+    label.textContent = L[state];
+    if (L[3]) label.setAttribute('lang', L[3]); else label.removeAttribute('lang');
   };
   const place = i => {
     cur.ev.forEach((e, j) => e.el.classList.toggle('said', j <= i));
@@ -1046,7 +1047,7 @@
     }
     cur = { key: l, end: v.end, ev };
     const a = (audios[l] ??= Object.assign(new Audio(v.audio), { preload: 'auto' }));
-    btn.setAttribute('aria-busy', 'true'); setLabel('Loading…');
+    btn.setAttribute('aria-busy', 'true'); setLabel(1);
     status.textContent = '';
     try {
       if (a.readyState < 1) await new Promise((ok, no) => { a.addEventListener('loadedmetadata', ok, { once: true }); a.addEventListener('error', no, { once: true }); a.load(); });
@@ -1054,7 +1055,7 @@
       await a.play();
       page.classList.add('playing'); if (l !== 'ar') page.classList.add('voicing');
       lit = -1; place(-1);
-      btn.querySelector('.disc').innerHTML = PAUSE; setLabel('Pause');
+      btn.querySelector('.disc').innerHTML = PAUSE; setLabel(2);
       raf = requestAnimationFrame(tick);
     } catch {
       stop();
