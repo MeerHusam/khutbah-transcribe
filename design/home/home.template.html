@@ -290,6 +290,7 @@
     .why .links { display: flex; gap: 18px; font-size: 15.5px; margin-top: 6px; }
     .why .links a { color: var(--gold); text-decoration: none; }
     .why .links a:hover { text-decoration: underline; }
+    .why-more { display: none; }
     .ahadith { display: grid; gap: 30px; align-content: start; padding-top: 6px; }
     .hadith { margin: 0; padding: 0 0 0 22px; border-left: 1px solid var(--gold-dim); }
     .hadith [lang="ar"] { margin: 0; direction: rtl; text-align: right; font: 400 22px/1.95 var(--ar); color: var(--gold); }
@@ -417,6 +418,11 @@
       .row .by { font-size: 15px; } .row .sum { font-size: 15.5px; }
       .why, .talk { display: block; padding-top: 64px; }
       .why p { font-size: 17px; }
+      /* on a phone the story's first paragraph and the first hadith; the rest on a tap */
+      .why:not(.open) .more { display: none; }
+      .why-more { display: inline-flex; align-items: center; min-height: 44px; margin: -6px 0 0; padding: 0; border: 0; background: none;
+                  color: var(--gold); font: 400 16.5px/1 var(--text); text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
+      .why .sig { margin-top: 18px; }
       .ahadith { margin-top: 30px; }
       .how { padding-top: 64px; }
       .trail { aspect-ratio: auto; margin-top: 30px; padding: 6px 0 0 50px; }
@@ -525,8 +531,9 @@
       <h2 id="why-h">Why I made this</h2>
       <div style="margin-top:22px">
         <p>Every Friday I'd look around the masjid and see non-native Arabic speakers chatting, drifting off, or on their phones during the khutbah. Not because they didn't care, but because they couldn't follow it. The khutbah is for all of us, so I wanted everyone in the room to be able to understand it in full, including the ayaat and hadith the imam builds it on.</p>
-        <p>For now each khutbah is recorded, translated and put here after Jumu'ah. The next step, and the more important one, is following it in your language while the imam is speaking.</p>
-        <p>I built Khutbah.dev and look after it. Every khutbah here is one I've processed, reviewed, and chosen to publish. I'm also a hafidh of the Qur'an, alhamdulillah, which is a big part of why the Quranic references matter to me: when the imam recites an ayah, I want every listener to know exactly which ayah it is and what it means.</p>
+        <p class="more" id="whyMore2">For now each khutbah is recorded, translated and put here after Jumu'ah. The next step, and the more important one, is following it in your language while the imam is speaking.</p>
+        <p class="more" id="whyMore3">I built Khutbah.dev and look after it. Every khutbah here is one I've processed, reviewed, and chosen to publish. I'm also a hafidh of the Qur'an, alhamdulillah, which is a big part of why the Quranic references matter to me: when the imam recites an ayah, I want every listener to know exactly which ayah it is and what it means.</p>
+        <button type="button" class="why-more" id="whyMore" aria-expanded="false" aria-controls="whyMore2 whyMore3 whyMore4">Read more</button>
         <p class="sig">Meer Husamuddin<span>AI software engineer, hafidh of the Qur'an, Riyadh</span></p>
         <p class="links"><a href="https://www.linkedin.com/in/meerhusam" target="_blank" rel="noopener">LinkedIn</a><a href="https://github.com/MeerHusam/khutbah-transcribe" target="_blank" rel="noopener">GitHub</a></p>
       </div>
@@ -537,7 +544,7 @@
         <p class="en">“When the Imam is delivering the Khutba, and you ask your companion to keep quiet and listen, then no doubt you have done an evil act.”</p>
         <figcaption>Abu Huraira, <a href="https://sunnah.com/bukhari:934" target="_blank" rel="noopener">Sahih al-Bukhari 934</a></figcaption>
       </figure>
-      <figure class="hadith">
+      <figure class="hadith more" id="whyMore4">
         <p lang="ar" dir="rtl">مَنْ تَوَضَّأَ فَأَحْسَنَ الْوُضُوءَ ثُمَّ أَتَى الْجُمُعَةَ فَاسْتَمَعَ وَأَنْصَتَ غُفِرَ لَهُ مَا بَيْنَهُ وَبَيْنَ الْجُمُعَةِ وَزِيَادَةُ ثَلاَثَةِ أَيَّامٍ وَمَنْ مَسَّ الْحَصَى فَقَدْ لَغَا</p>
         <p class="en">“He who performed ablution well, then came to Friday prayer, listened (to the sermon), kept silence all (his sins) between that time and the next Friday would be forgiven with three days extra, and he who touched pebbles caused an interruption.”</p>
         <figcaption>Abu Huraira, <a href="https://sunnah.com/muslim:857b" target="_blank" rel="noopener">Sahih Muslim 857b</a></figcaption>
@@ -858,6 +865,19 @@
 
   // ── How each khutbah is made: the gold line draws itself as the page scrolls, its arrow travelling with it,
   // and each step lights up as the line reaches it. On phones it runs straight down beside the steps.
+  // ── Why I made this, on a phone: Read more shows the rest of the story and the second hadith
+  {
+    const why = document.getElementById('why'), more = document.getElementById('whyMore');
+    more.addEventListener('click', () => {
+      const open = !why.classList.contains('open');
+      why.classList.toggle('open', open);
+      more.setAttribute('aria-expanded', String(open));
+      more.textContent = open ? 'Show less' : 'Read more';
+      if (open && !reduce) animate(why.querySelectorAll('.more'), { opacity: [0, 1], y: [10, 0], duration: 420, delay: stagger(80), ease: 'outCubic' });
+      if (!open && why.getBoundingClientRect().top < 0) why.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth' });
+    });
+  }
+
   window.__animateDay = (body, open) => {
     utils.remove(body); utils.remove(body.querySelectorAll('.row'));
     if (reduce) { body.hidden = !open; body.style.height = ''; return; }
