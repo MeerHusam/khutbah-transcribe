@@ -108,10 +108,11 @@
     .tongue-line button[aria-pressed="true"] { color: #F3DFA6; border-bottom-color: var(--green); }
     .tongue-help { margin: 10px 0 0; font-size: 15.5px; color: var(--mist); font-weight: 400; }
     .tongue-help b { color: var(--cream); font-weight: 500; }
-    .sub { margin: 26px 0 0; max-width: 31em; font-size: 18px; line-height: 1.65; color: var(--mist); }
-    .cta { display: inline-flex; align-items: center; min-height: 52px; margin-top: 26px; padding: 0 28px; border-radius: 999px; background: var(--green); color: var(--green-ink); font-size: 17px; font-weight: 500; text-decoration: none; transition: background .2s, transform .15s; }
-    .cta:hover { background: #7AD3AB; }
-    .cta:active { transform: translateY(1px); }
+    .sub { margin: 22px 0 0; max-width: 28em; font-size: 18px; line-height: 1.6; color: var(--mist); }
+    .cta { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin-top: 14px; color: var(--green); font-size: 17px; font-weight: 400; text-decoration: none; }
+    .cta svg { width: 20px; height: 20px; transition: transform .2s; }
+    .cta:hover { color: #8BDDB8; }
+    .cta:hover svg { transform: translateY(2px); }
 
     /* the minbar, with the khutbah's page resting on its floor */
     .art { position: relative; min-height: 610px; }
@@ -348,9 +349,9 @@
       <p class="tongue-line" id="tongues" role="group" aria-label="Choose the language you read">
         <span class="t-ar" lang="ar" title="The imam's own words">العربية</span><span class="sep" aria-hidden="true">·</span><button type="button" data-l="en" aria-pressed="false">English</button><span class="sep" aria-hidden="true">·</span><button type="button" data-l="ur" lang="ur" aria-pressed="false">اردو</button><span class="sep" aria-hidden="true">·</span><button type="button" data-l="bn" lang="bn" aria-pressed="false">বাংলা</button>
       </p>
-      <p class="tongue-help" id="tongueHelp" aria-live="polite">Tap your language, and every khutbah will open in it.</p>
-      <p class="sub">Every week, the khutbah from our masjid in Riyadh and from the two Haramain. Read it beside the imam's Arabic, hear his own voice with each word lit as he says it, and see where every ayah and hadith comes from.</p>
-      <a class="cta" id="cta" href="#khutbahs">See this week's khutbahs</a>
+      <p class="tongue-help" id="tongueHelp" aria-live="polite">Tap your language.</p>
+      <p class="sub">Every Friday, from our masjid in Riyadh and the two Haramain: beside the imam's Arabic, in his own voice.</p>
+      <a class="cta" id="cta" href="#khutbahs"><span id="ctaText">This week's khutbahs</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9.5l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
     </div>
 
     <div class="art">
@@ -528,9 +529,9 @@
   // and the example switches to it. It points at no particular khutbah, so it holds for every masjid.
   const NAMES = { en: 'English', ur: '<span lang="ur">اردو</span>', bn: '<span lang="bn">বাংলা</span>' };
   const tongues = document.getElementById('tongues'), tongueHelp = document.getElementById('tongueHelp');
-  const choose = (l, quiet) => {
+  const choose = l => {
     tongues.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.l === l)));
-    tongueHelp.innerHTML = `Every khutbah will open in <b>${NAMES[l]}</b>.${quiet ? '' : ' Tap another to change.'}`;
+    tongueHelp.innerHTML = `Reading in <b>${NAMES[l]}</b>.`;
     setTr(l);
   };
   tongues.addEventListener('click', e => {
@@ -539,7 +540,7 @@
     try { localStorage.setItem('kt-lang', b.dataset.l); } catch {}
     choose(b.dataset.l);
   });
-  try { const saved = localStorage.getItem('kt-lang'); if (NAMES[saved]) choose(saved, true); } catch {}
+  try { const saved = localStorage.getItem('kt-lang'); if (NAMES[saved]) choose(saved); } catch {}
 
   // ── The khutbahs, grouped by Friday ──
   const LANGS = { English: ['en', 'English', 'Read in English'], Urdu: ['ur', 'اردو', 'اردو میں پڑھیں'], Bengali: ['bn', 'বাংলা', 'বাংলায় পড়ুন'] };
@@ -574,7 +575,7 @@
             const newest = dayOf(items[0]);
       const thisWeek = newest && Date.now() - newest < 7 * 864e5;
 
-      if (!thisWeek) document.getElementById('cta').textContent = 'See the latest khutbahs';
+      if (!thisWeek) document.getElementById('ctaText').textContent = 'The latest khutbahs';
 
       const grid = document.getElementById('grid'), bar = document.getElementById('masjidFilter'), search = document.getElementById('search');
       // Case and marks ignored (Ka'bah = kabah, تشكيل dropped); every word typed must appear.
