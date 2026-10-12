@@ -269,7 +269,7 @@ rep(`  </style>
     .tr-chunk[data-follow="en"] :is(.chunk-en .chunk-english, .chunk-en .chunk-hadith-trans, .chunk-quran-translation:not(.chunk-tr)) *,
     .tr-chunk[data-follow]:not([data-follow="ar"], [data-follow="en"]) :is(.chunk-tr .chunk-english, .chunk-tr .chunk-hadith-trans, .chunk-quran-translation.chunk-tr),
     .tr-chunk[data-follow]:not([data-follow="ar"], [data-follow="en"]) :is(.chunk-tr .chunk-english, .chunk-tr .chunk-hadith-trans, .chunk-quran-translation.chunk-tr) * {
-      color: rgba(236, 230, 214, .4);
+      color: rgba(236, 230, 214, .32);
     }
     .pane-tr .sources { margin-top: 40px; }
     .pane-feedback { margin: 24px 0 0; }
@@ -308,9 +308,11 @@ rep(`  // Every frame while playing: timeupdate comes only about four times a se
   // Arabic and translation split into matching phrases when the khutbah is made (design/reader/align/), and the
   // Arabic phrase whose translation the voice is reading is bright, the rest of his passage dimmed. A passage with
   // no matching (or one that does not check out) lights no part: nothing is guessed.
-  let nearEl = null, nearKey = null;
+  // The translation does the same (Meer, 12 Oct): the phrase being read bright, the rest of its passage dimmed,
+  // the word being said still gold.
+  let nearEl = null, nearKey = null, nearTr = null;
   const alignCache = new Map();
-  function clearNear() { if (nearEl) delete nearEl.dataset.near; nearEl = null; nearKey = null; CSS.highlights.delete('kt-near'); }
+  function clearNear() { if (nearEl) delete nearEl.dataset.near; nearEl = null; nearKey = null; nearTr = null; CSS.highlights.delete('kt-near'); }
   const rawWords = t => t.split(/\\s+/).filter(Boolean);
   const rawTr = t => (t || '').split(/\\n\\n+/).map(p => p.trim()).filter(p => p && !/^(📖|📑|📚)/u.test(p)).map(p => p.replace(/^❝\\s*/, '')).join(' ');
   function alignOf(el, lang) {
@@ -339,12 +341,18 @@ rep(`  // Every frame while playing: timeupdate comes only about four times a se
     const A = alignOf(el, lang);
     if (!A) return clearNear();
     const at = A.trShown.find(w => w.range.startContainer === litRange.startContainer && w.range.startOffset === litRange.startOffset);
-    if (!at) return;   // a word with no place in the text (a lead-in the voice adds): keep the phrase lit
+    if (!at) { if (nearTr) CSS.highlights.set('kt-said', nearTr); return; }   // a lead-in the voice adds: keep the phrase lit
     const j = at.start;
-    let s0 = 0, a0 = 0, a1 = -1, prevT = -1;
-    for (const [a, t] of A.pairs) { if (j <= t && j > prevT) { a0 = s0; a1 = a; break; } prevT = t; s0 = a + 1; }
+    let s0 = 0, a0 = 0, a1 = -1, prevT = -1, t0 = 0, t1 = -1;
+    for (const [a, t] of A.pairs) { if (j <= t && j > prevT) { a0 = s0; a1 = a; t0 = prevT + 1; t1 = t; break; } prevT = t; s0 = a + 1; }
     if (a1 < 0) return clearNear();
     const k2 = el.dataset.i + ':' + a0 + ':' + a1;
+    if (k2 !== nearKey) {
+      const trLit = A.trShown.filter(w => w.start >= t0 && w.start <= t1).map(w => w.range);
+      nearTr = trLit.length ? new Highlight(...trLit) : null;
+    }
+    // the translation phrase bright in place of the words said so far (paintWord sets those on every word)
+    if (nearTr) CSS.highlights.set('kt-said', nearTr);
     if (k2 === nearKey) return;
     const lit = A.arShown.filter(w => w.start >= a0 && w.start <= a1).map(w => w.range);
     if (!lit.length) return clearNear();
