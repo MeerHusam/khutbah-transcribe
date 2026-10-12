@@ -127,7 +127,7 @@
     body.rtl :is(.lede, .summary-more, .khutbah-h) { text-align: right; }
     body.rtl .summary-more > summary { flex-direction: row-reverse; }
     .khutbah-text { margin-top: 8px; }
-    .reader-chunk { position: relative; padding: 24px 0; border-bottom: 1px solid var(--line-soft); transition: opacity .35s; }
+    .reader-chunk { position: relative; padding: 24px 0; border-bottom: 1px solid var(--line-soft); transition: opacity .35s; scroll-margin-top: 72px; }
     .reader-chunk:last-child { border-bottom: 0; }
     .reader-chunk[data-start] { cursor: pointer; }
     /* while a voice plays, the passage being heard stays bright and the rest step back */

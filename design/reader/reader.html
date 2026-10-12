@@ -143,7 +143,7 @@
     body.rtl :is(.lede, .summary-more, .khutbah-h) { text-align: right; }
     body.rtl .summary-more > summary { flex-direction: row-reverse; }
     .khutbah-text { margin-top: 8px; }
-    .reader-chunk { position: relative; padding: 24px 0; border-bottom: 1px solid var(--line-soft); transition: opacity .35s; }
+    .reader-chunk { position: relative; padding: 24px 0; border-bottom: 1px solid var(--line-soft); transition: opacity .35s; scroll-margin-top: 72px; }
     .reader-chunk:last-child { border-bottom: 0; }
     .reader-chunk[data-start] { cursor: pointer; }
     /* while a voice plays, the passage being heard stays bright and the rest step back */
@@ -1445,6 +1445,7 @@
   const wordTimes = {};        // 'imam' | 'en' | 'ur' | 'bn' … -> { <block>: [[word, start, end], ...] }, once loaded
   const wordMaps = new Map();  // `${voice}:${block}:${full verse?}` -> [{ range, start }] in reading order
   let litKey = null, followEl = null, wordRaf = 0;
+  let onWord = null, litRange = null;   // the line follower (initAudio) and the word lit now
 
   async function loadWordTimes(v) {
     const url = v === 'imam' ? result && result.imam_words_url
@@ -1612,6 +1613,8 @@
     const now = new Highlight(words[k].range);
     now.priority = 1; // painted over kt-said
     CSS.highlights.set('kt-word', now);
+    litRange = words[k].range;
+    onWord?.(litRange);
   }
 
   // Every frame while playing: timeupdate comes only about four times a second.
@@ -1681,7 +1684,25 @@
     let following = true, byHand = false;
     const backBtn = document.getElementById('backToActive');
     const follow = () => { following = true; backBtn.hidden = true; };
-    const toActive = () => { follow(); byHand = false; activeChunk?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' }); };
+    const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // the screen above the player: the line being read sits about a third of the way down it
+    const view = () => innerHeight - (document.getElementById('audioPlayer').offsetHeight || 0);
+    let glidedAt = 0;   // one glide at a time: while the page moves, the line is not yet where it will be
+    const toLine = range => { const r = range.getBoundingClientRect(); if (!r.height) return false; glidedAt = performance.now(); scrollTo({ top: scrollY + r.top - view() * 0.34, behavior: still() ? 'auto' : 'smooth' }); return true; };
+    onWord = range => {
+      if (!following || audio.paused || performance.now() - glidedAt < 900) return;
+      const r = range.getBoundingClientRect(), v = view();
+      if (r.height && (r.top < v * 0.16 || r.bottom > v * 0.6)) toLine(range);
+    };
+    // a passage taller than the screen starts near the top; a short one is centred, as before
+    const toActive = () => {
+      follow(); byHand = false;
+      if (!activeChunk) return;
+      if (litRange && activeChunk.contains(litRange.startContainer.parentElement || litRange.startContainer) && toLine(litRange)) return;
+      const r = activeChunk.getBoundingClientRect(), v = view();
+      if (r.height > v * 0.7) scrollTo({ top: scrollY + r.top - v * 0.12, behavior: still() ? 'auto' : 'smooth' });
+      else activeChunk.scrollIntoView({ behavior: still() ? 'auto' : 'smooth', block: 'center' });
+    };
     const showBack = () => {
       const r = activeChunk?.getBoundingClientRect();
       const away = !!r && (r.bottom < 90 || r.top > innerHeight - 140);

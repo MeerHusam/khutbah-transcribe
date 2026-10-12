@@ -198,3 +198,33 @@ writeFileSync(here + 'reader.html', s);
 s = s.replace(`        if (following) toActive(); else showBack();`, `        if (!audio.paused) { if (following) toActive(); else showBack(); }`);
 s = s.replace(`    audio.addEventListener('play', () => document.body.classList.add('playing'));`, `    audio.addEventListener('play', () => { document.body.classList.add('playing'); if (following) toActive(); });`);
 writeFileSync(here + 'reader.html', s);
+
+// Scroll in place (Meer, 12 Oct): while a voice plays, the page follows the LINE being read, not just the passage.
+// When the lit word leaves a band in the upper middle of the screen, the page glides it back to about a third of
+// the way down, so a long passage scrolls line by line and the words being read never sink below the screen.
+rep(`  let litKey = null, followEl = null, wordRaf = 0;`, `  let litKey = null, followEl = null, wordRaf = 0;
+  let onWord = null, litRange = null;   // the line follower (initAudio) and the word lit now`);
+rep(`    CSS.highlights.set('kt-word', now);`, `    CSS.highlights.set('kt-word', now);
+    litRange = words[k].range;
+    onWord?.(litRange);`);
+rep(`    const toActive = () => { follow(); byHand = false; activeChunk?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' }); };`,
+`    const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // the screen above the player: the line being read sits about a third of the way down it
+    const view = () => innerHeight - (document.getElementById('audioPlayer').offsetHeight || 0);
+    let glidedAt = 0;   // one glide at a time: while the page moves, the line is not yet where it will be
+    const toLine = range => { const r = range.getBoundingClientRect(); if (!r.height) return false; glidedAt = performance.now(); scrollTo({ top: scrollY + r.top - view() * 0.34, behavior: still() ? 'auto' : 'smooth' }); return true; };
+    onWord = range => {
+      if (!following || audio.paused || performance.now() - glidedAt < 900) return;
+      const r = range.getBoundingClientRect(), v = view();
+      if (r.height && (r.top < v * 0.16 || r.bottom > v * 0.6)) toLine(range);
+    };
+    // a passage taller than the screen starts near the top; a short one is centred, as before
+    const toActive = () => {
+      follow(); byHand = false;
+      if (!activeChunk) return;
+      if (litRange && activeChunk.contains(litRange.startContainer.parentElement || litRange.startContainer) && toLine(litRange)) return;
+      const r = activeChunk.getBoundingClientRect(), v = view();
+      if (r.height > v * 0.7) scrollTo({ top: scrollY + r.top - v * 0.12, behavior: still() ? 'auto' : 'smooth' });
+      else activeChunk.scrollIntoView({ behavior: still() ? 'auto' : 'smooth', block: 'center' });
+    };`);
+writeFileSync(here + 'reader.html', s);
