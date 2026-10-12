@@ -304,32 +304,53 @@ rep(`    litRange = words[k].range;
 rep(`    if (!el) { CSS.highlights.delete('kt-said'); CSS.highlights.delete('kt-word'); return; }`,
     `    if (!el) { CSS.highlights.delete('kt-said'); CSS.highlights.delete('kt-word'); clearNear(); return; }`);
 rep(`    if (k < 0) { CSS.highlights.delete('kt-word'); return; }`, `    if (k < 0) { CSS.highlights.delete('kt-word'); clearNear(); return; }`);
-rep(`  // Every frame while playing: timeupdate comes only about four times a second.`, `  // The part of the imam's sentence the voice is translating: the clause (between his commas and full stops) at the
-  // same point in his passage as the voice is in its translation, bright; the rest of his passage dimmed (Meer, 12 Oct).
+rep(`  // Every frame while playing: timeupdate comes only about four times a second.`, `  // The part of the imam's sentence the voice is translating, matched by meaning (Meer, 12 Oct): each passage's
+  // Arabic and translation split into matching phrases when the khutbah is made (design/reader/align/), and the
+  // Arabic phrase whose translation the voice is reading is bright, the rest of his passage dimmed. A passage with
+  // no matching (or one that does not check out) lights no part: nothing is guessed.
   let nearEl = null, nearKey = null;
+  const alignCache = new Map();
   function clearNear() { if (nearEl) delete nearEl.dataset.near; nearEl = null; nearKey = null; CSS.highlights.delete('kt-near'); }
-  function nearArabic(el, lang, k, n) {
-    if (lang === 'ar' || !el || !n) return clearNear();
-    const key = 'near:' + el.dataset.i;
-    if (!wordMaps.has(key)) {
-      const ar = shownWords(el, 'ar');
-      // clause boundaries: a word that ends with the imam's punctuation closes its clause
-      const ends = ar.map(w => /[،,.؛;:؟?!»﴾]$/.test(w.range.toString()));
-      wordMaps.set(key, { ar, ends });
+  const rawWords = t => t.split(/\\s+/).filter(Boolean);
+  const rawTr = t => (t || '').split(/\\n\\n+/).map(p => p.trim()).filter(p => p && !/^(📖|📑|📚)/u.test(p)).map(p => p.replace(/^❝\\s*/, '')).join(' ');
+  function alignOf(el, lang) {
+    const i = el.dataset.i, key = lang + ':' + i;
+    if (alignCache.has(key)) return alignCache.get(key);
+    let out = null;
+    const pairs = (result.align || window.__ALIGN || {})[lang]?.[i];
+    const c = result.reader_chunks?.[i];
+    if (pairs && c) {
+      const L = TR.find(x => x.code === lang);
+      const ar = rawWords(c.arabic), tr = rawWords(rawTr(lang === 'en' ? c.english : c[L?.field]));
+      let pa = -1, pt = -1, good = true;
+      for (const [a, t] of pairs) { if (!(a > pa && t > pt)) good = false; pa = a; pt = t; }
+      if (good && pa === ar.length - 1 && pt === tr.length - 1) {
+        // the words on screen, each with its place in the passage's text
+        const arShown = matchWords(shownWords(el, 'ar'), ar.map((w, j) => [w, j, j]), 'ar');
+        const trShown = matchWords(shownWords(twinOf(el), lang), tr.map((w, j) => [w, j, j]), lang);
+        out = { pairs, arShown, trShown };
+      }
     }
-    const { ar, ends } = wordMaps.get(key);
-    if (!ar.length) return clearNear();
-    const c = Math.min(ar.length - 1, Math.floor(((k + 0.5) / n) * ar.length));
-    let a = c, b = c;
-    while (a > 0 && !ends[a - 1]) a--;
-    while (b < ar.length - 1 && !ends[b]) b++;
-    // a very long clause: the ten words around the point instead
-    if (b - a > 11) { a = Math.max(a, c - 4); b = Math.min(b, a + 9); }
-    const k2 = el.dataset.i + ':' + a + ':' + b;
+    alignCache.set(key, out);
+    return out;
+  }
+  function nearArabic(el, lang, k, n) {
+    if (lang === 'ar' || !el || !litRange) return clearNear();
+    const A = alignOf(el, lang);
+    if (!A) return clearNear();
+    const at = A.trShown.find(w => w.range.startContainer === litRange.startContainer && w.range.startOffset === litRange.startOffset);
+    if (!at) return;   // a word with no place in the text (a lead-in the voice adds): keep the phrase lit
+    const j = at.start;
+    let s0 = 0, a0 = 0, a1 = -1, prevT = -1;
+    for (const [a, t] of A.pairs) { if (j <= t && j > prevT) { a0 = s0; a1 = a; break; } prevT = t; s0 = a + 1; }
+    if (a1 < 0) return clearNear();
+    const k2 = el.dataset.i + ':' + a0 + ':' + a1;
     if (k2 === nearKey) return;
+    const lit = A.arShown.filter(w => w.start >= a0 && w.start <= a1).map(w => w.range);
+    if (!lit.length) return clearNear();
     if (nearEl && nearEl !== el) delete nearEl.dataset.near;
     nearEl = el; nearKey = k2; el.dataset.near = '';
-    CSS.highlights.set('kt-near', new Highlight(...ar.slice(a, b + 1).map(w => w.range)));
+    CSS.highlights.set('kt-near', new Highlight(...lit));
   }
 
   // Every frame while playing: timeupdate comes only about four times a second.`);
@@ -358,5 +379,10 @@ rep(`    group.hidden = !own;
     const own = !document.body.classList.contains('ar-only') && result['tts_' + pageLang] ? pageLang : null;
     if (own) pickVoice(voice === 'imam' ? own : 'imam');
   }`);
+{
+  const A = JSON.parse(readFileSync(here + 'align/align-2026-10-09.json', 'utf8'));
+  const data = Object.fromEntries(Object.entries(A.langs).map(([l, v]) => [l, Object.fromEntries((v.passages || []).map(p => [p.i, p.pairs]))]));
+  rep(`<script src="/recited.js"></script>`, `<script>window.__ALIGN = ${JSON.stringify(data)};</script>\n<script src="/recited.js"></script>`);
+}
 writeFileSync(here + 'reader-panes.html', s);
 console.log('design/reader/reader-panes.html', s.length, 'bytes');
