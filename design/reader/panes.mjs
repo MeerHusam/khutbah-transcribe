@@ -31,6 +31,7 @@ cut('    return `\n    <div class="layout">', '  async function enhanceQuranRefs
     </div>
     <div class="panes" id="panes">
       <div class="pane pane-ar" id="paneAr" aria-label="The imam's Arabic">\${khutbah}</div>
+      <div class="stars-seam" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.2" y="5.2" width="13.6" height="13.6"/><rect x="5.2" y="5.2" width="13.6" height="13.6" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="2.3"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.2" y="5.2" width="13.6" height="13.6"/><rect x="5.2" y="5.2" width="13.6" height="13.6" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="2.3"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.2" y="5.2" width="13.6" height="13.6"/><rect x="5.2" y="5.2" width="13.6" height="13.6" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="2.3"/></svg></div>
       <div class="pane pane-tr" id="paneTr" aria-label="The translation">\${khutbah.replace(/class="reader-chunk"/g, 'class="tr-chunk"')}
         <div class="sources">
           <div class="section">
@@ -164,7 +165,7 @@ rep(`  </style>
     .r-head { max-height: 220px; overflow: hidden; transition: max-height .4s cubic-bezier(.16, 1, .3, 1), opacity .25s; }
     body.reading .r-head { max-height: 0; opacity: 0; }
     .r-title { margin-top: 2px; font: 600 21px/1.2 var(--display); letter-spacing: -.005em; text-wrap: balance; color: var(--cream); }
-    .r-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 14px; padding-bottom: 2px; border-bottom: 1px solid var(--line); }
+    .r-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 14px; padding-bottom: 2px; }
     .r-tools .tongue-line { margin-top: 4px; }
     .r-short > summary {
       display: inline-flex; align-items: center; gap: 6px; min-height: 40px; cursor: pointer; list-style: none;
@@ -179,23 +180,27 @@ rep(`  </style>
     body.rtl .r-short-body { text-align: right; }
     body[class] .r-short > summary .tr-inline[lang] { font-size: 15px; }
 
-    .panes { flex: 1; min-height: 0; display: grid; grid-template-rows: 2fr 3fr; }
+    /* the imam's Arabic above in parchment, the translation below in cream, the three gold stars between them (Meer picked E) */
+    .panes { flex: 1; min-height: 0; display: grid; grid-template-rows: 2fr auto 3fr; }
+    .stars-seam { display: flex; justify-content: center; align-items: center; gap: 18px; padding: 8px 0 6px; color: var(--gold); }
+    .stars-seam svg { width: 16px; height: 16px; }
     .pane {
       position: relative; overflow-y: auto; overscroll-behavior: contain; padding: 14px 20px 0; scrollbar-width: none;
       -webkit-mask-image: linear-gradient(transparent, #000 7%, #000 90%, transparent); mask-image: linear-gradient(transparent, #000 7%, #000 90%, transparent);
     }
     .pane::-webkit-scrollbar { display: none; }
     .pane::after { content: ''; display: block; height: 66%; }
-    .pane-ar { border-bottom: 1px solid var(--line); }
+    .pane-ar .chunk-arabic:not(.chunk-arabic-quran) { color: #EADFBF; }
     /* the upper pane is the imam's words alone, the lower one the translation alone: continuous text, no rules between passages */
     .pane-ar :is(.chunk-en, .chunk-tr, .chunk-quran-translation, .verse-toggle, .trans-ours) { display: none !important; }
     .pane-tr .chunk-arabic { display: none; }
     .pane :is(.reader-chunk, .tr-chunk) { position: relative; padding: 0 0 12px; border: 0; transition: opacity .35s; cursor: pointer; }
-    .pane .chunk-arabic { margin: 0; font-size: 22px; line-height: 2; }
-    .pane .chunk-arabic-quran { font-size: 22px; text-align: right; padding: 0; }
-    .pane-tr .chunk-english { font-size: 17px; line-height: 1.65; }
+    .pane .chunk-arabic { margin: 0; font-size: 26px; line-height: 1.95; }
+    .pane .chunk-arabic-quran { font-size: 26px; text-align: right; padding: 0; }
+    .pane-tr .chunk-english { font-size: 19px; line-height: 1.6; }
+    .pane-tr .chunk-hadith-trans { font-size: 17.5px; }
     .pane-tr :is(.chunk-en, .chunk-tr) { text-align: start; }
-    .pane-tr .chunk-quran-translation { text-align: start; margin: 0; font-size: 16.5px; }
+    .pane-tr .chunk-quran-translation { text-align: start; margin: 0; font-size: 18px; }
     .pane .khutbah-divider { margin: 16px 0 14px; }
     body.playing .pane :is(.reader-chunk, .tr-chunk):not(.chunk-active) { opacity: .42; }
     .tr-chunk[data-follow="en"] :is(.chunk-en .chunk-english, .chunk-en .chunk-hadith-trans, .chunk-quran-translation:not(.chunk-tr)),
@@ -207,15 +212,14 @@ rep(`  </style>
     .pane-tr .sources { margin-top: 40px; }
     .pane-feedback { margin: 24px 0 0; }
     /* العربية alone: the upper pane takes the whole space */
-    body.ar-only .pane-tr { display: none; }
+    body.ar-only :is(.pane-tr, .stars-seam) { display: none; }
     body.ar-only .panes { grid-template-rows: 1fr; }
-    body.ar-only .pane-ar { border-bottom: 0; }
     @media (min-width: 901px) {
       #app { max-width: 1180px; }
-      .panes { grid-template-rows: none; grid-template-columns: 1fr 1fr; }
-      .pane-ar { order: 2; border-bottom: 0; border-left: 1px solid var(--line); }
+      .panes { grid-template-rows: none; grid-template-columns: 1fr auto 1fr; }
+      .pane-tr { order: 1; } .stars-seam { order: 2; flex-direction: column; padding: 0 6px; } .pane-ar { order: 3; }
       .pane { padding: 18px 28px 0; }
-      .pane .chunk-arabic { font-size: 25px; }
+      .pane .chunk-arabic, .pane .chunk-arabic-quran { font-size: 28px; }
       body.ar-only .panes { grid-template-columns: 1fr; }
       header { padding-left: max(28px, calc(50vw - 590px)); padding-right: max(28px, calc(50vw - 590px)); }
       .audio-player { padding-left: max(28px, calc(50vw - 590px)); padding-right: max(28px, calc(50vw - 590px)); }
