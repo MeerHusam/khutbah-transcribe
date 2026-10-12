@@ -148,7 +148,7 @@
     .tabs [lang="ur"] { font-size: 15px; } .tabs [lang="bn"] { font-size: 15px; }
     .pg-ar { position: relative; margin: 10px 0 0; direction: rtl; text-align: right; font: 400 26px/2 var(--ar); }
     .pg-ar .w { transition: color .2s; }
-    .page.playing .pg-ar .w { color: #66796E; }
+    .page.playing:not(.voicing) .pg-ar .w { color: #66796E; }
     .page.playing .pg-ar .w.said { color: #F4EEDD; }
     .pen { position: absolute; left: 0; top: 0; width: 40px; height: 9px; color: var(--gold); pointer-events: none; opacity: 0; }
     .page.playing .pen { opacity: 1; }
@@ -161,7 +161,15 @@
     .page.playing .pg-tr .seg { opacity: .42; }
     .page.playing .pg-tr .seg.now { opacity: 1; }
     .pg-tr[lang="ur"] q, .pg-tr[lang="bn"] q { font-style: normal; }
-    .pg-foot { margin-top: 18px; display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 14px; row-gap: 10px; align-items: center; }
+    .pg-foot { margin-top: 18px; display: grid; row-gap: 10px; }
+    .plays { display: flex; flex-wrap: wrap; gap: 10px; }
+    .listen.alt { background: transparent; color: var(--green); box-shadow: inset 0 0 0 1.5px rgba(99,199,155,.6); }
+    .listen.alt .disc { background: rgba(99,199,155,.14); }
+    .listen.alt.on { background: var(--green); color: var(--green-ink); box-shadow: none; }
+    .listen .lbl[lang="ur"] { font-size: 16px; line-height: 1.6; }
+    .pg-tr { position: relative; }
+    .page.voicing .pg-tr .w { color: #66796E; transition: color .2s; }
+    .page.voicing .pg-tr .w.said { color: #F4EEDD; }
     .listen {
       display: inline-flex; align-items: center; gap: 10px; border: 0; cursor: pointer; min-height: 48px;
       padding: 0 20px 0 8px; border-radius: 999px; background: var(--green); color: var(--green-ink); font-size: 16px; font-weight: 500;
@@ -172,10 +180,10 @@
     .cap { font-size: 14px; line-height: 1.45; color: var(--mist); font-weight: 300; }
     .cap a { color: var(--green); font-weight: 500; text-decoration: none; }
     .cap a:hover { text-decoration: underline; }
-    .pg-more { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14.5px; }
+    .pg-more { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14.5px; }
     .pg-more a { color: var(--green); font-weight: 500; text-decoration: none; }
     .pg-more a:hover { text-decoration: underline; }
-    .pg-status { grid-column: 1 / -1; font-size: 14px; color: #F1A48A; margin: 0; }
+    .pg-status { font-size: 14px; color: #F1A48A; margin: 0; }
     .pg-status:empty { display: none; }
 
     /* ── Section break: the three stars ── */
@@ -433,8 +441,11 @@
         <p class="pg-ar" lang="ar" dir="rtl" id="demoAr"></p>
         <p class="pg-tr" id="demoTr" lang="en"></p>
         <figcaption class="pg-foot">
-          <button type="button" class="listen" id="listen"><span class="disc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></span><span id="listenLabel">Listen</span></button>
-          <span class="cap">The imam's own voice, each word lit as he says it. <a href="https://sunnah.com/bukhari:6724" target="_blank" rel="noopener">Sahih al-Bukhari 6724</a></span>
+          <div class="plays">
+            <button type="button" class="listen" data-src="imam" data-label="The imam, in Arabic"><span class="disc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></span><span class="lbl">The imam, in Arabic</span></button>
+            <button type="button" class="listen alt" data-src="voice" data-label="Listen in English"><span class="disc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></span><span class="lbl">Listen in English</span></button>
+          </div>
+          <span class="cap">Each word lights up as it is said. <a href="https://sunnah.com/bukhari:6724" target="_blank" rel="noopener">Sahih al-Bukhari 6724</a></span>
           <p class="pg-status" id="demoStatus" role="status" aria-live="polite"></p>
           <span class="pg-more"><span class="cap">Sheikh Bandar Baleelah, Masjid al-Haram, 18 September 2026</span><a href="/2026-09-18-al-haram-makkah">Read this khutbah</a></span>
         </figcaption>
@@ -533,7 +544,7 @@
   const escAttr = s => esc(s).replace(/"/g, '&quot;');
 
   // ── The example on the khutbah's page: a hadith the imam quoted, his words lit as he says them ──
-  const DEMO = {"audio":"https://media.khutbah.dev/2026-10-04T15-20-20_khutbah-2026-09-18-al-haram-makkah/khutbah-2026-09-18-al-haram-makkah.mp3","start":153.05,"end":165.29,"words":[["ففي",153.3],["الصحيحين",153.5],["من",154.58],["حديث",154.74],["أبي",155.2],["هريرة",155.4],["<span class=\"hon\" title=\"رضي الله عنه\">﵁</span>",155.92],["أن",157.78],["رسول",158.04],["الله",158.42],["<span class=\"hon\" title=\"صلى الله عليه وسلم\">ﷺ</span>",158.8],["قال:",160.26],["«إياكم",161.26],["والظن",161.76],["فإن",163.14],["الظن",163.54],["أكذب",164.04],["الحديث …»",164.48]],"tr":{"en":"<span class=\"seg\" data-from=\"0\">In the two Sahih collections, from the Hadith of Abu Hurayrah <span class=\"hon\">﵁</span>, the Messenger of Allah <span class=\"hon\">ﷺ</span> said:</span> <q class=\"seg\" data-from=\"12\">“Beware of suspicion, for suspicion is the most false of speech …”</q>","ur":"<span class=\"seg\" data-from=\"0\">چنانچہ صحیح بخاری اور صحیح مسلم میں حضرت ابوہریرہ <span class=\"hon\">﵁</span> کی حدیث ہے کہ رسول اللہ <span class=\"hon\">ﷺ</span> نے فرمایا:</span> <q class=\"seg\" data-from=\"12\">“بدگمانی سے بچو، کیونکہ بدگمانی سب سے جھوٹی بات ہے …”</q>","bn":"<span class=\"seg\" data-from=\"0\">বুখারী ও মুসলিমে আবু হুরায়রা রাদিয়াল্লাহু আনহু থেকে বর্ণিত, রাসূলুল্লাহ <span class=\"hon\">ﷺ</span> বলেছেন:</span> <q class=\"seg\" data-from=\"12\">“তোমরা ধারণা থেকে বেঁচে থাকো, কেননা ধারণা হলো সবচেয়ে বড় মিথ্যা কথা …”</q>"}};
+  const DEMO = {"audio":"https://media.khutbah.dev/2026-10-04T15-20-20_khutbah-2026-09-18-al-haram-makkah/khutbah-2026-09-18-al-haram-makkah.mp3","start":153.05,"end":165.29,"words":[["ففي",153.3],["الصحيحين",153.5],["من",154.58],["حديث",154.74],["أبي",155.2],["هريرة",155.4],["<span class=\"hon\" title=\"رضي الله عنه\">﵁</span>",155.92],["أن",157.78],["رسول",158.04],["الله",158.42],["<span class=\"hon\" title=\"صلى الله عليه وسلم\">ﷺ</span>",158.8],["قال:",160.26],["«إياكم",161.26],["والظن",161.76],["فإن",163.14],["الظن",163.54],["أكذب",164.04],["الحديث …»",164.48]],"voices":{"en":{"audio":"https://media.khutbah.dev/2026-10-04T15-20-20_khutbah-2026-09-18-al-haram-makkah/tts_en.mp3","start":137.46,"end":149.63,"words":[["In",137.66],["the",137.73],["two",137.83],["Sahih",138.02],["collections,",138.39],["from",139.12],["the",139.26],["Hadith",139.35],["of",139.69],["Abu",139.83],["Hurayrah,",140.02],["may",140.67],["Allah",140.79],["be",141],["pleased",141.12],["with",141.4],["him,",141.52],["the",142.09],["Messenger",142.2],["of",142.6],["Allah,",142.69],["peace",143.21],["and",143.5],["blessings",143.62],["be",144.01],["upon",144.11],["him,",144.39],["said:",144.58],["\"Beware",145.36],["of",145.99],["suspicion,",146.16],["for",147.22],["suspicion",147.4],["is",147.97],["the",148.06],["most",148.16],["false",148.46],["of",148.88],["speech.",149.03]]},"ur":{"audio":"https://media.khutbah.dev/2026-10-04T15-20-20_khutbah-2026-09-18-al-haram-makkah/tts_ur.mp3","start":152.4,"end":161.75,"words":[["چنانچہ",152.6],["صحیح",153.03],["بخاری",153.22],["اور",153.59],["صحیح",153.69],["مسلم",153.89],["میں",154.16],["حضرت",154.3],["ابوہریرہ",154.55],["رضی",154.98],["اللہ",155.19],["عنہ",155.43],["کی",155.64],["حدیث",155.76],["ہے",156.06],["کہ",156.16],["رسول",156.27],["اللہ",156.49],["صلی",156.69],["اللہ",156.84],["علیہ",157.03],["وسلم",157.14],["نے",157.45],["فرمایا:",157.52],["“بدگمانی",158.63],["سے",159.12],["بچو،",159.21],["کیونکہ",159.94],["بدگمانی",160.16],["سب",160.67],["سے",160.84],["جھوٹی",160.95],["بات",161.19],["ہے،",161.38]]},"bn":{"audio":"https://media.khutbah.dev/2026-10-04T15-20-20_khutbah-2026-09-18-al-haram-makkah/tts_bn.mp3","start":149.96,"end":159.58,"words":[["বুখারী",150.16],["ও",150.6],["মুসলিমে",150.65],["আবু",151.15],["হুরায়রা",151.38],["রাদিয়াল্লাহু",151.71],["আনহু",152.16],["থেকে",152.37],["বর্ণিত,",152.56],["রাসূলুল্লাহ",153.31],["সাল্লাল্লাহু",153.8],["আলাইহি",154.29],["ওয়াসাল্লাম",154.53],["বলেছেন:",154.88],["“তোমরা",155.71],["ধারণা",156.01],["থেকে",156.35],["বেঁচে",156.53],["থাকো,",156.74],["কেননা",157.36],["ধারণা",157.66],["হলো",158.04],["সবচেয়ে",158.29],["বড়",158.63],["মিথ্যা",158.81],["কথা।",159.09]]}},"tr":{"en":"<span class=\"seg\" data-from=\"0\">In the two Sahih collections, from the Hadith of Abu Hurayrah <span class=\"hon\">﵁</span>, the Messenger of Allah <span class=\"hon\">ﷺ</span> said:</span> <q class=\"seg\" data-from=\"12\">“Beware of suspicion, for suspicion is the most false of speech …”</q>","ur":"<span class=\"seg\" data-from=\"0\">چنانچہ صحیح بخاری اور صحیح مسلم میں حضرت ابوہریرہ <span class=\"hon\">﵁</span> کی حدیث ہے کہ رسول اللہ <span class=\"hon\">ﷺ</span> نے فرمایا:</span> <q class=\"seg\" data-from=\"12\">“بدگمانی سے بچو، کیونکہ بدگمانی سب سے جھوٹی بات ہے …”</q>","bn":"<span class=\"seg\" data-from=\"0\">বুখারী ও মুসলিমে আবু হুরায়রা রাদিয়াল্লাহু আনহু থেকে বর্ণিত, রাসূলুল্লাহ <span class=\"hon\">ﷺ</span> বলেছেন:</span> <q class=\"seg\" data-from=\"12\">“তোমরা ধারণা থেকে বেঁচে থাকো, কেননা ধারণা হলো সবচেয়ে বড় মিথ্যা কথা …”</q>"}};
   window.__DEMO = DEMO;
   const demo =document.getElementById('demo'), demoAr = document.getElementById('demoAr'), demoTr = document.getElementById('demoTr');
   demoAr.innerHTML = DEMO.words.map(([w, t], i) => `<span class="w" data-i="${i}">${w}</span>`).join(' ')
@@ -541,9 +552,11 @@
   const setTr = l => {
     demoTr.innerHTML = DEMO.tr[l];
     demoTr.lang = l; demoTr.dir = l === 'ur' ? 'rtl' : 'ltr';
+    window.__trLang = l; window.dispatchEvent(new Event('kt-tr'));
     demo.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.l === l)));
   };
   demo.querySelector('.tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setTr(b.dataset.l); });
+  window.__setTr = setTr;
   setTr('en');
 
   // The language a visitor reads: tapping one keeps it (localStorage 'kt-lang', which the reader opens in),
@@ -777,61 +790,95 @@
   // Start once the fonts have set the words where they will stay.
   (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => setTimeout(startHand, reduce ? 0 : 1800));
 
-  const page = document.getElementById('demo'), para = document.getElementById('demoAr'), pen = document.getElementById('pen');
-  const btn = document.getElementById('listen'), label = document.getElementById('listenLabel'), status = document.getElementById('demoStatus');
-  const words = [...para.querySelectorAll('.w')];
-  const times = DEMO.words.map(w => w[1]);
-  const PLAY = btn.querySelector('svg').outerHTML;
+  // ── The example's four recordings: the imam (his Arabic lit, the translation following), or a voice
+  // reading the translation on show (its words lit). One plays at a time.
+  const page = document.getElementById('demo'), para = document.getElementById('demoAr'), trEl = document.getElementById('demoTr');
+  const pen = document.getElementById('pen'), status = document.getElementById('demoStatus');
+  const btns = [...page.querySelectorAll('.listen')];
+  const PLAY = btns[0].querySelector('svg').outerHTML;
   const PAUSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/></svg>';
-  let audio = null, raf = 0, lit = -1;
-  const place = i => {
-    words.forEach((w, j) => w.classList.toggle('said', j <= i));
-    // The translation follows too: the part of it the imam is saying now is lit.
-    const segs = [...document.querySelectorAll('#demoTr .seg')];
-    const cur = segs.filter(x => +x.dataset.from <= Math.max(i, 0)).pop();
-    segs.forEach(x => x.classList.toggle('now', x === cur));
-    if (i < 0) return;
-    const r = words[i].getBoundingClientRect(), p = para.getBoundingClientRect();
-    const to = { x: r.left - p.left - r.width * .06, y: r.bottom - p.top - 8, width: r.width * 1.12 };
-    if (reduce) utils.set(pen, to); else animate(pen, { ...to, duration: 340, ease: 'outBack(1.3)' });
+  const VOICE_LABEL = { en: ['Listen in English', ''], ur: ['اردو میں سنیں', 'ur'], bn: ['বাংলায় শুনুন', 'bn'] };
+  const escT = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const audios = {};
+  let cur = null, raf = 0, lit = -1, els = [], box = para;
+
+  const labelVoice = () => {
+    const [t, lang] = VOICE_LABEL[window.__trLang || 'en'];
+    const b = btns[1], l = b.querySelector('.lbl');
+    b.dataset.label = t; if (!b.classList.contains('on')) l.textContent = t;
+    if (lang) l.setAttribute('lang', lang); else l.removeAttribute('lang');
   };
-  const setBtn = (playing, text) => {
-    btn.querySelector('.disc').innerHTML = playing ? PAUSE : PLAY;
-    label.textContent = text;
+  const place = i => {
+    els.forEach((w, j) => w.classList.toggle('said', j <= i));
+    if (cur.kind === 'imam') {
+      const segs = [...trEl.querySelectorAll('.seg')];
+      const now = segs.filter(x => +x.dataset.from <= Math.max(i, 0)).pop();
+      segs.forEach(x => x.classList.toggle('now', x === now));
+    }
+    if (i < 0) return;
+    const r = els[i].getBoundingClientRect(), p = box.getBoundingClientRect();
+    const to = { x: r.left - p.left - r.width * .06, y: r.bottom - p.top - (cur.kind === 'imam' ? 8 : 2), width: r.width * 1.12 };
+    if (reduce) utils.set(pen, to); else animate(pen, { ...to, duration: 300, ease: 'outBack(1.3)' });
+  };
+  const setBtn = (b, playing, text) => {
+    b.querySelector('.disc').innerHTML = playing ? PAUSE : PLAY;
+    b.querySelector('.lbl').textContent = text ?? b.dataset.label;
+    b.classList.toggle('on', playing);
   };
   const stop = done => {
     cancelAnimationFrame(raf); raf = 0;
-    if (audio) audio.pause();
-    page.classList.remove('playing'); lit = -1;
-    words.forEach(w => w.classList.remove('said'));
-    setBtn(false, done ? 'Listen again' : 'Listen');
+    const c = cur;
+    if (!c) return;
+    cur = null; lit = -1;
+    audios[c.key]?.pause();
+    page.classList.remove('playing', 'voicing');
+    if (c.kind === 'voice') window.__setTr(window.__trLang || 'en');
+    para.appendChild(pen);
+    para.querySelectorAll('.w').forEach(w => w.classList.remove('said'));
+    setBtn(c.btn, false, done && c.kind === 'imam' ? 'Hear him again' : undefined);
   };
   const tick = () => {
-    const t = audio.currentTime;
-    if (t >= DEMO.end) return stop(true);
+    const t = audios[cur.key].currentTime;
+    if (t >= cur.end) return stop(true);
     let i = -1;
-    for (let j = 0; j < times.length && times[j] <= t + .03; j++) i = j;
+    for (let j = 0; j < cur.times.length && cur.times[j] <= t + .03; j++) i = j;
     if (i !== lit) { lit = i; place(i); }
     raf = requestAnimationFrame(tick);
   };
-  btn.addEventListener('click', async () => {
-    if (raf) return stop(false);
+  const start = async b => {
+    const l = window.__trLang || 'en';
+    const kind = b.dataset.src;
+    const v = kind === 'imam' ? { audio: DEMO.audio, start: DEMO.start, end: DEMO.end, words: DEMO.words } : DEMO.voices[l];
+    cur = { kind, btn: b, key: kind === 'imam' ? 'imam' : l, end: v.end, times: v.words.map(w => w[1]) };
+    if (kind === 'voice') {
+      trEl.innerHTML = v.words.map(([w]) => `<span class="w">${escT(w)}</span>`).join(' ') + ' …';
+      els = [...trEl.querySelectorAll('.w')]; box = trEl;
+    } else { els = [...para.querySelectorAll('.w')]; box = para; }
+    box.appendChild(pen);
+    const a = (audios[cur.key] ??= Object.assign(new Audio(v.audio), { preload: 'auto' }));
+    b.setAttribute('aria-busy', 'true'); b.querySelector('.lbl').textContent = 'Loading…';
     status.textContent = '';
-    if (!audio) { audio = new Audio(DEMO.audio); audio.preload = 'auto'; }
-    btn.setAttribute('aria-busy', 'true'); label.textContent = 'Loading…';
     try {
-      if (audio.readyState < 1) await new Promise((ok, no) => { audio.addEventListener('loadedmetadata', ok, { once: true }); audio.addEventListener('error', no, { once: true }); audio.load(); });
-      audio.currentTime = DEMO.start;
-      await audio.play();
-      page.classList.add('playing'); lit = -1; place(-1);
-      setBtn(true, 'Pause');
+      if (a.readyState < 1) await new Promise((ok, no) => { a.addEventListener('loadedmetadata', ok, { once: true }); a.addEventListener('error', no, { once: true }); a.load(); });
+      a.currentTime = v.start;
+      await a.play();
+      page.classList.add('playing'); if (kind === 'voice') page.classList.add('voicing');
+      lit = -1; place(-1);
+      setBtn(b, true, 'Pause');
       raf = requestAnimationFrame(tick);
     } catch {
-      setBtn(false, 'Listen');
+      stop(false);
       status.textContent = 'The recording did not play. Check your connection and try again.';
     }
-    btn.removeAttribute('aria-busy');
-  });
+    b.removeAttribute('aria-busy');
+  };
+  btns.forEach(b => b.addEventListener('click', () => {
+    const was = cur?.btn;
+    stop(false);
+    if (was !== b) start(b);
+  }));
+  addEventListener('kt-tr', () => { if (cur?.kind === 'voice') stop(false); labelVoice(); });
+  labelVoice();
 </script>
 </body>
 </html>
