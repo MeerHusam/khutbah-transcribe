@@ -399,8 +399,16 @@
     .side-btn small { font-size: 12.5px; color: var(--mist); }
     .side-btn b { font-size: 15px; font-weight: 500; }
     .side-btn b[lang="ur"] { font-family: 'Noto Nastaliq Urdu', serif; font-size: 14px; line-height: 1.6; }
+    /* under 400 points wide (iPhone 13 mini, 15, 16) one line each did not fit beside −10s: label above value, still boxed */
+    @media (max-width: 400px) {
+      .side-btn { flex-direction: column; gap: 0; min-height: 42px; padding: 2px 10px; line-height: 1.15; }
+      .side-btn small { font-size: 11px; }
+      .side-btn b { font-size: 14px; }
+      .side-btn b[lang="ur"] { font-size: 13px; line-height: 1.45; }
+    }
     .side-btn b[lang="bn"] { font-family: 'Noto Serif Bengali', serif; }
-    .audio-player .skip-btn { min-width: 46px; }
+    .audio-player .skip-btn { min-width: 40px; }
+    @media (max-width: 340px) { .audio-player.ready { column-gap: 2px; } .audio-player .skip-btn { min-width: 34px; font-size: 14px; } .audio-player .play-btn { margin: 0; } }
     .pane .khutbah-divider { margin: 16px 0 14px; }
     body.playing .pane :is(.reader-chunk, .tr-chunk):not(.chunk-active) { opacity: .42; }
     .tr-chunk[data-follow="en"] :is(.chunk-en .chunk-english, .chunk-en .chunk-hadith-trans, .chunk-quran-translation:not(.chunk-tr)),
