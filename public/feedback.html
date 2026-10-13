@@ -13,6 +13,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Kufam:wght@500;600&family=Readex+Pro:wght@300;400;500&family=Amiri:wght@400&display=swap" rel="stylesheet">
   <style>
+    /* a quick second tap (−10s twice, a language, the A's) no longer zooms the page on a phone; pinching still zooms
+       (Meer, 13 Oct 2026) */
+    html, .pane, button, a, input, select, label, [role="button"] { touch-action: manipulation; }
     /* the minbar at night (DESIGN.md): night ground, gold for what is tapped, cream text */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
