@@ -311,8 +311,9 @@
     /* the opening (title, date, In Short, Share) sits above the reader; the reader keeps the whole screen below it,
        and the page settles on it when reading starts (a scroll in a pane, or play) */
     .r-head { padding: 0 20px 18px; }
-    html { scroll-snap-type: y proximity; }
-    .reader-stage { scroll-snap-align: start; scroll-margin-top: var(--hdr, 52px); }
+    /* no scroll snapping (13 Oct 2026): on a tall laptop screen Firefox and Chrome snapped onto the reader as the page
+       opened, past the summary; the page settles on the reader in script instead (settleOnReader) */
+    .reader-stage { scroll-margin-top: var(--hdr, 52px); }
     .r-title { margin-top: 2px; font: 600 24px/1.2 var(--display); letter-spacing: -.005em; text-wrap: balance; color: var(--cream); }
     .r-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 14px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
     .r-tools .tongue-line { margin-top: 4px; font-size: 20px; }
@@ -815,20 +816,43 @@
     btn.setAttribute('aria-expanded', String(open));
     btn.textContent = open ? 'Show less' : btn.dataset.more;
     const top = section.getBoundingClientRect().top - (document.querySelector('header')?.offsetHeight || 0);
+    if (!open && top < 0) autoScrolled = performance.now();
     if (!open && top < 0) scrollTo({ top: scrollY + top - 12, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   }
 
   // The reader filling the screen under the bar (the opening scrolled away above it).
+  let autoScrolled = 0; // when the page last scrolled itself, so its own glide is not taken for a reader's scroll
   function toStage() {
     stopHand();
+    autoScrolled = performance.now();
     const st = document.getElementById('stage'); if (!st) return;
     const top = st.getBoundingClientRect().top + scrollY - (document.querySelector('header')?.offsetHeight || 0);
     if (Math.abs(scrollY - top) > 4) scrollTo({ top, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   }
   function toSources() {
+    autoScrolled = performance.now();
     const end = document.getElementById('sources');
     if (end) scrollTo({ top: end.getBoundingClientRect().top + scrollY - (document.querySelector('header')?.offsetHeight || 0), behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   }
+  // A reader who scrolls the page down past the opening by hand: once they stop with the reader over half the screen,
+  // it glides the rest of the way and fills it (Meer, 13 Oct 2026). Never as the page opens, never scrolling back up.
+  (function settleOnReader() {
+    let lastY = scrollY, down = false, own = false, timer = 0;
+    addEventListener('scroll', () => {
+      if (scrollY > lastY + 1) down = true; else if (scrollY < lastY - 1) down = false;
+      lastY = scrollY;
+      if (performance.now() - autoScrolled < 1200) own = true;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (own) { own = false; return; }
+        const st = document.getElementById('stage'), hdr = document.querySelector('header')?.offsetHeight || 0;
+        if (!down || !st) return;
+        const top = st.getBoundingClientRect().top;
+        if (top > hdr + 4 && top < hdr + (innerHeight - hdr) / 2) toStage();
+      }, 180);
+    }, { passive: true });
+  })();
+
   // The stage is the screen between the header and the player: their heights, kept as they change.
   function sizeStage() {
     const head = document.querySelector('header'), player = document.getElementById('audioPlayer');
