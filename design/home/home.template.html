@@ -17,6 +17,12 @@
     (function () {
       var root = document.documentElement, f = document.fonts;
       root.classList.add('fonts-wait');
+      // The minbar, the example and the ticks wait for the script that draws them in (Meer, 13 Oct 2026: they showed
+      // drawn, vanished, then were drawn); never longer than 4 s, so a script that fails to load hides nothing.
+      if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+        root.classList.add('anim-wait');
+        setTimeout(function () { root.classList.remove('anim-wait'); }, 4000);
+      }
       var want = [['600 40px Kufam', 'Understand'], ['500 20px Kufam', 'Khutbah'], ['400 18px "Readex Pro"', 'Tap'], ['300 17px "Readex Pro"', 'Read'],
         ['500 16px "Readex Pro"', 'Listen'], ['400 30px Amiri', 'العربية'], ['400 26px "Noto Nastaliq Urdu"', 'اردو'],
         ['400 26px "Noto Serif Bengali"', 'বাংলা'], ['400 26px "Amiri Quran"', 'ٱدۡعُونِيٓ']];
@@ -101,6 +107,7 @@
     header.scrolled { background: rgba(11, 23, 18, .9); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border-bottom-color: var(--line-soft); }
     #khutbahs, #how-it-works, #why, #contact { scroll-margin-top: 84px; }
     html.fonts-wait header, html.fonts-wait main { opacity: 0; }
+    html.anim-wait .minbar, html.anim-wait #demo, html.anim-wait .ticks svg { visibility: hidden; }
     header, main { transition: opacity .5s cubic-bezier(.16, 1, .3, 1); }
 
     /* ── Bar ── */
@@ -859,6 +866,7 @@
     utils.set('.ticks svg', { clipPath: 'inset(0% 100% 0% 0%)' });
     utils.set('.minbar .lattice, .minbar .beam', { opacity: 0 });
     utils.set('#demo', { opacity: 0, y: 24 });
+    document.documentElement.classList.remove('anim-wait'); // set to their first frame: shown from here, drawn in below
     window.__fontsReady.then(() => createTimeline({ defaults: { ease: 'inOutSine' } })
       .add(minbarLines, { draw: ['0 0', '0 1'], duration: 1400, delay: stagger(22) })
       .add('.minbar .lattice', { opacity: [0, .38], duration: 800 }, '-=500')
