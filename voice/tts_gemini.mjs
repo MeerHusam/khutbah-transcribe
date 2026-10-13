@@ -16,12 +16,13 @@
 // at a time, every sentence a text part with its own style note, so the voice carries its tone
 // and pace from one block into the next (blocks voiced alone each start afresh). Each passage is
 // heard back with Groq Whisper (free) and voiced again, up to three takes, if words are missing
-// or added (voice/retake.js; since 13 Oct also a few words said in one place that the text does not have); then the word aligner (align_words.py, .venv-align) finds where each block starts.
+// or added (voice/retake.js); since 13 Oct a passage with speech its text does not have (seen in the word times) is
+// voiced again too; then the word aligner (align_words.py, .venv-align) finds where each block starts.
 //
 // Job: { out, blocks: [{ i, text, parts?, pause_before? }], block_pause,
 //        model, voice, style, concurrency?, passages?, lang? }
 
-import { retake, heardShare, looseWords, scoreOf, ADDED_WORDS } from './retake.js';
+import { retake, heardShare, looseWords, scoreOf, madeUpSpeech, MADE_UP_SECONDS } from './retake.js';
 import 'dotenv/config';
 import { GoogleGenAI } from '@google/genai';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
@@ -299,7 +300,7 @@ async function askAround(content, blocks, n) {
 }
 
 const checks = [];
-async function speakPassage(blocks, n) {
+async function speakPassage(blocks, n, { fresh = false } = {}) {
   // A sentence that runs on into the next block is one part with one direction: on 2 Oct a new
   // direction at the block break ("…ایمان کی نشانی | اور ان سے بغض…", one sentence) made the voice
   // close the half sentence and start the rest in another tone. A colon before a quote still
@@ -312,7 +313,7 @@ async function speakPassage(blocks, n) {
   }
   const request = { model: job.model, voice: job.voice, style: job.style, parts };
   const path = cachePath(request);
-  if (existsSync(path)) { usage.cached++; return readFileSync(path); }
+  if (!fresh && existsSync(path)) { usage.cached++; return readFileSync(path); }
   const content = parts.map((p, k) => annotate(p.text + (k < parts.length - 1 ? ' ' : ''),
     p.style ? `${job.style}. For this sentence: ${p.style}` : job.style));
   const text = blocks.map(b => b.text).join(' ');
@@ -325,8 +326,7 @@ async function speakPassage(blocks, n) {
     const score = scoreOf(share);
     if (!best || score > best.score) best = { pcm, share, score };
     console.error(`  passage ${n + 1} (blocks ${blocks[0].i}-${blocks.at(-1).i}), take ${take}: ${secs(pcm).toFixed(0)} s` +
-      (share ? `, ${Math.round(share.said * 100)}% of the words heard, ${Math.round(share.extra * 100)}% as many words` : ', not checked') +
-      (share?.added >= ADDED_WORDS ? `, ${share.added} words the text does not have: "${share.addedText.slice(0, 120)}"` : ''));
+      (share ? `, ${Math.round(share.said * 100)}% of the words heard, ${Math.round(share.extra * 100)}% as many words` : ', not checked'));
     if (!retake({ take, words, share, score, before })) break; // voice/retake.js
     before = score;
   }
@@ -378,26 +378,53 @@ function splitPassages(spans) {
 const blocks = job.blocks;
 const gap = Buffer.alloc(Math.round(SR * (job.block_pause ?? 0.7)) * 2);
 const began = Date.now();
-const parts = [];
-let times = [], t = 0;
+let times = [];
 if (job.passages) {
   const groups = passagesOf(blocks, job.passages);
   console.error(`  ${blocks.length} blocks in ${groups.length} passages`);
   const audio = await inTurn(groups, (g, n) => speakPassage(g, n));
-  const spans = [];
-  groups.forEach((g, n) => {
-    if (g[0].pause_before) { const pause = Buffer.alloc(Math.round(SR * g[0].pause_before) * 2); parts.push(pause); t += secs(pause); }
-    spans.push({ blocks: g, start: t, end: t + secs(audio[n]) });
-    parts.push(audio[n]); t += secs(audio[n]);
-    parts.push(gap); t += secs(gap);
-  });
-  writeFileSync(job.out, wavOf(Buffer.concat(parts)));
+  // the passages in order, with the pause before the second khutbah and between passages, written to job.out
+  const assemble = () => {
+    const parts = [], spans = [];
+    let t = 0;
+    groups.forEach((g, n) => {
+      if (g[0].pause_before) { const pause = Buffer.alloc(Math.round(SR * g[0].pause_before) * 2); parts.push(pause); t += secs(pause); }
+      spans.push({ blocks: g, start: t, end: t + secs(audio[n]) });
+      parts.push(audio[n]); t += secs(audio[n]);
+      parts.push(gap); t += secs(gap);
+    });
+    const pcm = Buffer.concat(parts);
+    writeFileSync(job.out, wavOf(pcm));
+    return { spans, pcm };
+  };
+  // Speech its text does not have (voice/retake.js madeUpSpeech): each such passage is voiced again, fresh, up to
+  // twice; one that still has it is named in the log, to be heard.
+  const madeUp = (spans, pcm, times) => spans.map((s, n) => {
+    const words = s.blocks.map(b => times.find(x => x.i === b.i)?.words);
+    return words.every(Boolean) ? { n, found: madeUpSpeech(pcm, SR, words.flat(), s.start, s.end) } : { n, found: null };
+  }).filter(x => x.found);
+  let { spans, pcm } = assemble();
   times = splitPassages(spans);
+  for (let round = 1; round <= 2; round++) {
+    const found = madeUp(spans, pcm, times);
+    if (!found.length) break;
+    for (const { n, found: f } of found) {
+      console.error(`  passage ${n + 1} (blocks ${groups[n][0].i}-${groups[n].at(-1).i}): ${f.seconds} s of speech its text does not have, between "${f.after ?? 'the start'}" and "${f.before ?? 'the end'}": voiced again`);
+      audio[n] = await speakPassage(groups[n], n, { fresh: true });
+    }
+    ({ spans, pcm } = assemble());
+    times = splitPassages(spans);
+  }
+  for (const { n, found: f } of madeUp(spans, pcm, times)) {
+    const at = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+    console.error(`  ⚠ passage ${n + 1} still has ${f.seconds} s of speech its text does not have at ${at(f.from)}–${at(f.to)} (≥ ${MADE_UP_SECONDS} s): listen to it`);
+  }
   const worst = checks.filter(c => c.said != null).sort((a, b) => a.said - b.said)[0];
   if (worst) console.error(`  Whisper check: every passage ${Math.round(worst.said * 100)}% or more of its words heard (lowest: passage ${worst.passage})`);
 } else {
   // A few blocks at a time; the track is assembled in order afterwards.
-  let done = 0;
+  const parts = [];
+  let done = 0, t = 0;
   const audio = await inTurn(blocks, async b => {
     const pcm = await speak(b.text);
     console.error(`  block ${++done}/${blocks.length}  ${((Date.now() - began) / 60000).toFixed(1)} min`);
