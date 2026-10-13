@@ -136,17 +136,21 @@ bar, the minbar faint behind it.
 buttons.
 
 **Reader** (`public/reader.html`): a stage the size of the screen between the bar and the player, then the page goes on.
-- The opening, above the reader: back link, title, the date and masjid on one line, the Summary (its label in Kufam,
-  cream), Share (the phone's share sheet with the summary and the link; copied on a computer) and Sources (n) ↓. When
-  reading starts (a scroll in a pane, or play) the page settles on the reader, which fills the screen below the bar.
+- The opening, above the reader: title, the date and masjid on one line, the Summary (its label a heading in Kufam,
+  19px, so it stands out), then one row: Share (the phone's share sheet with "Listen to the entire khutbah in your
+  language:" and the link; copied on a computer), Sources (n) ↓ and All khutbahs; then the three gold stars with fading
+  lines, where the khutbah starts ("End of the khutbah" closes it). The page settles on the reader, which fills the
+  screen below the bar, on play, a scroll inside a pane, or a scroll down by hand that stops with the reader over half
+  the screen; never as the page opens (no CSS scroll snapping: it jumped past the summary on tall screens).
 - The language line (العربية · English · اردو · বাংলা) and the three A's on one row, a gold line under them.
 - Two panes tied together: the imam's Arabic above and the chosen language below, on phones and computers alike; on a
   computer a switch beside the three A's puts them side by side instead (the Arabic on the left), remembered (kt-layout), each one continuous text, the three gold stars with fading gold lines between them. Scrolling
   either scrolls both to the same passage.
 - After the reader: the end mark ("End of the khutbah"), every ayah and every hadith across the full width (side by
   side on a computer), the khutbah before and after at the same masjid, the footer.
-- The player along the bottom: the progress line with the time at both ends; Speed, −10s, play/pause in the centre,
-  +10s, Voice (the language's own voice or the imam).
+- The player along the bottom, slim: the progress line with the time at both ends, then one row of Speed, −10s,
+  play/pause in the centre, +10s, Voice (the language's own voice or the imam); Speed and Voice in a box, label and
+  value on one line.
 
 ## Elevation & Depth
 
@@ -164,9 +168,9 @@ side buttons. Icons from Phosphor (regular weight), never emoji.
 
 - **Language line**: the languages in their own scripts, gold, separated by `·`; the chosen one brighter with a gold
   underline. A tap reads and hears it; العربية is the imam alone. On the home page it plays that language in the card.
-- **The hand**: a visitor who has not picked a language sees a hand tap English, then each translation, the prompt
-  ("Tap your language") above the line in the language tapped: on the home page, and on a khutbah's page (most visitors
-  open a khutbah from a shared link; Meer, 13 Oct 2026), there twice round, on their first three khutbahs at most, and
+- **The hand**: a visitor who has not picked a language sees a hand tap English, then each translation: on the home
+  page (with the prompt "Tap your language" above the line), and on a khutbah's page (most visitors open a khutbah from a
+  shared link; Meer, 13 Oct 2026), there without words, three times round, on their first three khutbahs at most, and
   it stops once they pick a language, press play or start reading.
 - **Follow-along**: while a voice plays, the word being said is gold-bright with a 2px gold underline; the phrase being
   read is bright in both panes (matched by meaning, `core/align_phrases.js`), the rest of the passage dimmed. A hadith

@@ -17,7 +17,10 @@ and the site remembers it. Urdu turns the whole page right to left.
   voice together, and is remembered on that phone for a year (a cookie the server can read, plus `localStorage` as now).
 - **Coming back:** a plain link opens in the remembered language. Picking العربية shows the imam's words alone and keeps
   the rest of the page in the last language chosen.
-- **Sharing:** Share sends the link in the language on screen, so the person receiving it sees it in that language.
+- **Sharing:** Share sends one line and the link: "Listen to the entire khutbah in your language: <link>" (Meer,
+  13 Oct 2026), the line in the language the site is in at that moment, and the link in that language too, so the person
+  receiving it opens it in that language (WhatsApp's preview card shows the title, summary and picture). Until this is
+  built the line is in English (`shareKhutbah` in `public/reader.html`).
 
 ## Decisions for Meer (my recommendation first)
 

@@ -89,8 +89,6 @@
 
     /* ── The page ── */
     #app { max-width: 720px; margin: 0 auto; padding: 0 20px calc(120px + env(safe-area-inset-bottom)); }
-    .back-home { display: inline-flex; align-items: center; min-height: 40px; margin-top: 4px; font-size: 14px; color: var(--mist); text-decoration: none; }
-    .back-home:hover { color: var(--gold); }
     .meta-row { margin-top: 8px; font-size: 14px; line-height: 1.55; color: var(--mist); }
     .meta-row span { display: inline; }
     .meta-row span + span::before { content: '·'; margin: 0 8px; color: var(--dim); }
@@ -310,16 +308,20 @@
     .r-top { flex: none; padding: 0 20px; }
     /* the opening (title, date, In Short, Share) sits above the reader; the reader keeps the whole screen below it,
        and the page settles on it when reading starts (a scroll in a pane, or play) */
-    .r-head { padding: 0 20px 18px; }
+    .r-head { padding: 26px 20px 18px; }
     /* no scroll snapping (13 Oct 2026): on a tall laptop screen Firefox and Chrome snapped onto the reader as the page
        opened, past the summary; the page settles on the reader in script instead (settleOnReader) */
     .reader-stage { scroll-margin-top: var(--hdr, 52px); }
     .r-title { margin-top: 2px; font: 600 24px/1.2 var(--display); letter-spacing: -.005em; text-wrap: balance; color: var(--cream); }
     .r-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 14px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
-    .r-tools .tongue-line { margin-top: 4px; font-size: 20px; }
+    .r-tools .tongue-line { margin-top: 4px; font-size: 18px; }
     /* In Short: the first thing in the translation pane, scrolling away as the reader reads on */
     .r-lede { margin-top: 12px; padding: 10px 0 2px; border-top: 1px solid var(--line-soft); max-width: 68ch; }
-    .r-lede-label { font: 500 14px/1.4 var(--display); color: var(--cream); }
+    /* "Summary" stands out (Meer, 13 Oct 2026): a heading in the display face, the size of the title's details' heading */
+    .r-lede-label { margin: 0; font: 600 19px/1.3 var(--display); color: #F4EEDD; letter-spacing: -.005em; }
+    body[class] .r-lede-label .tr-inline[lang] { font-size: 19px; font-weight: 600; }
+    /* the three stars under the opening: the khutbah starts here (Meer, 13 Oct 2026; "End of the khutbah" closes it) */
+    .start-mark { margin-top: 24px; }
     .r-lede .share-text { margin-top: 4px; font-size: calc(19px * var(--ts, 1)); line-height: 1.55; font-weight: 400; color: #E2E4DB; }
     .r-lede-links { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin-top: 10px; }
     .share-btn { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px 0 13px; border: 1px solid var(--gold-dim); border-radius: 999px; background: none; color: var(--gold); font-size: 15px; cursor: pointer; }
@@ -329,7 +331,7 @@
     .to-sources { display: inline-flex; align-items: center; gap: 5px; min-height: 40px; font-size: 14.5px; color: var(--gold); text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px; }
     .to-sources:hover { text-decoration-color: var(--gold); }
     body.rtl .r-lede { text-align: right; }
-    body[class] :is(.r-lede-label, .to-sources) .tr-inline[lang] { font-size: 15px; }
+    body[class] .to-sources .tr-inline[lang] { font-size: 15px; }
 
     /* the imam's Arabic above in parchment, the translation below in cream, the three gold stars between them (Meer picked E) */
     .panes { flex: 1; min-height: 0; display: grid; grid-template-rows: 1fr auto 1fr; }
@@ -375,27 +377,28 @@
 
     /* the player: part of the page (below the panes), the progress line with the time at both ends, then
        speed · −10s · play · +10s · voice, play in the centre */
-    .audio-player { padding: 8px 16px calc(14px + env(safe-area-inset-bottom)); }
-    .audio-player.ready { display: grid; grid-template-columns: 1fr auto auto auto 1fr; grid-template-areas: "bar bar bar bar bar" "speed back play fwd voice"; align-items: center; column-gap: 6px; row-gap: 2px; }
-    .ap-bar { grid-area: bar; display: flex; align-items: center; gap: 10px; }
-    .ap-bar .audio-scrubber { flex: 1; width: auto; margin: 0; height: 28px; }
-    .ap-cur, .ap-dur { font-size: 14px; color: var(--mist); font-variant-numeric: tabular-nums; }
+    .audio-player { padding: 0 16px calc(6px + env(safe-area-inset-bottom)); }
+    .audio-player.ready { display: grid; grid-template-columns: 1fr auto auto auto 1fr; grid-template-areas: "bar bar bar bar bar" "speed back play fwd voice"; align-items: center; column-gap: 6px; row-gap: 0; }
+    .ap-bar { grid-area: bar; display: flex; align-items: center; gap: 8px; height: 22px; }
+    .ap-bar .audio-scrubber { flex: 1; width: auto; margin: 0; height: 22px; }
+    .ap-cur, .ap-dur { font-size: 12px; color: var(--mist); font-variant-numeric: tabular-nums; }
     .audio-time { display: none; }
     .ap-transport { display: contents; }
     .skip-back { grid-area: back; } .skip-fwd { grid-area: fwd; }
-    .audio-player .skip-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 52px; min-height: 52px; font-size: 16px; color: var(--gold); }
-    .audio-player .play-btn { grid-area: play; width: 60px; height: 60px; margin: 0 6px; }
-    .audio-player .play-btn svg { width: 22px; height: 22px; }
+    .audio-player .skip-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; font-size: 15px; color: var(--gold); }
+    .audio-player .play-btn { grid-area: play; width: 46px; height: 46px; margin: 0 4px; }
+    .audio-player .play-btn svg { width: 18px; height: 18px; }
     .audio-player .speed-btn { grid-area: speed; justify-self: start; }
     .audio-player .ap-group { grid-area: voice; justify-self: end; }
     .audio-player .seg { display: none; }
+    /* the player in one slim row (Meer, 13 Oct 2026); Speed and Voice keep their box, label and value on one line */
     .side-btn {
-      display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-width: 76px; min-height: 52px; padding: 4px 12px;
-      border: 1px solid var(--line); border-radius: 14px; background: none; color: var(--gold); cursor: pointer; line-height: 1.15;
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 0 11px;
+      border: 1px solid var(--line); border-radius: 12px; background: none; color: var(--gold); cursor: pointer; line-height: 1.2; white-space: nowrap;
     }
-    .side-btn small { font-size: 12px; color: var(--mist); }
-    .side-btn b { font-size: 16px; font-weight: 500; }
-    .side-btn b[lang="ur"] { font-family: 'Noto Nastaliq Urdu', serif; font-size: 15px; line-height: 1.5; }
+    .side-btn small { font-size: 12.5px; color: var(--mist); }
+    .side-btn b { font-size: 15px; font-weight: 500; }
+    .side-btn b[lang="ur"] { font-family: 'Noto Nastaliq Urdu', serif; font-size: 14px; line-height: 1.6; }
     .side-btn b[lang="bn"] { font-family: 'Noto Serif Bengali', serif; }
     .audio-player .skip-btn { min-width: 46px; }
     .pane .khutbah-divider { margin: 16px 0 14px; }
@@ -467,30 +470,26 @@
        320px wide, never above these sizes; a computer keeps its own (20px), however large the screen */
     @media (max-width: 900px) {
       .r-tools { gap: 0 clamp(6px, 2.6vw, 14px); }
-      .r-tools .tongue-line { font-size: clamp(13.5px, 4.5vw, 17.5px); gap: 0 clamp(4px, 1.8vw, 8px); }
+      .r-tools .tongue-line { font-size: clamp(12.5px, 4vw, 15.5px); gap: 0 clamp(4px, 1.8vw, 8px); }
       .r-tools .tongue-line button { padding-left: 1px; padding-right: 1px; }
       .r-size { gap: 0; }
       .r-size button { min-width: clamp(24px, 7.6vw, 32px); padding: 0 2px; }
       .r-size button:nth-child(1) { font-size: clamp(11px, 3.3vw, 13px); } .r-size button:nth-child(2) { font-size: clamp(13px, 4.1vw, 16px); } .r-size button:nth-child(3) { font-size: clamp(15.5px, 5.1vw, 20px); }
     }
     @media (max-width: 900px) {
-      .back-home { min-height: 34px; margin-top: 0; font-size: 13.5px; }
+      .r-head { padding-top: 18px; }
       .r-title { font-size: 21px; }
       .meta-row { margin-top: 4px; font-size: 13.5px; }
       .r-lede { margin-top: 10px; padding-top: 8px; }
       .r-lede .share-text { font-size: calc(16.5px * var(--ts, 1)); line-height: 1.5; }
       .r-lede-links { margin-top: 8px; }
     }
-    /* the hand, as on the home page: taps each language in turn, the prompt above the line in that language */
+    /* the hand, as on the home page: taps each language in turn */
     .r-top { position: relative; z-index: 3; }
     .finger { position: absolute; left: 0; top: 0; width: 32px; height: 32px; pointer-events: none; opacity: 0; z-index: 5; }
     .finger svg { position: relative; width: 100%; height: 100%; display: block; overflow: visible; }
     .finger path { fill: #F4EEDD; stroke: var(--night); stroke-width: 14; paint-order: stroke; }
     .finger .ring { position: absolute; left: 44%; top: 6%; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; border: 2px solid var(--gold); opacity: 0; }
-    .hand-help { position: absolute; left: 20px; bottom: calc(100% - 8px); margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--mist); opacity: 0; transition: opacity .3s; pointer-events: none; }
-    .hand-help.on { opacity: 1; }
-    .hand-help [lang="ur"] { font-family: 'Noto Nastaliq Urdu', serif; font-size: 15px; line-height: 1.9; }
-    .hand-help [lang="bn"] { font-family: 'Noto Serif Bengali', serif; }
     .tongue-line button.tap { border-bottom-color: var(--gold-dim); }
     /* the bar and the player solid: text never shows behind them */
     header, .audio-player { background: var(--night); -webkit-backdrop-filter: none; backdrop-filter: none; }
@@ -753,15 +752,15 @@
     const khutbah = renderTranslation(r);
     return `
     <div class="r-head">
-        <a class="back-home" href="/#khutbahs">← All khutbahs</a>
         <h2 class="r-title">${escHtml(r.title || 'Friday Khutbah')}</h2>
         <p class="meta-row">${r.date ? `<span>${escHtml(r.date)}</span>` : ''}${masjid ? `<span>${masjid}</span>` : ''}${khateeb ? `<span>${khateeb}</span>` : ''}</p>
         <section class="r-lede" aria-label="In short">
-          <p class="r-lede-label">${bi('Summary')}</p>
+          <h3 class="r-lede-label">${bi('Summary')}</h3>
           <p class="share-text${TR.length ? ' chunk-en' : ''}">${escHtml(r.share_summary || r.summary || '')}</p>
           ${trShare('share_summary')}
-          <p class="r-lede-links"><button type="button" class="share-btn" id="shareBtn" onclick="shareKhutbah()"><svg viewBox="0 0 256 256" aria-hidden="true"><path fill="currentColor" d="M216,112v96a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V112A16,16,0,0,1,56,96H80a8,8,0,0,1,0,16H56v96H200V112H176a8,8,0,0,1,0-16h24A16,16,0,0,1,216,112ZM93.66,69.66,120,43.31V136a8,8,0,0,0,16,0V43.31l26.34,26.35a8,8,0,0,0,11.32-11.32l-40-40a8,8,0,0,0-11.32,0l-40,40A8,8,0,0,0,93.66,69.66Z"/></svg><span class="share-lbl">${bi('Share')}</span></button>${qRefs.length + hadithRefs.length ? `<a class="to-sources" href="#sources" onclick="event.preventDefault(); toSources()">${bi('Sources')} (${qRefs.length + hadithRefs.length}) ↓</a>` : ''}</p>
+          <p class="r-lede-links"><button type="button" class="share-btn" id="shareBtn" onclick="shareKhutbah()"><svg viewBox="0 0 256 256" aria-hidden="true"><path fill="currentColor" d="M216,112v96a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V112A16,16,0,0,1,56,96H80a8,8,0,0,1,0,16H56v96H200V112H176a8,8,0,0,1,0-16h24A16,16,0,0,1,216,112ZM93.66,69.66,120,43.31V136a8,8,0,0,0,16,0V43.31l26.34,26.35a8,8,0,0,0,11.32-11.32l-40-40a8,8,0,0,0-11.32,0l-40,40A8,8,0,0,0,93.66,69.66Z"/></svg><span class="share-lbl">${bi('Share')}</span></button>${qRefs.length + hadithRefs.length ? `<a class="to-sources" href="#sources" onclick="event.preventDefault(); toSources()">${bi('Sources')} (${qRefs.length + hadithRefs.length}) ↓</a>` : ''}<a class="to-sources" href="/#khutbahs">All khutbahs</a></p>
         </section>
+        <div class="end-mark start-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.2" y="5.2" width="13.6" height="13.6"/><rect x="5.2" y="5.2" width="13.6" height="13.6" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="2.3"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.2" y="5.2" width="13.6" height="13.6"/><rect x="5.2" y="5.2" width="13.6" height="13.6" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="2.3"/></svg><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5.2" y="5.2" width="13.6" height="13.6"/><rect x="5.2" y="5.2" width="13.6" height="13.6" transform="rotate(45 12 12)"/><circle cx="12" cy="12" r="2.3"/></svg></div>
       </div>
     <div class="reader-stage" id="stage">
     <div class="r-top" id="rTop">
@@ -770,7 +769,6 @@
         <div class="r-layout" id="layoutSwitch" role="group" aria-label="Layout"><button type="button" data-layout="stack" aria-pressed="true" aria-label="Arabic above the translation" title="Arabic above the translation"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="7" rx="1.5"/><rect x="4" y="13" width="16" height="7" rx="1.5"/></svg></button><button type="button" data-layout="side" aria-pressed="false" aria-label="Arabic beside the translation" title="Arabic beside the translation"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="16" rx="1.5"/><rect x="13" y="4" width="7" height="16" rx="1.5"/></svg></button></div>
         <div class="r-size" id="textSize" role="group" aria-label="Text size"><button type="button" data-ts="0.86" aria-label="Smaller text" aria-pressed="false">A</button><button type="button" data-ts="1" aria-label="Normal text" aria-pressed="true">A</button><button type="button" data-ts="1.16" aria-label="Larger text" aria-pressed="false">A</button></div>
       </div>
-      <p class="hand-help" id="handHelp" aria-hidden="true"></p>
       <span class="finger" id="finger" aria-hidden="true"><span class="ring"></span><svg viewBox="0 0 256 256"><path d="M224,104v50.93c0,46.2-36.85,84.55-83,85.06A83.71,83.71,0,0,1,80.6,215.4C58.79,192.33,34.15,136,34.15,136a16,16,0,0,1,6.53-22.23c7.66-4,17.1-.84,21.4,6.62l21,36.44a6.09,6.09,0,0,0,6,3.09l.12,0A8.19,8.19,0,0,0,96,151.74V32a16,16,0,0,1,16.77-16c8.61.4,15.23,7.82,15.23,16.43V104a8,8,0,0,0,8.53,8,8.17,8.17,0,0,0,7.47-8.25V88a16,16,0,0,1,16.77-16c8.61.4,15.23,7.82,15.23,16.43V112a8,8,0,0,0,8.53,8,8.17,8.17,0,0,0,7.47-8.25v-7.28c0-8.61,6.62-16,15.23-16.43A16,16,0,0,1,224,104Z"/></svg></span>
     </div>
     <div class="panes" id="panes">
@@ -1566,20 +1564,21 @@
     }
   }
 
+  // Share sends one line and the link (Meer, 13 Oct 2026): WhatsApp's preview card shows the title, the summary and the
+  // picture. The line is in English until the whole site is translated (docs/I18N_PLAN.md: then in the page's language).
   function shareKhutbah() {
     engage.copies++;
     const L = TR.find(L => L.code === pageLang);
-    const own = L && result?.[L.field]?.share_summary;
-    const text = own || result?.share_summary || result?.summary || '';
+    const text = 'Listen to the entire khutbah in your language:';
     const url = location.origin + location.pathname;
     if (navigator.share && matchMedia('(pointer: coarse)').matches) {
       navigator.share({ title: result?.title || 'Khutbah.dev', text, url }).catch(() => {});
       return;
     }
-    const all = text + '\n\n' + url;
+    const all = text + ' ' + url;
     const done = () => {
       const lbl = document.querySelector('#shareBtn .share-lbl'), before = lbl.innerHTML;
-      lbl.textContent = (L && L.ui['Link copied']) || 'Summary and link copied';
+      lbl.textContent = (L && L.ui['Link copied']) || 'Link copied';
       setTimeout(() => { lbl.innerHTML = before; }, 2200);
     };
     // the clipboard needs https; an http page (a test on the local network) copies the old way
@@ -1718,18 +1717,17 @@
   let driveBy = () => {};
   // The hand (Meer, 13 Oct 2026), as on the home page: most visitors open a khutbah from a shared link, never the home
   // page, so the reader shows them the language line too. Once the line is on screen a hand taps English, then each
-  // translation, the prompt above the line in that language, twice round. Only for a visitor who has not picked a
-  // language ('kt-lang'), on their first three khutbahs at most ('kt-hand'); it stops when they pick one, press play
-  // or start reading. With reduced motion it rests under English and the prompt says it in every language.
+  // translation, three times round, with no words ("the finger doing it three times is enough"). Only for a visitor
+  // who has not picked a language ('kt-lang'), on their first three khutbahs at most ('kt-hand'); it stops when they
+  // pick one, press play or start reading. With reduced motion it rests under English.
   let stopHand = () => {};
   function setupHand() {
-    const finger = document.getElementById('finger'), help = document.getElementById('handHelp'), line = document.getElementById('tongues');
-    if (!finger || !help || !line) return;
+    const finger = document.getElementById('finger'), line = document.getElementById('tongues');
+    if (!finger || !line) return;
     let shown = 0;
     try { if (localStorage.getItem('kt-lang')) return; shown = +localStorage.getItem('kt-hand') || 0; } catch {}
     const order = ['en', ...TR.map(L => L.code)].filter(l => line.querySelector(`button[data-l="${l}"]`));
     if (shown >= 3 || order.length < 2) return;
-    const prompt = l => { const L = TR.find(x => x.code === l), t = L?.ui?.['Tap your language']; return t ? `<span lang="${l}"${L.dir === 'rtl' ? ' dir="rtl"' : ''}>${escHtml(t)}</span>` : 'Tap your language'; };
     const box = finger.parentElement, ring = finger.querySelector('.ring'), still = matchMedia('(prefers-reduced-motion: reduce)').matches;
     // where the fingertip touches the bottom of a language
     const spot = l => {
@@ -1746,24 +1744,19 @@
       on = false; clearTimeout(timer); seen?.disconnect();
       finger.getAnimations().forEach(a => { a.commitStyles?.(); a.cancel(); });
       finger.animate([{ opacity: getComputedStyle(finger).opacity }, { opacity: 0 }], { duration: 250, fill: 'forwards' });
-      help.classList.remove('on'); tapOnly(null);
+      tapOnly(null);
     };
     const run = async () => {
       try { localStorage.setItem('kt-hand', String(shown + 1)); } catch {}
-      if (still) {
-        const p = spot('en');
-        finger.style.transform = at(p); finger.style.opacity = 1;
-        help.innerHTML = order.map(prompt).join(' <span class="sep" aria-hidden="true">·</span> '); help.classList.add('on');
-        return;
-      }
-      for (let round = 0; round < 2 && on; round++) {
+      if (still) { finger.style.transform = at(spot('en')); finger.style.opacity = 1; return; }
+      for (let round = 0; round < 3 && on; round++) {
         let p = spot(order[0]);
         await move({ x: p.x, y: p.y + 30 }, p, 500, { from: { opacity: 0 }, to: { opacity: 1 } });
         for (const [i, l] of order.entries()) {
           if (!on) return;
           if (i) { const q = spot(l); await move(p, q, 650); p = q; }
           if (!on) return;
-          help.innerHTML = prompt(l); help.classList.add('on'); tapOnly(l);
+          tapOnly(l);
           finger.animate([{ transform: at(p) }, { transform: at(p, .86) }, { transform: at(p) }], { duration: 380, delay: 60, easing: 'ease-in-out', fill: 'forwards' });
           ring.animate([{ opacity: .9, transform: 'scale(.4)' }, { opacity: 0, transform: 'scale(1.6)' }], { duration: 650, delay: 160, easing: 'cubic-bezier(.33, 1, .68, 1)' });
           await wait(1500);
@@ -1771,9 +1764,9 @@
         if (!on) return;
         tapOnly(null);
         await move(p, p, 400, { from: { opacity: 1 }, to: { opacity: 0 } });
-        if (round === 0) await wait(1600);
+        if (round < 2) await wait(1600);
       }
-      help.classList.remove('on'); on = false;
+      on = false;
     };
     // start once the fonts have set the line where it stays and it is on screen, clear of the bar and the player
     document.fonts.ready.then(() => {
