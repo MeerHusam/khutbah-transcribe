@@ -320,6 +320,7 @@ Each is exported by its `core/` module and imported from there (`pipeline.js` no
 | 65 | Recitation in the voice tracks cut before "معنا", "الكافرون": imam word times of neighbouring blocks overlapped | `align_imam.js` realigns overlapping blocks together; `recite.js` never ends before its last word; `check_highlight` fails overlaps |
 | 66 | Hadith not marked green when the imam reorders its closing words | `locateSpan` accepts the last three words in another order |
 | 67 | Ayah card's recited part began a word late ("لا" paired with the verse's opening "إلا") | `recitedSpans` grows the part at both ends while the words match |
+| 69 | English voice said an Arabic sentence its text did not have (2 Oct, 2:40) | `madeUpSpeech` (voice/retake.js): 1.5 s or more of voice between two timed words voices the passage again |
 | 68 | Gemini's working notes taken as the transcript (9 Oct: 389 words; analysis, review and Urdu ran on them) | Non-thought parts only; `transcriptProblem` (≥95% Arabic letters, ≥0.8× Groq's words): asked again once, then the next model; `pipeline.js` stops before the analysis; gate check |
 
 ---
