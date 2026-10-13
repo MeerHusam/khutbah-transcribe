@@ -20,6 +20,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Kufam:wght@500;600&family=Readex+Pro:wght@300;400;500&family=Amiri:wght@400;700&family=Amiri+Quran&family=Noto+Naskh+Arabic&family=Noto+Nastaliq+Urdu:wght@400;500&family=Noto+Serif+Bengali:wght@400;500&display=swap" rel="stylesheet">
   <style>
+    /* a quick second tap (−10s twice, a language, the A's) no longer zooms the page on a phone; pinching still zooms
+       (Meer, 13 Oct 2026) */
+    html, .pane, button, a, input, select, label, [role="button"] { touch-action: manipulation; }
     /* The reader in the home page's world (12 Oct 2026): the minbar at night. Green-black ground, gold for
        everything tapped and for the Quran, cream for the imam's words and their translation; no boxes around
        passages, no coloured side borders. One gold language line (read and hear in one tap), one slim gold
