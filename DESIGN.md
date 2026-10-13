@@ -164,6 +164,10 @@ side buttons. Icons from Phosphor (regular weight), never emoji.
 
 - **Language line**: the languages in their own scripts, gold, separated by `·`; the chosen one brighter with a gold
   underline. A tap reads and hears it; العربية is the imam alone. On the home page it plays that language in the card.
+- **The hand**: a visitor who has not picked a language sees a hand tap English, then each translation, the prompt
+  ("Tap your language") above the line in the language tapped: on the home page, and on a khutbah's page (most visitors
+  open a khutbah from a shared link; Meer, 13 Oct 2026), there twice round, on their first three khutbahs at most, and
+  it stops once they pick a language, press play or start reading.
 - **Follow-along**: while a voice plays, the word being said is gold-bright with a 2px gold underline; the phrase being
   read is bright in both panes (matched by meaning, `core/align_phrases.js`), the rest of the passage dimmed. A hadith
   keeps its green, an ayah its gold, lit or dimmed.
