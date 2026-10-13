@@ -421,6 +421,9 @@
     .end-label { margin-top: 10px; text-align: center; font: 500 15px/1.4 var(--display); color: var(--mist); }
     .end-label .tr-inline[lang] { font-size: 16px; font-weight: 400; }
     .after-reader .sources { margin-top: 10px; }
+    .src-more { display: inline-flex; align-items: center; min-height: 44px; margin-top: 6px; padding: 0; border: 0; background: none; cursor: pointer;
+                color: var(--gold); font: 400 15.5px/1.2 var(--text); text-decoration: underline; text-decoration-color: var(--gold-dim); text-underline-offset: 4px; }
+    .src-more:hover { text-decoration-color: var(--gold); }
     .khutbah-nav { display: grid; gap: 0; margin-top: 44px; border-top: 1px solid var(--line-soft); }
     .khutbah-nav a { display: grid; gap: 2px; padding: 16px 2px; border-bottom: 1px solid var(--line-soft); text-decoration: none; }
     .khutbah-nav small { font-size: 13.5px; color: var(--gold); }
@@ -459,12 +462,15 @@
     .pane :is(.reader-chunk[data-near], .tr-chunk[data-follow]) :is(.inline-hadith, .inline-hadith-en, .chunk-hadith-trans) * { color: rgba(147, 221, 183, .38) !important; }
     .pane :is(.reader-chunk[data-near], .tr-chunk[data-follow]) :is(.inline-ayah, .inline-ayah-en, .chunk-quran-translation, .chunk-arabic-quran),
     .pane :is(.reader-chunk[data-near], .tr-chunk[data-follow]) :is(.inline-ayah, .inline-ayah-en, .chunk-quran-translation, .chunk-arabic-quran) * { color: rgba(216, 184, 108, .4) !important; }
-    /* phones: the languages and the three A's on one line */
+    /* phones: the languages and the three A's on one line (Meer, 13 Oct 2026): they shrink with the screen down to
+       320px wide, never above these sizes; a computer keeps its own (20px), however large the screen */
     @media (max-width: 900px) {
-      .r-tools .tongue-line { font-size: 17.5px; gap: 0 8px; }
+      .r-tools { gap: 0 clamp(6px, 2.6vw, 14px); }
+      .r-tools .tongue-line { font-size: clamp(13.5px, 4.5vw, 17.5px); gap: 0 clamp(4px, 1.8vw, 8px); }
+      .r-tools .tongue-line button { padding-left: 1px; padding-right: 1px; }
       .r-size { gap: 0; }
-      .r-size button { min-width: 32px; padding: 0 2px; }
-      .r-size button:nth-child(1) { font-size: 13px; } .r-size button:nth-child(2) { font-size: 16px; } .r-size button:nth-child(3) { font-size: 20px; }
+      .r-size button { min-width: clamp(24px, 7.6vw, 32px); padding: 0 2px; }
+      .r-size button:nth-child(1) { font-size: clamp(11px, 3.3vw, 13px); } .r-size button:nth-child(2) { font-size: clamp(13px, 4.1vw, 16px); } .r-size button:nth-child(3) { font-size: clamp(15.5px, 5.1vw, 20px); }
     }
     @media (max-width: 900px) {
       .back-home { min-height: 34px; margin-top: 0; font-size: 13.5px; }
@@ -473,9 +479,6 @@
       .r-lede { margin-top: 10px; padding-top: 8px; }
       .r-lede .share-text { font-size: calc(16.5px * var(--ts, 1)); line-height: 1.5; }
       .r-lede-links { margin-top: 8px; }
-    }
-    @media (max-width: 380px) {
-      .r-tools .tongue-line { font-size: 16.5px; gap: 0 6px; }
     }
     /* the hand, as on the home page: taps each language in turn, the prompt above the line in that language */
     .r-top { position: relative; z-index: 3; }
@@ -784,17 +787,35 @@
       <div class="sources">
           <div class="section">
             <div class="section-header"><h2>Every ayah <span class="count-badge">${qRefs.length}</span></h2></div>
-            <div class="section-body">${qRefs.map((q, i) => [q, i])
+            ${firstOfList(qRefs.map((q, i) => [q, i])
               .sort(([a, ia], [b, ib]) => (a.surah_number || 999) - (b.surah_number || 999) || (a.ayah_number || 0) - (b.ayah_number || 0) || ia - ib)
-              .map(([q, i]) => renderQuranRef(q, i)).join('')}</div>
+              .map(([q, i]) => renderQuranRef(q, i)), 'ayah', 'ayaat')}
           </div>
           ${hadithRefs.length ? `<div class="section">
             <div class="section-header"><h2>Every hadith <span class="count-badge">${hadithRefs.length}</span></h2></div>
-            <div class="section-body">${hadithRefs.map(renderHadithRef).join('')}</div>
+            ${firstOfList(hadithRefs.map(renderHadithRef), 'hadith', 'hadith')}
           </div>` : ''}
       </div>
       ${khutbahNav()}
     </section>`;
+  }
+
+  // The ayaat and the hadith after the khutbah (Meer, 13 Oct 2026): the first of each list, the rest on a tap, so the
+  // page does not run on.
+  function firstOfList(cards, one, many) {
+    const rest = cards.length - 1;
+    if (rest < 1) return `<div class="section-body">${cards.join('')}</div>`;
+    const label = rest === 1 ? `Show the other ${one}` : `Show the other ${rest} ${many}`;
+    return `<div class="section-body">${cards[0]}<div class="src-rest" hidden>${cards.slice(1).join('')}</div></div>
+            <button type="button" class="src-more" aria-expanded="false" data-more="${label}" onclick="moreSources(this)">${label}</button>`;
+  }
+  function moreSources(btn) {
+    const section = btn.closest('.section'), rest = section.querySelector('.src-rest'), open = rest.hidden;
+    rest.hidden = !open;
+    btn.setAttribute('aria-expanded', String(open));
+    btn.textContent = open ? 'Show less' : btn.dataset.more;
+    const top = section.getBoundingClientRect().top - (document.querySelector('header')?.offsetHeight || 0);
+    if (!open && top < 0) scrollTo({ top: scrollY + top - 12, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   }
 
   // The reader filling the screen under the bar (the opening scrolled away above it).
