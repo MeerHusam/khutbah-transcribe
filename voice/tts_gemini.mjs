@@ -16,12 +16,12 @@
 // at a time, every sentence a text part with its own style note, so the voice carries its tone
 // and pace from one block into the next (blocks voiced alone each start afresh). Each passage is
 // heard back with Groq Whisper (free) and voiced again, up to three takes, if words are missing
-// or added; then the word aligner (align_words.py, .venv-align) finds where each block starts.
+// or added (voice/retake.js; since 13 Oct also a few words said in one place that the text does not have); then the word aligner (align_words.py, .venv-align) finds where each block starts.
 //
 // Job: { out, blocks: [{ i, text, parts?, pause_before? }], block_pause,
 //        model, voice, style, concurrency?, passages?, lang? }
 
-import { retake } from './retake.js';
+import { retake, heardShare, looseWords, scoreOf, ADDED_WORDS } from './retake.js';
 import 'dotenv/config';
 import { GoogleGenAI } from '@google/genai';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
@@ -255,21 +255,6 @@ function passagesOf(blocks, size) {
   return out;
 }
 
-// Words compared loosely: Whisper writes Urdu its own way (مسلمانوں for مسلمانو, ي for ی).
-const looseWords = t => t.normalize('NFC').replace(/[ً-ٰٟٔں]/g, '')
-  .replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/[ةه]/g, 'ہ')
-  .replace(/[^\p{L}\p{N}\s]/gu, ' ').toLowerCase().split(/\s+/).filter(Boolean);
-function heardShare(text, heard) {
-  const a = looseWords(text), b = looseWords(heard);
-  let prev = new Array(b.length + 1).fill(0);
-  for (const x of a) {
-    const row = [0];
-    for (let j = 1; j <= b.length; j++) row[j] = x === b[j - 1] ? prev[j - 1] + 1 : Math.max(prev[j], row[j - 1]);
-    prev = row;
-  }
-  return { said: prev[b.length] / Math.max(1, a.length), extra: b.length / Math.max(1, a.length) };
-}
-
 // The passage as Whisper hears it (Groq, free); null when it cannot be checked.
 async function hear(pcm) {
   const key = process.env.GROQ_API_KEY;
@@ -337,10 +322,11 @@ async function speakPassage(blocks, n) {
     const pcm = await askAround(content, blocks, n);
     const heard = await hear(pcm);
     const share = heard == null ? null : heardShare(text, heard);
-    const score = share ? share.said - Math.max(0, share.extra - 1.15) : 1;
+    const score = scoreOf(share);
     if (!best || score > best.score) best = { pcm, share, score };
     console.error(`  passage ${n + 1} (blocks ${blocks[0].i}-${blocks.at(-1).i}), take ${take}: ${secs(pcm).toFixed(0)} s` +
-      (share ? `, ${Math.round(share.said * 100)}% of the words heard, ${Math.round(share.extra * 100)}% as many words` : ', not checked'));
+      (share ? `, ${Math.round(share.said * 100)}% of the words heard, ${Math.round(share.extra * 100)}% as many words` : ', not checked') +
+      (share?.added >= ADDED_WORDS ? `, ${share.added} words the text does not have: "${share.addedText.slice(0, 120)}"` : ''));
     if (!retake({ take, words, share, score, before })) break; // voice/retake.js
     before = score;
   }
