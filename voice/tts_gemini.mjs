@@ -25,7 +25,7 @@
 import { retake, heardShare, looseWords, scoreOf, madeUpSpeech, MADE_UP_SECONDS } from './retake.js';
 import 'dotenv/config';
 import { GoogleGenAI } from '@google/genai';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync, rmSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { createHash } from 'crypto';
@@ -52,41 +52,74 @@ const keyId = key => createHash('sha1').update(key).digest('hex').slice(0, 12);
 const readLimits = () => { try { return JSON.parse(readFileSync(LIMITS, 'utf8')); } catch { return {}; } };
 const keys = Object.keys(process.env).filter(n => /^GEMINI_API_KEY\d*$/.test(n)).sort()
   .map(name => ({ name, key: process.env[name] })).filter(k => k.key);
-let current = null;
-function client() {
-  const limits = readLimits();
-  const k = keys.find(k => !(limits[keyId(k.key)] > Date.now()));
-  if (!k) return null;
-  if (k !== current?.k) {
-    current = { k, ai: new GoogleGenAI({ apiKey: k.key, ...(process.env.GEMINI_BASE_URL ? { httpOptions: { baseUrl: process.env.GEMINI_BASE_URL } } : {}) }) };
+// One client per key, made the first time the key is used.
+const clients = new Map();
+function clientFor(k) {
+  if (!clients.has(k.name)) {
+    clients.set(k.name, new GoogleGenAI({ apiKey: k.key, ...(process.env.GEMINI_BASE_URL ? { httpOptions: { baseUrl: process.env.GEMINI_BASE_URL } } : {}) }));
     console.error(`  voice key: ${k.name}`);
   }
-  return current.ai;
+  return clients.get(k.name);
 }
-function dailyLimitReached(msg) {
+function dailyLimitReached(msg, k) {
   const m = msg.match(/retry in (?:(\d+)h)?(?:(\d+)m)?(?:([\d.]+)s)?/);
   const secs = m ? (+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0) : 0;
   const midnight = new Date(); midnight.setUTCHours(24, 0, 0, 0);
   const until = secs ? Date.now() + secs * 1000 : midnight.getTime();
-  writeFileSync(LIMITS, JSON.stringify({ ...readLimits(), [keyId(current.k.key)]: until }));
-  console.error(`  ${current.k.name}: daily voice limit reached, until ${new Date(until).toISOString()}`);
+  writeFileSync(LIMITS, JSON.stringify({ ...readLimits(), [keyId(k.key)]: until }));
+  console.error(`  ${k.name}: daily voice limit reached, until ${new Date(until).toISOString()}`);
 }
 
-// At most 8 requests and 9,000 text tokens a minute per key (the limits are 10 and 10,000).
-// Requests the API turns away still count toward the 100 a day: on 3 Oct both voices ran at
-// once, 21 requests went out in one minute, and the day's limit was gone after 31 passages.
-const RPM = 8, TPM = 9000;
-const sent = new Map();
-async function pace(name, tokens) {
+// At most 8 requests and 9,000 text tokens a minute per key (the limits are 10 and 10,000: kept below them, never at
+// them). Requests the API turns away still count toward the 100 a day: on 3 Oct both voices ran at once, 21 requests went
+// out in one minute, and the day's limit was gone after 31 passages. Since 13 Oct 2026 the voices of a khutbah are made
+// side by side, so the count is shared by every voice being made on this Mac: each key's requests of the last minute are
+// kept in <cache>/pace/<key>.json, read and written under a lock. A request takes the first key with room this minute
+// (the keys share the load, each still under its limit), and waits only when every key is full.
+const RPM = +process.env.TTS_RPM || 8, TPM = 9000, WINDOW = +process.env.TTS_PACE_WINDOW_MS || 60_000; // the two settings are for the test
+// A slot is freed a tenth of a window late (6 s): a request reaches Google a moment after it takes its slot, and Google
+// counts it when it arrives, so a window counted here as full is never more than full there.
+const PACE = join(CACHE, 'pace');
+mkdirSync(PACE, { recursive: true });
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function locked(id, fn) {
+  const lock = join(PACE, `${id}.lock`);
   for (;;) {
-    const now = Date.now();
-    const recent = (sent.get(name) ?? []).filter(s => now - s.at < 60_000);
-    sent.set(name, recent);
-    const used = recent.reduce((n, s) => n + s.tokens, 0);
-    if (!recent.length || (recent.length < RPM && used + tokens <= TPM)) { recent.push({ at: now, tokens }); return; }
-    await new Promise(r => setTimeout(r, Math.max(500, 60_000 - (now - recent[0].at))));
+    try { mkdirSync(lock); break; } catch {
+      try { if (Date.now() - statSync(lock).mtimeMs > 10_000) rmSync(lock, { recursive: true, force: true }); } catch { /* gone */ }
+      await sleep(25 + Math.random() * 50);
+    }
+  }
+  try { return fn(); } finally { rmSync(lock, { recursive: true, force: true }); }
+}
+// A slot for a request of `tokens` on key `id` now (0), or how long until there is one (ms).
+const trySlot = (id, tokens) => locked(id, () => {
+  const file = join(PACE, `${id}.json`), now = Date.now();
+  let recent = [];
+  const span = WINDOW * 1.1;
+  try { recent = JSON.parse(readFileSync(file, 'utf8')).filter(x => now - x.at < span); } catch { /* none yet */ }
+  const used = recent.reduce((n, x) => n + x.tokens, 0);
+  const free = !recent.length || (recent.length < RPM && used + tokens <= TPM);
+  if (free) recent.push({ at: now, tokens });
+  writeFileSync(file, JSON.stringify(recent));
+  return free ? 0 : Math.max(Math.min(500, WINDOW / 10), span - (now - recent[0].at));
+});
+// The key for the next request: the first not spent for the day with room this minute; null when every key is spent.
+async function takeKey(tokens) {
+  for (;;) {
+    const limits = readLimits();
+    const open = keys.filter(k => !(limits[keyId(k.key)] > Date.now()));
+    if (!open.length) return null;
+    let wait = Infinity;
+    for (const k of open) {
+      const w = await trySlot(keyId(k.key), tokens);
+      if (!w) return k;
+      wait = Math.min(wait, w);
+    }
+    await sleep(wait);
   }
 }
+async function pace(id, tokens) { for (let w; (w = await trySlot(id, tokens));) await sleep(w); }
 // ponytail: tokens guessed from the request's size (about 3 characters a token); the API does not
 // say before it is asked, and the 10% margin under its limit absorbs the error.
 const tokensOf = content => Math.ceil(JSON.stringify(content).length / 3);
@@ -166,21 +199,21 @@ async function speak(text) {
 // One Gemini request: text parts, each with its style note -> the PCM samples.
 async function ask(content) {
   for (let attempt = 1; ; attempt++) {
-    let onVertex = false;
+    let onVertex = false, k = null;
     const controller = new AbortController();
     try {
-      const ai = client();
-      if (!ai && process.env.VERTEX_API_KEY) {
+      k = await takeKey(tokensOf(content));
+      if (!k && process.env.VERTEX_API_KEY) {
         if (!usage.vertex++) console.error('  every Gemini key has used its day: on to the Agent Platform (VERTEX_API_KEY)');
         onVertex = true;
-        await pace('VERTEX_API_KEY', tokensOf(content));
+        await pace('vertex', tokensOf(content));
         return await deadline(askVertex(content, controller.signal), controller);
       }
-      if (!ai) {
+      if (!k) {
         console.error(`✗ Gemini daily voice limit reached on every key (${keys.map(k => k.name).join(', ') || 'none set'}).\n  Add a key from another Google project as GEMINI_API_KEY<n>, or VERTEX_API_KEY, or wait for the reset.`);
         process.exit(3);
       }
-      await pace(current.k.name, tokensOf(content));
+      const ai = clientFor(k);
       // No SDK retries: it sleeps whatever retry-after the API sends, silently (14 h for the
       // daily limit on 2 Oct). The waits are decided below instead.
       const r = await deadline(ai.interactions.create({
@@ -205,8 +238,8 @@ async function ask(content) {
     } catch (e) {
       const msg = String(e.message ?? e);
       // The daily limit (100 requests per Google project on Tier 1) does not pass in minutes:
-      // on to the next key (client() above stops the run when none is left).
-      if (/per day/i.test(msg) && !onVertex) { dailyLimitReached(msg); attempt--; continue; }
+      // on to the next key (takeKey() above finds none left and the run stops).
+      if (/per day/i.test(msg) && !onVertex && k) { dailyLimitReached(msg, k); attempt--; continue; }
       // A request that cannot succeed (a bad key, a bad request) is not tried again.
       if (attempt >= 6 || (e.status >= 400 && e.status < 500 && e.status !== 429)) throw e;
       // The per-minute limit (10 requests) or a busy server: wait what the API asks, at most 90 s.
@@ -345,7 +378,7 @@ function splitPassages(spans) {
   const py = join(ROOT, '.venv-align', 'bin', 'python');
   if (existsSync(py)) {
     const r = spawnSync(py, [join(ROOT, 'voice', 'align_words.py'), '-'], {
-      input: JSON.stringify({ audio: job.out, lang: job.lang ?? 'ur', iso: job.iso, blocks: spans.map((s, k) => ({ i: k, start: s.start, end: s.end, text: s.blocks.map(b => b.text).join(' ') })) }),
+      input: JSON.stringify({ audio: job.out, lang: job.lang ?? 'ur', iso: job.iso, voice: true, blocks: spans.map((s, k) => ({ i: k, start: s.start, end: s.end, text: s.blocks.map(b => b.text).join(' ') })) }),
       encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, stdio: ['pipe', 'pipe', 'ignore'],
     });
     if (r.status === 0) words = JSON.parse(r.stdout.trim().split('\n').at(-1)).map(x => x.words);
