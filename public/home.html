@@ -423,7 +423,7 @@
       .row .by { font-size: 15px; } .row .sum { font-size: 15.5px; }
       .why, .talk { display: block; padding-top: 64px; }
       .why p { font-size: 17px; }
-      /* on a phone the story's first paragraph and the first hadith; the rest on a tap */
+      /* on a phone the story's first paragraph and the hadith; the rest of the story on a tap */
       .why:not(.open) .more { display: none; }
       .why-more { display: inline-flex; align-items: center; min-height: 44px; margin: -6px 0 0; padding: 0; border: 0; background: none;
                   color: var(--gold); font: 400 16.5px/1 var(--text); text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
@@ -582,21 +582,16 @@
     <div>
       <h2 id="why-h">Why I made this</h2>
       <div style="margin-top:22px">
-        <p>Every Friday I'd look around the masjid and see non-native Arabic speakers chatting, drifting off, or on their phones during the khutbah. Not because they didn't care, but because they couldn't follow it. The khutbah is for all of us, so I wanted everyone in the room to be able to understand it in full, including the ayaat and hadith the imam builds it on.</p>
+        <p>Every Friday, many non-Arabic speakers around me in the masjid couldn't understand the khutbah. The khutbah is for all of us, so I wanted everyone in the room to be able to understand it in full, including the ayaat and hadith the imam builds it on.</p>
         <p class="more" id="whyMore2">For now each khutbah is recorded, translated and put here after Jumu'ah. The next step, and the more important one, is following it in your language while the imam is speaking.</p>
         <p class="more" id="whyMore3">I built Khutbah.dev and look after it. Every khutbah here is one I've processed, reviewed, and chosen to publish. I'm also a hafidh of the Qur'an, alhamdulillah, which is a big part of why the Quranic references matter to me: when the imam recites an ayah, I want every listener to know exactly which ayah it is and what it means.</p>
-        <button type="button" class="why-more" id="whyMore" aria-expanded="false" aria-controls="whyMore2 whyMore3 whyMore4">Read more</button>
+        <button type="button" class="why-more" id="whyMore" aria-expanded="false" aria-controls="whyMore2 whyMore3">Read more</button>
         <p class="sig">Meer Husamuddin<span>AI software engineer, hafidh of the Qur'an, Riyadh</span></p>
         <p class="links"><a href="https://www.linkedin.com/in/meerhusam" target="_blank" rel="noopener">LinkedIn</a><a href="https://github.com/MeerHusam/khutbah-transcribe" target="_blank" rel="noopener">GitHub</a></p>
       </div>
     </div>
     <div class="ahadith">
       <figure class="hadith">
-        <p lang="ar" dir="rtl">إِذَا قُلْتَ لِصَاحِبِكَ يَوْمَ الْجُمُعَةِ أَنْصِتْ. وَالإِمَامُ يَخْطُبُ فَقَدْ لَغَوْتَ</p>
-        <p class="en">“When the Imam is delivering the Khutba, and you ask your companion to keep quiet and listen, then no doubt you have done an evil act.”</p>
-        <figcaption>Abu Huraira, <a href="https://sunnah.com/bukhari:934" target="_blank" rel="noopener">Sahih al-Bukhari 934</a></figcaption>
-      </figure>
-      <figure class="hadith more" id="whyMore4">
         <p lang="ar" dir="rtl">مَنْ تَوَضَّأَ فَأَحْسَنَ الْوُضُوءَ ثُمَّ أَتَى الْجُمُعَةَ فَاسْتَمَعَ وَأَنْصَتَ غُفِرَ لَهُ مَا بَيْنَهُ وَبَيْنَ الْجُمُعَةِ وَزِيَادَةُ ثَلاَثَةِ أَيَّامٍ وَمَنْ مَسَّ الْحَصَى فَقَدْ لَغَا</p>
         <p class="en">“He who performed ablution well, then came to Friday prayer, listened (to the sermon), kept silence all (his sins) between that time and the next Friday would be forgiven with three days extra, and he who touched pebbles caused an interruption.”</p>
         <figcaption>Abu Huraira, <a href="https://sunnah.com/muslim:857b" target="_blank" rel="noopener">Sahih Muslim 857b</a></figcaption>
@@ -616,8 +611,8 @@
       <span class="rail" aria-hidden="true"><span class="rail-fill"></span><span class="rail-head"></span></span>
       <ol class="trail-steps">
         <li class="step" style="--x:7.759%;--y:14.062%"><span class="num">1</span><span class="ico"><svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor"><path d="M128,176a48.05,48.05,0,0,0,48-48V64a48,48,0,0,0-96,0v64A48.05,48.05,0,0,0,128,176ZM96,64a32,32,0,0,1,64,0v64a32,32,0,0,1-64,0Zm40,143.6V240a8,8,0,0,1-16,0V207.6A80.11,80.11,0,0,1,48,128a8,8,0,0,1,16,0,64,64,0,0,0,128,0,8,8,0,0,1,16,0A80.11,80.11,0,0,1,136,207.6Z"/></svg></span><span class="txt"><b>Recorded at Jumu'ah</b><span>The khutbah is recorded in the masjid and sent here the same day.</span></span></li>
-        <li class="step" style="--x:51.724%;--y:14.062%"><span class="num">2</span><span class="ico"><svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor"><path d="M248,92.68a15.86,15.86,0,0,0-4.69-11.31L174.63,12.68a16,16,0,0,0-22.63,0L123.57,41.11l-58,21.77A16.06,16.06,0,0,0,55.35,75.23L32.11,214.68A8,8,0,0,0,40,224a8.4,8.4,0,0,0,1.32-.11l139.44-23.24a16,16,0,0,0,12.35-10.17l21.77-58L243.31,104A15.87,15.87,0,0,0,248,92.68Zm-69.87,92.19L63.32,204l47.37-47.37a28,28,0,1,0-11.32-11.32L52,192.7,71.13,77.86,126,57.29,198.7,130ZM112,132a12,12,0,1,1,12,12A12,12,0,0,1,112,132Zm96-15.32L139.31,48l24-24L232,92.68Z"/></svg></span><span class="txt"><b>Written down</b><span>The imam's Arabic is written out word by word, with the moment each word was said.</span></span></li>
-        <li class="step" style="--x:51.724%;--y:51.562%"><span class="num">3</span><span class="ico"><svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor"><path d="M247.15,212.42l-56-112a8,8,0,0,0-14.31,0l-21.71,43.43A88,88,0,0,1,108,126.93,103.65,103.65,0,0,0,135.69,64H160a8,8,0,0,0,0-16H104V32a8,8,0,0,0-16,0V48H32a8,8,0,0,0,0,16h87.63A87.76,87.76,0,0,1,96,116.35a87.74,87.74,0,0,1-19-31,8,8,0,1,0-15.08,5.34A103.63,103.63,0,0,0,84,127a87.55,87.55,0,0,1-52,17,8,8,0,0,0,0,16,103.46,103.46,0,0,0,64-22.08,104.18,104.18,0,0,0,51.44,21.31l-26.6,53.19a8,8,0,0,0,14.31,7.16L148.94,192h70.11l13.79,27.58A8,8,0,0,0,240,224a8,8,0,0,0,7.15-11.58ZM156.94,176,184,121.89,211.05,176Z"/></svg></span><span class="txt"><b>Translated and checked</b><span>It is translated into English, Urdu and Bengali, then checked again against the Arabic.</span></span></li>
+        <li class="step" style="--x:51.724%;--y:14.062%"><span class="num">2</span><span class="ico"><svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor"><path d="M248,92.68a15.86,15.86,0,0,0-4.69-11.31L174.63,12.68a16,16,0,0,0-22.63,0L123.57,41.11l-58,21.77A16.06,16.06,0,0,0,55.35,75.23L32.11,214.68A8,8,0,0,0,40,224a8.4,8.4,0,0,0,1.32-.11l139.44-23.24a16,16,0,0,0,12.35-10.17l21.77-58L243.31,104A15.87,15.87,0,0,0,248,92.68Zm-69.87,92.19L63.32,204l47.37-47.37a28,28,0,1,0-11.32-11.32L52,192.7,71.13,77.86,126,57.29,198.7,130ZM112,132a12,12,0,1,1,12,12A12,12,0,0,1,112,132Zm96-15.32L139.31,48l24-24L232,92.68Z"/></svg></span><span class="txt"><b>Written down</b><span>The imam's Arabic is written out by AI, with the moment each word was said.</span></span></li>
+        <li class="step" style="--x:51.724%;--y:51.562%"><span class="num">3</span><span class="ico"><svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor"><path d="M247.15,212.42l-56-112a8,8,0,0,0-14.31,0l-21.71,43.43A88,88,0,0,1,108,126.93,103.65,103.65,0,0,0,135.69,64H160a8,8,0,0,0,0-16H104V32a8,8,0,0,0-16,0V48H32a8,8,0,0,0,0,16h87.63A87.76,87.76,0,0,1,96,116.35a87.74,87.74,0,0,1-19-31,8,8,0,1,0-15.08,5.34A103.63,103.63,0,0,0,84,127a87.55,87.55,0,0,1-52,17,8,8,0,0,0,0,16,103.46,103.46,0,0,0,64-22.08,104.18,104.18,0,0,0,51.44,21.31l-26.6,53.19a8,8,0,0,0,14.31,7.16L148.94,192h70.11l13.79,27.58A8,8,0,0,0,240,224a8,8,0,0,0,7.15-11.58ZM156.94,176,184,121.89,211.05,176Z"/></svg></span><span class="txt"><b>Translated and checked</b><span>Translated by AI into English, Urdu and Bengali, then checked line by line against the Arabic.</span></span></li>
         <li class="step" style="--x:7.759%;--y:51.562%"><span class="num">4</span><span class="ico"><svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor"><path d="M232,48H160a40,40,0,0,0-32,16A40,40,0,0,0,96,48H24a8,8,0,0,0-8,8V200a8,8,0,0,0,8,8H96a24,24,0,0,1,24,24,8,8,0,0,0,16,0,24,24,0,0,1,24-24h72a8,8,0,0,0,8-8V56A8,8,0,0,0,232,48ZM96,192H32V64H96a24,24,0,0,1,24,24V200A39.81,39.81,0,0,0,96,192Zm128,0H160a39.81,39.81,0,0,0-24,8V88a24,24,0,0,1,24-24h64ZM160,88h40a8,8,0,0,1,0,16H160a8,8,0,0,1,0-16Zm48,40a8,8,0,0,1-8,8H160a8,8,0,0,1,0-16h40A8,8,0,0,1,208,128Zm0,32a8,8,0,0,1-8,8H160a8,8,0,0,1,0-16h40A8,8,0,0,1,208,160Z"/></svg></span><span class="txt"><b>Sources found</b><span>Every ayah is matched to the mushaf and every hadith to sunnah.com, so you can check them yourself.</span></span></li>
       </ol>
       <a class="trail-end" id="trailEnd" href="#khutbahs">Read the latest khutbah</a>
@@ -918,7 +913,7 @@
 
   // ── How each khutbah is made: the gold line draws itself as the page scrolls, its arrow travelling with it,
   // and each step lights up as the line reaches it. On phones it runs straight down beside the steps.
-  // ── Why I made this, on a phone: Read more shows the rest of the story and the second hadith
+  // ── Why I made this, on a phone: Read more shows the rest of the story
   {
     const why = document.getElementById('why'), more = document.getElementById('whyMore');
     more.addEventListener('click', () => {
