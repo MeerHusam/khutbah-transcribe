@@ -377,7 +377,7 @@
 
     /* the player: part of the page (below the panes), the progress line with the time at both ends, then
        speed · −10s · play · +10s · voice, play in the centre */
-    .audio-player { padding: 0 16px calc(6px + env(safe-area-inset-bottom)); }
+    .audio-player { padding: 8px 16px calc(6px + env(safe-area-inset-bottom)); }
     .audio-player.ready { display: grid; grid-template-columns: 1fr auto auto auto 1fr; grid-template-areas: "bar bar bar bar bar" "speed back play fwd voice"; align-items: center; column-gap: 6px; row-gap: 0; }
     .ap-bar { grid-area: bar; display: flex; align-items: center; gap: 8px; height: 22px; }
     .ap-bar .audio-scrubber { flex: 1; width: auto; margin: 0; height: 22px; }
