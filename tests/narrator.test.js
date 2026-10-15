@@ -83,3 +83,27 @@ test("the chain decides: Claude's narrator is shown when he stands nearer the Pr
   const t2910 = chainOf('حدثنا محمد بن بشار حدثنا أبو بكر الحنفي حدثنا الضحاك بن عثمان عن أيوب بن موسى قال سمعت محمد بن كعب القرظي يقول سمعت عبد الله بن مسعود يقول قال رسول الله صلى الله عليه وسلم');
   assert.equal(chooseNarrator(parseSunnahNarrator("Narrated Muhammad bin Ka'b Al-Qurazi:", "I heard 'Abdullah bin Mas'ud saying"), "Abdullah ibn Mas'ud", t2910), "Abdullah ibn Mas'ud");
 });
+
+// 9 Oct 2026 Makkah: Muslim 5 (the introduction) gives Imam Muslim's own chain as its narrator line, and the card
+// named his teacher. The Companion is the last name on the chain before the Prophet ﷺ; the publish check fails a
+// card that does not name the Companion the imam named ("وعن أبي هريرة رضي الله عنه").
+test("a page whose narrator line is the compiler's chain: the Companion at its end is shown", async () => {
+  const { imamCompanion, namesCompanion } = await import('../core/hadith.js');
+  const narrated = 'Ubayd Allah bin Mu’ādh al-Anbarī narrated to us, my father narrated to us; and Muhammad bin ul-Muthannā narrated to us, Abd ur-Rahman bin Mahdī both narrated to us:';
+  const lead = 'Shu’bah narrated to us, on authority of Khubayb bin Abd ir-Rahman, on authority of Hafs bin Āsim, on authority of Abī Hurayrah, he said, the Messenger of Allah, peace and blessings of Allah upon him, said: ‘It is enough of a lie for a man to narrate everything he hears’.';
+  assert.equal(parseSunnahNarrator(narrated, lead).companion, 'Abu Hurayrah');
+  assert.equal(shown(narrated, lead, 'Abu Hurairah'), 'Abu Hurairah');
+  assert.equal(shown(narrated, lead, 'Hafs bin Asim'), 'Abu Hurayrah');
+
+  const said = 'كفى بالمرء كذبا أن يحدث بكل ما سمع';
+  const t = `وهو عند الله عظيم وعن أبي هريرة رضي الله عنه أن النبي صلى الله عليه وسلم قال ${said} رواه مسلم`;
+  assert.equal(imamCompanion(t, said), 'هريره', '"وعن" is read');
+  assert.ok(namesCompanion('Abu Hurairah', 'هريره') && namesCompanion('Abu Huraira', 'هريره'));
+  assert.ok(!namesCompanion('Ubayd Allah bin Mu’ādh al-Anbarī', 'هريره'));
+  // Said twice, or inside the hadith's own "وإن العبد …": still his; "عبد الله بن عمر" is عمر, not الله.
+  const twice = 'عن عبد الله بن عمر رضي الله عنهما أن النبي صلى الله عليه وسلم قال يا معشر من آمن بلسانه يا معشر من آمن بلسانه ولم يفض الإيمان إلى قلبه';
+  assert.equal(imamCompanion(twice, 'يا معشر من آمن بلسانه ولم يفض الإيمان'), 'عمر');
+  assert.ok(namesCompanion('Abdullah ibn Umar', 'عمر'));
+  const inside = 'عن أبي هريرة رضي الله عنه أن النبي صلى الله عليه وسلم قال إن العبد ليتكلم بالكلمة من رضوان الله وإن العبد ليتكلم بالكلمة من سخط الله';
+  assert.equal(imamCompanion(inside, 'إن العبد ليتكلم بالكلمة من رضوان الله'), 'هريره');
+});

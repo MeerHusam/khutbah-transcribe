@@ -19,9 +19,10 @@
 // Writes result.<field> (result.urdu, result.bengali) and reader_<code>.txt (the reader with the
 // language in place of English).
 //
-// Usage: node core/translate.js outputs/<folder> --lang ur|bn [--batch 12] [--retranslate] [--chunks 13,14] [--dry-run]
+// Usage: node core/translate.js outputs/<folder> --lang ur|bn [--batch 12] [--retranslate] [--chunks 13,14] [--extras] [--dry-run]
 //   Block translations already in result.<field> are kept unless --retranslate (all) or --chunks
-//   (those); verses and hadith are always read again (free, from hadith_data/).
+//   (those); verses and hadith are always read again (free, from hadith_data/). --extras asks the summaries and
+//   narrators' names again (one small call); so does a card whose English narrator changed.
 //   KT_TRANSLATE_MODEL=claude-opus-5-5: the blocks on Opus, as before 10 Oct 2026.
 //   KT_TRANSLATE_CAP: the most a run may spend, in USD (default 2).
 
@@ -280,16 +281,22 @@ const EXTRAS_SCHEMA = {
   additionalProperties: false,
 };
 let extrasBy = result[F]?.extras_model ?? OPUS;
-let extras = !args.includes('--retranslate') && result[F]?.summary ? {
+const hadithList = (result.hadith_references ?? []).map(h => {
+  const m = (h.link ?? '').match(/sunnah\.com\/([a-z]+):(\d+)/);
+  const key = m ? `${m[1]}:${m[2]}` : null;
+  return { key, narrator: h.narrator, collection: h.collection, [F]: key && hadith[key]?.text };
+}).filter(h => h.key);
+// Kept unless --retranslate or --extras, or a card's English narrator is no longer the one its name here was made
+// from (narrators_en, since 15 Oct 2026: the English narrator of 9 Oct Makkah's Muslim 5 card was corrected, and
+// the Bengali kept the wrong name).
+const madeFrom = result[F]?.narrators_en;
+const narratorChanged = madeFrom && hadithList.some(h => (madeFrom[h.key] ?? null) !== (h.narrator ?? null));
+if (narratorChanged) console.log('  a hadith card\'s narrator changed: summaries and names asked again');
+let extras = !args.includes('--retranslate') && !args.includes('--extras') && !narratorChanged && result[F]?.summary ? {
   share_summary: result[F].share_summary, summary: result[F].summary,
   narrators: result[F].narrators ?? {}, surahs: result[F].surahs ?? {},
 } : null;
 if (!extras) {
-  const hadithList = (result.hadith_references ?? []).map(h => {
-    const m = (h.link ?? '').match(/sunnah\.com\/([a-z]+):(\d+)/);
-    const key = m ? `${m[1]}:${m[2]}` : null;
-    return { key, narrator: h.narrator, collection: h.collection, [F]: key && hadith[key]?.text };
-  }).filter(h => h.key);
   const content = [
     L.translate.extras.ask(result.share_summary ?? '', result.summary ?? ''),
     L.translate.extras.hadith,
@@ -358,8 +365,9 @@ result[F] = {
   model: blockCount.map(([m]) => m).join(' + '), block_models: models, extras_model: extrasBy,
   created_at: reuse ? prev.created_at : new Date().toISOString(),
   chunk_translations: blocks,
-  share_summary: extras.share_summary, summary: extras.summary, narrators: extras.narrators, surahs,
-  verses, verse_source: L.quran,
+  share_summary: extras.share_summary, summary: extras.summary, narrators: extras.narrators,
+  narrators_en: Object.fromEntries(hadithList.map(h => [h.key, h.narrator ?? null])),
+  surahs, verses, verse_source: L.quran,
   hadith, hadith_source: `fawazahmed0/hadith-api (${L.hadith.edition}-*)`, gaps,
   usage: { calls: total('calls'), input_tokens: total('input_tokens'), output_tokens: total('output_tokens'),
     cost_usd: round(total('cost_usd')), by_model: byModel },
