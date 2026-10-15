@@ -87,7 +87,7 @@ function recomputeChunksAndZones() {
 
   // Step 2: Rebuild prose chunks
   const CHUNK_SIZE = 30;
-  const proseChunks = buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, segments);
+  const proseChunks = buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, segments, transcript);
   console.log(`  ${proseChunks.length} prose chunks`);
 
   // Step 3: Surface zone-only refs
