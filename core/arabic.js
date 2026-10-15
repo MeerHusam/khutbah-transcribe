@@ -1041,7 +1041,21 @@ function splitsPhrase(words, b) {
   });
 }
 
-function buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSegments) {
+// The word positions where the transcript's lines end. Gemini sometimes writes no sentence punctuation and one phrase
+// to a line instead (9 Oct 2026 Makkah; two runs on 7 Oct): the chunks then broke at Whisper's pauses, all 56 of them
+// mid-sentence ("Brothers and sisters in / Iman (faith), social media…"). Its line ends are the phrase ends.
+function lineEnds(transcript) {
+  const ends = new Set();
+  let n = 0;
+  for (const line of (transcript ?? '').split('\n')) {
+    const k = line.split(/\s+/).filter(Boolean).length;
+    if (k) ends.add(n += k);
+  }
+  return ends;
+}
+
+// transcriptText: the transcript as written, for its line ends when it has no sentence punctuation.
+function buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSegments, transcriptText = null) {
   // Build set of word-index positions where each Whisper segment ends.
   // These are the natural breath/pause boundaries in the imam's speech.
   const segBreaks = new Set();
@@ -1054,19 +1068,27 @@ function buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSeg
   }
 
   // Prefer breaking at SENTENCE ends (Gemini adds . ؟ ! punctuation) so a chunk never
-  // cuts mid-sentence. Fall back to Whisper segment (breath-pause) boundaries when the
-  // transcript has no sentence punctuation (e.g. raw Groq output).
+  // cuts mid-sentence. Without sentence punctuation, when the transcript is written a phrase
+  // to a line (30 words or fewer a line on average): where a line ends and the imam paused
+  // too, nearly always a sentence's end (9 Oct 2026 Makkah: 56 of its 314 line ends, about
+  // 26 words apart), else every line end. Else Whisper segment (breath-pause) boundaries
+  // (e.g. raw Groq output).
   const sentenceBreaks = new Set();
   for (let i = 0; i < transcriptWords.length; i++) {
     if (/[.؟!…]$/.test(transcriptWords[i])) sentenceBreaks.add(i + 1);
   }
-  const breakSet = sentenceBreaks.size ? sentenceBreaks : segBreaks;
+  const lineBreaks = sentenceBreaks.size ? new Set() : lineEnds(transcriptText);
+  const byLine = lineBreaks.size > 1 && lineBreaks.size >= transcriptWords.length / 30;
+  const linePauses = new Set([...lineBreaks].filter(b => segBreaks.has(b)));
+  const byPause = byLine && linePauses.size >= transcriptWords.length / 60;
+  const breakSet = sentenceBreaks.size ? sentenceBreaks : byPause ? linePauses : byLine ? lineBreaks : segBreaks;
   // A hadith's attribution ("متفق عليه.", "رواه البخاري.") closes the hadith, so no block starts
   // with it: on 2 Oct "متفق عليه" opened the next block three times. Only a short attribution
-  // sentence (a sentence end within six words) moves; a long one is the imam's own sentence.
+  // sentence (a sentence or line end within six words) moves; a long one is the imam's own sentence.
+  const ends = breakSet === segBreaks ? new Set() : new Set(breakSet);
   for (const b of [...breakSet]) {
     if (!/^(?:متفق عليه|(?:رواه|اخرجه|خرجه) )/.test(normalizeArabic(transcriptWords.slice(b, b + 3).join(' ')))) continue;
-    if (transcriptWords.slice(b, b + 6).some(w => /[.؟!…]$/.test(w))) breakSet.delete(b);
+    if ([1, 2, 3, 4, 5, 6].some(k => ends.has(b + k))) breakSet.delete(b);
   }
   for (const b of [...breakSet]) if (splitsPhrase(transcriptWords, b)) breakSet.delete(b);
 
@@ -1095,7 +1117,9 @@ function buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSeg
     // on a full sentence. Lowering it shortens blocks without ever cutting mid-sentence.
     // MAX_CHUNK is only a wall for a single runaway sentence, and it DOES cut mid-sentence,
     // so it stays well above MIN_CHUNK and is deliberately rare.
-    const MIN_CHUNK = 10;
+    // Every line end: a line is a phrase (about 6 words), not a sentence, and 20 keeps blocks the size of the
+    // punctuated khutbahs' (median 25–34 words; 12 with 10).
+    const MIN_CHUNK = byLine && !byPause ? 20 : 10;
     const MAX_CHUNK = Math.round(CHUNK_SIZE * 1.5); // hard cap for unusually long sentences
 
     // Collect break points within (from, to), plus 'to' as the final boundary
@@ -1132,7 +1156,7 @@ function buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSeg
         if (end < e) {
           let cut = -1;
           for (let b = end; b > i + MIN_CHUNK; b--) {
-            if ((segBreaks.has(b) || /[،,؛;]$/.test(transcriptWords[b - 1] ?? '')) && !splitsPhrase(transcriptWords, b)) { cut = b; break; }
+            if ((segBreaks.has(b) || lineBreaks.has(b) || /[،,؛;]$/.test(transcriptWords[b - 1] ?? '')) && !splitsPhrase(transcriptWords, b)) { cut = b; break; }
           }
           if (cut > i) end = cut;
           while (end < e && splitsPhrase(transcriptWords, end)) end++;

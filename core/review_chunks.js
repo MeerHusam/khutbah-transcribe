@@ -28,26 +28,33 @@ const chars = p => p.system.map(b => b.text).join('').length + p.messages[0].con
 // does not answer. A hard cap per run (KT_REVIEW_CAP, default $2): a call whose worst case (a token a
 // character in, all of its output limit out, Gemini's twice) would pass it throws.
 export function reviewClient({ anthropic, model, cap = +(process.env.KT_REVIEW_CAP || 2), gemini = geminiJSON }) {
+  // Each call sets its worst case aside before it goes and settles the real cost after, so calls made at the same time
+  // (a round's batches, since 13 Oct 2026) cannot pass the cap together.
   let spent = 0;
-  const guard = worst => {
+  const reserve = worst => {
     if (spent + worst > cap) throw new Error(`review cap: $${spent.toFixed(3)} spent, one call could cost $${worst.toFixed(3)}, the cap is $${cap} (KT_REVIEW_CAP)`);
+    spent += worst;
+    let open = true;
+    return actual => { if (open) { spent += actual - worst; open = false; } };
   };
   return { beta: { messages: { create: async params => {
     let prior = null;
     if (model !== REVIEW_MODEL) {
       const [pin, pout] = geminiPrice(model);
-      guard((chars(params) * pin + 2 * GEMINI_MAX_OUT * pout) / 1e6);
-      const g = await gemini({ model, system: params.system.map(b => b.text).join('\n\n'), content: params.messages[0].content,
-        schema: params.output_config.format.schema, maxOutputTokens: GEMINI_MAX_OUT, thinkingLevel: 'LOW' });
-      spent += g.cost_usd;
+      const settle = reserve((chars(params) * pin + 2 * GEMINI_MAX_OUT * pout) / 1e6);
+      let g;
+      try {
+        g = await gemini({ model, system: params.system.map(b => b.text).join('\n\n'), content: params.messages[0].content,
+          schema: params.output_config.format.schema, maxOutputTokens: GEMINI_MAX_OUT, thinkingLevel: 'LOW' });
+      } finally { settle(g?.cost_usd ?? 0); }
       if (g.ok) return { model, content: [{ type: 'text', text: JSON.stringify(g.json) }], cost_usd: g.cost_usd, stop_reason: 'end_turn',
         usage: { input_tokens: g.usage.input_tokens, output_tokens: g.usage.output_tokens } };
       prior = { model, calls: g.usage.calls, input_tokens: g.usage.input_tokens, output_tokens: g.usage.output_tokens, cost_usd: g.cost_usd };
       console.log(`  ${model}: ${g.why}; asking ${REVIEW_MODEL}`);
     }
-    guard(chars(params) * PRICE_IN + params.max_tokens * PRICE_OUT);
-    const r = await anthropic.beta.messages.create(params);
-    spent += opusCost(r.usage);
+    const settle = reserve(chars(params) * PRICE_IN + params.max_tokens * PRICE_OUT);
+    let r;
+    try { r = await anthropic.beta.messages.create(params); } finally { settle(r ? opusCost(r.usage) : 0); }
     return prior ? { ...r, prior } : r;
   } } } };
 }
@@ -156,9 +163,16 @@ export async function reviewChunks({ anthropic, request, field, key, texts, batc
   let toReview = only ?? texts.map((_, i) => i);
   for (let round = 1; round <= rounds && toReview.length; round++) {
     const changed = new Set();
-    for (let k = 0; k < toReview.length; k += batch) {
-      const indices = toReview.slice(k, k + batch);
-      const response = await anthropic.beta.messages.create(request(indices));
+    // A round's batches at once since 13 Oct 2026 (one after another before): each covers other chunks, and the next round
+    // reads again whatever this one changed. The first goes alone, so the whole translation it carries is cached for the
+    // rest (asked together, each would pay to cache it). Answers are applied in order, as before.
+    const batches = [];
+    for (let k = 0; k < toReview.length; k += batch) batches.push(toReview.slice(k, k + batch));
+    const requests = batches.map(indices => request(indices));
+    const first = batches.length ? await anthropic.beta.messages.create(requests[0]) : null;
+    const responses = [first, ...await Promise.all(requests.slice(1).map(r => anthropic.beta.messages.create(r)))];
+    for (const [n, indices] of batches.entries()) {
+      const response = responses[n];
       // Which model answered (a Gemini answer says so; an Anthropic one names its model), and a Gemini
       // call that went unanswered before Opus took the batch (`prior`).
       if (response.prior) count(response.prior.model, response.prior, response.prior.cost_usd);

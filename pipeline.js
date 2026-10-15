@@ -322,7 +322,7 @@ async function main() {
   const quranZones = dropBorrowedPhrases(prescanForQuranZones(transcriptWords), transcriptWords);
   console.log(` ${quranZones.length} zones detected`);
 
-  const proseChunks = buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSegments);
+  const proseChunks = buildProseChunks(transcriptWords, quranZones, CHUNK_SIZE, transcriptSegments, transcript);
   const analysis = await analyzeWithClaude({ transcript, proseChunks, khutbahType, outDir });
   const { quranRefs, scanRefs, allQuranRefs } = findQuranRefs({ analysis, transcript, transcriptWords, quranZones });
   const { hadithScanRefs, allHadithRefs } = await findHadithRefs({ analysis, transcript, quranZones });

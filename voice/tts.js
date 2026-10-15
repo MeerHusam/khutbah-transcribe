@@ -253,7 +253,9 @@ const job = {
   out: resolve(wav),
   blocks: blocks.map(({ i, text }) => ({ i, text, ...(i === secondBlock ? { pause_before: KHUTBAH_PAUSE } : {}),
     ...(notes ? { parts: notes.get(i) } : {}) })),
-  model, voice, style: direct ? (L?.voice.base ?? GEMINI_BASE) : (L?.voice.style ?? GEMINI_STYLE), concurrency: 2,
+  // Every passage of a voice at once (2 until 13 Oct 2026): a voice takes about as long as its longest passage. The pacing
+  // in tts_gemini.mjs, shared by the voices being made side by side, keeps each key under its limit.
+  model, voice, style: direct ? (L?.voice.base ?? GEMINI_BASE) : (L?.voice.style ?? GEMINI_STYLE), concurrency: 6,
   ...(direct ? { passages: PASSAGE_CHARS, lang, iso: L?.voice.iso ?? 'eng', whisper: L?.voice.whisper ?? 'en', hear: L ? L.voice.hear : true } : {}),
 };
 const chars = blocks.reduce((n, b) => n + b.text.length, 0);

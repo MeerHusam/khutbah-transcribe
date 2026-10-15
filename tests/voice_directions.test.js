@@ -4,7 +4,7 @@
 // alone. A fake client; no network.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { directions } from '../voice/voice_directions.js';
@@ -59,6 +59,24 @@ test('one call directs every voice; each language keeps its notes in its own fil
     await directions({ folder, lang: 'en', blocks: BLOCKS.en, arabic: ARABIC, others: [], client });
     assert.equal(client.asked.length, 1);
     assert.deepEqual(bn.get(2).map(p => p.style), ['bn 2.1']);
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+  }
+});
+
+// 9 Oct 2026 Makkah: the Urdu and Bengali voices, made side by side, each made the call for both ($0.20 twice).
+test('two voices started together make one call between them', async () => {
+  const folder = mkdtempSync(join(tmpdir(), 'directions-test-'));
+  try {
+    const client = fakeClient();
+    const [ur, bn] = await Promise.all([
+      directions({ folder, lang: 'ur', blocks: BLOCKS.ur, arabic: ARABIC, others: others('bn'), client }),
+      directions({ folder, lang: 'bn', blocks: BLOCKS.bn, arabic: ARABIC, others: others('ur'), client }),
+    ]);
+    assert.equal(client.asked.length, 1);
+    assert.deepEqual(ur.get(2).map(p => p.style), ['ur 2.1']);
+    assert.deepEqual(bn.get(2).map(p => p.style), ['bn 2.1']);
+    assert.ok(!existsSync(join(folder, '.directions.lock')), 'the lock is let go');
   } finally {
     rmSync(folder, { recursive: true, force: true });
   }

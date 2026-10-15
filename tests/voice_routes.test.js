@@ -82,6 +82,36 @@ test('a spent key moves to the next key, then to the Agent Platform, and is reme
   }
 });
 
+// 13 Oct 2026: a khutbah's voices are made side by side, three processes at once. Each key's per-minute count is shared
+// by all of them (here a window of 1.5 s and 3 requests, for speed; 60 s and 8 in use), and the requests spread over
+// both keys: no key ever gets more than its allowance in a window, and every block is voiced.
+test('voices made at the same time share each key\'s per-minute allowance and use both keys', async () => {
+  const at = { 'key-a': [], 'key-b': [] };
+  const server = createServer((req, res) => {
+    req.resume();
+    req.on('end', () => {
+      at[req.headers['x-goog-api-key']]?.push(Date.now());
+      setTimeout(() => { res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ id: 'x', outputs: [{ type: 'audio', data: wav() }] })); }, 150);
+    });
+  });
+  await new Promise(r => server.listen(0, r));
+  const dir = mkdtempSync(join(tmpdir(), 'voice-shared-'));
+  try {
+    const env = { GEMINI_API_KEY: 'key-a', GEMINI_API_KEY2: 'key-b', VERTEX_API_KEY: '', GROQ_API_KEY: '', TTS_CACHE_DIR: dir,
+      TTS_RPM: '3', TTS_PACE_WINDOW_MS: '1500', GEMINI_BASE_URL: `http://localhost:${server.address().port}` };
+    const runs = await Promise.all([0, 1, 2].map(v => voice(env, [0, 1, 2, 3].map(i => ({ i, text: `voice ${v} block ${i} ${Date.now()}` })), join(dir, `out${v}.wav`))));
+    for (const r of runs) assert.equal(r.code, 0, r.stderr);
+    assert.equal(at['key-a'].length + at['key-b'].length, 12, 'every block voiced once');
+    assert.ok(at['key-a'].length && at['key-b'].length, 'both keys used');
+    for (const [key, times] of Object.entries(at)) {
+      for (const t of times) assert.ok(times.filter(u => u >= t && u < t + 1500).length <= 3, `${key}: more than 3 requests in a window`);
+    }
+  } finally {
+    server.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 // 5 Oct 2026: a voice request waited over 10 minutes with nothing coming. Now one that has no answer
 // by the deadline (TTS_REQUEST_MS) is abandoned and asked again, and the voice is made.
 test('a request with no answer is abandoned at the deadline and asked again', async () => {

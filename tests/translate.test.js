@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, copyFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, copyFileSync, readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { geminiJSON, geminiPrice } from '../core/gemini_text.js';
@@ -165,6 +165,44 @@ test('the cap: a call that could take the run past it is refused, and nothing is
     assert.equal(run.status, 1);
     assert.match(run.stderr, /call refused/);
     assert.equal(readFileSync(join(dir, 'result.json'), 'utf8'), before);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// 15 Oct 2026: a card's English narrator corrected after the language was made (9 Oct Makkah, Muslim 5: Imam
+// Muslim's teacher → Abu Hurayrah) gets its name in the language asked again; an unchanged one is kept.
+test('a hadith card whose English narrator changed has its name asked again; otherwise the names are kept', { skip: !editions && 'no hadith_data/' }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'translate-test-'));
+  for (const f of ['result.json', 'transcript.txt', 'reader.txt']) copyFileSync(join('tests/fixture', f), join(dir, f));
+  const env = { ...process.env, ANTHROPIC_API_KEY: 'stub', GEMINI_API_KEY: 'stub', STUB_TRANSLATE: '1',
+    KT_TRANSLATE_MODEL: '', KT_TRANSLATE_CAP: '', KT_GEMINI_GAP_MS: '0' };
+  const translate = (...more) => spawnSync(process.execPath, ['--import', './tests/stubs/register.mjs', 'core/translate.js', dir, '--lang', 'ur', ...more], { encoding: 'utf8', env });
+  const read = () => JSON.parse(readFileSync(join(dir, 'result.json'), 'utf8'));
+  const calls = () => read()[UR.field].usage.by_model['gemini-3.8-flash'].calls;
+  try {
+    let run = translate('--retranslate');
+    assert.equal(run.status, 0, run.stderr + run.stdout);
+    const first = read();
+    const h = first.hadith_references.find(x => /sunnah\.com\/[a-z]+:\d+/.test(x.link ?? ''));
+    assert.ok(h, 'the fixture has a linked hadith');
+    const key = h.link.match(/sunnah\.com\/([a-z]+:\d+)/)[1];
+    assert.equal(first[UR.field].narrators_en[key], h.narrator ?? null);
+    const made = calls();
+
+    // Unchanged: the blocks and the names are kept, nothing asked.
+    run = translate();
+    assert.equal(run.status, 0, run.stderr + run.stdout);
+    assert.equal(calls(), made);
+
+    // The English narrator corrected: the names are asked again (one call), the blocks kept.
+    h.narrator = 'Abu Hurayrah';
+    writeFileSync(join(dir, 'result.json'), JSON.stringify(first));
+    run = translate();
+    assert.equal(run.status, 0, run.stderr + run.stdout);
+    assert.match(run.stdout, /narrator changed/);
+    assert.equal(calls(), made + 1);
+    assert.equal(read()[UR.field].narrators_en[key], 'Abu Hurayrah');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

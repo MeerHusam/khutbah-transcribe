@@ -338,6 +338,17 @@ function parseSunnahNarrator(narrated, lead = '') {
   txt = txt.replace(/^on the authority of\s*/i, '');
   const cut = s => s.split(/\s+(?:who|reported|narrated|said|says|relates|relating|that|as saying)\b|\s*[:(]/i)[0]
     .replace(/[\s,:]+$/, '').trim();
+  // The compiler's own chain, as Muslim's introduction gives it: "Ubayd Allah bin Mu'ādh al-Anbarī narrated to us, my
+  // father narrated to us; … Shu'bah narrated to us, on authority of Khubayb …, on authority of Abī Hurayrah, he said,
+  // the Messenger of Allah … said" (Muslim 5, 9 Oct 2026 Makkah). The card named Muslim's teacher; the Companion is
+  // the last one the chain gives before the Prophet ﷺ ("Abī" after "of" is Abu).
+  if (/ narrated to us\b/i.test(txt)) {
+    const chainText = `${txt} ${(lead ?? '').replace(/<[^>]+>/g, '')}`.split(/\b(?:the )?(?:messenger of allah|prophet|apostle of allah)\b/i)[0];
+    const last = [...chainText.matchAll(/\b(?:on (?:the )?authority of|from) ([^,;:]+?)(?=,|;|:| he said\b| who\b| that\b|$)/gi)].at(-1);
+    if (last && !/\bhis (?:father|grandfather)\b/i.test(last[1])) {
+      return { narrator: cut(txt), companion: last[1].trim().replace(/^Ab[īi](?=\s)/, 'Abu'), successor: true };
+    }
+  }
   // "`Amr bin Shu`aib narrated from his father, from his grandfather" — the family isnad is
   // known by that whole phrase; the Companion is the grandfather, whom the page never names.
   const chain = txt.match(/^(.+?) (?:narrated|reported) from his father,? (?:from|on the authority of) his grandfather/i);
@@ -433,6 +444,12 @@ function chainPlace(names, name) {
   const sounds = nameSounds(name);
   return names.findLastIndex(k => k && sounds.some(s => k === s || k === `l${s}`));
 }
+// Whether a card's narrator (English) is the Companion the imam named (imamCompanion's Arabic key): "Abu Hurairah"
+// and هريره are both h-r.
+function namesCompanion(name, key) {
+  const k = consonants([...(key ?? '')].map(c => AR_SOUND[c] ?? '').join(''));
+  return !k || nameSounds(name).some(s => k === s || k === `l${s}`);
+}
 // Whether `name` stands on the chain nearer the Prophet ﷺ than every one of `others`, all found on it.
 function nearerOnChain(chain, name, others) {
   if (!chain || !name || !others.length || others.some(o => sameName(name, o))) return false;
@@ -463,7 +480,7 @@ function chooseNarrator(page, claudeNarrator, chain = null) {
 
 async function fetchSunnahNarrator(slug, number) {
   const page = await fetchSunnahPage(slug, number);
-  return page?.narrated ? parseSunnahNarrator(page.narrated, (page.english ?? '').slice(0, 200)) : null;
+  return page?.narrated ? parseSunnahNarrator(page.narrated, (page.english ?? '').slice(0, 400)) : null;
 }
 
 // Replace each hadith ref's collection/number/link with the canonical sunnah.com
@@ -530,18 +547,22 @@ function imamAttribution(transcript, detectedText) {
 // name followed by "رضي الله عنه/ا/ما/م", within the 60 words before the hadith, with no other hadith
 // ("رواه", "أخرجه", "متفق عليه") or verse ("قال الله", "قال تعالى") between.
 const AR_NAME_STOP = new Set(['بن', 'ابن', 'ابي', 'ابو', 'ام', 'بنت', 'عبد', 'الله', 'امير', 'المومنين']);
+// The hadith's opening is found as whole words, the first time he says it: he can say it twice ("يا معشر من آمن
+// بلسانه يا معشر من آمن بلسانه …"), and "إن العبد ليتكلم" is inside the hadith's own "وإن العبد ليتكلم". Both made it
+// look ambiguous, and "وعن أبي هريرة" was not read (9 Oct 2026 Makkah: no Companion found for its three hadith).
 function imamCompanion(transcript, detectedText) {
-  const tNorm = normalizeArabic(transcript).replace(/[.،,:؛!؟?«»"]/g, ' ');
+  const tNorm = ` ${normalizeArabic(transcript).replace(/[.،,:؛!؟?«»"]/g, ' ').replace(/\s+/g, ' ')} `;
   const dWords = normalizeArabic(detectedText ?? '').replace(/[.،,:؛!؟?«»"]/g, ' ').split(/\s+/).filter(Boolean);
   for (const n of [5, 4, 3]) {
     if (dWords.length < n) continue;
-    const at = unique(tNorm, dWords.slice(0, n).join(' '));
+    const at = tNorm.indexOf(` ${dWords.slice(0, n).join(' ')} `);
     if (at < 0) continue;
     const before = tNorm.slice(0, at).split(/\s+/).filter(Boolean).slice(-60).join(' ');
-    const m = [...before.matchAll(/(?:^|\s)عن\s+((?:\S+\s+){0,4}?\S+)\s+رضي\s+الله\s+عن(?:ه|ها|هما|هم)(?=\s|$)/g)].at(-1);
+    const m = [...before.matchAll(/(?:^|\s)و?عن\s+((?:\S+\s+){0,4}?\S+)\s+رضي\s+الله\s+عن(?:ه|ها|هما|هم)(?=\s|$)/g)].at(-1);
     if (!m) return null;
     if (/(?:^|\s)(?:رواه|اخرجه|متفق\s+عليه|قال\s+الله|قال\s+تعالى)(?=\s|$)/.test(before.slice(m.index + m[0].length))) return null;
-    const key = m[1].split(/\s+/).map(w => normalizeArabicDeep(w)).find(w => w.length >= 3 && !AR_NAME_STOP.has(w));
+    // Kinship words and "الله" are skipped before the deep normalising drops their alef ("الله" → "لله" was the key).
+    const key = m[1].split(/\s+/).filter(w => !AR_NAME_STOP.has(w)).map(w => normalizeArabicDeep(w)).find(w => w.length >= 3);
     return key ?? null;
   }
   return null;
@@ -951,6 +972,7 @@ export {
   parseSunnahNarrator,
   chooseNarrator,
   nearerOnChain,
+  namesCompanion,
   nameKeys,
   fetchSunnahPage,
   cachedSunnahPage,

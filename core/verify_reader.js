@@ -15,7 +15,7 @@ import { pathToFileURL } from 'url';
 import { normalizeArabic, normalizeArabicDeep, splitsPhrase, prescanForQuranZones, dropBorrowedPhrases, transcriptProblem } from './arabic.js';
 import { loadResult } from './reader_chunks.js';
 import { checkEnglish } from './check_english.js';
-import { imamAttribution, imamCompanion, companionOnChain, nearerOnChain, findAttributedHadith, loadHadithCorpus, slugToDisplay } from './hadith.js';
+import { imamAttribution, imamCompanion, companionOnChain, nearerOnChain, namesCompanion, findAttributedHadith, loadHadithCorpus, slugToDisplay } from './hadith.js';
 import { LANGS } from './languages.js';
 import '../public/recited.js';
 
@@ -391,6 +391,12 @@ export function verifyReader(folder, { readerRaw: readerOverride = null, result:
   for (const h of result.hadith_references ?? []) {
     const chain = h.link && h.narrator ? hadithCorpus.find(x => x.link === h.link)?.full : null;
     if (nearerOnChain(chain, h.narrator_claude, [h.narrator])) fail(`hadith card ${h.link} names ${h.narrator}, but ${h.narrator_claude} stands after him on its chain, nearer the Prophet ﷺ: "${(h.detected_text ?? '').slice(0, 50)}"`);
+  }
+  // The card names the Companion the imam named (9 Oct 2026 Makkah: "عن أبي هريرة … كفى بالمرء كذبا", from Muslim's
+  // introduction, carded as Ubayd Allah bin Mu'adh al-Anbari, Imam Muslim's own teacher).
+  for (const h of result.hadith_references ?? []) {
+    const who = h.narrator && h.narrator !== 'unknown' ? imamCompanion(transcript, h.detected_text) : null;
+    if (who && !namesCompanion(h.narrator, who)) fail(`hadith card ${h.link ?? ''} names ${h.narrator}, the imam named ${who}: "${(h.detected_text ?? '').slice(0, 50)}"`);
   }
 
   // ── 5b. An inline (📑) verse must be locatable inside its block's Arabic ──────

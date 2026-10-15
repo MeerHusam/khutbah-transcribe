@@ -12,13 +12,13 @@
 //   1. the recording into audio_files/ (streamable), then pipeline.js --gemini: the Arabic,
 //      the English, the Quran and hadith cards
 //   2. a short title from the summary (one small Claude call)
-//   3. side by side: the English review, then each language's translation and review side by side
-//      (review_english.js, translate.js, review_translation.js) and, locally, the imam's word times
-//      and his delivery (with --clean, also the recording with the hall's echo taken out)
-//   4. verse_excerpts.js: a verse he recited only in part shows (and is voiced) only in part
-//   5. the voices, one after another: each language's (Urdu and Bengali in Orus, a direction per
-//      sentence, a passage at a time), then English (Charon); each then gets its word times (they
-//      come with the voice) and his recitation before each verse
+//   3–5. each voice as soon as its text is final (13 Oct 2026): the English review, its verse parts
+//      (verse_excerpts.js) and the English voice (Charon); beside it, each language's translation and
+//      review (translate.js, review_translation.js), their verse parts, then their voices side by side
+//      (Urdu and Bengali in Orus); locally, the imam's word times, the highlight check and his delivery,
+//      which every voice waits for (with --clean, also the recording with the hall's echo taken out).
+//      A voice is a passage at a time with a direction per sentence; each then gets its word times
+//      (they come with the voice) and his recitation before each verse
 //   6. publish.js: the checks, the test set, then the site's publish API (one page with English
 //      and Urdu); the page is live at once, with no commit and no deploy, and is checked.
 // With --job, every stage is reported to the upload page (/admin/uploads/<id>/status).
@@ -28,7 +28,7 @@
 import 'dotenv/config';
 import Anthropic from '@anthropic-ai/sdk';
 import { spawn, spawnSync } from 'child_process';
-import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync, appendFileSync, copyFileSync, rmSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync, appendFileSync, copyFileSync, rmSync, renameSync } from 'fs';
 import { join, extname, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { siteItems } from './site.js';
@@ -182,83 +182,93 @@ async function main() {
   await run('link preview', 'node', ['scripts/og_image.js', F, '--title', title, '--date', dateText, '--masjid', masjid, '--langs', ['en', ...langs.map(L => L.code)].join(',')], { tries: 1 })
     .catch(e => log(`✗ link preview: ${whyFailed(e)} (the site's own picture is used)`));
 
-  // 3. The English review, then each language's translation and review side by side (API), beside
-  // the imam's timing (local). The review corrects the English the languages then use as their
-  // second reference. All write result.json, so each language works on its own copy of the folder's
-  // result and the copies are merged back (two writers to one file would lose one's work).
-  // A language that fails does not hold back the page: it goes live without it and the language
-  // waits with the voices (logs/voices_pending.json).
+  // 3–5. Each voice starts as soon as its own text is final (13 Oct 2026; before, the three waited for every translation
+  // and then went one after another, about 15 of a run's 24 minutes):
+  //   - the English: its review, its verse parts, then its voice;
+  //   - the other languages: after the English review (their second reference), each translated and reviewed on its own
+  //     copy of the folder's result (two writers to one file would lose one's work), merged back; then their verse parts
+  //     and their voices side by side, one call for both their style notes;
+  //   - beside them, locally, the imam's word times, the check that the page lights the word he says, and his delivery:
+  //     every voice waits for these (its style notes use his delivery, and a failed check stops the run before any
+  //     voice is paid for).
+  // The voices share the Gemini keys' per-minute limits (voice/tts_gemini.mjs paces every voice on this Mac together).
+  // A language that fails does not hold back the page: it goes live without it and the language waits with the voices
+  // (logs/voices_pending.json); so does a voice that cannot be made now.
   await report('translations', { message: langs.map(L => L.name).join(', ') });
   let cleanAudio = null;
-  const failed = [];
+  const failed = [], voiceFailed = [];
+  const imam = (async () => {
+    await step(() => has('words_imam.json'), 'imam word timing', 'node', ['voice/align_imam.js', F, audioOut]);
+    // The word the page lights is the word he is saying: 20 of them heard again (Groq, free); a page
+    // off by a second or more stops here (voice/check_highlight.js, 8 Oct 2026).
+    await step(() => has('highlight_check.json'), 'highlight check', 'node', ['voice/check_highlight.js', F, audioOut]);
+    await step(() => has('delivery_imam.json'), 'imam delivery', PY_ALIGN, ['voice/imam_delivery.py', F, audioOut]);
+    // The hall's echo taken out (clean_audio.py): off since 2 Oct 2026, the imam sounded processed
+    // with it. It never fed the text, cards or timing, only what is heard. --clean turns it back on.
+    if (!flag('--clean')) return;
+    try {
+      const wav = join('audio_files', `${name}-clean.wav`);
+      await step(() => existsSync(join(ROOT, wav)), 'echo removal', PY_CLEAN, ['voice/clean_audio.py', audioOut, F, wav]);
+      await step(() => existsSync(join(ROOT, 'audio_files', `${name}-clean.m4a`)), 'cleaned recording', 'ffmpeg', ['-v', 'error', '-y', '-i', wav, '-af', 'loudnorm=I=-17', '-ac', '1', '-c:a', 'aac', '-b:a', '128k',
+        '-movflags', '+faststart', join('audio_files', `${name}-clean.m4a`)]);
+      cleanAudio = `${name}-clean.m4a`;
+    } catch (e) { log(`echo removal skipped: ${e.message}`); }
+  })();
+  const englishReview = step(() => has('review_en.json'), 'English review', 'node', ['core/review_english.js', F]);
+
+  // A voice, then its word times (they come with the voice; the aligner only if that failed) and the imam's recitation
+  // before each verse. Voiced a passage at a time with a direction per sentence (--direct): about 6 Gemini requests each.
+  let voicing = false;
+  const voice = async (lang, label, args, styleLangs) => {
+    if (!voicing) { voicing = true; await report('voices', { message: `${label} first, the others as their text is ready` }); }
+    try {
+      await run(`${label} voice`, 'node', ['voice/tts.js', F, '--lang', lang, ...args, '--direct-langs', styleLangs.join(','), '--tempo', '1.15']);
+      const m = JSON.parse(readFileSync(join(ROOT, F, `tts_${lang}.json`), 'utf8'));
+      if (!m.blocks.every(b => b.words?.length)) await run(`${lang} word timing`, PY_ALIGN, ['voice/align_words.py', F, lang, ...(langOf(lang) ? [langOf(lang).voice.iso] : [])]);
+      const recitation = cleanAudio ? join('audio_files', `${name}-clean.wav`) : audioOut;
+      await run(`${lang} recitation`, 'node', ['voice/recite.js', F, lang, recitation, '--lift', '2']);
+    } catch (e) {
+      voiceFailed.push(`${label}: ${whyFailed(e)}`.slice(0, 240));
+      log(`✗ ${label} voice: the page goes up without it for now`);
+    }
+  };
+
+  // Which Arabic phrase each translation phrase translates (align_phrases.js, ~9 cents), once every language is in,
+  // while the voices are made: the page lights the Arabic the voice is translating. A page without it lights no part,
+  // so a failure here is logged and the page goes up anyway.
+  let aligning = Promise.resolve();
+  const startAligning = () => {
+    aligning = (resume && existsSync(join(ROOT, F, 'align.json')) ? Promise.resolve(log('= phrase matching (kept)'))
+      : run('phrase matching', 'node', ['core/align_phrases.js', F])).catch(e => log(`✗ phrase matching: ${whyFailed(e)} (the page goes up without it)`));
+  };
+
   await Promise.all([
+    imam,
     (async () => {
-      await step(() => has('review_en.json'), 'English review', 'node', ['core/review_english.js', F]);
+      await englishReview;
+      // Verses recited only in part (verse_excerpts.js): the English parts now, for the English voice.
+      await withResult(() => run('verse excerpts (English)', 'node', ['core/verse_excerpts.js', F, '--keep']));
+      await imam;
+      await voice('en', 'English', ['--direct'], ['en']);
+    })(),
+    (async () => {
+      await englishReview;
       await Promise.all(langs.map(L => translateLang(L, F, has).catch(e => {
         failed.push({ L, why: `${L.name} text: ${whyFailed(e)}` });
         log(`✗ ${L.name}: the page goes up without it for now`);
       })));
-    })(),
-    (async () => {
-      await step(() => has('words_imam.json'), 'imam word timing', 'node', ['voice/align_imam.js', F, audioOut]);
-      // The word the page lights is the word he is saying: 20 of them heard again (Groq, free); a page
-      // off by a second or more stops here (voice/check_highlight.js, 8 Oct 2026).
-      await step(() => has('highlight_check.json'), 'highlight check', 'node', ['voice/check_highlight.js', F, audioOut]);
-      await step(() => has('delivery_imam.json'), 'imam delivery', PY_ALIGN, ['voice/imam_delivery.py', F, audioOut]);
-      // The hall's echo taken out (clean_audio.py): off since 2 Oct 2026, the imam sounded processed
-      // with it. It never fed the text, cards or timing, only what is heard. --clean turns it back on.
-      if (!flag('--clean')) return;
-      try {
-        const wav = join('audio_files', `${name}-clean.wav`);
-        await step(() => existsSync(join(ROOT, wav)), 'echo removal', PY_CLEAN, ['voice/clean_audio.py', audioOut, F, wav]);
-        await step(() => existsSync(join(ROOT, 'audio_files', `${name}-clean.m4a`)), 'cleaned recording', 'ffmpeg', ['-v', 'error', '-y', '-i', wav, '-af', 'loudnorm=I=-17', '-ac', '1', '-c:a', 'aac', '-b:a', '128k',
-          '-movflags', '+faststart', join('audio_files', `${name}-clean.m4a`)]);
-        cleanAudio = `${name}-clean.m4a`;
-      } catch (e) { log(`echo removal skipped: ${e.message}`); }
+      startAligning();
+      const voiced = langs.filter(L => !failed.some(f => f.L === L));
+      if (!voiced.length) return;
+      // Their verse parts, the English ones kept as the English voice said them (--keep).
+      await withResult(() => run('verse excerpts', 'node', ['core/verse_excerpts.js', F, '--keep']));
+      await imam;
+      await Promise.all(voiced.map(L => voice(L.code, L.name, ['--voice', L.voice.name, '--direct'], voiced.map(v => v.code))));
     })(),
   ]);
-
-  // 4. Verses recited only in part.
-  await run('verse excerpts', 'node', ['core/verse_excerpts.js', F]);
-
-  // 4b. Which Arabic phrase each translation phrase translates (align_phrases.js, ~9 cents), while the voices are
-  //     made: the page lights the Arabic the voice is translating. A page without it lights no part, so a failure
-  //     here is logged and the page goes up anyway.
-  const aligning = (resume && existsSync(join(ROOT, F, 'align.json')) ? Promise.resolve(log('= phrase matching (kept)'))
-    : run('phrase matching', 'node', ['core/align_phrases.js', F])).catch(e => log(`✗ phrase matching: ${whyFailed(e)} (the page goes up without it)`));
-
-  // 5. Voices, then the recitation. Both are voiced a passage at a time with a direction per
-  //    sentence (--direct): about 4 Gemini requests each since 3 Oct (13 before; one per block,
-  //    67 for the English, on 2 Oct, when two runs in a day hit the 100-a-day limit), and the word
-  //    times come with the passage split, so align_words.py runs only if that failed.
-  const voiced = langs.filter(L => !failed.some(f => f.L === L));
-  await report('voices', { message: [...voiced.map(L => `${L.name} (${L.voice.name})`), 'English (Charon)'].join(', ') });
-  const recitation = cleanAudio ? join('audio_files', `${name}-clean.wav`) : audioOut;
-  const voices = [...voiced.map(L => [L.code, L.name, ['--voice', L.voice.name, '--direct']]), ['en', 'English', ['--direct']]];
-  // One directions call for all the voices (voice_directions.js): the first voice's run makes it, the
-  // others find theirs ready. The texts are final by now (verse excerpts ran above).
-  const directLangs = ['--direct-langs', voices.map(v => v[0]).join(',')];
-  let done = 0;
-  const voice = async (lang, label, args) => {
-    await run(`${label} voice`, 'node', ['voice/tts.js', F, '--lang', lang, ...args, ...directLangs, '--tempo', '1.15']);
-    if (++done === voices.length) await report('timing');
-    const m = JSON.parse(readFileSync(join(ROOT, F, `tts_${lang}.json`), 'utf8'));
-    if (!m.blocks.every(b => b.words?.length)) await run(`${lang} word timing`, PY_ALIGN, ['voice/align_words.py', F, lang, ...(langOf(lang) ? [langOf(lang).voice.iso] : [])]);
-    await run(`${lang} recitation`, 'node', ['voice/recite.js', F, lang, recitation, '--lift', '2']);
-  };
-  // One after the other: side by side they sent 21 requests in a minute against a limit of 10
-  // (3 Oct), and the turned-away requests counted toward the 100 a day.
-  // A voice that cannot be made now (every key spent, a refusal) does not hold back the page:
-  // it goes live with its text, and the worker adds the voice later (logs/voices_pending.json).
-  const voiceFailed = failed.map(f => f.why);
-  for (const [lang, label, args] of voices) {
-    try { await voice(lang, label, args); } catch (e) {
-      voiceFailed.push(`${label}: ${whyFailed(e)}`.slice(0, 240));
-      log(`✗ ${label} voice: the page goes up without it for now`);
-    }
-  }
-
+  await report('timing');
   await aligning;
+  voiceFailed.unshift(...failed.map(f => f.why));
 
   // 6. Publish: checks, test set, then the site's publish API (one page). The page plays the
   // imam's recording (the echo-removed one with --clean).
@@ -296,16 +306,22 @@ async function translateLang(L, F, has) {
   await run(`${L.name} translation`, 'node', ['core/translate.js', w, '--lang', L.code]);
   await run(`${L.name} review`, 'node', ['core/review_translation.js', w, '--lang', L.code]);
   const own = JSON.parse(readFileSync(join(work, 'result.json'), 'utf8'))[L.field];
-  mergeLock = mergeLock.then(() => {
+  await withResult(() => {
     const r = JSON.parse(readFileSync(join(dir, 'result.json'), 'utf8'));
     r[L.field] = own;
-    writeFileSync(join(dir, 'result.json'), JSON.stringify(r, null, 2), 'utf8');
+    writeFileSync(join(dir, 'result.json.tmp'), JSON.stringify(r, null, 2), 'utf8');
+    renameSync(join(dir, 'result.json.tmp'), join(dir, 'result.json')); // whole, then moved in: a voice may be reading it
     for (const f of [`reader_${L.code}.txt`, `review_${L.code}.json`]) copyFileSync(join(work, f), join(dir, f));
     rmSync(work, { recursive: true, force: true });
   });
-  await mergeLock;
 }
-let mergeLock = Promise.resolve();
+// The steps that write the folder's result.json (a language merged back, the verse parts) one at a time.
+let resultLock = Promise.resolve();
+function withResult(fn) {
+  const p = resultLock.then(fn);
+  resultLock = p.catch(() => {});
+  return p;
+}
 
 // The line of a failed step's output that says what went wrong ("✗ …", "…Error: …"), not the stack.
 const whyFailed = e => (e.tail ?? '').split('\n').map(l => l.trim()).filter(l => /✗|Error\b/.test(l)).pop() ?? e.message;

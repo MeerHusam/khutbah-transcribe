@@ -10,6 +10,31 @@
   ],
   "khutbahs": [
     {
+      "slug": "2026-10-09-al-haram-makkah",
+      "folder": "outputs/2026-10-15T08-23-04_khutbah-2026-10-09-al-haram-makkah",
+      "quran": [
+        "33:70-71",
+        "40:19",
+        "50:18",
+        "49:6",
+        "24:15",
+        "33:58",
+        "3:103",
+        "33:56",
+        "2:201",
+        "2:127-128",
+        "37:180-182"
+      ],
+      "hadith": [
+        "bukhari:6478",
+        "tirmidhi:2032",
+        "muslim:5"
+      ],
+      "hadith_english": {},
+      "corrections": [],
+      "confirmed": false
+    },
+    {
       "slug": "2026-10-09",
       "folder": "outputs/2026-10-09T09-11-11_khutbah-2026-10-09",
       "quran": [
