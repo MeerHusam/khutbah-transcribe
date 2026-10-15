@@ -14,7 +14,7 @@
 
 import 'dotenv/config';
 import Anthropic from '@anthropic-ai/sdk';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
 import { langOf } from '../core/languages.js';
 
@@ -82,11 +82,32 @@ async function ask(anthropic, need, arabic, delivery, effort) {
   return { got, usage: r.usage, stop: r.stop_reason, langs, share: sent.map(n => n / Math.max(sent.reduce((a, b) => a + b, 0), 1)) };
 }
 
+// One folder's directions at a time. Voices made side by side (autopublish, 13 Oct 2026) each ask for the notes
+// of both languages: the first takes this lock and directs both, the other waits and then finds its notes in its
+// file (9 Oct 2026 Makkah: the Urdu and Bengali voices both made the shared call, $0.20 paid twice). A lock
+// whose process has ended is taken over.
+async function oneAtATime(folder, fn) {
+  const lock = join(folder, '.directions.lock');
+  for (;;) {
+    try { mkdirSync(lock); writeFileSync(join(lock, 'pid'), String(process.pid)); break; } catch {
+      let owner = null;
+      try { owner = Number(readFileSync(join(lock, 'pid'), 'utf8')); } catch { /* being made, or gone */ }
+      if (owner) { try { process.kill(owner, 0); } catch (e) { if (e.code === 'ESRCH') { rmSync(lock, { recursive: true, force: true }); continue; } } }
+      await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+  try { return await fn(); } finally { rmSync(lock, { recursive: true, force: true }); }
+}
+
 // blocks: [{ i, text }] as tts.js speaks them in `lang`; arabic: i -> the imam's Arabic for the block;
 // others: [{ lang, blocks }] for the other languages voiced from this folder, directed in the same call
 // and written to their own files, where their tts.js run finds them. Returns i -> [{ text, style }] for
 // `lang`, one per sentence.
-export async function directions({ folder, lang, blocks, arabic, effort = 'high', others = [], client }) {
+export function directions(args) {
+  return oneAtATime(args.folder, () => direct(args));
+}
+
+async function direct({ folder, lang, blocks, arabic, effort = 'high', others = [], client }) {
   const delivery = existsSync(join(folder, 'delivery_imam.json'))
     ? new Map(JSON.parse(readFileSync(join(folder, 'delivery_imam.json'), 'utf8')).blocks.map(d => [d.i, d])) : new Map();
   const all = [{ lang, blocks }, ...others].map(({ lang: l, blocks: bs }) => {
