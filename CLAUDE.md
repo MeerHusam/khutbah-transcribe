@@ -324,6 +324,7 @@ Each is exported by its `core/` module and imported from there (`pipeline.js` no
 | 68 | Gemini's working notes taken as the transcript (9 Oct: 389 words; analysis, review and Urdu ran on them) | Non-thought parts only; `transcriptProblem` (≥95% Arabic letters, ≥0.8× Groq's words): asked again once, then the next model; `pipeline.js` stops before the analysis; gate check |
 | 70 | Hadith card named Imam Muslim's teacher (Muslim 5, 9 Oct Makkah): the page's narrator line is Muslim's chain; the Companion check never ran ("وعن", opening said twice, "الله" as the name) | `parseSunnahNarrator`: last name of a "narrated to us" chain; `imamCompanion` fixed; gate: card narrator = the Companion the imam named (`namesCompanion`); `translate.js` `narrators_en` re-asks a language's names when the English one changes (`--extras`) |
 | 71 | Every block broke mid-sentence: Gemini wrote no punctuation, a phrase to a line (9 Oct Makkah, 56/56) | `buildProseChunks` gets the transcript text: a line end where the imam paused too, else line ends (20 words min); punctuated transcripts as before |
+| 72 | Urdu and Bengali voices failed at once (16 Oct): the other voices' text from `tts.js --blocks-json` cut at 8,192 bytes | exit in the write's callback; `tests/blocks_json.test.js` |
 
 ---
 
