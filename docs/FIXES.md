@@ -527,3 +527,12 @@ Full root-cause analyses and implementation notes for every fix. New fixes go he
 **Root cause:** Gemini 3.6 Flash sometimes writes no sentence punctuation, one phrase to a line instead. `buildProseChunks` breaks blocks at sentence ends, and without them at Whisper's pauses, which fall inside phrases; the line breaks were thrown away when the transcript was split into words.
 
 **Fix:** the transcript's text goes to `buildProseChunks` (pipeline.js, reanalyze.js). With no sentence punctuation and a phrase to a line, a block breaks where a line ends and the imam paused too, which is nearly always a sentence's end (9 Oct: 56 of 314 line ends, about 26 words apart); with too few of those, at every line end with 20 words a block at least; a hadith's attribution on its own line stays with the hadith. 9 Oct Makkah would get 53 blocks (median 22 words, 52 at a line end) where it had 61 (43). A punctuated transcript, every published khutbah's, breaks as before. Test: `tests/chunks.test.js`.
+
+### 72. The Urdu and Bengali voices failed at once: the other voices' text was cut off (16 Oct 2026)
+
+**Symptoms:** on 16 Oct the page went live with the English voice only. The Urdu and Bengali voices both stopped in 0 s with a JSON error, the Bengali text in the Urdu voice's error and the Urdu text in the Bengali one's, each cut at 8,192 bytes.
+
+**Root cause:** a voice directed with `--direct-langs` reads the other voices' blocks from `tts.js --blocks-json` (spawnSync, a pipe). That wrote the JSON and called `process.exit(0)` straight after; on macOS a pipe is written asynchronously, so the process ended with only the first 8,192 bytes sent. A khutbah's blocks are ~19 KB in each language. It cut every time on the Mac's Node 22.14.
+
+**Fix:** `--blocks-json` exits in the write's callback. `tests/blocks_json.test.js` reads the fixture's blocks through a pipe (over 8 KB) and fails on the old code.
+

@@ -220,8 +220,13 @@ const blocks = chunks
   .filter(b => b.text)
   .slice(0, limit || undefined);
 
-// For another voice's run (--direct-langs): what this one would speak, on the last line.
-if (args.includes('--blocks-json')) { process.stdout.write(`\n${JSON.stringify(blocks)}\n`); process.exit(0); }
+// For another voice's run (--direct-langs): what this one would speak, on the last line. It exits once the
+// write is done: on macOS a pipe is written asynchronously, and exiting at once cut the JSON at 8,192 bytes
+// (16 Oct 2026: both the Urdu and Bengali voices failed on it).
+if (args.includes('--blocks-json')) {
+  process.stdout.write(`\n${JSON.stringify(blocks)}\n`, () => process.exit(0));
+  await new Promise(() => {});
+}
 
 if (dryRun) {
   for (const b of blocks) console.log(`[${b.i}] ${b.text}\n`);
