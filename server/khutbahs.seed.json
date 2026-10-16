@@ -1,5 +1,18 @@
 [
   {
+    "folder": "2026-10-16T09-11-13_khutbah-2026-10-16",
+    "slug": "2026-10-16",
+    "title": "Security and Knowing Allah",
+    "speaker": "Friday Khutbah",
+    "masjid": "Askan AlMaather Mosque",
+    "masjid_ar": "جامع إسكان المعذر",
+    "maps_url": "https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6",
+    "date": "16 October 2026",
+    "featured": true,
+    "audio": "khutbah-2026-10-16.m4a",
+    "media_url": "https://media.khutbah.dev/2026-10-16T09-11-13_khutbah-2026-10-16/"
+  },
+  {
     "folder": "2026-10-15T08-23-04_khutbah-2026-10-09-al-haram-makkah",
     "slug": "2026-10-09-al-haram-makkah",
     "title": "Guarding Your Words Online",
@@ -19,7 +32,6 @@
     "masjid_ar": "جامع إسكان المعذر",
     "maps_url": "https://maps.app.goo.gl/J8ghwSqr3yUyrTQA6",
     "date": "9 October 2026",
-    "featured": true,
     "audio": "khutbah-2026-10-09.m4a",
     "media_url": "https://media.khutbah.dev/2026-10-09T09-11-11_khutbah-2026-10-09/"
   },
